@@ -1,0 +1,11703 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Sep 15 11:15:24 2018
+
+@author: gykovacs
+"""
+
+import os
+import pickle
+import itertools
+import logging
+
+import numpy as np
+
+import rare_databases as rd
+
+from sklearn.model_selection import RepeatedStratifiedKFold, KFold, cross_val_score
+from sklearn.neighbors import NearestNeighbors, KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.metrics import log_loss, roc_auc_score, accuracy_score
+from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.cluster import KMeans, AgglomerativeClustering, DBSCAN
+from sklearn.manifold import LocallyLinearEmbedding, TSNE, Isomap
+from sklearn.decomposition import PCA
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
+from sklearn.mixture import GaussianMixture
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+
+from statistics import mode
+
+from scipy.stats import skew
+import scipy.spatial.distance as ssdistance
+import scipy.signal as ssignal
+import scipy.spatial as sspatial
+import scipy.optimize as soptimize
+import scipy.special as sspecial
+
+from scipy.stats.mstats import gmean
+
+from keras.layers import Input, Dense, GaussianNoise
+from keras.models import Model
+
+import minisom
+
+# setting the logging format
+logging.basicConfig(level= logging.DEBUG, format="%(asctime)s:%(levelname)s:%(message)s")
+
+__all__= ['TomekLinkRemoval',
+'CondensedNearestNeighbors',
+'OneSidedSelection',
+'CNNTomekLinks',
+'NeighborhoodCleaningRule',
+'EditedNearestNeighbors',
+'SMOTE',
+'SMOTE_TomekLinks',
+'SMOTE_ENN',
+'Borderline_SMOTE1',
+'Borderline_SMOTE2',
+'ADASYN',
+'AHC',
+'LLE_SMOTE',
+'distance_SMOTE',
+'SMMO',
+'polynom_fit_SMOTE',
+'Stefanowski',
+'ADOMS',
+'Safe_Level_SMOTE',
+'MSMOTE',
+'DE_oversampling',
+'SMOBD',
+'SUNDO',
+'MSYN',
+'SVM_balance',
+'TRIM_SMOTE',
+'SMOTE_RSB',
+'ProWSyn',
+'SL_graph_SMOTE',
+'NRSBoundary_SMOTE',
+'LVQ_SMOTE',
+'SOI_CJ',
+'ROSE',
+'SMOTE_OUT',
+'SMOTE_Cosine',
+'Selected_SMOTE',
+'LN_SMOTE',
+'MWMOTE',
+'PDFOS',
+'IPADE_ID',
+'RWO_sampling',
+'NEATER',
+'DEAGO',
+'Gazzah',
+'MCT',
+'ADG',
+'SMOTE_IPF',
+'KernelADASYN',
+'MOT2LD',
+'V_SYNTH',
+'OUPS',
+'SMOTE_D',
+'SMOTE_PSO',
+'CURE_SMOTE',
+'SOMO',
+'ISOMAP_Hybrid',
+'CE_SMOTE',
+'Edge_Det_SMOTE',
+'CBSO',
+'E_SMOTE',
+'DBSMOTE',
+'ASMOBD',
+'Assembled_SMOTE',
+'SDSMOTE',
+'DSMOTE',
+'G_SMOTE',
+'NT_SMOTE',
+'Lee',
+'SPY',
+'SMOTE_PSOBAT',
+'MDO',
+'Random_SMOTE',
+'ISMOTE',
+'VIS_RST',
+'GASMOTE',
+'A_SUWO',
+'SMOTE_FRST_2T',
+'AND_SMOTE',
+'NRAS',
+'AMSCO',
+'SSO',
+'NDO_sampling',
+'DSRBF',
+'Gaussian_SMOTE',
+'kmeans_SMOTE']
+
+class StatisticsMixin:
+    """
+    Mixin to compute class statistics and determine minority/majority labels
+    """
+    def class_label_statistics(self, X, y):
+        """
+        determines class sizes and minority and majority labels
+        Args:
+            X (np.array): features
+            y (np.array): target labels
+        """
+        unique, counts= np.unique(y, return_counts= True)
+        self.class_stats= dict(zip(unique, counts))
+        self.minority_label= unique[0] if counts[0] < counts[1] else unique[1]
+        self.majority_label= unique[1] if counts[0] < counts[1] else unique[0]
+
+class ParameterCheckingMixin:
+    """
+    Mixin to check if parameters come from a valid range
+    """
+    def check_in_range(self, x, name, r):
+        """
+        Check if parameter is in range
+        Args:
+            x (numeric): the parameter value
+            name (str): the parameter name
+            r (list-like(2)): the lower and upper bound of a range
+        Throws:
+            ValueError
+        """
+        if x < r[0] or x > r[1]:
+            raise ValueError("Value for parameter %s outside the range [%f,%f] is not allowed: %f" % (name, r[0], r[1], x))
+    
+    def check_out_range(self, x, name, r):
+        """
+        Check if parameter is outside of range
+        Args:
+            x (numeric): the parameter value
+            name (str): the parameter name
+            r (list-like(2)): the lower and upper bound of a range
+        Throws:
+            ValueError
+        """
+        if x >= r[0] and x <= r[1]:
+            raise ValueError("Value for parameter %s outside the range [%f,%f] is not allowed: %f" % (name, r[0], r[1], x))
+    
+    def check_less_or_equal(self, x, name, val):
+        """
+        Check if parameter is less than or equal to value
+        Args:
+            x (numeric): the parameter value
+            name (str): the parameter name
+            val (numeric): value to compare to
+        Throws:
+            ValueError
+        """
+        if x > val:
+            raise ValueError("Value for parameter %s greater than %f is not allowed: %f > %f" % (name, val, x, val))
+    
+    def check_less_or_equal_par(self, x, name_x, y, name_y):
+        """
+        Check if parameter is less than or equal to another parameter
+        Args:
+            x (numeric): the parameter value
+            name_x (str): the parameter name
+            y (numeric): the other parameter value
+            name_y (str): the other parameter name
+        Throws:
+            ValueError
+        """
+        if x > y:
+            raise ValueError("Value for parameter %s greater than parameter %s is not allowed: %f > %f" % (name_x, name_y, x, y))
+    
+    def check_less(self, x, name, val):
+        """
+        Check if parameter is less than value
+        Args:
+            x (numeric): the parameter value
+            name (str): the parameter name
+            val (numeric): value to compare to
+        Throws:
+            ValueError
+        """
+        if x >= val:
+            raise ValueError("Value for parameter %s greater than or equal to %f is not allowed: %f >= %f" % (name, val, x, val))
+        
+    def check_less_par(self, x, name_x, y, name_y):
+        """
+        Check if parameter is less than another parameter
+        Args:
+            x (numeric): the parameter value
+            name_x (str): the parameter name
+            y (numeric): the other parameter value
+            name_y (str): the other parameter name
+        Throws:
+            ValueError
+        """
+        if x >= y:
+            raise ValueError("Value for parameter %s greater than or equal to parameter %s is not allowed: %f >= %f" % (name_x, name_y, x, y))
+    
+    def check_greater_or_equal(self, x, name, val):
+        """
+        Check if parameter is greater than or equal to value
+        Args:
+            x (numeric): the parameter value
+            name (str): the parameter name
+            val (numeric): value to compare to
+        Throws:
+            ValueError
+        """
+        if x < val:
+            raise ValueError("Value for parameter %s less than %f is not allowed: %f < %f" % (name, val, x, val))
+        
+    def check_greater_or_equal_par(self, x, name_x, y, name_y):
+        """
+        Check if parameter is less than or equal to another parameter
+        Args:
+            x (numeric): the parameter value
+            name_x (str): the parameter name
+            y (numeric): the other parameter value
+            name_y (str): the other parameter name
+        Throws:
+            ValueError
+        """
+        if x < y:
+            raise ValueError("Value for parameter %s less than parameter %s is not allowed: %f < %f" % (name_x, name_y, x, y))
+    
+    def check_greater(self, x, name, val):
+        """
+        Check if parameter is greater than value
+        Args:
+            x (numeric): the parameter value
+            name (str): the parameter name
+            val (numeric): value to compare to
+        Throws:
+            ValueError
+        """
+        if x <= val:
+            raise ValueError("Value for parameter %s less than or equal to %f is not allowed: %f < %f" % (name, val, x, val))
+        
+    def check_greater_par(self, x, name_x, y, name_y):
+        """
+        Check if parameter is greater than or equal to another parameter
+        Args:
+            x (numeric): the parameter value
+            name_x (str): the parameter name
+            y (numeric): the other parameter value
+            name_y (str): the other parameter name
+        Throws:
+            ValueError
+        """
+        if x <= y:
+            raise ValueError("Value for parameter %s less than or equal to parameter %s is not allowed: %f <= %f" % (name_x, name_y, x, y))
+    
+    def check_equal(self, x, name, val):
+        """
+        Check if parameter is equal to value
+        Args:
+            x (numeric): the parameter value
+            name (str): the parameter name
+            val (numeric): value to compare to
+        Throws:
+            ValueError
+        """
+        if x == val:
+            raise ValueError("Value for parameter %s equal to parameter %f is not allowed: %f == %f" % (name, val, x, val))
+        
+    def check_equal_par(self, x, name_x, y, name_y):
+        """
+        Check if parameter is equal to another parameter
+        Args:
+            x (numeric): the parameter value
+            name_x (str): the parameter name
+            y (numeric): the other parameter value
+            name_y (str): the other parameter name
+        Throws:
+            ValueError
+        """
+        if x == y:
+            raise ValueError("Value for parameter %s equal to parameter %s is not allowed: %f == %f" % (name_x, name_y, x, y))
+    
+    def check_isin(self, x, name, l):
+        """
+        Check if parameter is in list
+        Args:
+            x (numeric): the parameter value
+            name (str): the parameter name
+            l (list): list to check if parameter is in it
+        Throws:
+            ValueError
+        """
+        if not x in l:
+            raise ValueError("Value for parameter %s not in list %s is not allowed: %s" % (name, str(l), str(x)))
+
+class NoiseFilter(StatisticsMixin, ParameterCheckingMixin):
+    """
+    Parent class of noise filtering methods
+    """
+    def __init__(self):
+        """
+        Constructor
+        """
+        pass
+        
+    def remove_noise(X, y):
+        """
+        Removes noise
+        Args:
+            X (np.array): features
+            y (np.array): target labels
+        """
+        pass
+    
+class TomekLinkRemoval(NoiseFilter):
+    """
+    Tomek link removal
+    
+    @article{smoteNoise0,
+             author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
+             title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
+             journal = {SIGKDD Explor. Newsl.},
+             issue_date = {June 2004},
+             volume = {6},
+             number = {1},
+             month = jun,
+             year = {2004},
+             issn = {1931-0145},
+             pages = {20--29},
+             numpages = {10},
+             url = {http://doi.acm.org/10.1145/1007730.1007735},
+             doi = {10.1145/1007730.1007735},
+             acmid = {1007735},
+             publisher = {ACM},
+             address = {New York, NY, USA}
+            } 
+    URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
+    """
+    def __init__(self, strategy= 'remove_majority'):
+        """
+        Constructor
+        Args:
+            strategy (str): noise removal strategy: 'remove_majority'/'remove_both'
+        """
+        super().__init__()
+        self.strategy= strategy
+        
+        self.check_isin(self.strategy, 'strategy', ['remove_majority', 'remove_both'])
+    
+    def remove_noise(self, X, y):
+        """
+        Removes noise from dataset
+        Args:
+            X (np.matrix): features
+            y (np.array): target labels
+        Returns:
+            np.matrix, np.array: dataset after noise removal
+        """
+        logging.info("Running noise removal via %s" % self.__class__.__name__)
+        self.class_label_statistics(X, y)
+        
+        # using 2 neighbors because the first neighbor is the point itself
+        nn= NearestNeighbors(n_neighbors= 2)
+        distances, indices= nn.fit(X).kneighbors(X)
+        
+        # identify links
+        links= []
+        for i in range(len(indices)):
+            if indices[indices[i][1]][1] == i:
+                if not y[indices[i][1]] == y[indices[indices[i][1]][1]]:
+                    links.append((i, indices[i][1]))
+                    
+        # determine links to be removed
+        to_remove= []
+        for l in links:
+            if self.strategy == 'remove_majority':
+                if y[l[0]] == self.minority_label:
+                    to_remove.append(l[1])
+                else:
+                    to_remove.append(l[0])
+            elif self.strategy == 'remove_both':
+                to_remove.append(l[0])
+                to_remove.append(l[1])
+            else:
+                raise ValueError('No Tomek link removal strategy %s implemented' % self.strategy)
+        
+        to_remove= list(set(to_remove))
+        
+        return np.delete(X, to_remove, axis= 0), np.delete(y, to_remove)
+
+class CondensedNearestNeighbors(NoiseFilter):
+    """
+    Condensed nearest neighbors
+    
+    @ARTICLE{condensed_nn, 
+                author={P. Hart}, 
+                journal={IEEE Transactions on Information Theory}, 
+                title={The condensed nearest neighbor rule (Corresp.)}, 
+                year={1968}, 
+                volume={14}, 
+                number={3}, 
+                pages={515-516}, 
+                keywords={Pattern classification}, 
+                doi={10.1109/TIT.1968.1054155}, 
+                ISSN={0018-9448}, 
+                month={May}}
+    """
+    def __init__(self):
+        """
+        Constructor
+        """
+        super().__init__()
+        
+    def remove_noise(self, X, y):
+        """
+        Removes noise from dataset
+        Args:
+            X (np.matrix): features
+            y (np.array): target labels
+        Returns:
+            np.matrix, np.array: dataset after noise removal
+        """
+        logging.info("Running noise removal via %s" % self.__class__.__name__)
+        self.class_label_statistics(X, y)
+        
+        # Initial result set consists of all minority samples and 1 majority sample
+        X_maj= X[y == self.majority_label]
+        X_hat= np.vstack([X[y == self.minority_label], X_maj[0]])
+        y_hat= np.hstack([np.repeat(self.minority_label, len(X_hat)), [self.majority_label]])
+        X_maj= X_maj[1:]
+        
+        # Adding misclassified majority elements repeatedly        
+        while True:
+            knn= KNeighborsClassifier(n_neighbors= 1)
+            knn.fit(X_hat, y_hat)
+            pred= knn.predict(X_maj)
+            if np.all(pred == self.majority_label):
+                break
+            else:
+                X_hat= np.vstack([X_hat, X_maj[pred != self.majority_label]])
+                y_hat= np.hstack([y_hat, np.repeat(self.majority_label, len(X_hat) - len(y_hat))])
+                X_maj= np.delete(X_maj, np.where(pred != self.majority_label)[0], axis= 0)
+        
+        return X_hat, y_hat
+
+class OneSidedSelection(NoiseFilter):
+    """
+    One sided selection is the implementation of the method described in the paper
+    cited below.
+    
+    @article{smoteNoise0,
+             author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
+             title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
+             journal = {SIGKDD Explor. Newsl.},
+             issue_date = {June 2004},
+             volume = {6},
+             number = {1},
+             month = jun,
+             year = {2004},
+             issn = {1931-0145},
+             pages = {20--29},
+             numpages = {10},
+             url = {http://doi.acm.org/10.1145/1007730.1007735},
+             doi = {10.1145/1007730.1007735},
+             acmid = {1007735},
+             publisher = {ACM},
+             address = {New York, NY, USA}
+            } 
+    URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
+    """
+    def __init__(self):
+        """
+        Constructor
+        """
+        super().__init__()
+        
+    def remove_noise(self, X, y):
+        """
+        Removes noise
+        Args:
+            X (np.matrix): features
+            y (np.array): target labels
+        Returns:
+            np.matrix, np.array: cleaned features and target labels
+        """
+        logging.info("Running noise removal via %s" % self.__class__.__name__)
+        self.class_label_statistics(X, y)
+        
+        t= TomekLinkRemoval()
+        X0, y0= t.remove_noise(X, y)
+        cnn= CondensedNearestNeighbors()
+        
+        return cnn.remove_noise(X0, y0)
+
+class CNNTomekLinks(NoiseFilter):
+    """
+    Condensed nearest neighbors with TomekLinks
+    
+    @article{smoteNoise0,
+             author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
+             title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
+             journal = {SIGKDD Explor. Newsl.},
+             issue_date = {June 2004},
+             volume = {6},
+             number = {1},
+             month = jun,
+             year = {2004},
+             issn = {1931-0145},
+             pages = {20--29},
+             numpages = {10},
+             url = {http://doi.acm.org/10.1145/1007730.1007735},
+             doi = {10.1145/1007730.1007735},
+             acmid = {1007735},
+             publisher = {ACM},
+             address = {New York, NY, USA}
+            } 
+    URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
+    """
+    def __init__(self):
+        """
+        Constructor
+        """
+        super().__init__()
+        
+    def remove_noise(self, X, y):
+        """
+        Removes noise
+        Args:
+            X (np.matrix): features
+            y (np.array): target labels
+        Returns:
+            np.matrix, np.array: cleaned features and target labels
+        """
+        logging.info("Running noise removal via %s" % self.__class__.__name__)
+        self.class_label_statistics(X, y)
+        
+        c= CondensedNearestNeighbors()
+        X0, y0= c.remove_noise(X, y)
+        t= TomekLinkRemoval()
+        
+        return t.remove_noise(X0, y0)
+
+class NeighborhoodCleaningRule(NoiseFilter):
+    """
+    @article{smoteNoise0,
+             author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
+             title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
+             journal = {SIGKDD Explor. Newsl.},
+             issue_date = {June 2004},
+             volume = {6},
+             number = {1},
+             month = jun,
+             year = {2004},
+             issn = {1931-0145},
+             pages = {20--29},
+             numpages = {10},
+             url = {http://doi.acm.org/10.1145/1007730.1007735},
+             doi = {10.1145/1007730.1007735},
+             acmid = {1007735},
+             publisher = {ACM},
+             address = {New York, NY, USA}
+            } 
+    URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
+    """
+    def __init__(self):
+        """
+        Constructor
+        """
+        super().__init__()
+        
+    def remove_noise(self, X, y):
+        """
+        Removes noise
+        Args:
+            X (np.matrix): features
+            y (np.array): target labels
+        Returns:
+            np.matrix, np.array: cleaned features and target labels
+        """
+        logging.info("Running noise removal via %s" % self.__class__.__name__)
+        self.class_label_statistics(X, y)
+        
+        # fitting nearest neighbors with proposed parameter
+        # using 4 neighbors because the first neighbor is the point itself
+        nn= NearestNeighbors(n_neighbors= 4)
+        nn.fit(X)
+        distances, indices= nn.kneighbors(X)
+        
+        # identifying the samples to be removed
+        to_remove= []
+        for i in range(len(X)):
+            if y[i] == self.majority_label and mode(y[indices[i][1:]]) == self.minority_label:
+                # if sample i is majority and the decision based on neighbors is minority
+                to_remove.append(i)
+            elif y[i] == self.minority_label and mode(y[indices[i][1:]]) == self.majority_label:
+                # if sample i is minority and the decision based on neighbors is majority
+                for j in indices[i][1:]:
+                    if y[j] == self.majority_label:
+                        to_remove.append(j)
+        
+        # removing the noisy samples and returning the results
+        to_remove= list(set(to_remove))
+        return np.delete(X, to_remove, axis= 0), np.delete(y, to_remove)
+
+class EditedNearestNeighbors(NoiseFilter):
+    """
+    @article{smoteNoise0,
+             author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
+             title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
+             journal = {SIGKDD Explor. Newsl.},
+             issue_date = {June 2004},
+             volume = {6},
+             number = {1},
+             month = jun,
+             year = {2004},
+             issn = {1931-0145},
+             pages = {20--29},
+             numpages = {10},
+             url = {http://doi.acm.org/10.1145/1007730.1007735},
+             doi = {10.1145/1007730.1007735},
+             acmid = {1007735},
+             publisher = {ACM},
+             address = {New York, NY, USA}
+            } 
+    URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
+    """
+    def __init__(self, remove= 'both'):
+        """
+        Constructor
+        Args:
+            remove (str): class to remove from 'both'/'min'/'maj'
+        """
+        super().__init__()
+        self.remove= remove
+        
+        self.check_isin(self.remove, 'remove', ['both', 'min', 'maj'])
+    
+    def check_parameters(self):
+        """
+        Checks if the parameters of the technique are valid
+        """
+        if not self.remove in ['both', 'min', 'maj']:
+            raise ValueError('Remove mode %s not implemented' % self.remove)
+    
+    def remove_noise(self, X, y):
+        """
+        Removes noise
+        Args:
+            X (np.matrix): features
+            y (np.array): target labels
+        Returns:
+            np.matrix, np.array: cleaned features and target labels
+        """
+        logging.info("Running noise removal via %s" % self.__class__.__name__)
+        self.class_label_statistics(X, y)
+        
+        nn= NearestNeighbors(n_neighbors= 4)
+        nn.fit(X)
+        distances, indices= nn.kneighbors(X)
+        
+        to_remove= []
+        for i in range(len(X)):
+            if not y[i] == mode(y[indices[i][1:]]):
+                if self.remove == 'both' or (self.remove == 'min' and y[i] == self.minority_label) or (self.remove == 'maj' and y[i] == self.majority_label):
+                    to_remove.append(i)
+                
+        return np.delete(X, to_remove, axis= 0), np.delete(y, to_remove)
+
+def ballpark_sample(sampler, 
+                    img_file_base= None,
+                    img_file_sampled= None,
+                    use_built_in= 1,
+                    data_maj_user= None,
+                    data_min_user= None,
+                    center_min= np.array([[4.0, 0.0], [3.0, 0.5], [3.0, -1.0]]),
+                    var_min= np.array([np.diag([1.0, 1.0]), np.diag([0.5, 0.5]), np.diag([1.0, 0.5])]),
+                    num_min= np.array([4, 8, 8]),
+                    center_maj= np.array([[0.0, 0.0]]),
+                    var_maj= np.array([np.diag([1.0, 1.0])]),
+                    num_maj= np.array([60])):
+        """
+        Execute ballpark example sampling with plotting
+        Args:
+            sampler (SamplerBase): sampling object
+            img_file_base (str): filename to save the plot of the base data
+            img_file_sampled (str): filename to save the plot of the sampled data
+            use_built_in (int): id of the built in data to be used - 0/1, data
+                                will be generated if no user proveded data is specified
+            data_maj_user (np.matrix): user provided majority data
+            data_min_user (np.matrix): user provided minority data
+            center_min (np.matrix): centers of minority concepts with Gaussian distribution
+            var_min (np.matrix): variances of minority concepts
+            num_min (np.array): number of samples to generate from minority concepts
+            center_maj (np.matrix): center of majority concept
+            var_maj (np.matrix): variance of majority concept
+            num_maj (int): number of samples to generate from the majority concept
+        """
+        import matplotlib.pyplot as plt
+        
+        if use_built_in == 0:
+            data_min= np.array([[ 5.7996138 , -0.25574582], [ 3.0637093 ,  2.11750874],
+                   [ 4.91444087, -0.72380123], [ 1.06414164,  0.08694243],
+                   [ 2.59071708,  0.75283568], [ 3.44834937,  1.46118085],
+                   [ 2.8036378 ,  0.69553702], [ 3.57901791,  0.71870743],
+                   [ 3.81529064,  0.62580927], [ 3.05005506,  0.33290343],
+                   [ 1.83674689,  1.06998465], [ 2.08574889, -0.32686821],
+                   [ 3.49417022, -0.92155623], [ 2.33920982, -1.59057568],
+                   [ 1.95332431, -0.84533309], [ 3.35453368, -1.10178101],
+                   [ 4.20791149, -1.41874985], [ 2.25371221, -1.45181929],
+                   [ 2.87401694, -0.74746037], [ 1.84435381,  0.15715329]])
+                
+            data_maj= np.array([[-1.40972752,  0.07111486], [-1.1873495 , -0.20838002],
+                   [ 0.51978825,  2.1631319 ], [-0.61995016, -0.45111475],
+                   [ 2.6093289 , -0.40993063], [-0.06624482, -0.45882838],
+                   [-0.28836659, -0.59493865], [ 0.345051  ,  0.05188811],
+                   [ 1.75694985,  0.16685025], [ 0.52901288, -0.62341735],
+                   [ 0.09694047, -0.15811278], [-0.37490451, -0.46290818],
+                   [-0.32855088, -0.20893795], [-0.98508364, -0.32003935],
+                   [ 0.07579831,  1.36455355], [-1.44496689, -0.44792395],
+                   [ 1.17083343, -0.15804265], [ 1.73361443, -0.06018163],
+                   [-0.05139342,  0.44876765], [ 0.33731075, -0.06547923],
+                   [-0.02803696,  0.5802353 ], [ 0.20885408,  0.39232885],
+                   [ 0.22819482,  2.47835768], [ 1.48216063,  0.81341279],
+                   [-0.6240829 , -0.90154291], [ 0.54349668,  1.4313319 ],
+                   [-0.65925018,  0.78058634], [-1.65006105, -0.88327625],
+                   [-1.49996313, -0.99378106], [ 0.31628974, -0.41951526],
+                   [ 0.64402186,  1.10456105], [-0.17725369, -0.67939216],
+                   [ 0.12000555, -1.18672234], [ 2.09793313,  1.82636262],
+                   [-0.11711376,  0.49655609], [ 1.40513236,  0.74970305],
+                   [ 2.40025472, -0.5971392 ], [-1.04860983,  2.05691699],
+                   [ 0.74057019, -1.48622202], [ 1.32230881, -2.36226588],
+                   [-1.00093975, -0.44426212], [-2.25927766, -0.55860504],
+                   [-1.12592836, -0.13399132], [ 0.14500925, -0.89070934],
+                   [ 0.90572513,  1.23923502], [-1.25416346, -1.49100593],
+                   [ 0.51229813,  1.54563048], [-1.36854287,  0.0151081 ],
+                   [ 0.08169257, -0.69722099], [-0.73737846,  0.42595479],
+                   [ 0.02465411, -0.36742946], [-1.14532211, -1.23217124],
+                   [ 0.98038343,  0.59259824], [-0.20721222,  0.68062552],
+                   [-2.21596433, -1.96045872], [-1.20519292, -1.8900018 ],
+                   [ 0.47189299, -0.4737293 ], [ 1.18196143,  0.85320018],
+                   [ 0.03255894, -0.77687178], [ 0.32485141, -0.34609381]])
+        elif use_built_in == 1:
+            data_min= np.array([[ 2.24821415,  1.18676469], [ 2.57432259, -0.52937757],
+                               [ 4.03012851, -0.27223403], [ 4.92529272,  0.14430249],
+                               [ 0.3640416 ,  1.26641668], [ 3.59539637,  0.15179343],
+                               [ 1.85245002,  0.44108807], [ 1.92319986,  1.07438521],
+                               [ 1.31302177, -0.66937676], [ 1.29782254, -1.29062634],
+                               [ 1.90836629, -1.73220654], [ 3.41166059, -1.90655422]])
+            data_maj= np.array([[ 1.5978218 ,  0.47715381], [-0.14397666,  0.63448536],
+                               [-0.15443592, -1.38198419], [ 0.2864424 , -1.44299448],
+                               [-1.94354042,  1.071522  ], [ 1.68681563, -0.30805447],
+                               [ 0.18245927,  1.85561426], [-0.20484136,  1.13614876],
+                               [-0.07955036,  0.13771555], [ 1.04595671, -0.42968178],
+                               [-0.09473432, -2.4042022 ], [-1.0116999 , -0.84900863],
+                               [ 1.14975514,  0.25432179], [-0.27432522,  0.06097208],
+                               [ 0.55895491, -0.63200645], [ 1.04855879,  1.31012162],
+                               [ 0.90370109,  0.46469345], [ 1.67266613,  2.27583048],
+                               [-0.93092223, -0.87225695], [-0.9954787 , -0.13147926],
+                               [ 1.52725929,  0.79565553], [ 2.05886293, -1.2115962 ],
+                               [ 0.4724037 , -0.50301013], [ 1.19511606, -2.43229807],
+                               [-0.04131479,  0.28242579], [ 0.64148259, -1.69502588],
+                               [ 0.86751856,  1.41218637], [-0.67012062, -0.82124794],
+                               [-0.47190644, -0.74410928], [-1.88441455, -0.03092223],
+                               [-1.50730107, -0.46354274], [-1.25401701,  1.96476907],
+                               [ 1.58863019, -1.26417484], [-0.77823086,  0.8528338 ],
+                               [ 0.84733373, -0.34732072], [-0.17083489, -1.21026323],
+                               [-1.11201547,  0.77977009], [-0.59840722,  0.50721945],
+                               [ 1.81465074,  0.15076694], [-0.15056923, -0.76463412]])
+        elif not data_maj_user is None and not data_min_user is None:
+            data_maj= data_maj_user
+            data_min= data_min_user
+        else:
+            # generating new data
+            data_maj= np.vstack([np.random.multivariate_normal(center_maj[i], var_maj[i], num_maj[i]) for i in range(len(center_maj))])
+            data_min= np.vstack([np.random.multivariate_normal(center_min[i], var_min[i], num_min[i]) for i in range(len(center_min))])
+        
+        # plotting the base data
+        plt.figure(figsize=(4, 3))
+        plt.scatter(data_maj[:,0], data_maj[:,1], c= 'black', marker='P', s=100, label='majority')
+        plt.scatter(data_min[:,0], data_min[:,1], c= 'r', marker='o', s=70, label='minority')
+        plt.title('Original data sample')
+        plt.xlabel('feature 0')
+        plt.ylabel('feature 1')
+        plt.legend()
+        plt.tight_layout()
+        if not img_file_base is None:
+            plt.savefig(img_file_base)
+        plt.plot()
+        
+        # doing the sampling
+        majority_label= 0
+        minority_label= 1
+        
+        X= np.vstack([data_maj, data_min])
+        y= np.hstack([np.repeat(majority_label, len(data_maj)), np.repeat(minority_label, len(data_min))])
+        
+        X_samp, y_samp= sampler.sample(X, y)
+        X_samp_maj= X_samp[y_samp == majority_label]
+        X_samp_min= X_samp[y_samp == minority_label]
+        
+        # plotting the new data
+        plt.figure(figsize=(4, 3))
+        plt.scatter(X_samp_maj[:,0], X_samp_maj[:,1], c='black', marker='P', s= 100, label='majority')
+        X_samp_min_unique, counts= np.unique(X_samp_min, axis= 0, return_counts= True)
+        samples_by_counts= [X_samp_min_unique[counts == i] for i in range(0, np.max(counts)+1)]
+        if np.max(counts) == 1:
+            plt.scatter(X_samp_min[:,0], X_samp_min[:,1], c='r', marker='o', s= 70, label='minority')
+        else:
+            for i in range(len(samples_by_counts)):
+                if len(samples_by_counts[i]) > 0:
+                    plt.scatter(samples_by_counts[i][:,0], samples_by_counts[i][:,1], c='r', marker='o', s= 70 + 30*(i-1), label=('minority %d' % i))
+        plt.title('%s: %s' % (sampler.__class__.__name__, ", ".join([c for c in sampler.categories])))
+        plt.xlabel('feature 0')
+        plt.ylabel('feature 1')
+        plt.legend()
+        plt.tight_layout()
+        if not img_file_sampled is None:
+            plt.savefig(img_file_sampled)
+        plt.plot()
+
+class SamplingBase(StatisticsMixin, ParameterCheckingMixin):
+    """
+    Base class of all sampling methods
+    """
+    def __init__(self):
+        """
+        Constructor
+        """
+        pass
+    
+    @classmethod
+    def generate_parameter_combinations(cls, dictionary, num= None):
+        """
+        Generates reasonable paramter combinations
+        Args:
+            dictionary (dict): dictionary of paramter ranges
+            num (int): maximum number of combinations to generate
+        """
+        combinations= [dict(zip(list(dictionary.keys()), p)) for p in list(itertools.product(*list(dictionary.values())))]
+        if num is None:
+            return combinations
+        else:
+            return np.random.choice(combinations, num, replace= False)
+    
+class OverSampling(SamplingBase):
+    """
+    Base class of oversampling methods
+    """
+    def __init__(self):
+        super().__init__()
+        # list of category codes assigned to the technique
+        self.categories= []
+    
+    def set_cat_noise_removal(self):
+        """
+        Assigns the noise_removal category to the technique
+        """
+        self.categories.append('NR')
+    
+    def set_cat_dim_reduction(self):
+        """
+        Assigns the dim_reduction category to the technique
+        """
+        self.categories.append('DR')
+    
+    def set_cat_uses_classifier(self):
+        """
+        Assigns the uses_classifier category to the technique
+        """
+        self.categories.append('Clas')
+        
+    def set_cat_sample_componentwise(self):
+        """
+        Assigns the sample_componentwise category to the technique
+        """
+        self.categories.append('SCmp')
+    
+    def set_cat_sample_ordinary(self):
+        """
+        Assigns the sample_ordinary category to the technique
+        """
+        self.categories.append('SO')
+    
+    def set_cat_sample_copy(self):
+        """
+        Assigns the sample_copy category to the technique
+        """
+        self.categories.append('SCpy')
+    
+    def set_cat_memetic(self):
+        """
+        Assigns the memetic category to the technique
+        """
+        self.categories.append('M')
+        
+    def set_cat_density_estimation(self):
+        """
+        Assigns the density_estimation category to the technique
+        """
+        self.categories.append('DE')
+        
+    def set_cat_extensive(self):
+        """
+        Assigns the extensive category to the technique
+        """
+        self.categories.append('Ex')
+        
+    def set_cat_changes_majority(self):
+        """
+        Assigns the changes_majority category to the technique
+        """
+        self.categories.append('CM')
+        
+    def set_cat_uses_clustering(self):
+        """
+        Assigns the uses_clustering category to the technique
+        """
+        self.categories.append('Clus')
+        
+    def set_cat_borderline(self):
+        """
+        Assigns the borderline category to the technique
+        """
+        self.categories.append('BL')
+    
+    def number_of_instances_to_sample(self, strategy, n_maj, n_min):
+        """
+        Determines the number of samples to generate
+        Args:
+            strategy (str/float): if float, the fraction of the difference of
+                                    the minority and majority numbers to generate, like
+                                    0.1 means that 10% of the difference will be generated
+                                    if str, like 'min2maj', the minority class will be upsampled
+                                    to match the cardinality of the majority class
+        """
+        if isinstance(strategy, float) or isinstance(strategy, int):
+            return max(0, int((n_maj - n_min)*strategy))
+        else:
+            raise ValueError("Value %s for parameter strategy is not supported" % strategy)
+    
+    def sample_between_points(self, x, y):
+        """
+        Sample randomly along the line between two points.
+        Args:
+            x (np.array): point 1
+            y (np.array): point 2
+        Returns:
+            np.array: the new sample
+        """
+        return x + (y - x)*np.random.random()
+    
+    def sample_between_points_componentwise(self, x, y, mask= None):
+        """
+        Sample each dimension separately between the two points.
+        Args:
+            x (np.array): point 1
+            y (np.array): point 2
+            mask (np.array): array of 0,1s - specifies which dimensions to sample
+        Returns:
+            np.array: the new sample being generated
+        """
+        if mask is None:
+            return x + (y - x)*np.random.random()
+        else:
+            return x + (y - x)*np.random.random()*mask
+    
+    def sample_by_jittering(self, x, std):
+        """
+        Sample by jittering.
+        Args:
+            x (np.array): base point
+            std (float): standard deviation
+        Returns:
+            np.array: the new sample
+        """
+        return x + (np.random.random() - 0.5)*2.0*std
+    
+    def sample_by_jittering_componentwise(self, x, std):
+        """
+        Sample by jittering componentwise.
+        Args:
+            x (np.array): base point
+            std (np.array): standard deviation
+        Returns:
+            np.array: the new sample
+        """
+        return x + (np.random.random(len(x))-0.5)*2.0 * std
+    
+    def sample_by_gaussian_jittering(self, x, std):
+        """
+        Sample by Gaussian jittering
+        Args:
+            x (np.array): base point
+            std (np.array): standard deviation
+        Returns:
+            np.array: the new sample
+        """
+        return np.random.normal(x, std)
+    
+    def sample(self, X, y):
+        """
+        The samplig function reimplemented in child classes
+        Args:
+            X (np.matrix): features
+            y (np.array): labels
+        Returns:
+            np.matrix, np.array: sampled X and y
+        """
+        return X, y
+    
+    def get_params(self):
+        """
+        Returns the parameters of the object as a dictionary.
+        Returns:
+            dict: the parameters of the object
+        """
+        pass
+    
+    def descriptor(self):
+        """
+        Returns:
+            str: JSON description of the current sampling object
+        """
+        return str((self.__class__.__name__, str(self.get_params())))
+
+class UnderSampling(SamplingBase):
+    """
+    Base class of undersampling approaches.
+    """
+    def __init__(self):
+        """
+        Constructor
+        """
+        super().__init__()
+    
+    def sample(self, X, y):
+        """
+        Carry out undersampling
+        Args:
+            X (np.matrix): features
+            y (np.array): labels
+        Returns:
+            np.matrix, np.array: sampled X and y
+        """
+        pass
+    
+    def get_params(self):
+        """
+        Returns the parameters of the object as a dictionary.
+        Returns:
+            dict: the parameters of the object
+        """
+        pass
+    
+    def descriptor(self):
+        """
+        Returns:
+            str: JSON description of the current sampling object
+        """
+        return str((self.__class__.__name__, str(self.get_params())))
+
+class SMOTE(OverSampling):
+    """
+    @article{smote,
+              author={N. V. Chawla and K. W. Bowyer and L. O. Hall and W. P. Kegelmeyer},
+              title={{SMOTE}: synthetic minority over-sampling technique},
+              journal={Journal of Artificial Intelligence Research},
+              volume={16},
+              year={2002},
+              pages={321--357}
+            }
+    URL: https://drive.google.com/open?id=1DSPXx8aaVkoNASNPue-O2_4OTu5HzZ2Z
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5):
+        """
+        Constructor of the SMOTE object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): control parameter of the nearest neighbor technique
+        """
+        super().__init__()
+        
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        
+        self.set_cat_sample_ordinary()
+        self.set_cat_extensive()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_parameter_combinations({'proportion': [0.25, 0.5, 0.75, 1.0], 'n_neighbors': [3, 5, 7]})
+                
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        X_min= X[y == self.minority_label]
+        
+        # fitting the model
+        nn= NearestNeighbors(self.n_neighbors+1)
+        nn.fit(X)
+        dist, ind= nn.kneighbors(X_min)
+        
+        # determining the number of samples to generate
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        # generating samples
+        samples= []
+        for _ in range(num_to_sample):
+            base_idx= np.random.randint(len(X_min))
+            neighbor_idx= np.random.choice(ind[base_idx][1:])
+            samples.append(self.sample_between_points(X_min[base_idx], X[neighbor_idx]))
+        
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.hstack([self.minority_label]*num_to_sample)])
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+
+class SMOTE_TomekLinks(OverSampling):
+    """
+    @article{smoteNoise0,
+             author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
+             title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
+             journal = {SIGKDD Explor. Newsl.},
+             issue_date = {June 2004},
+             volume = {6},
+             number = {1},
+             month = jun,
+             year = {2004},
+             issn = {1931-0145},
+             pages = {20--29},
+             numpages = {10},
+             url = {http://doi.acm.org/10.1145/1007730.1007735},
+             doi = {10.1145/1007730.1007735},
+             acmid = {1007735},
+             publisher = {ACM},
+             address = {New York, NY, USA},
+            } 
+    URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5):
+        """
+        Constructor of the SMOTE object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): control parameter of the nearest neighbor technique
+        """
+        super().__init__()
+        
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        
+        self.set_cat_sample_ordinary()
+        self.set_cat_noise_removal()
+        self.set_cat_changes_majority()
+
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return SMOTE.parameter_combinations()
+
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        smote= SMOTE(self.proportion, self.n_neighbors)
+        X_new, y_new= smote.sample(X, y)
+        
+        t= TomekLinkRemoval(strategy= 'remove_both')
+        
+        return t.remove_noise(X_new, y_new)
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+    
+class SMOTE_ENN(OverSampling):
+    """
+    @article{smoteNoise0,
+             author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
+             title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
+             journal = {SIGKDD Explor. Newsl.},
+             issue_date = {June 2004},
+             volume = {6},
+             number = {1},
+             month = jun,
+             year = {2004},
+             issn = {1931-0145},
+             pages = {20--29},
+             numpages = {10},
+             url = {http://doi.acm.org/10.1145/1007730.1007735},
+             doi = {10.1145/1007730.1007735},
+             acmid = {1007735},
+             publisher = {ACM},
+             address = {New York, NY, USA},
+            } 
+    URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5):
+        """
+        Constructor of the SMOTE object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): control parameter of the nearest neighbor technique
+        """
+        super().__init__()
+        
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        
+        self.set_cat_sample_ordinary()
+        self.set_cat_noise_removal()
+        self.set_cat_changes_majority()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return SMOTE.parameter_combinations()
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        smote= SMOTE(self.proportion, self.n_neighbors)
+        X_new, y_new= smote.sample(X, y)
+        
+        enn= EditedNearestNeighbors()
+        
+        return enn.remove_noise(X_new, y_new)
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+
+class Borderline_SMOTE1(OverSampling):
+    """
+    @InProceedings{borderline_SMOTE,
+                    author="Han, Hui
+                    and Wang, Wen-Yuan
+                    and Mao, Bing-Huan",
+                    editor="Huang, De-Shuang
+                    and Zhang, Xiao-Ping
+                    and Huang, Guang-Bin",
+                    title="Borderline-SMOTE: A New Over-Sampling Method in Imbalanced Data Sets Learning",
+                    booktitle="Advances in Intelligent Computing",
+                    year="2005",
+                    publisher="Springer Berlin Heidelberg",
+                    address="Berlin, Heidelberg",
+                    pages="878--887",
+                    isbn="978-3-540-31902-3"
+                    }
+    URL: https://drive.google.com/open?id=1dlG3wtxMIuiWgmd08nP9KN-Wq7dXTReb
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5, k_neighbors= 5):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): control parameter of the nearest neighbor technique for determining the borderline
+            k_neighbors (int): control parameter of the nearest neighbor technique for sampling
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, 'proportion', 0)
+        self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
+        self.check_greater_or_equal(k_neighbors, 'k_neighbors', 1)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        self.k_neighbors= k_neighbors
+        
+        self.set_cat_sample_ordinary()
+        self.set_cat_extensive()
+        self.set_cat_borderline()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.5, 1.0], 'n_neighbors': [3, 5, 7], 'k_neighbors': [3, 5, 7]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # determining number of samples to be generated
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        # fitting model
+        X_min= X[y == self.minority_label]
+        nn= NearestNeighbors(self.n_neighbors+1)
+        nn.fit(X)
+        distances, indices= nn.kneighbors(X_min)
+        
+        # determining minority samples in danger
+        noise= []
+        danger= []
+        for i in range(len(indices)):
+            if self.n_neighbors == sum(y[indices[i][1:]] == self.majority_label):
+                noise.append(i)
+            if mode(y[indices[i][1:]]) == self.majority_label:
+                danger.append(i)
+        X_danger= X_min[danger]
+        
+        # fitting nearest neighbors model to minority samples
+        nn= NearestNeighbors(self.k_neighbors + 1)
+        nn.fit(X_min)
+        # extracting neighbors of samples in danger
+        distances, indices= nn.kneighbors(X_danger)
+        
+        # generating samples near points in danger
+        samples= []
+        for _ in range(num_to_sample):
+            index= np.random.randint(len(indices))
+            samples.append(self.sample_between_points(X_danger[index], X_min[np.random.choice(indices[index][1:])]))
+            
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'k_neighbors': self.k_neighbors}
+    
+class Borderline_SMOTE2(OverSampling):
+    """
+    @InProceedings{borderline_SMOTE,
+                    author="Han, Hui
+                    and Wang, Wen-Yuan
+                    and Mao, Bing-Huan",
+                    editor="Huang, De-Shuang
+                    and Zhang, Xiao-Ping
+                    and Huang, Guang-Bin",
+                    title="Borderline-SMOTE: A New Over-Sampling Method in Imbalanced Data Sets Learning",
+                    booktitle="Advances in Intelligent Computing",
+                    year="2005",
+                    publisher="Springer Berlin Heidelberg",
+                    address="Berlin, Heidelberg",
+                    pages="878--887",
+                    isbn="978-3-540-31902-3"
+                    }
+    URL: https://drive.google.com/open?id=1dlG3wtxMIuiWgmd08nP9KN-Wq7dXTReb
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5, k_neighbors= 5):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): control parameter of the nearest neighbor technique for determining the borderline
+            k_neighbors (int): control parameter of the nearest neighbor technique for sampling
+        """
+        super().__init__()
+        
+        self.check_greater_or_equal(proportion, 'proportion', 0)
+        self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
+        self.check_greater_or_equal(k_neighbors, 'k_neighbors', 1)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        self.k_neighbors= k_neighbors
+        
+        self.set_cat_sample_ordinary()
+        self.set_cat_extensive()
+        self.set_cat_borderline()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.5, 1.0], 'n_neighbors': [3, 5, 7], 'k_neighbors': [3, 5, 7]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # determining number of samples to be generated
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        # fitting nearest neighbors model
+        X_min= X[y == self.minority_label]
+        nn= NearestNeighbors(self.n_neighbors+1)
+        nn.fit(X)
+        distances, indices= nn.kneighbors(X_min)
+        
+        # determining minority samples in danger
+        noise= []
+        danger= []
+        for i in range(len(indices)):
+            if self.n_neighbors == sum(y[indices[i][1:]] == self.majority_label):
+                noise.append(i)
+            if mode(y[indices[i][1:]]) == self.majority_label:
+                danger.append(i)
+        X_danger= X_min[danger]
+        
+        # fitting nearest neighbors model to minority samples
+        nn= NearestNeighbors(self.k_neighbors + 1)
+        nn.fit(X)
+        distances, indices= nn.kneighbors(X_danger)
+        
+        # generating samples near points in danger
+        samples= []
+        for _ in range(num_to_sample):
+            index= np.random.randint(len(X_danger))
+            neighbor_index= np.random.choice(indices[index][1:])
+            
+            r= np.random.random()
+            diff= X[neighbor_index] - X_danger[index]
+            if y[neighbor_index] == self.minority_label:
+                samples.append(X_danger[index] + r*diff)
+            else:
+                samples.append(X_danger[index] + r/2.0*diff)
+        
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'k_neighbors': self.k_neighbors}
+
+class ADASYN(OverSampling):
+    """
+    @inproceedings{adasyn,
+                  author={H. He and Y. Bai and E. A. Garcia and S. Li},
+                  title={{ADASYN}: adaptive synthetic sampling approach for imbalanced learning},
+                  booktitle={Proceedings of IJCNN},
+                  year={2008},
+                  pages={1322--1328}
+                }
+    URL: https://drive.google.com/open?id=1CiybjtmNVe4wo3t36VG82lB10IBmjv17
+    """
+    def __init__(self, n_neighbors= 5, d_th= 0.9, beta= 1.0):
+        """
+        Constructor of the sampling object
+        Args:
+            n_neighbors (int): control parameter of the nearest neighbor component
+            d_th (float): tolerated deviation level from balancedness
+            beta (float): target level of balancedness, same as proportion in other techniques
+        """
+        super().__init__()
+        
+        self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
+        self.check_greater_or_equal(d_th, 'd_th', 0)
+        self.check_greater_or_equal(beta, 'beta', 0)
+        
+        self.n_neighbors= n_neighbors
+        self.d_th= d_th
+        self.beta= beta
+        
+        self.set_cat_sample_ordinary()
+        self.set_cat_extensive()
+        self.set_cat_borderline()
+        self.set_cat_density_estimation()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_parameter_combinations({'n_neighbors': [3, 5, 7, 9], 'd_th': [0.9], 'beta': [1.0, 0.75, 0.5, 0.25]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # extracting minority samples
+        X_min= X[y == self.minority_label]
+        
+        # checking if sampling is needed
+        m_min= len(X_min)
+        m_maj= len(X) - m_min
+        d= float(m_min)/m_maj
+        if d > self.d_th:
+            return X, y
+        
+        # fitting nearest neighbors model to all samples
+        nn= NearestNeighbors(self.n_neighbors+1)
+        nn.fit(X)
+        distances, indices= nn.kneighbors(X_min)
+        
+        # determining the distribution of points to be generated
+        r= []
+        for i in range(len(indices)):
+            r.append(sum(y[indices[i][1:]] == self.majority_label)/self.n_neighbors)
+        r= np.array(r)
+        r= r/sum(r)
+        
+        num_to_sample= (m_maj - m_min)*self.beta
+        
+        # fitting nearest neighbors models to minority samples
+        nn= NearestNeighbors(self.n_neighbors + 1)
+        nn.fit(X_min)
+        distances, indices= nn.kneighbors(X_min)
+        
+        # sampling points
+        samples= []
+        while len(samples) < num_to_sample:
+            idx= np.random.choice(np.arange(len(X_min)), p=r)
+            neighbor_idx= np.random.choice(indices[idx][1:])
+            samples.append(self.sample_between_points(X_min[idx], X_min[neighbor_idx]))
+        
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'n_neighbors': self.n_neighbors, 'd_th': self.d_th, 'beta': self.beta}
+    
+class AHC(OverSampling):
+    """
+    @article{AHC,
+            title = "Learning from imbalanced data in surveillance of nosocomial infection",
+            journal = "Artificial Intelligence in Medicine",
+            volume = "37",
+            number = "1",
+            pages = "7 - 18",
+            year = "2006",
+            note = "Intelligent Data Analysis in Medicine",
+            issn = "0933-3657",
+            doi = "https://doi.org/10.1016/j.artmed.2005.03.002",
+            url = "http://www.sciencedirect.com/science/article/pii/S0933365705000850",
+            author = "Gilles Cohen and Mélanie Hilario and Hugo Sax and Stéphane Hugonnet and Antoine Geissbuhler",
+            keywords = "Nosocomial infection, Machine learning, Support vector machines, Data imbalance"
+            }
+    URL: https://drive.google.com/open?id=1APnBwng3-AZofx3FxMaKnR-Su-6ItDUM
+    """
+    def __init__(self, strategy= 'min'):
+        """
+        Constructor of the sampling object
+        Args:
+            strategy (str): which class to sample (min/maj/minmaj)
+        """
+        super().__init__()
+        self.check_isin(strategy, 'strategy', ['min', 'maj', 'minmaj'])
+        
+        self.strategy= strategy
+        
+        self.set_cat_changes_majority()
+        self.set_cat_uses_clustering()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_parameter_combinations({'strategy': ['min', 'maj', 'minmaj']})
+    
+    def sample_majority(self, X, n_clusters):
+        """
+        Sample the majority class
+        Args:
+            X (np.ndarray): majority samples
+            n_clusters (int): number of clusters to find
+        Returns:
+            np.ndarray: downsampled vectors
+        """
+        kmeans= KMeans(n_clusters= n_clusters)
+        kmeans.fit(X)
+        return kmeans.cluster_centers_
+    
+    def sample_minority(self, X):
+        """
+        Sampling the minority class
+        Args:
+            X (np.ndarray): minority samples
+        Returns:
+            np.ndarray: the oversampled set of vectors
+        """
+        ac= AgglomerativeClustering(n_clusters= 1)
+        ac.fit(X)
+        n_samples= len(X)
+        
+        cc= [None]*len(ac.children_)
+        weights= [None]*len(ac.children_)
+        
+        def cluster_centers(children, i, cc, weights):
+            """
+            Extract cluster centers
+            Args:
+                children (np.array): indices of children
+                i (int): index to process
+                cc (np.array): cluster centers
+                weights (np.array): cluster weights
+            Returns:
+                int, float: new cluster center, new weight
+            """
+            if i < n_samples:
+                return X[i], 1.0
+            
+            if cc[i - n_samples] is None:
+                a, w_a= cluster_centers(children, children[i - n_samples][0], cc, weights)
+                b, w_b= cluster_centers(children, children[i - n_samples][1], cc, weights)
+                cc[i - n_samples]= (w_a*a + w_b*b)/(w_a + w_b)
+                weights[i - n_samples]= w_a + w_b
+                
+            return cc[i - n_samples], weights[i - n_samples]
+        
+        cluster_centers(ac.children_, ac.children_[-1][-1] + 1, cc, weights)
+        
+        return np.vstack(cc)
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # extracting minority samples
+        X_min= X[y == self.minority_label]
+        X_maj= X[y == self.majority_label]
+        
+        if self.strategy == 'maj':
+            X_maj_resampled= self.sample_majority(X_maj, len(X_min))
+            return np.vstack([X_min, X_maj_resampled]), np.hstack([np.repeat(self.minority_label, len(X_min)), np.repeat(self.majority_label, len(X_maj_resampled))])
+        elif self.strategy == 'min':
+            X_min_resampled= self.sample_minority(X_min)
+            return np.vstack([X_min_resampled, X_min, X_maj]), np.hstack([np.repeat(self.minority_label, (len(X_min_resampled) + len(X_min))), np.repeat(self.majority_label, len(X_maj))])
+        elif self.strategy == 'minmaj':
+            X_min_resampled= self.sample_minority(X_min)
+            X_maj_resampled= self.sample_majority(X_maj, len(X_min_resampled) + len(X_min))
+            return np.vstack([X_min_resampled, X_min, X_maj_resampled]), np.hstack([np.repeat(self.minority_label, (len(X_min_resampled) + len(X_min))), np.repeat(self.majority_label, len(X_maj_resampled))])
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'strategy': self.strategy}
+
+class LLE_SMOTE(OverSampling):
+    """
+    @INPROCEEDINGS{lle_smote, 
+                    author={J. Wang and M. Xu and H. Wang and J. Zhang}, 
+                    booktitle={2006 8th international Conference on Signal Processing}, 
+                    title={Classification of Imbalanced Data by Using the SMOTE Algorithm and Locally Linear Embedding}, 
+                    year={2006}, 
+                    volume={3}, 
+                    number={}, 
+                    pages={}, 
+                    keywords={artificial intelligence;biomedical imaging;medical computing;imbalanced data classification;SMOTE algorithm;locally linear embedding;medical imaging intelligence;synthetic minority oversampling technique;high-dimensional data;low-dimensional space;Biomedical imaging;Back;Training data;Data mining;Biomedical engineering;Research and development;Electronic mail;Pattern recognition;Performance analysis;Classification algorithms}, 
+                    doi={10.1109/ICOSP.2006.345752}, 
+                    ISSN={2164-5221}, 
+                    month={Nov},}
+    URL: https://drive.google.com/open?id=1gCPLdTq_5mhF5cKGSmJdkPzhw2GY2SWs
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_components= 2):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): control parameter of the nearest neighbor component
+            n_components (int): dimensionality of the embedding space
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, 'proportion', 0)
+        self.check_greater_or_equal(n_neighbors, 'n_neighbors', 2)
+        self.check_greater_or_equal(n_components, 'n_components', 1)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        self.n_components= n_components
+        
+        self.set_cat_extensive()
+        self.set_cat_dim_reduction()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_parameter_combinations({'proportion': [0.25, 0.5, 0.75, 1.0], 'n_neighbors': [3, 5, 7], 'n_components': [2, 3, 5]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # determine the number of samples to generate
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        # extracting minority samples
+        X_min= X[y == self.minority_label]
+        
+        # do the locally linear embedding
+        lle= LocallyLinearEmbedding(self.n_neighbors, self.n_components)
+        lle.fit(X_min)
+        X_min_transformed= lle.transform(X_min)
+        
+        # fitting the nearest neighbors model for sampling
+        nn= NearestNeighbors(self.n_neighbors+1).fit(X_min_transformed)
+        dist, ind= nn.kneighbors(X_min_transformed)
+        
+        def solve_for_weights(xi, Z):
+            """
+            Solve for locally linear embedding weights
+            Args:
+                xi (np.array): vector
+                Z (np.matrix): matrix of neighbors in rows
+            Returns:
+                np.array: reconstruction weights
+                
+            Following https://cs.nyu.edu/~roweis/lle/algorithm.html
+            """
+            Z= Z - xi
+            Z= Z.T
+            C= np.dot(Z.T, Z)
+            w= np.linalg.solve(C, np.repeat(1.0, len(C)))
+            return w/np.sum(w)
+        
+        # generating samples
+        samples= []
+        for _ in range(num_to_sample):
+            idx= np.random.randint(len(X_min))
+            xi= self.sample_between_points(X_min_transformed[idx], X_min_transformed[np.random.choice(ind[idx][1:])])
+            Z= X_min_transformed[ind[idx][1:]]
+            w= solve_for_weights(xi, Z)
+            samples.append(np.dot(w, X_min[ind[idx][1:]]))
+            
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_components': self.n_components}
+
+class distance_SMOTE(OverSampling):
+    """
+    @INPROCEEDINGS{distance_smote, 
+                    author={de la Calleja, J. and Fuentes, O.}, 
+                    booktitle={Proceedings of the Twentieth International Florida Artificial Intelligence}, 
+                    title={A distance-based over-sampling method for learning from imbalanced data sets}, 
+                    year={2007}, 
+                    volume={3}, 
+                    pages={634--635}
+                    }
+    URL: https://drive.google.com/open?id=1O7tGVLXdZwC8N1TxGblw0J8n70FYspDc
+    
+    It is not clear what the authors mean by "weighted distnace".
+    """    
+    def __init__(self, proportion= 1.0, n_neighbors= 5):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): control parameter of the nearest neighbor component
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, 'proportion', 0)
+        self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        
+        self.set_cat_extensive()
+        self.set_cat_sample_ordinary()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_parameter_combinations({'proportion': [0.25, 0.5, 0.75, 1.0], 'n_neighbors': [3, 5, 7]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # extracting minority samples
+        X_min= X[y == self.minority_label]
+        
+        # fitting the model
+        nn= NearestNeighbors(self.n_neighbors+1).fit(X_min)
+        dist, ind= nn.kneighbors(X_min)
+        
+        # determine the number of samples to generate
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        samples= []
+        for _ in range(num_to_sample):
+            idx= np.random.randint(len(X_min))
+            mean_vector= np.mean(X_min[ind[idx][1:]], axis= 0)
+            samples.append(self.sample_between_points(X_min[idx], mean_vector))
+            
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+
+class SMMO(OverSampling):
+    """
+    @unknown{smmo,
+            author = {de la Calleja, Jorge and Fuentes, Olac and González, Jesús},
+            booktitle= {Proceedings of the Twenty-First International Florida Artificial Intelligence Research Society Conference},
+            year = {2008},
+            month = {01},
+            pages = {276-281},
+            title = {Selecting Minority Examples from Misclassified Data for Over-Sampling.}
+            }
+    URL: https://drive.google.com/open?id=1hPEez2lVZ9wVV4dZjZQgK0lcl_jNt59g
+    
+    In this implementation the ensemble is not specified. I have selected some
+    very fast, basic classifiers.
+    Also, it is not clear what the authors mean by "weighted distance".
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): control parameter of the nearest neighbor component
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, 'proportion', 0)
+        self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        
+        self.set_cat_borderline()
+        self.set_cat_extensive()
+        self.set_cat_uses_classifier()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_parameter_combinations({'proportion': [0.25, 0.5, 0.75, 1.0], 'n_neighbors': [3, 5, 7]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # determine the number of samples to generate
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        # specifying the ensemble
+        ensemble= [QuadraticDiscriminantAnalysis(), DecisionTreeClassifier(max_depth= 5), GaussianNB()]
+        
+        # training and in-sample prediction (out-of-sample by k-fold cross validation might be better)
+        predictions= []
+        for e in ensemble:
+            predictions.append(e.fit(X,y).predict(X))
+        
+        # constructing ensemble prediction
+        pred= np.where(np.sum(np.vstack(predictions), axis= 0) > len(ensemble)/2, 1, 0)
+        
+        # create mask of minority samples to sample
+        mask_to_sample= np.where(np.logical_and(np.logical_not(np.equal(pred, y)), y == self.minority_label))[0]
+        
+        X_min= X[y == self.minority_label]
+        X_min_to_sample= X[mask_to_sample]
+        
+        # fitting nearest neighbors model for sampling
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn.fit(X_min)
+        dist, ind= nn.kneighbors(X_min_to_sample)
+        
+        # doing the sampling
+        samples= []
+        while len(samples) < num_to_sample:
+            idx= np.random.randint(len(X_min_to_sample))
+            mean= np.mean(X_min[ind[idx][1:]], axis= 0)
+            samples.append(self.sample_between_points(X_min_to_sample[idx], mean))
+        
+        return np.vstack([X, np.vstack([samples])]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+
+class polynom_fit_SMOTE(OverSampling):
+    """
+    @INPROCEEDINGS{polynomial_fit_smote, 
+                    author={S. Gazzah and N. E. B. Amara}, 
+                    booktitle={2008 The Eighth IAPR International Workshop on Document Analysis Systems}, 
+                    title={New Oversampling Approaches Based on Polynomial Fitting for Imbalanced Data Sets}, 
+                    year={2008}, 
+                    volume={}, 
+                    number={}, 
+                    pages={677-684}, 
+                    keywords={curve fitting;learning (artificial intelligence);mesh generation;pattern classification;polynomials;sampling methods;support vector machines;oversampling approach;polynomial fitting function;imbalanced data set;pattern classification task;class-modular strategy;support vector machine;true negative rate;true positive rate;star topology;bus topology;polynomial curve topology;mesh topology;Polynomials;Topology;Support vector machines;Support vector machine classification;Pattern classification;Performance evaluation;Training data;Text analysis;Data engineering;Convergence;writer identification system;majority class;minority class;imbalanced data sets;polynomial fitting functions;class-modular strategy}, 
+                    doi={10.1109/DAS.2008.74}, 
+                    ISSN={}, 
+                    month={Sept},}
+    URL: https://drive.google.com/open?id=1WkGbFBqCV8vnUh7yM97kO6EPlEgkC51P
+    """
+    def __init__(self, proportion= 1.0, topology= 'star'):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            topoplogy (str): 'star'/'bus'/'mesh'
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0.0)
+        if topology.startswith('poly'):
+            self.check_greater_or_equal(int(topology.split('_')[-1]), 'topology', 1)
+        else:
+            self.check_isin(topology, "topology", ['star', 'bus', 'mesh'])
+        
+        self.proportion= proportion
+        self.topology= topology
+        
+        self.set_cat_extensive()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_parameter_combinations({'proportion': [0.25, 0.5, 0.75, 1.0], 'topology': ['star', 'bus', 'mesh', 'poly_1', 'poly_2', 'poly_3']})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # extracting minority samples
+        X_min= X[y == self.minority_label]
+        
+        # determine the number of samples to generate
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        samples= []
+        if self.topology == 'star':
+            # Implementation of the star topology
+            X_mean= np.mean(X_min, axis= 0)
+            k= int(np.rint(num_to_sample/len(X_min)))
+            for x in X_min:
+                diff= X_mean - x
+                for i in range(1, k+1):
+                    samples.append(x + float(i)/(k+1)*diff)
+        elif self.topology == 'bus':
+            # Implementation of the bus topology
+            k= int(np.rint(num_to_sample/len(X_min)))
+            for i in range(1, len(X_min)):
+                diff= X_min[i-1] - X_min[i]
+                for i in range(1, k+1):
+                    samples.append(X_min[i] + float(i)/(k+1)*diff)
+        elif self.topology == 'mesh':
+            # Implementation of the mesh topology
+            k= max(1, int(np.rint(num_to_sample/(len(X_min)*(len(X_min)-1)/2))))
+            for i in range(len(X_min)):
+                for j in range(len(X_min)):
+                    diff= X_min[i] - X_min[j]
+                    for l in range(1, k+1):
+                        samples.append(X_min[j] + float(l)/(k+1)*diff)
+        elif self.topology.startswith('poly'):
+            # Implementation of the polynomial topology
+            deg= int(self.topology.split('_')[1])
+            dim= len(X_min[0])
+            polys= [np.poly1d(np.polyfit(np.arange(len(X_min)), X_min[:,d], deg)) for d in range(dim)]
+            for d in range(dim):
+                samples.append(np.array([polys[d](np.random.random()*len(X_min)) for i in range(num_to_sample)]))
+            samples= np.vstack(samples).T
+            
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'topology': self.topology}
+    
+class Stefanowski(OverSampling):
+    """
+    @inproceedings{stefanowski,
+         author = {Stefanowski, Jerzy and Wilk, Szymon},
+         title = {Selective Pre-processing of Imbalanced Data for Improving Classification Performance},
+         booktitle = {Proceedings of the 10th International Conference on Data Warehousing and Knowledge Discovery},
+         series = {DaWaK '08},
+         year = {2008},
+         isbn = {978-3-540-85835-5},
+         location = {Turin, Italy},
+         pages = {283--292},
+         numpages = {10},
+         url = {http://dx.doi.org/10.1007/978-3-540-85836-2_27},
+         doi = {10.1007/978-3-540-85836-2_27},
+         acmid = {1430591},
+         publisher = {Springer-Verlag},
+         address = {Berlin, Heidelberg},
+        } 
+
+    URL: https://drive.google.com/open?id=1MMrk-QnEfr0SUgptQkRl7Abbmh9ZncpD
+    """
+    def __init__(self, strategy= 'weak_amp'):
+        """
+        Constructor of the sampling object
+        Args:
+            strategy (str): 'weak_amp'/'weak_amp_relabel'/'strong_amp'
+        """
+        super().__init__()
+        
+        self.check_isin(strategy, 'strategy', ['weak_amp', 'weak_amp_relabel', 'strong_amp'])
+        
+        self.strategy= strategy
+        
+        self.set_cat_changes_majority()
+        self.set_cat_noise_removal()
+        self.set_cat_sample_copy()
+        self.set_cat_borderline()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return [{'strategy': 'weak_amp'}, {'strategy': 'weak_amp_relabel'}, {'strategy': 'strong_amp'},]
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # fitting the nearest neighbors model for noise filtering, 4 neighbors 
+        # instead of 3 as the closest neighbor to a point is itself
+        nn= NearestNeighbors(n_neighbors= 4)
+        nn.fit(X)
+        distance, indices= nn.kneighbors(X)
+        
+        # fitting the nearest neighbors model for sample generation, 6 neighbors 
+        # instead of 5 for the same reason
+        nn5= NearestNeighbors(n_neighbors= 6)
+        nn5.fit(X)
+        distance5, indices5= nn5.kneighbors(X)
+        
+        # determining noisy and safe flags
+        flags= []
+        for i in range(len(indices)):
+            if mode(y[indices[i][1:]]) == y[i]:
+                flags.append('safe')
+            else:
+                flags.append('noisy')
+        flags= np.array(flags)
+        
+        D= (y == self.majority_label) & (flags == 'noisy')
+        minority_indices= np.where(y == self.minority_label)[0]
+        
+        samples= []
+        if self.strategy == 'weak_amp' or self.strategy == 'weak_amp_relabel':
+            # weak mplification - the number of copies is the number of 
+            # majority nearest neighbors 
+            for i in minority_indices:
+                if flags[i] == 'noisy':
+                    k= np.sum(np.logical_and(y[indices[i][1:]] == self.majority_label, flags[indices[i][1:]] == 'safe'))
+                    for _ in range(k):
+                        samples.append(X[i])
+        if self.strategy == 'weak_amp_relabel':
+            # relabling - noisy majority neighbors are relabelled to minority
+            for i in minority_indices:
+                if flags[i] == 'noisy':
+                    for j in indices[i][1:]:
+                        if y[j] == self.majority_label and flags[j] == 'noisy':
+                            y[j]= self.minority_label
+                            D[j]= False
+        if self.strategy == 'strong_amp':
+            # safe minority samples are copied as many times as many safe majority
+            # samples are among the nearest neighbors
+            for i in minority_indices:
+                if flags[i] == 'safe':
+                    k= np.sum(np.logical_and(y[indices[i][1:]] == self.majority_label, flags[indices[i][1:]] == 'safe'))
+                    for _ in range(k):
+                        samples.append(X[i])
+            # if classified correctly by knn(5), noisy minority samples are amplified 
+            # by creating as many copies as many save majority samples in its neighborhood 
+            # are present otherwise amplify based on the 5 neighborhood
+            for i in minority_indices:
+                if flags[i] == 'noisy':
+                    if mode(y[indices5[i][1:]]) == y[i]:
+                        k= np.sum(np.logical_and(y[indices[i][1:]] == self.majority_label, flags[indices[i][1:]] == 'safe'))
+                    else:
+                        k= np.sum(np.logical_and(y[indices5[i][1:]] == self.majority_label, flags[indices5[i][1:]] == 'safe'))
+                    for _ in range(k):
+                        samples.append(X[i])
+
+        to_remove= np.where(D)[0]
+        X_noise_removed= np.delete(X, to_remove, axis= 0)
+        y_noise_removed= np.delete(y, to_remove, axis= 0)
+            
+        return np.vstack([X_noise_removed, np.vstack(samples)]), np.hstack([y_noise_removed, np.repeat(self.minority_label, len(samples))])
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'strategy': self.strategy}
+
+class ADOMS(OverSampling):
+    """
+    @INPROCEEDINGS{adoms, 
+                    author={S. Tang and S. Chen}, 
+                    booktitle={2008 International Conference on Information Technology and Applications in Biomedicine}, 
+                    title={The generation mechanism of synthetic minority class examples}, 
+                    year={2008}, 
+                    volume={}, 
+                    number={}, 
+                    pages={444-447}, 
+                    keywords={medical image processing;generation mechanism;synthetic minority class examples;class imbalance problem;medical image analysis;oversampling algorithm;Principal component analysis;Biomedical imaging;Medical diagnostic imaging;Information technology;Biomedical engineering;Noise generators;Concrete;Nearest neighbor searches;Data analysis;Image analysis}, 
+                    doi={10.1109/ITAB.2008.4570642}, 
+                    ISSN={2168-2194}, 
+                    month={May}}
+    URL: https://drive.google.com/open?id=1NHrfqf9tPYwdOMTd7gQAl49Z8Mppwv_n
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): parameter of the nearest neighbor component
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, 'proportion', 0.0)
+        self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        
+        self.set_cat_dim_reduction()
+        self.set_cat_extensive()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_parameter_combinations({'proportion': [0.25, 0.5, 0.75, 1.0], 'n_neighbors': [3, 5, 7]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # determine the number of samples to generate
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        
+        # fitting nearest neighbors model
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1)
+        nn.fit(X_min)
+        distance, indices= nn.kneighbors(X_min)
+        
+        samples= []
+        for _ in range(num_to_sample):
+            index= np.random.randint(len(X_min))
+            neighbors= X_min[indices[index]]
+            
+            # fitting the PCA
+            pca= PCA(n_components= 1)
+            pca.fit(neighbors)
+            
+            # extracting the principal direction
+            principal_direction= pca.components_[0]
+            
+            # do the sampling according to the description in the paper
+            random_neighbor= neighbors[np.random.randint(1, self.n_neighbors+1)]
+            d= np.linalg.norm(random_neighbor - X_min[index])
+            r= np.random.random()
+            sign= 1.0 if np.dot(random_neighbor - X_min[index], principal_direction) > 0.0 else -1.0
+            samples.append(X_min[index] + sign*r*d*principal_direction)
+
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+
+class Safe_Level_SMOTE(OverSampling):
+    """
+    @inproceedings{safe_level_smote,
+                 author = {Bunkhumpornpat, Chumphol and Sinapiromsaran, Krung and Lursinsap, Chidchanok},
+                 title = {Safe-Level-SMOTE: Safe-Level-Synthetic Minority Over-Sampling TEchnique for Handling the Class Imbalanced Problem},
+                 booktitle = {Proceedings of the 13th Pacific-Asia Conference on Advances in Knowledge Discovery and Data Mining},
+                 series = {PAKDD '09},
+                 year = {2009},
+                 isbn = {978-3-642-01306-5},
+                 location = {Bangkok, Thailand},
+                 pages = {475--482},
+                 numpages = {8},
+                 url = {http://dx.doi.org/10.1007/978-3-642-01307-2_43},
+                 doi = {10.1007/978-3-642-01307-2_43},
+                 acmid = {1533904},
+                 publisher = {Springer-Verlag},
+                 address = {Berlin, Heidelberg},
+                 keywords = {Class Imbalanced Problem, Over-sampling, SMOTE, Safe Level},
+                } 
+    URL: https://drive.google.com/open?id=18XNDTxIYeQ9GMocEXU_-zyj3W_5ovplR
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): control parameter of the nearest neighbor component
+        """
+        super().__init__()
+        
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1.0)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        
+        self.set_cat_borderline()
+        self.set_cat_extensive()
+        self.set_cat_sample_componentwise()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_parameter_combinations({'proportion': [0.25, 0.5, 0.75, 1.0], 'n_neighbors': [3, 5, 7]})
+        
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # determine the number of samples to generate
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        # fitting nearest neighbors model
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1)
+        nn.fit(X)
+        distance, indices= nn.kneighbors(X)
+        
+        minority_labels= (y == self.minority_label)
+        minority_indices= np.where(minority_labels)[0]
+        
+        # do the sampling
+        numattrs= len(X[0])
+        samples= []
+        for _ in range(num_to_sample):
+            index= np.random.randint(len(minority_indices))
+            neighbor_index= np.random.choice(indices[index][1:])
+            
+            p= X[index]
+            n= X[neighbor_index]
+            
+            # find safe levels
+            sl_p= np.sum(y[indices[index][1:]] == self.minority_label)
+            sl_n= np.sum(y[indices[neighbor_index][1:]] == self.minority_label)
+            
+            if sl_n > 0:
+                sl_ratio= float(sl_p)/sl_n
+            else:
+                sl_ratio= np.inf
+            
+            if sl_ratio == np.inf and sl_p == 0:
+                pass
+            else:
+                s= np.zeros(numattrs)
+                for atti in range(numattrs):
+                    # iterate through attributes and do sampling according to 
+                    # safe level
+                    if sl_ratio == np.inf and sl_p > 0:
+                        gap= 0.0
+                    elif sl_ratio == 1:
+                        gap= np.random.random()
+                    elif sl_ratio > 1:
+                        gap= np.random.random()*1.0/sl_ratio
+                    elif sl_ratio < 1:
+                        gap= (1 - sl_ratio) + np.random.random()*sl_ratio
+                    dif= n[atti] - p[atti]
+                    s[atti]= p[atti] + gap*dif
+                samples.append(s)
+
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+
+class MSMOTE(OverSampling):
+    """
+    @inproceedings{msmote,
+                     author = {Hu, Shengguo and Liang, Yanfeng and Ma, Lintao and He, Ying},
+                     title = {MSMOTE: Improving Classification Performance When Training Data is Imbalanced},
+                     booktitle = {Proceedings of the 2009 Second International Workshop on Computer Science and Engineering - Volume 02},
+                     series = {IWCSE '09},
+                     year = {2009},
+                     isbn = {978-0-7695-3881-5},
+                     pages = {13--17},
+                     numpages = {5},
+                     url = {https://doi.org/10.1109/WCSE.2009.756},
+                     doi = {10.1109/WCSE.2009.756},
+                     acmid = {1682710},
+                     publisher = {IEEE Computer Society},
+                     address = {Washington, DC, USA},
+                     keywords = {imbalanced data, over-sampling, SMOTE, AdaBoost, samples groups, SMOTEBoost},
+                    } 
+    URL: https://drive.google.com/open?id=1tFtNJWUSIYDKnhBAdb6QqIhYqy-khIxa
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): control parameter of the nearest neighbor component
+        """
+        super().__init__()
+        
+        self.check_greater_or_equal(proportion, 'proportion', 0)
+        self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        
+        self.set_cat_extensive()
+        self.set_cat_noise_removal()
+        self.set_cat_borderline()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_parameter_combinations({'proportion': [0.25, 0.5, 0.75, 1.0], 'n_neighbors': [3, 5, 7]})
+        
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # determine the number of samples to generate
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+
+        X_min= X[y == self.minority_label]
+        
+        # fitting the nearest neighbors model
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1)
+        nn.fit(X)
+        distance, indices= nn.kneighbors(X_min)
+        
+        # generating samples        
+        samples= []
+        while len(samples) < num_to_sample:
+            index= np.random.randint(len(X_min))
+            
+            n_p= np.sum(y[indices[index][1:]] == self.minority_label)
+            
+            if n_p == self.n_neighbors:
+                sample_type= 'security'
+            elif n_p == 0:
+                sample_type= 'noise'
+            else:
+                sample_type= 'border'
+                
+            if sample_type == 'security':
+                neighbor_index= np.random.choice(indices[index][1:])
+            elif sample_type == 'border':
+                neighbor_index= indices[index][1]
+            else:
+                continue
+
+            samples.append(self.sample_between_points_componentwise(X_min[index], X[neighbor_index]))
+
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+
+class DE_oversampling(OverSampling):
+    """
+    @INPROCEEDINGS{de_oversampling, 
+                    author={L. Chen and Z. Cai and L. Chen and Q. Gu}, 
+                    booktitle={2010 Third International Conference on Knowledge Discovery and Data Mining}, 
+                    title={A Novel Differential Evolution-Clustering Hybrid Resampling Algorithm on Imbalanced Datasets}, 
+                    year={2010}, 
+                    volume={}, 
+                    number={}, 
+                    pages={81-85}, 
+                    keywords={pattern clustering;sampling methods;support vector machines;differential evolution;clustering algorithm;hybrid resampling algorithm;imbalanced datasets;support vector machine;minority class;mutation operators;crossover operators;data cleaning method;F-measure criterion;ROC area criterion;Support vector machines;Intrusion detection;Support vector machine classification;Cleaning;Electronic mail;Clustering algorithms;Signal to noise ratio;Learning systems;Data mining;Geology;imbalanced datasets;hybrid resampling;clustering;differential evolution;support vector machine}, 
+                    doi={10.1109/WKDD.2010.48}, 
+                    ISSN={}, 
+                    month={Jan},}
+    URL: https://drive.google.com/open?id=1LyfMvSdFqscupz4AADXV4GW-K8T3olwK
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5, crossover_rate= 0.5, similarity_threshold= 0.5, n_clusters= 30):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): control parameter of the nearest neighbor component
+            crossover_rate (float): cross over rate of evoluation
+            similarity_threshold (float): similarity threshold paramter
+            n_clusters (int): number of clusters for cleansing
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, 'proportion', 0)
+        self.check_greater_or_equal(n_neighbors, 'n_neighbors', 2)
+        self.check_in_range(crossover_rate, 'crossover_rate', [0,1])
+        self.check_in_range(similarity_threshold, 'similarity_threshold', [0,1])
+        self.check_greater_or_equal(n_clusters, 'n_clusters', 1)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        self.crossover_rate= crossover_rate
+        self.similarity_threshold= similarity_threshold
+        self.n_clusters= n_clusters
+        
+        self.set_cat_changes_majority()
+        self.set_cat_uses_clustering()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0], 
+                                                    'n_neighbors': [3, 5, 7],
+                                                    'crossover_rate': [0.1, 0.5, 0.9],
+                                                    'similarity_thershold': [0.5, 0.9],
+                                                    'n_clusters': [10, 20, 50]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # determine the number of samples to generate
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        d= len(X[0])
+        
+        X_min= X[y == self.minority_label]
+        
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1)
+        nn.fit(X_min)
+        distance, indices= nn.kneighbors(X_min)
+        
+        # generating samples        
+        samples= []
+        for _ in range(num_to_sample):
+            # mutation according to the description in the paper
+            random_index= np.random.randint(len(X_min))
+            random_point= X_min[random_index]
+            random_neighbor_indices= np.random.choice(indices[random_index][1:], 2, replace= False)
+            random_neighbor_1= X_min[random_neighbor_indices[0]]
+            random_neighbor_2= X_min[random_neighbor_indices[1]]
+            
+            mutated= random_point + (random_neighbor_1 - random_neighbor_2)*np.random.random()
+            
+            # crossover - updates the vector 'mutated'
+            rand_s= np.random.randint(d)
+            for i in range(d):
+                random_value= np.random.random()
+                if random_value >= self.crossover_rate and not i == rand_s:
+                    mutated[i]= random_point[i]
+                elif random_value < self.crossover_rate or i == rand_s:
+                    pass
+            
+            samples.append(mutated)
+        
+        # assembling all data for clearning
+        X, y= np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        X_min= X[y == self.minority_label]
+        
+        # cleansing based on clustering
+        kmeans= KMeans(n_clusters= self.n_clusters)
+        kmeans.fit(X)
+        unique_labels= np.unique(kmeans.labels_)
+        one_label_clusters= [l for l in unique_labels if len(np.unique(y[np.where(kmeans.labels_ == l)[0]])) == 1]
+        to_remove= []
+        
+        # going through the clusters having one label only
+        for l in one_label_clusters:
+            cluster_indices= np.where(kmeans.labels_ == l)[0]
+            mean_of_cluster= kmeans.cluster_centers_[l]
+            
+            # finding center-like sample
+            center_like_index= None
+            center_like_dist= np.inf
+            
+            for i in cluster_indices:
+                dist= np.linalg.norm(X[i] - mean_of_cluster)
+                if dist < center_like_dist:
+                    center_like_dist= dist
+                    center_like_index= i
+            
+            # removing the samples similar to the center-like sample
+            for i in cluster_indices:
+                if i != center_like_index:
+                    d= np.inner(X[i], X[center_like_index])/(np.linalg.norm(X[i])*np.linalg.norm(X[center_like_index]))
+                    if d > self.similarity_threshold:
+                        to_remove.append(i)
+                    
+        return np.delete(X, to_remove, axis= 0), np.delete(y, to_remove)
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'crossover_rate': self.crossover_rate, 'similarity_threshold': self.similarity_threshold, 'n_clusters': self.n_clusters}
+
+# Borrowed from sklearn-dev, will be removed once the sklearn implementation
+# becomes stable
+class OPTICS:
+    def __init__(self, min_samples=5, max_eps=np.inf, metric='euclidean',
+                 p=2, metric_params=None, maxima_ratio=.75,
+                 rejection_ratio=.7, similarity_threshold=0.4,
+                 significant_min=.003, min_cluster_size=.005,
+                 min_maxima_ratio=0.001, algorithm='ball_tree',
+                 leaf_size=30, n_jobs=4):
+
+        self.max_eps = max_eps
+        self.min_samples = min_samples
+        self.maxima_ratio = maxima_ratio
+        self.rejection_ratio = rejection_ratio
+        self.similarity_threshold = similarity_threshold
+        self.significant_min = significant_min
+        self.min_cluster_size = min_cluster_size
+        self.min_maxima_ratio = min_maxima_ratio
+        self.algorithm = algorithm
+        self.metric = metric
+        self.metric_params = metric_params
+        self.p = p
+        self.leaf_size = leaf_size
+        self.n_jobs = n_jobs
+
+    def fit(self, X, y=None):
+        """Perform OPTICS clustering
+        Extracts an ordered list of points and reachability distances, and
+        performs initial clustering using `max_eps` distance specified at
+        OPTICS object instantiation.
+        Parameters
+        ----------
+        X : array, shape (n_samples, n_features)
+            The data.
+        y : ignored
+        Returns
+        -------
+        self : instance of OPTICS
+            The instance.
+        """
+        n_samples = len(X)
+
+        if self.min_samples > n_samples:
+            raise ValueError("Number of training samples (n_samples=%d) must "
+                             "be greater than min_samples (min_samples=%d) "
+                             "used for clustering." %
+                             (n_samples, self.min_samples))
+
+        if self.min_cluster_size <= 0 or (self.min_cluster_size !=
+                                          int(self.min_cluster_size)
+                                          and self.min_cluster_size > 1):
+            raise ValueError('min_cluster_size must be a positive integer or '
+                             'a float between 0 and 1. Got %r' %
+                             self.min_cluster_size)
+        elif self.min_cluster_size > n_samples:
+            raise ValueError('min_cluster_size must be no greater than the '
+                             'number of samples (%d). Got %d' %
+                             (n_samples, self.min_cluster_size))
+
+        # Start all points as 'unprocessed' ##
+        self.reachability_ = np.empty(n_samples)
+        self.reachability_.fill(np.inf)
+        self.core_distances_ = np.empty(n_samples)
+        self.core_distances_.fill(np.nan)
+        # Start all points as noise ##
+        self.labels_ = np.full(n_samples, -1, dtype=int)
+
+        nbrs = NearestNeighbors(n_neighbors=self.min_samples,
+                                algorithm=self.algorithm,
+                                leaf_size=self.leaf_size, metric=self.metric,
+                                metric_params=self.metric_params, p=self.p,
+                                n_jobs=self.n_jobs)
+
+        nbrs.fit(X)
+        self.core_distances_[:] = nbrs.kneighbors(X,
+                                                  self.min_samples)[0][:, -1]
+
+        self.ordering_ = self._calculate_optics_order(X, nbrs)
+
+        return self
+
+    # OPTICS helper functions
+
+    def _calculate_optics_order(self, X, nbrs):
+        # Main OPTICS loop. Not parallelizable. The order that entries are
+        # written to the 'ordering_' list is important!
+        processed = np.zeros(X.shape[0], dtype=bool)
+        ordering = np.zeros(X.shape[0], dtype=int)
+        ordering_idx = 0
+        for point in range(X.shape[0]):
+            if processed[point]:
+                continue
+            if self.core_distances_[point] <= self.max_eps:
+                while not processed[point]:
+                    processed[point] = True
+                    ordering[ordering_idx] = point
+                    ordering_idx += 1
+                    point = self._set_reach_dist(point, processed, X, nbrs)
+            else:  # For very noisy points
+                ordering[ordering_idx] = point
+                ordering_idx += 1
+                processed[point] = True
+        return ordering
+
+    def _set_reach_dist(self, point_index, processed, X, nbrs):
+        P = X[point_index:point_index + 1]
+        indices = nbrs.radius_neighbors(P, radius=self.max_eps,
+                                        return_distance=False)[0]
+
+        # Getting indices of neighbors that have not been processed
+        unproc = np.compress((~np.take(processed, indices)).ravel(),
+                             indices, axis=0)
+        # Keep n_jobs = 1 in the following lines...please
+        if not unproc.size:
+            # Everything is already processed. Return to main loop
+            return point_index
+
+        dists = pairwise_distances(P, np.take(X, unproc, axis=0),
+                                   self.metric, n_jobs=1).ravel()
+
+        rdists = np.maximum(dists, self.core_distances_[point_index])
+        new_reach = np.minimum(np.take(self.reachability_, unproc), rdists)
+        self.reachability_[unproc] = new_reach
+
+        # Define return order based on reachability distance
+        return (unproc[self.quick_scan(np.take(self.reachability_, unproc),
+                                  dists)])
+
+    def isclose(self, a, b, rel_tol= 1e-09, abs_tol= 0.0):
+        return abs(a-b) <= max(rel_tol*max(abs(a), abs(b)), abs_tol)
+    
+    def quick_scan(self, rdists, dists):
+        rdist= np.inf
+        dist= np.inf
+        n= len(rdists)
+        for i in range(n):
+            if rdists[i] < rdist:
+                rdist= rdists[i]
+                dist= dists[i]
+                idx= i
+            elif self.isclose(rdists[i], rdist):
+                if dists[i] < dist:
+                    dist= dists[i]
+                    idx= i
+        return idx
+
+class SMOBD(OverSampling):
+    """
+    @INPROCEEDINGS{smobd, 
+                    author={Q. Cao and S. Wang}, 
+                    booktitle={2011 International Conference on Information Management, Innovation Management and Industrial Engineering}, 
+                    title={Applying Over-sampling Technique Based on Data Density and Cost-sensitive SVM to Imbalanced Learning}, 
+                    year={2011}, 
+                    volume={2}, 
+                    number={}, 
+                    pages={543-548}, 
+                    keywords={data handling;learning (artificial intelligence);support vector machines;oversampling technique application;data density;cost sensitive SVM;imbalanced learning;SMOTE algorithm;data distribution;density information;Support vector machines;Classification algorithms;Noise measurement;Arrays;Noise;Algorithm design and analysis;Training;imbalanced learning;cost-sensitive SVM;SMOTE;data density;SMOBD}, 
+                    doi={10.1109/ICIII.2011.276}, 
+                    ISSN={2155-1456}, 
+                    month={Nov},}
+    URL: https://drive.google.com/open?id=1jQGTZli3D2RB3y2oe50hwFzo0q6y73FI
+    """
+    def __init__(self, proportion= 1.0, eta1= 0.5, t= 1.8, min_samples= 5, max_eps= 1.0):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            eta1 (float): control parameter of density estimation
+            t (float): control parameter of noise filtering
+            min_samples (int): minimum samples parameter for OPTICS
+            max_eps (float): maximum environment radius paramter for OPTICS
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, 'proportion', 0)
+        self.check_in_range(eta1, 'eta1', [0.0, 1.0])
+        self.check_greater_or_equal(t, 't', 0)
+        self.check_greater_or_equal(min_samples, 'min_samples', 1)
+        self.check_greater_or_equal(max_eps, 'max_eps', 0.0)
+        
+        self.proportion= proportion
+        self.eta1= eta1
+        self.t= t
+        self.min_samples= min_samples
+        self.max_eps= max_eps
+        
+        self.set_cat_uses_clustering()
+        self.set_cat_density_estimation()
+        self.set_cat_extensive()
+        self.set_cat_noise_removal()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_parameter_combinations({'proportion': [0.25, 0.5, 0.75, 1.0, 1.5], 'eta1': [0.1, 0.5, 0.9], 't': [1.5, 2.5], 'min_samples': [5], 'max_eps': [0.1, 0.5, 1.0, 2.0]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # determine the number of samples to generate
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        
+        # running the OPTICS technique based on the sklearn implementation
+        # TODO: replace to sklearn call once it is stable
+        o= OPTICS(min_samples= self.min_samples, max_eps= self.max_eps)
+        o.fit(X_min)
+        cd= o.core_distances_
+        rd= o.reachability_
+        
+        # noise filtering
+        cd_average= np.mean(cd)
+        rd_average= np.mean(rd)
+        noise= np.logical_and(cd > cd_average*self.t, rd > rd_average*self.t)
+        
+        # fitting a nearest neighbor model to be able to find neighbors in radius
+        nn= NearestNeighbors(n_neighbors= self.min_samples+1)
+        nn.fit(X_min)
+        distances, indices= nn.kneighbors(X_min)
+        
+        # determining the density
+        factor_1= cd
+        factor_2= np.array([len(x) for x in nn.radius_neighbors(X_min, radius= self.max_eps, return_distance= False)])
+        
+        factor_1= factor_1/max(factor_1)
+        factor_2= factor_2/max(factor_2)
+        
+        df= factor_1*self.eta1 + factor_2*(1 - self.eta1)
+        
+        # setting the density at noisy samples to zero
+        for i in range(len(noise)):
+            if noise[i]:
+                df[i]= 0
+        
+        # normalizing the density
+        df_dens= df/sum(df)
+        
+        # do the sampling
+        samples= []
+        while len(samples) < num_to_sample:
+            idx= np.random.choice(np.arange(len(X_min)), p= df_dens)
+            neighbor_idx= np.random.choice(indices[idx][1:])
+            samples.append(self.sample_between_points_componentwise(X_min[idx], X_min[neighbor_idx]))
+        
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'eta1': self.eta1, 't': self.t, 'min_samples': self.min_samples, 'max_eps': self.max_eps}
+
+class SUNDO(OverSampling):
+    """
+    @INPROCEEDINGS{sundo, 
+                    author={S. Cateni and V. Colla and M. Vannucci}, 
+                    booktitle={2011 11th International Conference on Intelligent Systems Design and Applications}, 
+                    title={Novel resampling method for the classification of imbalanced datasets for industrial and other real-world problems}, 
+                    year={2011}, 
+                    volume={}, 
+                    number={}, 
+                    pages={402-407}, 
+                    keywords={decision trees;pattern classification;sampling methods;support vector machines;resampling method;imbalanced dataset classification;industrial problem;real world problem;oversampling technique;undersampling technique;support vector machine;decision tree;binary classification;synthetic dataset;public dataset;industrial dataset;Support vector machines;Training;Accuracy;Databases;Intelligent systems;Breast cancer;Decision trees;oversampling;undersampling;imbalanced dataset}, 
+                    doi={10.1109/ISDA.2011.6121689}, 
+                    ISSN={2164-7151}, 
+                    month={Nov}}
+    URL: https://drive.google.com/open?id=1lVwDDE-wTx3bsA7HbwyQ2ifRX5BmO8rq
+    """
+    def __init__(self):
+        """
+        Constructor of the sampling object
+        """
+        super().__init__()
+        
+        self.set_cat_changes_majority()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return [{}]
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        X_min= X[y == self.minority_label]
+        X_maj= X[y == self.majority_label]
+        
+        n_1= len(X_min)
+        n_0= len(X) - n_1
+        N= int(np.rint(0.5*n_0 - 0.5*n_1))
+        
+        # generating minority samples
+        samples= []
+        
+        nn= NearestNeighbors(n_neighbors= 1)
+        nn.fit(X_maj)
+        
+        stds= np.std(X_min, axis= 0)
+        # At one point the algorithm says to keep those points which are
+        # the most distant from majority samples, and not leaving any minority
+        # sample isolated. This can be implemented by generating multiple samples
+        # for each point and keep the one most distant from the majority samples.
+        for _ in range(N):
+            i= np.random.randint(len(X_min))
+            best_sample= None
+            best_sample_dist= 0
+            for _ in range(3):
+                s= np.random.normal(X_min[i], stds)
+                dist, ind= nn.kneighbors(s.reshape(1, -1))
+                if dist[0][0] > best_sample_dist:
+                    best_sample_dist= dist[0][0]
+                    best_sample= s
+            samples.append(best_sample)
+        
+        # Extending the minority dataset with the new samples
+        X_min_extended= np.vstack([X_min, np.vstack(samples)])
+        
+        # Removing N elements from the majority dataset
+        
+        # normalize
+        mms= MinMaxScaler()
+        X_maj_normalized= mms.fit_transform(X_maj)
+        
+        # computing the distance matrix
+        dm= pairwise_distances(X_maj_normalized, X_maj_normalized)
+        
+        # len(X_maj) offsets for the diagonal 0 elements, 2N because every distances appears twice
+        threshold= sorted(dm.flatten())[len(X_maj) + 2*N]
+        for i in range(len(dm)):
+            dm[i,i]= np.inf
+        
+        # extracting the coordinates of pairs closer than threshold
+        pairs_to_break= np.where(dm < threshold)
+        pairs_to_break= np.vstack(pairs_to_break)
+        
+        # sorting the pairs, otherwise both points would be removed
+        pairs_to_break.sort(axis= 0)
+        
+        # uniqueing the coordinates - the final number might be less than N
+        to_remove= np.unique(pairs_to_break[0])
+        
+        # removing the selected elements
+        X_maj_cleaned= np.delete(X_maj, to_remove, axis= 0)
+        
+        return np.vstack([X_min_extended, X_maj_cleaned]), np.hstack([np.repeat(self.minority_label, len(X_min_extended)), np.repeat(self.majority_label, len(X_maj_cleaned))])
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {}
+
+class MSYN(OverSampling):
+    """
+    @InProceedings{msyn,
+                    author="Fan, Xiannian
+                    and Tang, Ke
+                    and Weise, Thomas",
+                    editor="Huang, Joshua Zhexue
+                    and Cao, Longbing
+                    and Srivastava, Jaideep",
+                    title="Margin-Based Over-Sampling Method for Learning from Imbalanced Datasets",
+                    booktitle="Advances in Knowledge Discovery and Data Mining",
+                    year="2011",
+                    publisher="Springer Berlin Heidelberg",
+                    address="Berlin, Heidelberg",
+                    pages="309--320",
+                    abstract="Learning from imbalanced datasets has drawn more and more attentions from both theoretical and practical aspects. Over- sampling is a popular and simple method for imbalanced learning. In this paper, we show that there is an inherently potential risk associated with the over-sampling algorithms in terms of the large margin principle. Then we propose a new synthetic over sampling method, named Margin-guided Synthetic Over-sampling (MSYN), to reduce this risk. The MSYN improves learning with respect to the data distributions guided by the margin-based rule. Empirical study verities the efficacy of MSYN.",
+                    isbn="978-3-642-20847-8"
+                    }
+    URL: https://drive.google.com/open?id=1i1ah7i4JfSoD8j5AJiP9Lx3-DIniKeYN
+    """
+    def __init__(self, pressure= 1.5, n_neighbors= 5):
+        """
+        Constructor of the sampling object
+        Args:
+            pressure (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): paramter of the nearest neighbor component in SMOTE
+        """
+        super().__init__()
+        self.check_greater_or_equal(pressure, 'pressure', 0)
+        self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
+        
+        self.pressure= pressure
+        self.n_neighbors= n_neighbors
+        
+        self.set_cat_extensive()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'pressure': [2.5, 2.0, 1.5], 'n_neighbors': [3, 5, 7]})
+
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        X_min= X[y == self.minority_label]
+        X_maj= X[y == self.majority_label]
+        
+        min_indices= np.where(y == self.minority_label)[0]
+        maj_indices= np.where(y == self.majority_label)[0]
+        
+        # generating samples
+        smote= SMOTE(proportion= self.pressure, n_neighbors= self.n_neighbors)
+        X_res, y_res= smote.sample(X, y)
+        X_new, _= X_res[len(X):], y_res[len(X):]
+        
+        # Compute nearest hit and miss for both classes
+        nn= NearestNeighbors(n_neighbors= len(X))
+        nn.fit(X)
+        dist, ind= nn.kneighbors(X)
+        
+        # computing nearest hit and miss distances, these will be used to compute thetas
+        nearest_hit_dist= np.array([dist[i][next(j for j in range(1, len(X)) if y[i] == y[ind[i][j]])] for i in range(len(X))])
+        nearest_miss_dist= np.array([dist[i][next(j for j in range(1, len(X)) if y[i] != y[ind[i][j]])] for i in range(len(X))])
+        
+        # computing the thetas without new samples being involved
+        theta_A_sub_alpha= 0.5*(nearest_miss_dist - nearest_hit_dist)
+        theta_min= theta_A_sub_alpha[min_indices]
+        theta_maj= theta_A_sub_alpha[maj_indices]
+        
+        # computing the f_3 score for all new samples
+        f_3= []
+        for x in X_new:
+            # determining the distances of the new sample from the training set
+            distances= np.linalg.norm(X - x, axis= 1)
+            
+            # computing nearest hit and miss distances involving the new elements
+            nearest_hit_dist_min= np.where(nearest_hit_dist[min_indices] < distances[min_indices], nearest_hit_dist[min_indices], distances[min_indices])
+            nearest_miss_dist_min= nearest_miss_dist[min_indices]
+            nearest_hit_dist_maj= nearest_hit_dist[maj_indices]
+            nearest_miss_dist_maj= np.where(nearest_miss_dist[maj_indices] < distances[maj_indices], nearest_miss_dist[maj_indices], distances[maj_indices])
+            
+            # computing the thetas incorporating the new elements
+            theta_x_min= 0.5*(nearest_miss_dist_min - nearest_hit_dist_min)
+            theta_x_maj= 0.5*(nearest_miss_dist_maj - nearest_hit_dist_maj)
+            
+            # determining the delta scores and computing f_3
+            Delta_P= np.sum(theta_x_min - theta_min)
+            Delta_N= np.sum(theta_x_maj - theta_maj)
+            
+            f_3.append(-Delta_N/(Delta_P + 0.01))
+        
+        f_3= np.array(f_3)
+        
+        # determining the elements with the minimum f_3 scores to add
+        _, new_ind= zip(*sorted(zip(f_3, np.arange(len(f_3))), key= lambda x: x[0]))
+        new_ind= list(new_ind[:(len(X_maj) - len(X_min))])
+       
+        return np.vstack([X, X_new[new_ind]]), np.hstack([y, np.repeat(self.minority_label, len(new_ind))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'pressure': self.pressure, 'n_neighbors': self.n_neighbors}
+
+class SVM_balance(OverSampling):
+    """
+    @article{SVM_balance,
+             author = {Farquad, M.A.H. and Bose, Indranil},
+             title = {Preprocessing Unbalanced Data Using Support Vector Machine},
+             journal = {Decis. Support Syst.},
+             issue_date = {April, 2012},
+             volume = {53},
+             number = {1},
+             month = apr,
+             year = {2012},
+             issn = {0167-9236},
+             pages = {226--233},
+             numpages = {8},
+             url = {http://dx.doi.org/10.1016/j.dss.2012.01.016},
+             doi = {10.1016/j.dss.2012.01.016},
+             acmid = {2181554},
+             publisher = {Elsevier Science Publishers B. V.},
+             address = {Amsterdam, The Netherlands, The Netherlands},
+             keywords = {COIL data, Hybrid method, Preprocessor, SVM, Unbalanced data},
+            } 
+    URL: https://drive.google.com/open?id=1DWDPQhJfzvUFgGAeAej-Xtlz5zX7trPz
+    
+    It turns out only from the results tables that this technique is always
+    applied after some sampling method, like SMOTE.
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                        e.g. 1.0 means that after sampling the number of minority
+                                        samples will be equal to the number of majority samples
+            n_neighbors (int): number of neighbors in the SMOTE component
+        """
+        super().__init__()
+        
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        
+        self.set_cat_extensive()
+        self.set_cat_uses_classifier()
+        self.set_cat_changes_majority()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_parameter_combinations({'proportion': [0.25, 0.5, 0.75, 1.0], 'n_neighbors': [3, 5, 7]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        X, y= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors).sample(X, y)
+        
+        ss= StandardScaler()
+        X_norm= ss.fit_transform(X)
+        
+        C_params= [0.01, 0.1, 1.0, 10.0]
+        best_score= 0
+        best_C= 0.01
+        for C in C_params:
+            logging.info("Evaluating SVM with C=%f" % C)
+            svc= SVC(C= C, kernel= 'rbf')
+            score= np.mean(cross_val_score(svc, X_norm, y, cv= 5))
+            if score > best_score:
+                best_score= score
+                best_C= C
+        svc= SVC(C= best_C, kernel= 'rbf')
+        svc.fit(X_norm, y)
+
+        return X, svc.predict(X_norm)
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+
+class TRIM_SMOTE(OverSampling):
+    """
+    @InProceedings{trim_smote,
+                    author="Puntumapon, Kamthorn
+                    and Waiyamai, Kitsana",
+                    editor="Tan, Pang-Ning
+                    and Chawla, Sanjay
+                    and Ho, Chin Kuan
+                    and Bailey, James",
+                    title="A Pruning-Based Approach for Searching Precise and Generalized Region for Synthetic Minority Over-Sampling",
+                    booktitle="Advances in Knowledge Discovery and Data Mining",
+                    year="2012",
+                    publisher="Springer Berlin Heidelberg",
+                    address="Berlin, Heidelberg",
+                    pages="371--382",
+                    abstract="One solution to deal with class imbalance is to modify its class distribution. Synthetic over-sampling is a well-known method to modify class distribution by generating new synthetic minority data. Synthetic Minority Over-sampling TEchnique (SMOTE) is a state-of-the-art synthetic over-sampling algorithm that generates new synthetic data along the line between the minority data and their selected nearest neighbors. Advantages of SMOTE is to have decision regions larger and less specific to original data. However, its drawback is the over-generalization problem where synthetic data is generated into majority class region. Over-generalization leads to misclassify non-minority class region into minority class. To overcome the over-generalization problem, we propose an algorithm, called TRIM, to search for precise minority region while maintaining its generalization. TRIM iteratively filters out irrelevant majority data from the precise minority region. Output of the algorithm is the multiple set of seed minority data, and each individual set will be used for generating new synthetic data. Compared with state-of-the-art over-sampling algorithms, experimental results show significant performance improvement in terms of F-measure and AUC. This suggests over-generalization has a significant impact on the performance of the synthetic over-sampling method.",
+                    isbn="978-3-642-30220-6"
+                    }
+
+    URL: https://drive.google.com/open?id=1VIUmLYe29YeJeXHDAyD5zHf7Ban8RTZf
+    
+    It is not described precisely how the filtered data is used for sample generation.
+    The method is proposed to be a preprocessing step, and it states that it applies
+    sample generation to each group extracted. The method is tested using SMOTE, so
+    we apply the SMOTE sampling technique to the groups to generate samples, but not
+    SMOTE itself, as in the groups generated by the algorithm the original minority samples
+    are majority ones and SMOTE would amplify the original majority samples.
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5, min_precision= 0.3):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, 'proportion', 0)
+        self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
+        self.check_in_range(min_precision, 'min_precision', [0,1])
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        self.min_precision= min_precision
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.25, 0.5, 0.75, 1.0], 'n_neighbors': [3, 5, 7], 'min_precision': [0.3]})
+    
+    def trim(self, y):
+        """
+        Determines the trim value.
+        Args:
+            y (np.array): array of target labels
+        Returns:
+            float: the trim value
+        """
+        return np.sum(y == self.minority_label)**2/len(y)
+    
+    def precision(self, y):
+        """
+        Determines the precision value.
+        Args:
+            y (np.array): array of target labels
+        Returns:
+            float: the precision value
+        """
+        return np.sum(y == self.minority_label)/len(y)
+    
+    def determine_splitting_point(self, X, y, split_on_border= False):
+        """
+        Determines the splitting point.
+        Args:
+            X (np.matrix): a subset of the training data
+            y (np.array): an array of target labels
+            split_on_border (bool): wether splitting on class borders is considered
+        Returns:
+            tuple(int, float), bool: (splitting feature, splitting value), make the split
+        """
+        trim_value= self.trim(y)
+        d= len(X[0])
+        max_t_minus_gain= 0.0
+        split= None
+        
+        # checking all dimensions of X
+        for i in range(d):
+            # sort the elements in dimension i
+            sorted_X_y= sorted(zip(X[:,i], y), key= lambda pair: pair[0])
+            sorted_y= [yy for _, yy in sorted_X_y]
+            
+            # number of minority samples on the left
+            left_min= 0
+            # number of minority samples on the right
+            right_min= np.sum(sorted_y == self.minority_label)
+            
+            # check all possible splitting points sequentiall
+            for j in range(0, len(sorted_y)-1):
+                if sorted_y[j] == self.minority_label:
+                    # adjusting the number of minority and majority samples
+                    left_min= left_min + 1
+                    right_min= right_min - 1
+                # checking of we can split on the border and do not split tieing feature values
+                if (split_on_border == False or (split_on_border == True and not sorted_y[j-1] == sorted_y[j])) and sorted_X_y[j][0] != sorted_X_y[j+1][0]:
+                    # compute trim value of the left
+                    trim_left= left_min**2/(j+1)
+                    # compute trim value of the right
+                    trim_right= right_min**2/(len(sorted_y) - j - 1)
+                    # let's check the gain
+                    if max(trim_left, trim_right) > max_t_minus_gain:
+                        max_t_minus_gain= max(trim_left, trim_right)
+                        split= (i, sorted_X_y[j][0])
+        # return splitting values and the value of the logical condition in line 9
+        if not split is None:
+            return split, max_t_minus_gain > trim_value
+        else:
+            return (0, 0), False
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        leafs= [(X, y)]
+        candidates= []
+        seeds= []
+        
+        # executing the trimming
+        # loop in line 2 of the paper
+        logging.info("do the trimming process")
+        while len(leafs) > 0 or len(candidates) > 0:
+            add_to_leafs= []
+            # executing the loop starting in line 3
+            for l in leafs:
+                # the function implements the loop starting in line 6
+                # splitting on class border is forced
+                split, gain= self.determine_splitting_point(l[0], l[1], True)
+                if len(l[0]) == 1:
+                    # small leafs with 1 element (no splitting point) are dropped
+                    # as noise
+                    continue
+                else:
+                    # condition in line 9
+                    if gain:
+                        # making the split
+                        mask_left= (l[0][:,split[0]] <= split[1])
+                        X_left, y_left= l[0][mask_left], l[1][mask_left]
+                        mask_right= np.logical_not(mask_left)
+                        X_right, y_right= l[0][mask_right], l[1][mask_right]
+                        
+                        # condition in line 11
+                        if np.sum(y_left == self.minority_label) > 0:
+                            add_to_leafs.append((X_left, y_left))
+                        # condition in line 13
+                        if np.sum(y_right == self.minority_label) > 0:
+                            add_to_leafs.append((X_right, y_right))
+                    else:
+                        # line 16
+                        candidates.append(l)
+            # we implement line 15 and 18 by replacing the list of leafs by
+            # the list of new leafs.
+            leafs= add_to_leafs
+
+            # iterating through all candidates (loop starting in line 21)
+            for c in candidates:
+                # extracting splitting points, this time split on border is not forced
+                split, gain= self.determine_splitting_point(l[0], l[1], False)
+                if len(l[0]) == 1:
+                    # small leafs are dropped as noise
+                    continue
+                else:
+                    # checking condition in line 27
+                    if gain:
+                        # doing the split
+                        mask_left= (c[0][:,split[0]] <= split[1])
+                        X_left, y_left= c[0][mask_left], c[1][mask_left]
+                        mask_right= np.logical_not(mask_left)
+                        X_right, y_right= c[0][mask_right], c[1][mask_right]
+                        # checking logic in line 29
+                        if np.sum(y_left == self.minority_label) > 0:
+                            leafs.append((X_left, y_left))
+                        # checking logic in line 31
+                        if np.sum(y_right == self.minority_label) > 0:
+                            leafs.append((X_right, y_right))
+                    else:
+                        # adding candidate to seeds (line 35)
+                        seeds.append(c)
+            # line 33 and line 36 are implemented by emptying the candidates list
+            candidates= []
+        
+        # filtering the resulting set
+        seeds= [s for s in seeds if self.precision(s[1]) > self.min_precision]
+        
+        X_seed= np.vstack([s[0] for s in seeds])
+        y_seed= np.hstack([s[1] for s in seeds])
+        
+        logging.info("do the sampling process")
+        # generating samples by SMOTE
+        X_seed_min= X_seed[y_seed == self.minority_label]
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1)
+        nn.fit(X_seed_min)
+        distances, indices= nn.kneighbors(X_seed_min)
+        
+        # do the sampling
+        samples= []
+        for _ in range(num_to_sample):
+            random_idx= np.random.randint(len(X_seed_min))
+            random_neighbor_idx= np.random.choice(indices[random_idx][1:])
+            samples.append(self.sample_between_points(X_seed_min[random_idx], X_seed_min[random_neighbor_idx]))
+        
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'min_precision': self.min_precision}
+
+class SMOTE_RSB(OverSampling):
+    """
+        @Article{smote_rsb,
+                author="Ramentol, Enislay
+                and Caballero, Yail{\'e}
+                and Bello, Rafael
+                and Herrera, Francisco",
+                title="SMOTE-RSB*: a hybrid preprocessing approach based on oversampling and undersampling for high imbalanced data-sets using SMOTE and rough sets theory",
+                journal="Knowledge and Information Systems",
+                year="2012",
+                month="Nov",
+                day="01",
+                volume="33",
+                number="2",
+                pages="245--265",
+                abstract="Imbalanced data is a common problem in classification. This phenomenon is growing in importance since it appears in most real domains. It has special relevance to highly imbalanced data-sets (when the ratio between classes is high). Many techniques have been developed to tackle the problem of imbalanced training sets in supervised learning. Such techniques have been divided into two large groups: those at the algorithm level and those at the data level. Data level groups that have been emphasized are those that try to balance the training sets by reducing the larger class through the elimination of samples or increasing the smaller one by constructing new samples, known as undersampling and oversampling, respectively. This paper proposes a new hybrid method for preprocessing imbalanced data-sets through the construction of new samples, using the Synthetic Minority Oversampling Technique together with the application of an editing technique based on the Rough Set Theory and the lower approximation of a subset. The proposed method has been validated by an experimental study showing good results using C4.5 as the learning algorithm.",
+                issn="0219-3116",
+                doi="10.1007/s10115-011-0465-6",
+                url="https://doi.org/10.1007/s10115-011-0465-6"
+                }
+        
+    URL: https://drive.google.com/open?id=1erSr3NWqBNXO1dCK1h2DMfEzdtaHDTJB
+    
+    I think the description of the algorithm in Fig 5 of the paper is not correct.
+    The set "resultSet" is initialized with the original instances, and then
+    the While loop in the Algorithm run until resultSet is empty, which never
+    holds. Also, the resultSet is only extended in the loop. Our implementation
+    is changed in the following way: we generate twice as many instances are
+    required to balance the dataset, and repeat the loop until the number of
+    new samples added to the training set is enough to balance the dataset.
+    """
+    def __init__(self):
+        """
+        Constructor of the sampling object
+        """
+        super().__init__()
+        
+        self.set_cat_extensive()
+        self.set_cat_sample_ordinary()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return []
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        X_maj= X[y == self.majority_label]
+        X_min= X[y == self.minority_label]
+        
+        # Step 1: do the sampling
+        smote= SMOTE(proportion= 2.0)
+        X_samp, y_samp= smote.sample(X, y)
+        X_samp, y_samp= X_samp[len(X):], y_samp[len(X):]
+        
+        # Step 2: (original will be added later)
+        result_set= []
+        
+        # Step 3: first the data is normalized
+        maximums= np.max(X_samp, axis= 0)
+        minimums= np.min(X_samp, axis= 0)
+        
+        # normalize X_new and X_maj
+        norm_factor= maximums - minimums
+        X_samp_norm= X_samp / norm_factor
+        X_maj_norm= X_maj / norm_factor
+        
+        # compute similarity matrix
+        similarity_matrix= 1.0 - pairwise_distances(X_samp_norm, X_maj_norm, metric= 'minkowski', p= 1)/len(X[0])
+        
+        # Step 4: counting the similar examples
+        similarity_value= 0.4
+        syn= len(X_samp)
+        cont= np.zeros(syn)
+        
+        already_added= np.repeat(False, len(X_samp))
+        
+        while len(result_set) < len(X_maj) - len(X_min) and similarity_value <= 0.9:
+            for i in range(syn):
+                cont[i]= np.sum(similarity_matrix[i,:] > similarity_value)
+                if cont[i] == 0 and not already_added[i]:
+                    result_set.append(X_samp[i])
+                    already_added[i]= True
+            similarity_value= similarity_value + 0.05
+        
+        # Step 5: returning the results depending the number of instances added to the result set
+        if len(result_set) > 0:
+            return np.vstack([X, np.vstack(result_set)]), np.hstack([y, np.repeat(self.minority_label, len(result_set))])
+        else:
+            return np.vstack([X, X_samp]), np.hstack([y, y_samp])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {}
+
+class ProWSyn(OverSampling):
+    """
+        @InProceedings{prowsyn,
+                    author="Barua, Sukarna
+                    and Islam, Md. Monirul
+                    and Murase, Kazuyuki",
+                    editor="Pei, Jian
+                    and Tseng, Vincent S.
+                    and Cao, Longbing
+                    and Motoda, Hiroshi
+                    and Xu, Guandong",
+                    title="ProWSyn: Proximity Weighted Synthetic Oversampling Technique for Imbalanced Data Set Learning",
+                    booktitle="Advances in Knowledge Discovery and Data Mining",
+                    year="2013",
+                    publisher="Springer Berlin Heidelberg",
+                    address="Berlin, Heidelberg",
+                    pages="317--328",
+                    abstract="An imbalanced data set creates severe problems for the classifier as number of samples of one class (majority) is much higher than the other class (minority). Synthetic oversampling methods address this problem by generating new synthetic minority class samples. To distribute the synthetic samples effectively, recent approaches create weight values for original minority samples based on their importance and distribute synthetic samples according to weight values. However, most of the existing algorithms create inappropriate weights and in many cases, they cannot generate the required weight values for the minority samples. This results in a poor distribution of generated synthetic samples. In this respect, this paper presents a new synthetic oversampling algorithm, Proximity Weighted Synthetic Oversampling Technique (ProWSyn). Our proposed algorithm generate effective weight values for the minority data samples based on sample's proximity information, i.e., distance from boundary which results in a proper distribution of generated synthetic samples across the minority data set. Simulation results on some real world datasets shows the effectiveness of the proposed method showing improvements in various assessment metrics such as AUC, F-measure, and G-mean.",
+                    isbn="978-3-642-37456-2"
+                    }
+        
+    URL: https://drive.google.com/open?id=12yiLJc0XOT6tjVN7yIPBKJa-eIC229s3
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5, L= 5, theta= 1.0):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): number of neighbors in nearest neighbors component
+            L (int): number of levels
+            theta (float): smoothing factor in weight formula
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_greater_or_equal(L, "L", 1)
+        self.check_greater_or_equal(theta, "theta", 0)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        self.L= L
+        self.theta= theta
+        
+        self.set_cat_extensive()
+        self.set_cat_sample_ordinary()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'L': [3, 5, 7], 'theta': [0.1, 1.0, 2.0]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # Step 1 - a bit generalized
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        # Step 2
+        P= np.where(y == self.minority_label)[0]
+        X_maj= X[y == self.majority_label]
+        
+        Ps= []
+        proximity_levels= []
+        
+        # Step 3
+        for i in range(self.L):
+            if len(P) == 0:
+                break
+            # Step 3 a
+            nn= NearestNeighbors(n_neighbors= min([len(P), self.n_neighbors]))
+            nn.fit(X[P])
+            distances, indices= nn.kneighbors(X_maj)
+            
+            # Step 3 b
+            P_i= np.unique(np.hstack([i for i in indices]))
+            print(P_i)
+            
+            # Step 3 c - proximity levels are encoded in the Ps list index
+            Ps.append(P[P_i])
+            proximity_levels.append(i+1)
+            
+            # Step 3 d
+            P= np.delete(P, P_i)
+        
+        # Step 4
+        if len(P) > 0:
+            Ps.append(P)
+        
+        # Step 5
+        if len(P) > 0:
+            proximity_levels.append(i)
+            proximity_levels= np.array(proximity_levels)
+        
+        # Step 6
+        weights= np.array([np.exp(-self.theta*(proximity_levels[i] - 1)) for i in range(len(proximity_levels))])
+        # weights is the probability distribution of sampling in the clusters identified
+        weights= weights/np.sum(weights)
+        
+        # do the sampling, from each cluster proportionally to the distribution
+        samples= []
+        while len(samples) < num_to_sample:
+            cluster_idx= np.random.choice(np.arange(len(weights)), p=weights)
+            if len(Ps[cluster_idx]) > 1:
+                random_idx1, random_idx2= np.random.choice(Ps[cluster_idx], 2, replace= False)
+                samples.append(self.sample_between_points(X[random_idx1], X[random_idx2]))
+        
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'L': self.L, 'theta': self.theta}
+
+class SL_graph_SMOTE(OverSampling):
+    """
+        @inproceedings{sl_graph_smote,
+                author = {Bunkhumpornpat, Chumpol and Subpaiboonkit, Sitthichoke},
+                booktitle= {13th International Symposium on Communications and Information Technologies},
+                year = {2013},
+                month = {09},
+                pages = {570-575},
+                title = {Safe level graph for synthetic minority over-sampling techniques},
+                isbn = {978-1-4673-5578-0}
+                }
+        
+    URL: https://drive.google.com/open?id=1UxPfhGjM9KA7eXA4yhPvfYBjbPp8fZeT
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): number of neighbors in nearest neighbors component
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        
+        self.set_cat_extensive()
+        self.set_cat_borderline()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.25, 0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # Fitting nearest neighbors model
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors)
+        nn.fit(X)
+        distances, indices= nn.kneighbors(X[y == self.minority_label])
+        
+        # Computing safe level values
+        safe_level_values= np.array([np.sum(y[i] == self.minority_label) for i in indices])
+        
+        # Computing skewness
+        skewness= skew(safe_level_values)
+        
+        if skewness < 0:
+            # left skewed
+            s= Safe_Level_SMOTE(self.proportion, self.n_neighbors)
+        else:
+            # right skewed
+            s= Borderline_SMOTE1(self.proportion, self.n_neighbors)
+        
+        return s.sample(X, y)
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+
+class NRSBoundary_SMOTE(OverSampling):
+    """
+        @Article{nrsboundary_smote,
+                author= {Feng, Hu and Hang, Li},
+                title= {A Novel Boundary Oversampling Algorithm Based on Neighborhood Rough Set Model: NRSBoundary-SMOTE},
+                journal= {Mathematical Problems in Engineering},
+                year= {2013},
+                pages= {10},
+                doi= {10.1155/2013/694809},
+                url= {http://dx.doi.org/10.1155/694809}
+                }
+        
+    URL: https://drive.google.com/open?id=1CdBzRHdcKmvGB6bkRSv6_ZviMeuwCZDT
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5, w= 0.005):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): number of neighbors in nearest neighbors component
+            w (float): used to set neighborhood radius
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_greater_or_equal(w, "w", 0)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        self.w= w
+        
+        self.set_cat_extensive()
+        self.set_cat_borderline()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'w': [0.005, 0.01, 0.05]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        # step 1
+        bound_set= []
+        pos_set= []
+        
+        # step 2
+        X_min_indices= np.where(y == self.minority_label)[0]
+        X_min= X[X_min_indices]
+        
+        # step 3
+        dm= pairwise_distances(X, X)
+        d_max= np.max(dm, axis= 1)
+        max_dist= np.max(dm)
+        np.fill_diagonal(dm, max_dist)
+        d_min= np.min(dm, axis= 1)
+        
+        delta= d_min + self.w*(d_max - d_min)
+        
+        # number of neighbors is not interesting here, as we use the
+        # radius_neighbors function to extract the neighbors in a given radius
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn.fit(X)
+        for i in range(len(X)):
+            indices= nn.radius_neighbors(X[i].reshape(1, -1), delta[i], return_distance= False)
+            if y[i] == self.minority_label and not np.sum(y[indices[0]] == self.minority_label) == len(indices[0]):
+                bound_set.append(i)
+            elif y[i] == self.majority_label and np.sum(y[indices[0]] == self.majority_label) == len(indices[0]):
+                pos_set.append(i)
+        
+        bound_set= np.array(bound_set)
+        pos_set= np.array(pos_set)
+        
+        # step 4 and 5
+        # computing the nearest neighbors of the bound set from the minoriy set
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn.fit(X_min)
+        distances, indices= nn.kneighbors(X[bound_set])
+        
+        # do the sampling
+        samples= []
+        while len(samples) < num_to_sample:
+            idx= np.random.choice(len(bound_set))
+            random_neighbor_idx= np.random.choice(indices[idx][1:])
+            x_new= self.sample_between_points(X[bound_set[idx]], X_min[random_neighbor_idx])
+            
+            # checking the conflict
+            dist_from_pos_set= np.linalg.norm(X[pos_set] - x_new, axis= 1)
+            if np.all(dist_from_pos_set > delta[pos_set]):
+                # no conflict
+                samples.append(x_new)
+            
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'w': self.w}
+
+class LVQ_SMOTE(OverSampling):
+    """
+        @inproceedings{lvq_smote,
+                          title={LVQ-SMOTE – Learning Vector Quantization based Synthetic Minority Over–sampling Technique for biomedical data},
+                          author={Munehiro Nakamura and Yusuke Kajiwara and Atsushi Otsuka and Haruhiko Kimura},
+                          booktitle={BioData Mining},
+                          year={2013}
+                        }
+        
+    URL: https://drive.google.com/open?id=18ecI_0tYQG-1nRm8GhFRXZxFVPw7CzfD
+    
+    This implementation is only a rough estimation of the method described in the
+    paper. The main problem is that the paper uses many datasets to find similar patterns
+    in the codebooks and replicate patterns appearing in other datasets to the imbalanced datasets
+    based on their relative position compared to the codebook elements.
+    
+    What we do is clustering the minority class to extract a codebook as kmeans
+    cluster means, then, find pairs of codebook elements which have the most similar
+    relative position to a randomly selected pair of codebook elements, and translate
+    nearby minority samples from the neighborhood one pair of codebook elements
+    to the neighborood of another pair of codebook elements.
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_clusters= 10):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): number of neighbors in nearest neighbors component
+            n_clusters (int): number of clusters in vector quantization
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_greater_or_equal(n_clusters, "n_clusters", 3)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        self.n_clusters= n_clusters
+        
+        self.set_cat_extensive()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'n_clusters': [4, 8, 12]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        
+        # clustering X_min to extract codebook
+        kmeans= KMeans(n_clusters= min([len(X_min), self.n_clusters]))
+        kmeans.fit(X_min)
+        codebook= kmeans.cluster_centers_
+        
+        # get nearest neighbors of minority samples to codebook samples
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors)
+        nn.fit(X_min)
+        distances, indices= nn.kneighbors(codebook)
+        
+        # do the sampling
+        samples= []
+        for _ in range(num_to_sample):
+            # randomly selecting a pair of codebook elements
+            cb_0, cb_1= np.random.choice(list(range(len(codebook))), 2, replace= False)
+            diff= codebook[cb_0] - codebook[cb_1]
+            min_dist= np.inf
+            min_0= None
+            # finding another pair of codebook elements with similar offset
+            for i in range(len(codebook)):
+                for j in range(len(codebook)):
+                    if cb_0 != i and cb_0 != j and cb_1 != i and cb_1 != j:
+                        dd= np.linalg.norm(diff - (codebook[i] - codebook[j]))
+                        if dd < min_dist:
+                            min_dist= dd
+                            min_0= np.random.choice([i,j])
+            
+            # translating a random neighbor of codebook element min_0 to 
+            # the neighborhood of point_0
+            point_0= codebook[cb_0] + (X_min[indices[min_0][np.random.randint(self.n_neighbors)]] - codebook[min_0])
+            
+            samples.append(point_0)
+        
+        return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'strategy': self.proportion, 'n_neighbors': self.n_neighbors, 'n_clusters': self.n_clusters}
+
+class SOI_CJ(OverSampling):
+    """
+        @article{soi_cj,
+                author = {I. Sánchez, Atlántida and Morales, Eduardo and Gonzalez, Jesus},
+                year = {2013},
+                month = {01},
+                pages = {},
+                title = {Synthetic Oversampling of Instances Using Clustering},
+                volume = {22},
+                booktitle = {International Journal of Artificial Intelligence Tools}
+                }
+        
+    URL: https://drive.google.com/open?id=13GzuVxVZtelG6VNW_Ic8hlxge3XhCYKq
+    """
+    def __init__(self, proportion= 1.0, method= 'interpolation'):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            method (str): 'interpolation'/'jittering'
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, 'proportion', 0)
+        self.check_isin(method, 'method', ['interpolation', 'jittering'])
+        
+        self.proportion= proportion
+        self.method= method
+        
+        self.set_cat_extensive()
+        self.set_cat_uses_clustering()
+        self.set_cat_sample_componentwise()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'method': ['interpolation', 'jittering']})
+    
+    def clustering(self, X, y):
+        """
+        Implementation of the clustering technique described in the paper.
+        Args:
+            X (np.matrix): array of training instances
+            y (np.array): target labels
+        Returns:
+            list(set): list of minority clusters
+        """
+        nn_all= NearestNeighbors()
+        nn_all.fit(X)
+        
+        X_min= X[y == self.minority_label]
+        
+        # extract nearest neighbors of all samples from the set of minority samples
+        nn= NearestNeighbors(len(X_min))
+        nn.fit(X)
+        distances, indices= nn.kneighbors(X_min)
+        
+        # initialize clusters by minority samples 
+        clusters= []
+        for i in range(len(X_min)):
+            # empty cluster added
+            clusters.append(set())
+            # while the closest instance is from the minority class, adding it to the cluster
+            for j in indices[i]:
+                if y[j] == self.minority_label:
+                    clusters[i].add(j)
+                else:
+                    break
+        
+        # cluster merging phase
+        is_intersection= True
+        while is_intersection:
+            is_intersection= False
+            for i in range(len(clusters)):
+                for j in range(i + 1, len(clusters)):
+                    # computing intersection
+                    intersection= clusters[i].intersection(clusters[j])
+                    if len(intersection) > 0:
+                        is_intersection= True
+                        # computing distance matrix
+                        dm= pairwise_distances(X[list(clusters[i])], X[list(clusters[j])])
+                        # largest distance
+                        max_dist_pair= np.where(dm == np.max(dm))
+                        # elements with the largest distance
+                        max_i= X[list(clusters[i])[max_dist_pair[0][0]]]
+                        max_j= X[list(clusters[j])[max_dist_pair[1][0]]]
+                        
+                        # finding midpoint and radius
+                        mid_point= (max_i + max_j)/2.0
+                        radius= np.linalg.norm(mid_point - max_i)
+                        
+                        # extracting points within the hypersphare of radius "radius"
+                        indices= nn_all.radius_neighbors(mid_point.reshape(1, -1), radius, return_distance= False)
+                        
+                        if np.sum(y[indices[0]] == self.minority_label) > len(indices[0])/2:
+                            # if most of the covered elements come from the minority class, merge clusters
+                            clusters[i].update(clusters[j])
+                            clusters[j]= set()
+                        else:
+                            # otherwise move the difference to the bigger cluster
+                            if len(clusters[i]) > len(clusters[j]):
+                                clusters[j].difference_update(intersection)
+                            else:
+                                clusters[i].difference_update(intersection)
+
+        # returning non-empty clusters
+        return [c for c in clusters if len(c) > 0]
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        std_min= np.std(X_min, axis= 0)
+        
+        # do the clustering
+        logging.info("Executing clustering")
+        clusters= self.clustering(X, y)
+        
+        # filtering the clusters, at least two points in a cluster are needed
+        # for both interpolation and jittering (due to the standard deviation)
+        clusters_filtered= [list(c) for c in clusters if len(c) > 2]
+        
+        if len(clusters_filtered) > 0:
+            # if there are clusters having at least 2 elements, do the sampling
+            cluster_nums= [len(c) for c in clusters_filtered]
+            cluster_weights= cluster_nums/np.sum(cluster_nums)
+            cluster_stds= [np.std(X[clusters_filtered[i]]) for i in range(len(clusters_filtered))]
+            
+            logging.info("Executing sample generation")
+            samples= []
+            while len(samples) < num_to_sample:
+                cluster_idx= np.random.choice(np.arange(len(clusters_filtered)), p= cluster_weights)
+                if self.method == 'interpolation':
+                    idx_0, idx_1= np.random.choice(clusters_filtered[cluster_idx], 2, replace= False)
+                    samples.append(self.sample_between_points_componentwise(X[idx_0], X[idx_1]))
+                elif self.method == 'jittering':
+                    std= np.min(np.vstack([std_min, cluster_stds[cluster_idx]]), axis= 0)
+                    idx= np.random.choice(clusters_filtered[cluster_idx])
+                    samples.append(self.sample_by_jittering_componentwise(X[idx], std))
+            
+            return np.vstack([X, samples]), np.hstack([y, np.array([self.minority_label]*len(samples))])
+        else:
+            # otherwise fall back to standard smote
+            logging.info("No clusters with more than 2 elements, falling back to SMOTE")
+            return SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors).sample(X, y)
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'method': self.method}
+
+class ROSE(OverSampling):
+    """
+    @Article{rose,
+            author="Menardi, Giovanna
+            and Torelli, Nicola",
+            title="Training and assessing classification rules with imbalanced data",
+            journal="Data Mining and Knowledge Discovery",
+            year="2014",
+            month="Jan",
+            day="01",
+            volume="28",
+            number="1",
+            pages="92--122",
+            abstract="The problem of modeling binary responses by using cross-sectional data has been addressed with a number of satisfying solutions that draw on both parametric and nonparametric methods. However, there exist many real situations where one of the two responses (usually the most interesting for the analysis) is rare. It has been largely reported that this class imbalance heavily compromises the process of learning, because the model tends to focus on the prevalent class and to ignore the rare events. However, not only the estimation of the classification model is affected by a skewed distribution of the classes, but also the evaluation of its accuracy is jeopardized, because the scarcity of data leads to poor estimates of the model's accuracy. In this work, the effects of class imbalance on model training and model assessing are discussed. Moreover, a unified and systematic framework for dealing with the problem of imbalanced classification is proposed, based on a smoothed bootstrap re-sampling technique. The proposed technique is founded on a sound theoretical basis and an extensive empirical study shows that it outperforms the main other remedies to face imbalanced learning problems.",
+            issn="1573-756X",
+            doi="10.1007/s10618-012-0295-5",
+            url="https://doi.org/10.1007/s10618-012-0295-5"
+            }
+
+    URL: https://drive.google.com/open?id=1eLOTCWtXCcqti9NpgXujw7BNY38ToyTc
+    
+    It is not entirely clear if the authors propose kernel density estimation
+    or the fitting of simple multivariate Gaussians on the minority samples.
+    The latter seems to be more likely, I implement that approach.
+    """
+    def __init__(self, proportion= 1.0):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, 'proportion', 0.0)
+        
+        self.proportion= proportion
+        
+        self.set_cat_extensive()
+        self.set_cat_sample_componentwise()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        
+        # Estimating the H matrix
+        std= np.std(X_min, axis= 0)
+        d= len(X[0])
+        n= len(X_min)
+        H= std*(4.0/((d + 1)*n))**(1.0/(d + 4))
+        
+        # do the sampling
+        samples= []
+        for _ in range(num_to_sample):
+            random_idx= np.random.randint(len(X_min))
+            samples.append(self.sample_by_gaussian_jittering(X_min[random_idx], H))
+        
+        return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion}
+
+class SMOTE_OUT(OverSampling):
+    """
+    @article{smote_out_smote_cosine_selected_smote,
+              title={SMOTE-Out, SMOTE-Cosine, and Selected-SMOTE: An enhancement strategy to handle imbalance in data level},
+              author={Fajri Koto},
+              journal={2014 International Conference on Advanced Computer Science and Information System},
+              year={2014},
+              pages={280-284}
+            }
+
+    URL: https://drive.google.com/open?id=1XyyaphBLWJU_nQFppy1f1v5MYkSDqrJ2
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): parameter of the NearestNeighbors component
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        
+        self.set_cat_extensive()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        X_maj= X[y == self.majority_label]
+        
+        minority_indices= np.where(y == self.minority_label)[0]
+        
+        # nearest neighbors among minority points
+        nn_min= NearestNeighbors(self.n_neighbors + 1).fit(X_min)
+        min_distances, min_indices= nn_min.kneighbors(X_min)
+        # nearest neighbors among majority points
+        nn_maj= NearestNeighbors(self.n_neighbors).fit(X_maj)
+        maj_distances, maj_indices= nn_maj.kneighbors(X_min)
+        
+        # generate samples
+        samples= []
+        for _ in range(num_to_sample):
+            # implementation of Algorithm 1 in the paper
+            random_idx= np.random.choice(np.arange(len(minority_indices)))
+            u= X[minority_indices[random_idx]]
+            v= X_maj[np.random.choice(maj_indices[random_idx])]
+            dif1= u - v
+            uu= u + np.random.random()*0.3*dif1
+            x= X_min[np.random.choice(min_indices[random_idx][1:])]
+            dif2= uu - x
+            w= x + np.random.random()*0.5*dif2
+            
+            samples.append(w)
+        
+        return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+
+class SMOTE_Cosine(OverSampling):
+    """
+    @article{smote_out_smote_cosine_selected_smote,
+              title={SMOTE-Out, SMOTE-Cosine, and Selected-SMOTE: An enhancement strategy to handle imbalance in data level},
+              author={Fajri Koto},
+              journal={2014 International Conference on Advanced Computer Science and Information System},
+              year={2014},
+              pages={280-284}
+            }
+
+    URL: https://drive.google.com/open?id=1XyyaphBLWJU_nQFppy1f1v5MYkSDqrJ2
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): parameter of the NearestNeighbors component
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        
+        self.set_cat_extensive()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        X_maj= X[y == self.majority_label]
+        
+        minority_indices= np.where(y == self.minority_label)[0]
+        
+        # Fitting the nearest neighbors models to the minority and majority data
+        # using two different metrics for the minority
+        nn_min_euc= NearestNeighbors(len(X_min)).fit(X_min)
+        nn_min_euc_dist, nn_min_euc_ind= nn_min_euc.kneighbors(X_min)
+        nn_min_cos= NearestNeighbors(len(X_min), metric= 'cosine').fit(X_min)
+        nn_min_cos_dist, nn_min_cos_ind= nn_min_cos.kneighbors(X_min)
+        nn_maj= NearestNeighbors(self.n_neighbors).fit(X_maj)
+        nn_maj_dist, nn_maj_ind= nn_maj.kneighbors(X_min)
+        
+        samples= []
+        for _ in range(num_to_sample):
+            random_idx= np.random.choice(np.arange(len(minority_indices)))
+            u= X[minority_indices[random_idx]]
+            # get the rank of each minority sample according to their distance from u
+            _, sorted_by_euc_ind= zip(*(sorted(zip(nn_min_euc_ind[random_idx], np.arange(len(X_min))), key= lambda x: x[0])))
+            _, sorted_by_cos_ind= zip(*(sorted(zip(nn_min_cos_ind[random_idx], np.arange(len(X_min))), key= lambda x: x[0])))
+            # adding the ranks to get the composite similarity measure (called voting in the paper)
+            ranked_min_indices= sorted_by_euc_ind + sorted_by_cos_ind
+            # sorting the ranking
+            _, sorted_ranking= zip(*(sorted(zip(ranked_min_indices, np.arange(len(X_min))), key= lambda x: x[0])))
+            # get the indices of the n_neighbors nearest neighbors according to the composite metrics
+            min_indices= sorted_ranking[1:(self.n_neighbors + 1)]
+
+            v= X_maj[np.random.choice(nn_maj_ind[random_idx])]
+            dif1= u - v
+            uu= u + np.random.random()*0.3*dif1
+            x= X_min[np.random.choice(min_indices[1:])]
+            dif2= uu - x
+            w= x + np.random.random()*0.5*dif2
+            samples.append(w)
+        
+        return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+
+class Selected_SMOTE(OverSampling):
+    """
+    @article{smote_out_smote_cosine_selected_smote,
+              title={SMOTE-Out, SMOTE-Cosine, and Selected-SMOTE: An enhancement strategy to handle imbalance in data level},
+              author={Fajri Koto},
+              journal={2014 International Conference on Advanced Computer Science and Information System},
+              year={2014},
+              pages={280-284}
+            }
+
+    URL: https://drive.google.com/open?id=1XyyaphBLWJU_nQFppy1f1v5MYkSDqrJ2
+    
+    Significant attribute selection was not described in the paper, therefore
+    we have implemented something meaningful.
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5, perc_sign_attr= 0.5):
+        """
+        Constructor of the sampling object
+        Args:
+            strategy (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): parameter of the NearestNeighbors component
+            perc_sign_attr (float): [0,1] - percentage of significant attributes
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, 'proportion', 0)
+        self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
+        self.check_in_range(perc_sign_attr, 'perc_sign_attr', [0, 1])
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        self.perc_sign_attr= perc_sign_attr
+        
+        self.set_cat_extensive()
+        self.set_cat_sample_componentwise()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'perc_sign_attr': [0.3, 0.5, 0.8]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        X_maj= X[y == self.majority_label]
+        
+        minority_indices= np.where(y == self.minority_label)[0]
+        
+        nn_min_euc= NearestNeighbors(self.n_neighbors + 1).fit(X_min)
+        nn_min_dist, nn_min_ind= nn_min_euc.kneighbors(X_min)
+        
+        # significant attribute selection was not described in the paper
+        # I have implemented significant attribute selection by checking
+        # the overlap between ranges of minority and majority class attributes
+        # the attributes with bigger overlap respecting their ranges
+        # are considered more significant
+        min_ranges_a= np.min(X_min, axis= 0)
+        min_ranges_b= np.max(X_min, axis= 0)
+        maj_ranges_a= np.min(X_maj, axis= 0)
+        maj_ranges_b= np.max(X_maj, axis= 0)
+        
+        # end points of overlaps
+        max_a= np.max(np.vstack([min_ranges_a, maj_ranges_a]), axis= 0)
+        min_b= np.min(np.vstack([min_ranges_b, maj_ranges_b]), axis= 0)
+        
+        # size of overlap
+        overlap= min_b - max_a
+        
+        # replacing negative values (no overlap) by zero
+        overlap= np.where(overlap < 0, 0, overlap)
+        # percentage of overlap compared to the ranges of attributes in the minority set
+        percentages= overlap/(min_ranges_b - min_ranges_a)
+        # fixing zero division if some attributes have zero range
+        percentages= np.nan_to_num(percentages)
+        # number of significant attributes to determine
+        num_sign_attr= min([1, int(np.rint(self.perc_sign_attr*len(percentages)))])
+        
+        significant_attr= (percentages >= sorted(percentages)[-num_sign_attr]).astype(int)
+        
+        samples= []
+        for _ in range(num_to_sample):
+            random_idx= np.random.choice(range(len(minority_indices)))
+            u= X[minority_indices[random_idx]]
+            v= X_min[np.random.choice(nn_min_ind[random_idx][1:])]
+            samples.append(self.sample_between_points_componentwise(u, v, significant_attr))
+        
+        return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'perc_sign_attr': self.perc_sign_attr}
+
+class LN_SMOTE(OverSampling):
+    """
+    @INPROCEEDINGS{ln_smote, 
+                    author={T. Maciejewski and J. Stefanowski}, 
+                    booktitle={2011 IEEE Symposium on Computational Intelligence and Data Mining (CIDM)}, 
+                    title={Local neighbourhood extension of SMOTE for mining imbalanced data}, 
+                    year={2011}, 
+                    volume={}, 
+                    number={}, 
+                    pages={104-111}, 
+                    keywords={Bayes methods;data mining;pattern classification;local neighbourhood extension;imbalanced data mining;focused resampling technique;SMOTE over-sampling method;naive Bayes classifiers;Noise measurement;Noise;Decision trees;Breast cancer;Sensitivity;Data mining;Training}, 
+                    doi={10.1109/CIDM.2011.5949434}, 
+                    ISSN={}, 
+                    month={April}}
+
+    URL: https://drive.google.com/open?id=1VXfwlXcfFrrL_DYa6lpgTLn-bCxxTKAM
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): parameter of the NearestNeighbors component
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0.0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        
+        self.set_cat_extensive()
+        self.set_cat_sample_componentwise()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # number of samples to generate
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        # nearest neighbors of each instance to each instance in the dataset
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 2)
+        nn.fit(X)
+        distances, indices= nn.kneighbors(X)
+        
+        minority_indices= np.where(y == self.minority_label)[0]
+        
+        # dimensionality
+        d= len(X[0])
+        
+        def safe_level(p_idx, n_idx= None):
+            """
+            computing the safe level of samples
+            Args:
+                p_idx (int): index of positive sample
+                n_idx (int): index of other sample
+            Returns:
+                int: safe level
+            """
+            if n_idx is None:
+                # implementation for 1 sample only
+                return np.sum(y[indices[p_idx][1:-1]] == self.minority_label)
+            else:
+                # implementation for 2 samples
+                if (not y[n_idx] != self.majority_label) and p_idx in indices[n_idx][1:-1]:
+                    # -1 because p_idx will be replaced
+                    n_positives= np.sum(y[indices[n_idx][1:-1]] == self.minority_label) - 1
+                    if y[indices[n_idx][-1]] == self.minority_label:
+                        # this is the effect of replacing p_idx by the next (k+1)th neighbor
+                        n_positives= n_positives + 1
+                    return n_positives
+                return np.sum(y[indices[n_idx][1:-1]] == self.minority_label)
+        
+        def random_gap(slp, sln, n_label):
+            """
+            determining random gap
+            Args:
+                slp (int): safe level of p
+                sln (int): safe level of n
+                n_label (int): label of n
+            Returns:
+                float: gap
+            """
+            delta= 0
+            if sln == 0 and slp > 0:
+                return delta
+            else:
+                sl_ratio= slp/sln
+                if sl_ratio == 1:
+                    delta= np.random.random()
+                elif sl_ratio > 1:
+                    delta= np.random.random()/sl_ratio
+                else:
+                    delta= 1.0 - np.random.random()*sl_ratio
+            if not n_label == self.minority_label:
+                delta= delta*sln/(self.n_neighbors)
+            return delta
+        
+        # generating samples
+        samples= []
+        for _ in range(num_to_sample):
+            p_idx= np.random.choice(minority_indices)
+            # extract random neighbor of p
+            n_idx= np.random.choice(indices[p_idx][1:-1])
+            
+            # checking can-create criteria
+            slp= safe_level(p_idx)
+            sln= safe_level(p_idx, n_idx)
+            
+            if (not slp == 0) or (not sln == 0):
+                # can create
+                p= X[p_idx]
+                n= X[n_idx]
+                x_new= np.copy(p)
+                
+                for a in range(d):
+                    delta= random_gap(slp, sln, y[n_idx])
+                    diff= n[a] - p[a]
+                    x_new[a]= p[a] + delta*diff
+                samples.append(x_new)
+        
+        return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+
+class MWMOTE(OverSampling):
+    """
+    @ARTICLE{mwmote, 
+                author={S. Barua and M. M. Islam and X. Yao and K. Murase}, 
+                journal={IEEE Transactions on Knowledge and Data Engineering}, 
+                title={MWMOTE--Majority Weighted Minority Oversampling Technique for Imbalanced Data Set Learning}, 
+                year={2014}, 
+                volume={26}, 
+                number={2}, 
+                pages={405-425}, 
+                keywords={learning (artificial intelligence);pattern clustering;sampling methods;AUC;area under curve;ROC;receiver operating curve;G-mean;geometric mean;minority class cluster;clustering approach;weighted informative minority class samples;Euclidean distance;hard-to-learn informative minority class samples;majority class;synthetic minority class samples;synthetic oversampling methods;imbalanced learning problems;imbalanced data set learning;MWMOTE-majority weighted minority oversampling technique;Sampling methods;Noise measurement;Boosting;Simulation;Complexity theory;Interpolation;Abstracts;Imbalanced learning;undersampling;oversampling;synthetic sample generation;clustering}, 
+                doi={10.1109/TKDE.2012.232}, 
+                ISSN={1041-4347}, 
+                month={Feb}}
+
+    URL: https://drive.google.com/open?id=1PiOSHhJJMZZniuiYvMPyD2BWmR9Q9L1q
+    
+    Not prepared for the case of having clusters of 1 elements.
+    """
+    def __init__(self, proportion= 1.0, k1= 5, k2= 5, k3= 5, M= 10, cf_th= 5.0, cmax= 10.0):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            k1 (int): parameter of the NearestNeighbors component
+            k2 (int): parameter of the NearestNeighbors component
+            k3 (int): parameter of the NearestNeighbors component
+            M (int): number of clusters
+            cf_th (float): cutoff threshold
+            cmax (float): maximum closeness value
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, 'proportion', 0)
+        self.check_greater_or_equal(k1, 'k1', 1)
+        self.check_greater_or_equal(k2, 'k2', 1)
+        self.check_greater_or_equal(k3, 'k3', 1)
+        self.check_greater_or_equal(M, 'M', 1)
+        self.check_greater_or_equal(cf_th, 'cf_th', 0)
+        self.check_greater_or_equal(cmax, 'cmax', 0)
+        
+        self.proportion= proportion
+        self.k1= k1
+        self.k2= k2
+        self.k3= k3
+        self.M= M
+        self.cf_th= cf_th
+        self.cmax= cmax
+        
+        self.set_cat_extensive()
+        self.set_cat_uses_clustering()
+        self.set_cat_borderline()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'k1': [5, 9], 'k2': [5, 9], 'k3': [5, 9], 'M': [4, 10], 'cf_th': [5.0], 'cmax': [10.0]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        X_maj= X[y == self.minority_label]
+        
+        minority= np.where(y == self.minority_label)[0]
+        
+        # Step 1
+        nn= NearestNeighbors(n_neighbors= self.k1 + 1)
+        nn.fit(X)
+        dist1, ind1= nn.kneighbors(X)
+        
+        # Step 2
+        filtered_minority= np.array([i for i in minority if np.sum(y[ind1[i][1:]] == self.minority_label) > 0])
+        
+        # Step 3 - ind2 needs to be indexed by indices of the lengh of X_maj
+        nn_maj= NearestNeighbors(n_neighbors= self.k2)
+        nn_maj.fit(X_maj)
+        dist2, ind2= nn_maj.kneighbors(X[filtered_minority])
+        
+        # Step 4
+        border_majority= np.unique(ind2.flatten())
+        
+        # Step 5 - ind3 needs to be indexed by indices of the length of X_min
+        nn_min= NearestNeighbors(n_neighbors= min([self.k3, len(X_min)]))
+        nn_min.fit(X_min)
+        dist3, ind3= nn_min.kneighbors(X_maj[border_majority])
+        
+        # Step 6 - informative minority indexes X_min
+        informative_minority= np.unique(ind3.flatten())
+        
+        def closeness_factor(y, x, cf_th= self.cf_th, cmax= self.cmax):
+            """
+            Closeness factor according to the Eq (6)
+            Args:
+                y (np.array): training instance (border_majority)
+                x (np.array): training instance (informative_minority)
+                cf_th (float): cutoff threshold
+                cmax (float): maximum values
+            Returns:
+                float: closeness factor
+            """
+            d= np.linalg.norm(y - x)/len(y)
+            if d == 0.0:
+                d= 0.1
+            if 1.0/d < cf_th:
+                f= 1.0/d
+            else:
+                f= cf_th
+            return f/cf_th*cmax
+        
+        # Steps 7 - 9
+        logging.info('computing closeness factors')        
+        closeness_factors= np.zeros(shape=(len(border_majority), len(informative_minority)))
+        for i in range(len(border_majority)):
+            for j in range(len(informative_minority)):
+                closeness_factors[i,j]= closeness_factor(X_maj[border_majority[i]], X_min[informative_minority[j]])
+        
+        logging.info('computing information weights')
+        information_weights= np.zeros(shape=(len(border_majority), len(informative_minority)))
+        for i in range(len(border_majority)):
+            norm_factor= np.sum(closeness_factors[i,:])
+            for j in range(len(informative_minority)):
+                information_weights[i,j]= closeness_factors[i,j]**2/norm_factor
+        
+        selection_weights= np.sum(information_weights, axis= 0)
+        selection_probabilities= selection_weights/np.sum(selection_weights)
+        
+        # Step 10
+        logging.info('do clustering')
+        kmeans= KMeans(n_clusters= min([len(X_min), self.M]))
+        kmeans.fit(X_min)
+        imin_labels= kmeans.labels_[informative_minority]
+        
+        clusters= [np.where(imin_labels == i)[0] for i in range(np.max(kmeans.labels_)+1)]
+        
+        # Step 11
+        samples= []
+        
+        # Step 12
+        for i in range(num_to_sample):
+            random_index= np.random.choice(informative_minority, p= selection_probabilities)
+            cluster_label= kmeans.labels_[random_index]
+            random_index_in_cluster= np.random.choice(clusters[cluster_label])
+            samples.append(self.sample_between_points(X_min[random_index], X_min[random_index_in_cluster]))
+        
+        return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'k1': self.k1, 'k2': self.k2, 'k3': self.k3, 'M': self.M, 'cf_th': self.cf_th, 'cmax': self.cmax}
+
+class PDFOS(OverSampling):
+    """
+    @article{pdfos,
+            title = "PDFOS: PDF estimation based over-sampling for imbalanced two-class problems",
+            journal = "Neurocomputing",
+            volume = "138",
+            pages = "248 - 259",
+            year = "2014",
+            issn = "0925-2312",
+            doi = "https://doi.org/10.1016/j.neucom.2014.02.006",
+            url = "http://www.sciencedirect.com/science/article/pii/S0925231214002501",
+            author = "Ming Gao and Xia Hong and Sheng Chen and Chris J. Harris and Emad Khalaf",
+            keywords = "Imbalanced classification, Probability density function based over-sampling, Radial basis function classifier, Orthogonal forward selection, Particle swarm optimisation"
+            }
+
+    URL: https://drive.google.com/open?id=1sBz9pFeHoGJ0XBwNwQ24r-gQA6-KhLSw
+    
+    Not prepared for low-rank data.
+    """
+    def __init__(self, proportion= 1.0):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        
+        self.proportion= proportion
+        
+        self.set_cat_extensive()
+        self.set_cat_density_estimation()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0]})
+    
+    def _sample_by_kernel_density_estimation(self, X, num_to_sample, n_optimize= 100):
+        """
+        Sample num_to_sample instances by kernel density estimation
+        Args:
+            X_min (np.array): minority data
+            num_to_sample (int): number of instances to sample
+            n_optimize (int): number of vectors used for the optimization process
+        """
+        # dimensionality of the data
+        m= len(X[0])
+        
+        # computing the covariance matrix of the data
+        S= np.cov(X, rowvar= False)
+        logging.info("Condition number of covariance matrix: %f" % np.linalg.cond(S))
+        logging.info("Input size: %d" % len(X))
+        logging.info("Input dim: %d" % m)
+        
+        S_mrank= np.linalg.matrix_rank(S, tol=1e-2)
+        logging.info("Matrix rank of covariance matrix: %d" % S_mrank)
+        
+        # checking the rank of the matrix
+        if S_mrank < m:
+            logging.info("The covariance matrix is singular, performing PCA to fix it")
+            n_components= S_mrank
+            pca= PCA(n_components= min([n_components, len(X)])-1)
+            X_low_dim= pca.fit_transform(X)
+            X_samp= self._sample_by_kernel_density_estimation(X_low_dim, num_to_sample, n_optimize)
+            return pca.inverse_transform(X_samp)
+        
+        S_inv= np.linalg.inv(S)
+        det= np.linalg.det(S)
+        
+        logging.info("Determinant: %f" % det)
+        
+        def eq_9(i, j, sigma, X):
+            """
+            Eq (9) in the paper
+            """
+            tmp= np.dot(np.dot((X[j] - X[i]), S_inv), (X[j] - X[i]))
+            return (np.sqrt(2)*sigma)**(-m)/((2*np.pi)**(m/2))*np.exp(-(1/(4*sigma**2))*tmp)
+        
+        def eq_5(i, j, sigma, X):
+            """
+            Eq (5) in the paper
+            """
+            tmp= np.dot(np.dot((X[j] - X[i]), S_inv), (X[j] - X[i]))
+            return sigma**(-m)/((2.0*np.pi)**(m/2))*np.exp(-(1/(2*sigma**2))*tmp)
+        
+        def eq_5_0(sigma, X):
+            """
+            Eq (5) with the same vectors feeded in
+            """
+            return sigma**(-m)/((2.0*np.pi)**(m/2))
+        
+        def eq_8(i, j, sigma, X):
+            """
+            Eq (8) in the paper
+            """
+            e9= eq_9(i, j, sigma, X)
+            e5= eq_5(i, j, sigma, X)
+            return e9 - 2*e5
+        
+        def M(sigma, X):
+            """
+            Eq (7) in the paper
+            """
+            total= 0.0
+            for i in range(len(X)):
+                for j in range(len(X)):
+                    total= total + eq_8(i, j, sigma, X)
+                        
+            a= total/len(X)**2
+            b= 2.0*eq_5_0(sigma, X)/len(X)
+            return a + b
+        
+        # finding the best sigma parameter
+        best_sigma= 0
+        error= np.inf
+        # the dataset is reduced to make the optimization more efficient
+        X_reduced= X[np.random.choice(list(range(len(X))), min([len(X), n_optimize]), replace= False)]
+        
+        # we suppose that the data is normalized, thus, this search space should be meaningful
+        for sigma in np.logspace(-5, 2, num= 20):
+            e= M(sigma, X_reduced)
+            if e < error:
+                error= e
+                best_sigma= sigma
+        logging.info("best sigma found: %f" % best_sigma)
+        
+        # generating samples according to the 
+        samples= []
+        for _ in range(num_to_sample):
+            idx= np.random.randint(len(X))
+            samples.append(np.random.multivariate_normal(X[idx], best_sigma*S))
+            
+        return np.vstack(samples)
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        # scaling the data to aid numerical stability
+        ss= StandardScaler()
+        X_ss= ss.fit_transform(X)
+        
+        X_min= X_ss[y == self.minority_label]
+        
+        # generating samples by kernel density estimation
+        samples= self._sample_by_kernel_density_estimation(X_min, num_to_sample, n_optimize= 100)
+
+        return np.vstack([X, ss.inverse_transform(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion}
+
+class IPADE_ID(OverSampling):
+    """
+    @article{ipade_id,
+            title = "Addressing imbalanced classification with instance generation techniques: IPADE-ID",
+            journal = "Neurocomputing",
+            volume = "126",
+            pages = "15 - 28",
+            year = "2014",
+            note = "Recent trends in Intelligent Data Analysis Online Data Processing",
+            issn = "0925-2312",
+            doi = "https://doi.org/10.1016/j.neucom.2013.01.050",
+            url = "http://www.sciencedirect.com/science/article/pii/S0925231213006887",
+            author = "Victoria López and Isaac Triguero and Cristóbal J. Carmona and Salvador García and Francisco Herrera",
+            keywords = "Differential evolution, Instance generation, Nearest neighbor, Decision tree, Imbalanced datasets"
+            }
+
+    URL: https://drive.google.com/open?id=1G6MS_K0uBgIWlwWMyTciR8_6O7fwPTTg
+    
+    According to the algorithm, if the addition of a majority sample doesn't improve the AUC during the
+    DE optimization process, the addition of no further majority points is tried.
+    In the differential evolution the multiplication by a random number seems have a deteriorating effect,
+    new scaling parameter added to fix this.
+    It is not specified how to do the evaluation.
+    """
+    def __init__(self, F= 0.1, G= 0.1, OT= 20, max_it= 40):
+        """
+        Constructor of the sampling object
+        Args:
+            F (float): control parameter of differential evolution
+            OT (int): number of optimizations
+            max_it (int): maximum number of iterations for DE_optimization
+        """
+        super().__init__()
+        self.check_greater(F, 'F', 0)
+        self.check_greater(G, 'G', 0)
+        self.check_greater(OT, 'OT', 0)
+        self.check_greater(max_it, 'max_it', 0)
+        
+        self.F= F
+        self.G= G
+        self.OT= OT
+        self.max_it= max_it
+        
+        self.set_cat_changes_majority()
+        self.set_cat_memetic()
+        self.set_cat_uses_classifier()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        # as the OT and max_it parameters control the discovery of the feature
+        # space it is enough to try sufficiently large numbers
+        return cls.generate_paramter_combinations({'F': [0.1, 0.2], 'G': [0.1, 0.2], 'OT': [30], 'max_it': [40]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        mms= MinMaxScaler()
+        X= mms.fit_transform(X)
+        
+        min_indices= np.where(y == self.minority_label)[0]
+        maj_indices= np.where(y == self.majority_label)[0]
+        
+        # preparing base classifier and dt classifier
+        dt_classifier= DecisionTreeClassifier(random_state= 2)
+        base_classifier= DecisionTreeClassifier(random_state= 2)
+        
+        def DE_optimization(GS, GS_y, X, y, min_indices, maj_indices, classifier, for_validation):
+            """
+            Implements the DE_optimization method of the paper.
+            Args:
+                GS (np.matrix): actual best training set
+                GS_y (np.array): corresponding class labels
+                X (np.matrix): complete training set
+                y (np.array): all class labels
+                min_indices (np.array): array of minority class labels in y
+                maj_indices (np.array): array of majority class labels in y
+                classifier (object): base classifier
+                for_validation (np.array): array of indices for X used for validation
+            Returns:
+                np.matrix: optimized training set
+            """
+            # evaluate training set
+            AUC_GS= evaluate_ID(GS, GS_y, X[for_validation], y[for_validation], classifier)
+            
+            # optimizing the training set
+            for _ in range(self.max_it):
+                GS_hat= []
+                # doing the differential evolution
+                for i in range(len(GS)):
+                    if GS_y[i] == self.minority_label:
+                        r1, r2, r3= np.random.choice(min_indices, 3, replace= False)
+                    else:
+                        r1, r2, r3= np.random.choice(maj_indices, 3, replace= False)
+                    
+                    GS_hat.append(np.clip(GS[i] + self.G*np.random.random()*(X[r1] - X[i]) + self.F*(X[r2] - X[r3]), 0.0, 1.0))
+                
+                # evaluating the current setting
+                AUC_GS_hat= evaluate_ID(GS_hat, GS_y, X[for_validation], y[for_validation], classifier)
+
+                if AUC_GS_hat > AUC_GS:
+                    GS= GS_hat
+                    AUC_GS= AUC_GS_hat
+            
+            return GS
+        
+        def evaluate_ID(GS, GS_y, TR, TR_y, base_classifier):
+            """
+            Implements the evaluate_ID function of the paper.
+            Args:
+                GS (np.matrix): actual training set
+                GS_y (np.array): list of corresponding class labels
+                X (np.matrix): complete training set
+                y (np.array): all class labels
+                base_classifier (object): classifier to be used
+            Returns:
+                float: ROC AUC score
+            """
+            base_classifier.fit(GS, GS_y)
+            pred= base_classifier.predict_proba(TR)
+            return roc_auc_score(TR_y, pred[:,1])
+        
+        def evaluate_class(GS, GS_y, TR, TR_y, base_classifier):
+            """
+            Implements the evaluate_ID function of the paper.
+            Args:
+                GS (np.matrix): actual training set
+                GS_y (np.array): list of corresponding class labels
+                X (np.matrix): complete training set
+                y (np.array): all class labels
+                base_classifier (object): classifier to be used
+            Returns:
+                float: accuracy score
+            """
+            base_classifier.fit(GS, GS_y)
+            pred= base_classifier.predict(TR)
+            return accuracy_score(TR_y, pred)
+        
+        # Phase 1: Initialization
+        logging.info("Initialization")
+        dt_classifier.fit(X, y)
+        leafs= dt_classifier.apply(X)
+        unique_leafs= np.unique(leafs)
+        used_in_GS= np.repeat(False, len(X))
+        for_validation= np.where(np.logical_not(used_in_GS))[0]
+        
+        # extracting mean elements of the leafs
+        GS= []
+        GS_y= []
+        for u in unique_leafs:
+            indices= np.where(leafs == u)[0]
+            GS.append(np.mean(X[indices], axis= 0))
+            GS_y.append(mode(y[indices]))
+            if len(indices) == 1:
+                used_in_GS[indices[0]]= True
+        # updating the indices of the validation set excluding those used in GS
+        for_validation= np.where(np.logical_not(used_in_GS))[0]
+        logging.info("Size of validation set %d" % len(for_validation))
+        
+        # DE optimization takes place
+        logging.info("DE optimization")
+        base_classifier= DecisionTreeClassifier(random_state= 2)
+        GS= DE_optimization(GS, GS_y, X, y, min_indices, maj_indices, base_classifier, for_validation)
+        # evaluate results
+        base_classifier= DecisionTreeClassifier(random_state= 2)
+        AUC= evaluate_ID(GS, GS_y, X[for_validation], y[for_validation], base_classifier)
+        
+        # Phase 2: Addition of new instances
+        register_class= {self.minority_label: 'optimizable', self.majority_label: 'optimizable'}
+        number_of_optimizations= {self.minority_label: 0, self.majority_label: 0}
+        accuracy_class= {self.minority_label: 0, self.majority_label: 0}
+        
+        logging.info("Starting optimization")
+        while AUC < 1.0 and (register_class[self.minority_label] == 'optimizable' or register_class[self.majority_label] == 'optimizable'):
+            less_accuracy= np.inf
+            # loop in line 8
+            for i in [self.minority_label, self.majority_label]:
+                # condition in line 9
+                if register_class[i] == 'optimizable':
+                    class_for_validation= for_validation[y[for_validation] == i]
+                    accuracy_class[i]= evaluate_class(GS, GS_y, X[class_for_validation], y[class_for_validation], base_classifier)
+                    if accuracy_class[i] < less_accuracy:
+                        less_accuracy= accuracy_class[i]
+                        target_class= i
+            # conditional in line 17
+            if target_class == self.minority_label and number_of_optimizations[target_class] > 0:
+                # it is not clear where does GS_trial coming from in line 18
+                GS= DE_optimization(GS, GS_y, X, y, min_indices, maj_indices, base_classifier, for_validation)
+            else:
+                if target_class == self.minority_label:
+                    idx= np.random.choice(min_indices)
+                else:
+                    idx= np.random.choice(maj_indices)
+                
+                GS_trial= np.vstack([GS, X[idx]])
+                GS_trial_y= np.hstack([GS_y, y[idx]])
+                # removing idx from the validation set in order to keep the validation fair
+                for_validation_trial= for_validation.tolist()
+                if idx in for_validation:
+                    for_validation_trial.remove(idx)
+                for_validation_trial= np.array(for_validation_trial).astype(int)
+                # doing optimization
+                GS_trial= DE_optimization(GS_trial, GS_trial_y, X, y, min_indices, maj_indices, base_classifier, for_validation)
+            
+            # line 23
+            base_classifier= DecisionTreeClassifier(random_state= 2)
+            AUC_trial= evaluate_ID(GS_trial, GS_trial_y, X[for_validation], y[for_validation], base_classifier)
+            # conditional in line 24
+            if AUC_trial > AUC:
+                AUC= AUC_trial
+                GS= GS_trial
+                GS_y= GS_trial_y
+                for_validation= for_validation_trial
+                number_of_optimizations[target_class]= 0
+            else:
+                # conditional in line 29
+                if target_class == self.minority_label and number_of_optimizations[target_class] < self.OT:
+                    number_of_optimizations[target_class]= number_of_optimizations[target_class] + 1
+                else:
+                    register_class[target_class]= 'non-optimizable'
+
+        return mms.inverse_transform(GS), GS_y
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'F': self.F, 'G': self.G, 'OT': self.OT, 'max_it': self.max_it}
+
+class RWO_sampling(OverSampling):
+    """
+    @article{rwo_sampling,
+            author = {Zhang, Huaxzhang and Li, Mingfang},
+            year = {2014},
+            month = {11},
+            pages = {},
+            title = {RWO-Sampling: A Random Walk Over-Sampling Approach to Imbalanced Data Classification},
+            volume = {20},
+            booktitle = {Information Fusion}
+            }
+
+    URL: https://drive.google.com/open?id=1zewg606Wpm1yDyuTOagmAiFwmwFyTzQv
+    """
+    def __init__(self, proportion= 1.0):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        
+        self.proportion= proportion
+        
+        self.set_cat_extensive()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        
+        stds= np.diag(np.std(X_min, axis= 0)/len(X_min))
+        
+        samples= [np.random.multivariate_normal(X_min[np.random.randint(len(X_min))], stds) for _ in range(num_to_sample)]
+
+        return np.vstack([X, samples]), np.hstack([y, np.array([self.minority_label]*len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion}
+
+class NEATER(OverSampling):
+    """
+    @INPROCEEDINGS{neater, 
+                    author={B. A. Almogahed and I. A. Kakadiaris}, 
+                    booktitle={2014 22nd International Conference on Pattern Recognition}, 
+                    title={NEATER: Filtering of Over-sampled Data Using Non-cooperative Game Theory}, 
+                    year={2014}, 
+                    volume={}, 
+                    number={}, 
+                    pages={1371-1376}, 
+                    keywords={data handling;game theory;information filtering;NEATER;imbalanced data problem;synthetic data;filtering of over-sampled data using non-cooperative game theory;Games;Game theory;Vectors;Sociology;Statistics;Silicon;Mathematical model}, 
+                    doi={10.1109/ICPR.2014.245}, 
+                    ISSN={1051-4651}, 
+                    month={Aug}}
+
+    URL: https://drive.google.com/open?id=1GfMmurmyG-B5jfEVhyFrQAx8lA1JxbXl
+    
+    Evolving both majority and minority probabilities as nothing ensures that the probabilities remain in
+    the range [0,1], and they need to be normalized.
+    The inversely weighted function needs to be cut at some value (like the alpha level), otherwise
+    it will overemphasize the utility of having differing neighbors next to each other.
+    """
+    def __init__(self, proportion= 1.0, b= 5, alpha= 0.1, h= 20):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            b (int): number of neighbors
+            alpha (float): smoothing term
+            h (int): number of iterations in evolution
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(b, "b", 1)
+        self.check_greater_or_equal(alpha, "alpha", 0)
+        self.check_greater_or_equal(h, "h", 0)
+        
+        self.proportion= proportion
+        self.b= b
+        self.alpha= alpha
+        self.h= h
+        
+        self.set_cat_extensive()
+        self.set_cat_borderline()
+        self.set_cat_changes_majority()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'b': [3, 5, 7], 'alpha': [0.1], 'h': [20]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # Applying SMOTE and ADASYN
+        X_0, y_0= SMOTE(self.proportion).sample(X, y)
+        X_1, y_1= ADASYN().sample(X, y)
+        
+        X_new= np.vstack([X_0, X_1[len(X):]])
+        y_new= np.hstack([y_0, y_1[len(y):]])
+        
+        X_syn= X_new[len(X):]
+        
+        X_all= X_new
+        y_all= y_new
+        
+        # binary indicator indicating synthetic instances
+        synthetic= np.hstack([np.array([False]*len(X)), np.array([True]*len(X_syn))])
+        
+        # initializing strategy probabilities
+        prob= np.zeros(shape=(len(X_all), 2))
+        prob.fill(0.5)
+        for i in range(len(X)):
+            if y[i] == self.minority_label:
+                prob[i,0], prob[i,1]= 0.0, 1.0
+            else:
+                prob[i,0], prob[i,1]= 1.0, 0.0
+        
+        # Finding nearest neighbors, +1 as X_syn is part of X_all and nearest
+        # neighbors will be themselves
+        nn= NearestNeighbors(n_neighbors= self.b + 1)
+        nn.fit(X_all)
+        distances, indices= nn.kneighbors(X_syn)
+        
+        # computing distances
+        dm= pairwise_distances(X_syn, X_all)
+        dm= 1.0/dm
+        dm[dm > self.alpha]= self.alpha
+        
+        def utilities(prob):
+            """
+            Computes the utilit function
+            Args:
+                prob (np.matrix): strategy probabilities
+            Returns:
+                np.array, np.array, np.array: utility values, minority utilities, majority utilities
+            """
+            util_mixed= np.hstack([np.array([0]*len(X)), np.array([np.sum([1*prob[i][0]*prob[j][0] + dm[i,j]*(prob[i][1]*prob[j][0] + prob[i][0]*prob[j][1]) + 1*prob[i][1]*prob[j][1] for j in indices[i][1:]]) for i in range(len(X_syn))])])
+            util_min= np.hstack([np.array([0]*len(X)), np.array([np.sum([0*prob[j][0] + dm[i,j]*(1*prob[j][0] + 0*prob[j][1]) + 1*prob[j][1] for j in indices[i][1:]]) for i in range(len(X_syn))])])
+            util_maj= np.hstack([np.array([0]*len(X)), np.array([np.sum([1*prob[j][0] + dm[i,j]*(0*prob[j][0] + 1*prob[j][1]) + 0*prob[j][1] for j in indices[i][1:]]) for i in range(len(X_syn))])])
+
+            return util_mixed, util_min, util_maj
+        
+        def evolution(prob, synthetic, alpha= self.alpha):
+            """
+            Executing one step of the probabilistic evolution
+            Args:
+                prob (np.matrix): strategy probabilities
+                synthetic (np.array): flags of synthetic examples
+                alpha (float): smoothing function
+            Returns:
+                np.matrix: updated probabilities
+            """
+            util_mixed, util_min, util_maj= utilities(prob)
+            
+            prob_new= prob.copy()
+            prob_new[:,1]= np.where(synthetic, prob[:,1]*(alpha + util_min)/(alpha + util_mixed), prob[:,1])
+            prob_new[:,0]= np.where(synthetic, prob[:,0]*(alpha + util_maj)/(alpha + util_mixed), prob[:,0])
+            norm_factor= np.sum(prob_new, axis= 1)
+            prob_new[:,0]= prob_new[:,0]/norm_factor
+            prob_new[:,1]= prob_new[:,1]/norm_factor
+            
+            return prob_new
+        
+        # executing the evolution
+        for _ in range(self.h):
+            prob= evolution(prob, synthetic)
+        
+        # determining final labels
+        y_all[len(X):]= np.argmax(prob[len(X):], axis= 1)
+        
+        return X_all, y_all
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'b': self.b, 'alpha': self.alpha, 'h': self.h}
+
+class DEAGO(OverSampling):
+    """
+    @INPROCEEDINGS{deago, 
+                    author={C. Bellinger and N. Japkowicz and C. Drummond}, 
+                    booktitle={2015 IEEE 14th International Conference on Machine Learning and Applications (ICMLA)}, 
+                    title={Synthetic Oversampling for Advanced Radioactive Threat Detection}, 
+                    year={2015}, 
+                    volume={}, 
+                    number={}, 
+                    pages={948-953}, 
+                    keywords={radioactive waste;advanced radioactive threat detection;gamma-ray spectral classification;industrial nuclear facilities;Health Canadas national monitoring networks;Vancouver 2010;Isotopes;Training;Monitoring;Gamma-rays;Machine learning algorithms;Security;Neural networks;machine learning;classification;class imbalance;synthetic oversampling;artificial neural networks;autoencoders;gamma-ray spectra}, 
+                    doi={10.1109/ICMLA.2015.58}, 
+                    ISSN={}, 
+                    month={Dec}}
+
+    URL: https://drive.google.com/open?id=1cnCltSny-X_Dl8s3BqcNCbqVn_eDPWlB
+    
+    There is no hint on the activation functions and amounts of noise.
+    """
+    def __init__(self, proportion= 1.0, e= 100, h= 0.3, sigma= 0.1):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            e (int): number of epochs
+            h (float): fraction of number of hidden units
+            sigma (float): training noise
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0.0)
+        self.check_greater(e, "e", 1)
+        self.check_greater(h, "h", 0)
+        self.check_greater(sigma, "sigma", 0)
+        
+        self.proportion= proportion
+        self.e= e
+        self.h= h
+        self.sigma= sigma
+        
+        self.set_cat_extensive()
+        self.set_cat_density_estimation()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'e': [20], 'h': [0.2], 'sigma': [0.1]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # sampling by smote
+        X_samp, y_samp= SMOTE(proportion= self.proportion).sample(X, y)
+        
+        # samples to map to the manifold extracted by the autoencoder
+        X_init= X_samp[len(X):]
+        
+        # normalizing
+        X_min= X[y == self.minority_label]
+        ss= StandardScaler()
+        X_min_normalized= ss.fit_transform(X_min)
+        X_init_normalized= ss.transform(X_init)
+        
+        # extracting dimensions
+        d= len(X[0])
+        encoding_d= max([2, int(np.rint(d*self.h))])
+        logging.info("Input dimension: %d, encoding dimension: %d" % (d, encoding_d))
+        
+        # constructing the autoencoder
+        input_layer= Input(shape=(d,))
+        noise= GaussianNoise(self.sigma)(input_layer)
+        encoded= Dense(encoding_d, activation='relu')(noise)
+        decoded= Dense(d, activation= 'linear')(encoded)
+        
+        dae= Model(input_layer, decoded)
+        dae.compile(optimizer='adadelta', loss='mean_squared_error')
+        actual_epochs= max([self.e, int(100000.0/len(X_min))])
+        dae.fit(X_min_normalized, X_min_normalized, epochs= actual_epochs, verbose= 0)
+        
+        # mapping the initial samples to the manifold
+        samples= ss.inverse_transform(dae.predict(X_init_normalized))
+
+        return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'e': self.e, 'h': self.h, 'sigma': self.sigma}
+
+class Gazzah(OverSampling):
+    """
+    @INPROCEEDINGS{gazzah, 
+                    author={S. Gazzah and A. Hechkel and N. Essoukri Ben Amara}, 
+                    booktitle={2015 IEEE 12th International Multi-Conference on Systems, Signals Devices (SSD15)}, 
+                    title={A hybrid sampling method for imbalanced data}, 
+                    year={2015}, 
+                    volume={}, 
+                    number={}, 
+                    pages={1-6}, 
+                    keywords={computer vision;image classification;learning (artificial intelligence);sampling methods;hybrid sampling method;imbalanced data;diversification;computer vision domain;classical machine learning systems;intraclass variations;system performances;classification accuracy;imbalanced training data;training data set;over-sampling;minority class;SMOTE star topology;feature vector deletion;intra-class variations;distribution criterion;biometric data;true positive rate;Training data;Principal component analysis;Databases;Support vector machines;Training;Feature extraction;Correlation;Imbalanced data sets;Intra-class variations;Data analysis;Principal component analysis;One-against-all SVM}, 
+                    doi={10.1109/SSD.2015.7348093}, 
+                    ISSN={}, 
+                    month={March}}
+
+    URL: https://drive.google.com/open?id=1oh_FRi1e0NElX3wzWxTg0ecfqe1VWshN
+    """
+    def __init__(self, proportion= 1.0, n_components= 2):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_components (int): number of components in PCA analysis
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_components, "n_components", 1)
+        
+        self.proportion= proportion
+        self.n_components= n_components
+        
+        self.set_cat_extensive()
+        self.set_cat_dim_reduction()
+        self.set_cat_changes_majority()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_components': [2, 3, 4, 5]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # do the oversampling
+        X_samp, y_samp= polynom_fit_SMOTE(proportion= self.proportion).sample(X, y)
+        X_min_samp= X_samp[len(X):]
+        
+        # do the undersampling
+        X_maj= X[y == self.majority_label]
+        
+        # fitting the PCA model
+        pca= PCA(n_components= self.n_components)
+        X_maj_trans= pca.fit_transform(X_maj)
+        R= np.sqrt(np.sum(np.var(X_maj_trans, axis= 0)))
+        # determining the majority samples to remove
+        to_remove= np.where([np.linalg.norm(x) > R for x in X_maj_trans])[0]
+        logging.info("Removing %d majority samples" % len(to_remove))
+        # removing the majority samples
+        X_maj= np.delete(X_maj, to_remove, axis= 0)
+        
+        return np.vstack([X_maj, X_min_samp]), np.hstack([np.repeat(self.majority_label,len(X_maj)), np.repeat(self.minority_label,len(X_min_samp))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_components': self.n_components}
+
+class MCT(OverSampling):
+    """
+    @article{mct,
+            author = {Jiang, Liangxiao and Qiu, Chen and Li, Chaoqun},
+            year = {2015},
+            month = {03},
+            pages = {1551004},
+            title = {A Novel Minority Cloning Technique for Cost-Sensitive Learning},
+            volume = {29},
+            booktitle = {International Journal of Pattern Recognition and Artificial Intelligence}
+            }
+
+    URL: https://drive.google.com/open?id=1yyy-DmCFGWEPa8mdOpzHOx4l8xVVlCgA
+    
+    Mode is changed to median, distance is changed to Euclidean to support continuous features,
+    and normalized.
+    """
+    def __init__(self, proportion= 1.0):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        
+        self.proportion= proportion
+        
+        self.set_cat_extensive()
+        self.set_cat_sample_copy()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        
+        # having continuous variables, the mode is replaced by median
+        x_med= np.median(X_min, axis= 0)
+        distances= np.array([np.linalg.norm(x_med - x) for x in X_min])
+        distances= distances/np.sum(distances)
+        # distribution of copies is determined (Euclidean distance is a dissimilarity measure
+        # which is changed to similarity by subtracting from 1.0)
+        distribution= (1.0 - distances)/(np.sum(1.0 - distances))
+        
+        # do the sampling
+        samples= []
+        while len(samples) < num_to_sample:
+            samples.append(X_min[np.random.choice(np.arange(len(X_min)), p= distribution)])
+        
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion}
+
+class ADG(OverSampling):
+    """
+    @article{adg,
+            author = {Pourhabib, A. and Mallick, Bani K. and Ding, Yu},
+            year = {2015},
+            month = {16},
+            pages = {2695--2724},
+            title = {A Novel Minority Cloning Technique for Cost-Sensitive Learning},
+            volume = {16},
+            journal = {Journal of Machine Learning Research}
+            }
+
+    URL: https://drive.google.com/open?id=16QNZOJA77rS-AEmNlj-xH2uogAAhp3b3
+    
+    This method has a lot of parameters, it becomes fairly hard to cross-validate thoroughly.
+    """
+    def __init__(self, proportion= 1.0, kernel= 'inner', lam= 1.0, mu= 1.0, k= 12, gamma= 1.0):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            kernel (str): 'inner'/'rbf_x', where x is a float, the bandwidth
+            lam (float): lambda parameter of the method
+            mu (float): mu parameter of the method
+            k (int): number of samples to generate in each iteration
+            gamma (float): gamma parameter of the method
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        
+        if kernel != 'inner' and not kernel.startswith('rbf'):
+            raise ValueError('Kernel function %s not supported' % kernel)
+        elif kernel.startswith('rbf'):
+            par= float(kernel.split('_')[-1])
+            if par <= 0.0:
+                raise ValueError('Kernel parameter %f is not supported' % par)
+                
+        self.check_greater(lam, 'lam', 0)
+        self.check_greater(mu, 'mu', 0)
+        self.check_greater_or_equal(k, 'k', 1)
+        self.check_greater(gamma, 'gamma', 0)
+        
+        self.proportion= proportion
+        self.kernel= kernel
+        self.lam= lam
+        self.mu= mu
+        self.k= k
+        self.gamma= gamma
+        
+        self.set_cat_extensive()
+        self.set_cat_uses_clustering()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [1.0, 1.5], 'kernel': ['inner', 'rbf_0.5', 'rbf_1.0', 'rbf_2.0'], 
+                                                   'lam': [1.0, 2.0], 'mu': [1.0, 2.0], 'k': [12], 'gamma': [1.0, 2.0]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        def bic_score(kmeans, X):
+            """
+            Compute BIC score for clustering
+            Args:
+                kmeans (sklearn.KMeans): kmeans object
+                X (np.matrix):  clustered data
+            Returns:
+                float: bic value
+            
+            Inspired by https://stats.stackexchange.com/questions/90769/using-bic-to-estimate-the-number-of-k-in-kmeans
+            """
+            # extract descriptors of the clustering
+            cluster_centers = kmeans.cluster_centers_
+            cluster_labels  = kmeans.labels_
+            n_clusters = kmeans.n_clusters
+            n_in_clusters = np.bincount(cluster_labels)
+            N, d = X.shape
+        
+            #compute variance for all clusters beforehand
+            cluster_variances= [np.sum(np.linalg.norm(X[cluster_labels == i] - cluster_centers[i])**2) for i in range(n_clusters)]
+            clustering_variance= (1.0)/((N - n_clusters)*d)*np.sum(cluster_variances)
+        
+            const_term = 0.5 * n_clusters * np.log(N) * (d+1)
+        
+            bic = np.sum([n_in_clusters[i] * np.log(n_in_clusters[i]) -
+                          n_in_clusters[i] * np.log(N) -
+                          ((n_in_clusters[i] * d) / 2) * np.log(2*np.pi*clustering_variance) -
+                          ((n_in_clusters[i] - 1) * d/ 2) for i in range(n_clusters)]) - const_term
+        
+            return bic
+        
+        def xmeans(X, r= (1, 10)):
+            """
+            Clustering with BIC based n_cluster selection
+            Args:
+                X (np.matrix): data to cluster
+                r (tuple): lower and upper bound on the number of clusters
+            Returns:
+                sklearn.KMeans: clustering with lowest BIC score
+            """
+            best_bic= np.inf
+            best_clustering= None
+            
+            # do clustering for all n_clusters in the specified range
+            for k in range(r[0], min([r[1], len(X)])):
+                kmeans= KMeans(n_clusters= k).fit(X)
+                
+                bic= bic_score(kmeans, X)
+                if bic < best_bic:
+                    best_bic= bic
+                    best_clustering= kmeans
+            
+            return best_clustering
+        
+        def xgmeans(X, r= (1, 10)):
+            """
+            Gaussian mixture with BIC to select the optimal number of components
+            Args:
+                X (np.matrix): data to cluster
+                r (tuple): lower and upper bound on the number of components
+            Returns:
+                sklearn.GaussianMixture: Gaussian mixture model with the lowest BIC score
+            """
+            best_bic= np.inf
+            best_mixture= None
+            
+            # do model fitting for all n_components in the specified range
+            for k in range(r[0], min([r[1], len(X)])):
+                gmm= GaussianMixture(n_components= k).fit(X)
+                bic= gmm.bic(X)
+                if bic < best_bic:
+                    best_bic= bic
+                    best_mixture= gmm
+            
+            return best_mixture
+        
+        def evaluate_matrices(X, y, kernel= np.inner):
+            """
+            The function evaluates the matrices specified in the method.
+            Args:
+                X (np.matrix): features
+                y (np.array): target labels
+                kernel (function): the kernel function to be used
+            Returns:
+                np.matrix, np.matrix, int, int, np.matrix, np.array, np.matrix, np.matrix, np.matrix
+                np.array, np.matrix, np.matrix, float:
+                    X_minux, X_plus, l_minus, l_plus, X, y, K, M_plus, M_minus, M, K_plus, K_minus, N
+                    using the notations of the paper, X and y are ordered by target labels
+            """
+            X_minus= X[y == self.majority_label]
+            X_plus= X[y == self.minority_label]
+            l_minus= len(X_minus)
+            l_plus= len(X_plus)
+            
+            X= np.vstack([X_minus, X_plus])
+            y= np.hstack([np.array([self.majority_label]*l_minus), np.array([self.minority_label]*l_plus)])
+            
+            K= pairwise_distances(X, X, metric= kernel)
+            M_plus= np.mean(K[:, len(X_minus):], axis= 1)
+            M_minus= np.mean(K[:, :len(X_minus)], axis= 1)
+            M= np.dot(M_minus - M_plus, M_minus - M_plus)
+            
+            K_minus= K[:, :len(X_minus)]
+            K_plus= K[:, len(X_minus):]
+            
+            N= np.dot(np.dot(K_minus, np.eye(l_minus) - np.full((l_minus, l_minus), 1.0/l_minus)), K_minus.T)
+            N= N + np.dot(np.dot(K_plus, np.eye(l_plus) - np.full((l_plus, l_plus), 1.0/l_plus)), K_plus.T)
+            
+            return X_minus, X_plus, l_minus, l_plus, X, y, K, M_plus, M_minus, M, K_plus, K_minus, N
+        
+        def K_test(X, x, kernel= np.inner):
+            """
+            Computes the kernel row for a new input
+            Args:
+                X (np.matrix): all data
+                x (np.array): new data sample
+                kernel (function): the kernel function to be used
+            Returns:
+                np.array: the kernel matrix row
+            """
+            return np.array([kernel(xx, x) for xx in X])
+        
+        def K_extend(K, K_minus, K_plus, X, X_new, l_minus, kernel= np.inner):
+            """
+            Extends the kernel matrices with new rows and columns.
+            Args:
+                K (np.matrix): the kernel matrix
+                K_minus (np.matrix): the negative part of the kernel matrix
+                K_plus (np.matrix): the positive part of the kernel matrix
+                X (np.matrix): all data
+                X_new (np.matrix): the new data
+                l_minus (int): number of negative samples
+                kernel (function): the kernel function to be used
+            Returns:
+                np.matrix, np.matrix, np.matrix: the extended K, K_minus and K_plus matrices
+            """
+            K_01= pairwise_distances(X, X_new, metric= kernel)
+            K_10= K_01.T
+            K_11= pairwise_distances(X_new, X_new, metric= kernel)
+            
+            K_new= np.hstack([np.vstack([K, K_10]), np.vstack([K_01, K_11])])
+            K_minus_new= K_new[:, :l_minus]
+            K_plus_new= K_new[:, l_minus:]
+            
+            return K_new, K_minus_new, K_plus_new
+        
+        # Implementation of the technique, following the steps and notations of the paper
+        q= num_to_sample
+        
+        # instantiating the proper kernel function, the parameter of the RBF is supposed
+        # to be the denominator in the Gaussian
+        if self.kernel == 'inner':
+            kernel_function= np.inner
+        else:
+            kf= self.kernel.split('_')
+            if kf[0] == 'rbf':
+                d= float(kf[1])
+                kernel_function= lambda x, y: np.exp(-np.linalg.norm(x - y)**2/d)
+        
+        # Initial evaluation of the matrices
+        X_minus, X_plus, l_minus, l_plus, X, y, K, M_plus, M_minus, M, K_plus, K_minus, N= evaluate_matrices(X, y, kernel= kernel_function)
+        X_plus_hat= X_plus.copy()
+        l_minus= len(X_minus)
+        
+        # executing the sample generation
+        while q > 1:
+            logging.info("Starting iteration with q=%d" % q)
+            # step 1
+            clusters= xmeans(X_plus_hat)
+            l_c= np.array([np.sum(clusters.labels_ == i) for i in range(clusters.n_clusters)])
+            
+            # step 2
+            k_c= ((1.0/l_c)/(np.sum(1.0/l_c))*self.k).astype(int)
+            k_c[k_c == 0]= 1
+            lam_c, mu_c= self.lam/l_c, self.mu/l_c
+            
+            # step 3
+            omega= - np.sum([k_c[i]*(lam_c[i])**2/(4*mu_c[i]**2) for i in range(len(k_c))])
+            nu_c= - 0.5*k_c*lam_c
+            M_plus_c= [np.mean(K[:,np.arange(len(X_minus), len(X))[clusters.labels_ == i]]) for i in range(len(k_c))]
+            
+            # step 4
+            A= (M - self.gamma*N) - omega*K
+            b= np.sum([(M_minus - M_plus_c[i])*nu_c[i] for i in range(len(k_c))], axis= 0)
+            alpha_star= np.linalg.solve(A, b)
+            
+            # step 5
+            mixture= xgmeans(X_plus)
+            
+            # step 6
+            Z= mixture.sample(q)[0]
+            
+            # step 7
+            Z_hat= np.array([z for z in Z if np.inner(alpha_star, K_test(X, z, kernel= kernel_function)) > 0.0])
+            if len(Z_hat) == 0:
+                q= int(q/2)
+                continue
+            
+            # step 8
+            # this step is not used for anything, the identified clusters are only used in
+            # step 13 of the paper, however, the values set (M_plus^c) are overwritten in step 3 
+            # of the next iteration
+            
+            # step 9
+            X_plus_hat= np.vstack([X_plus_hat, Z_hat])
+            l_plus= len(X_plus_hat)
+            
+            # step 11 - 16
+            # these steps have been reorganized a bit for efficient calculations
+            K, K_minus, K_plus= K_extend(K, K_minus, K_plus, X, Z_hat, l_minus, kernel= kernel_function)
+            
+            # step 10
+            X= np.vstack([X_minus, X_plus_hat])
+            y= np.hstack([y, np.repeat(self.minority_label, len(Z_hat))])
+            
+            M_plus= np.mean(K[:, len(X_minus):], axis= 1)
+            M_minus= np.mean(K[:, :len(X_minus)], axis= 1)
+            # step 13 is already involved in the core of the loop
+            M= np.dot(M_minus - M_plus, M_minus - M_plus)
+            N= np.dot(np.dot(K_minus, np.eye(l_minus) - np.full((l_minus, l_minus), 1.0/l_minus)), K_minus.T)
+            N= N + np.dot(np.dot(K_plus, np.eye(l_plus) - np.full((l_plus, l_plus), 1.0/l_plus)), K_plus.T)
+            
+            # step 17
+            q= int(q/2)
+            
+        return X, y
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'kernel': self.kernel, 'lam': self.lam, 'mu': self.mu, 'k': self.k, 'gamma': self.gamma}
+
+class SMOTE_IPF(OverSampling):
+    """
+    @article{smote_ipf,
+                title = "SMOTE–IPF: Addressing the noisy and borderline examples problem in imbalanced classification by a re-sampling method with filtering",
+                journal = "Information Sciences",
+                volume = "291",
+                pages = "184 - 203",
+                year = "2015",
+                issn = "0020-0255",
+                doi = "https://doi.org/10.1016/j.ins.2014.08.051",
+                url = "http://www.sciencedirect.com/science/article/pii/S0020025514008561",
+                author = "José A. Sáez and Julián Luengo and Jerzy Stefanowski and Francisco Herrera",
+                keywords = "Imbalanced classification, Borderline examples, Noisy data, Noise filters, SMOTE"
+                }
+
+    URL: https://drive.google.com/open?id=1j2SKWvovYczOkg2MaMBep2i8XaZ0r_rS
+    """
+    def __init__(self, proportion= 1.0, n_folds= 9, k= 3, p= 0.01, voting= 'majority'):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_folds (int): the number of partitions
+            k (int): used in stopping condition
+            p (float): percentage value ([0,1]) used in stopping condition
+            voting (str): 'majority'/'consensus'
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_folds, "n_folds", 2)
+        self.check_greater_or_equal(k, "k", 1)
+        self.check_greater_or_equal(p, "p", 0)
+        self.check_isin(voting, "voting", ['majority', 'consensus'])
+        
+        self.proportion= proportion
+        self.n_folds= n_folds
+        self.k= k
+        self.p= p
+        self.voting= voting
+        
+        self.set_cat_changes_majority()
+        self.set_cat_uses_classifier()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_folds': [9], 'k': [3], 'p': [0.01], 'voting': ['majority', 'consensus']})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # do SMOTE sampling
+        X_samp, y_samp= SMOTE(self.proportion).sample(X, y)
+        classifier= DecisionTreeClassifier()
+        
+        condition= 0
+        while True:
+            # validating the sampled dataset
+            validator= KFold(self.n_folds)
+            predictions= []
+            for train_index, _ in validator.split(X_samp):
+                classifier.fit(X_samp[train_index], y_samp[train_index])
+                predictions.append(classifier.predict(X_samp))
+            
+            # do decision based on one of the voting schemes
+            if self.voting == 'majority':
+                pred_votes= (np.mean(predictions, axis= 0) > 0.5).astype(int)
+                to_remove= np.where(np.not_equal(pred_votes, y_samp))[0]
+            elif self.voting == 'consensus':
+                pred_votes= (np.mean(predictions, axis= 0) > 0.5).astype(int)
+                sum_votes= np.sum(predictions, axis= 0)
+                to_remove= np.where(np.logical_and(np.not_equal(pred_votes, y_samp), np.equal(sum_votes, self.n_folds)))[0]
+            else:
+                raise ValueError('Voting scheme %s is not implemented' % self.voting)
+            
+            # delete samples incorrectly classified
+            logging.info('Removing %d elements' % len(to_remove))
+            X_samp= np.delete(X_samp, to_remove, axis= 0)
+            y_samp= np.delete(y_samp, to_remove)
+            
+            # if the number of samples removed becomes small or k iterations were done quit
+            if len(to_remove) < len(X_samp)*self.p:
+                condition= condition + 1
+            else:
+                condition= 0
+            if condition >= self.k:
+                break
+            
+        return X_samp, y_samp
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_folds': self.n_folds, 'k': self.k, 'p': self.p, 'voting': self.voting}
+
+class KernelADASYN(OverSampling):
+    """
+    @INPROCEEDINGS{kerneladasyn, 
+                    author={B. Tang and H. He}, 
+                    booktitle={2015 IEEE Congress on Evolutionary Computation (CEC)}, 
+                    title={KernelADASYN: Kernel based adaptive synthetic data generation for imbalanced learning}, 
+                    year={2015}, 
+                    volume={}, 
+                    number={}, 
+                    pages={664-671}, 
+                    keywords={learning (artificial intelligence);pattern classification;sampling methods;KernelADASYN;kernel based adaptive synthetic data generation;imbalanced learning;standard classification algorithms;data distribution;minority class decision rule;expensive minority class data misclassification;kernel based adaptive synthetic over-sampling approach;imbalanced data classification problems;kernel density estimation methods;Kernel;Estimation;Accuracy;Measurement;Standards;Training data;Sampling methods;Imbalanced learning;adaptive over-sampling;kernel density estimation;pattern recognition;medical and healthcare data learning}, 
+                    doi={10.1109/CEC.2015.7256954}, 
+                    ISSN={1089-778X}, 
+                    month={May}}
+
+    URL: https://drive.google.com/open?id=1RXURKKH7BLOzC0N7J-btZBhBK9OCyB4K
+    
+    The method of sampling was not specified, Markov Chain Monte Carlo has been implemented.
+    """
+    def __init__(self, proportion= 1.0, k= 5, h= 1.0):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            k (int): number of neighbors in the nearest neighbors component
+            h (float): kernel bandwidth
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(k, 'k', 1)
+        self.check_greater(h, 'h', 0)
+        
+        self.proportion= proportion
+        self.k= k
+        self.h= h
+        
+        self.set_cat_density_estimation()
+        self.set_cat_extensive()
+        self.set_cat_borderline()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'k': [5, 7, 9], 'h': [0.01, 0.1, 1.0, 10.0]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        
+        # fitting the nearest neighbors model
+        nn= NearestNeighbors(self.k+1)
+        nn.fit(X)
+        distances, indices= nn.kneighbors(X_min)
+        
+        # computing majority score
+        r= np.array([np.sum(y[indices[i][1:]] == self.majority_label) for i in range(len(X_min))])
+        r= r/np.sum(r)
+        
+        # kernel density function
+        def p_x(x):
+            """
+            Returns minority density value at x
+            Args:
+                x (np.array): feature vector
+            Returns:
+                float: density value
+            """
+            result= 1.0/(len(X_min)*self.h)
+            result= result*(1.0/(np.sqrt(2*np.pi)*self.h)**len(X[0]))
+            
+            return result*np.sum([r[i]*np.exp(-0.5*np.linalg.norm(x - X_min[i])**2/self.h) for i in range(len(X_min))])
+        
+        samples= []
+        it= 0
+        
+        # parameters of the Monte Carlo sampling
+        burn_in= 1000
+        periods= 50
+        
+        # covariance is used to generate a random sample in the neighborhood
+        covariance= np.cov(X_min[r > 0], rowvar= False)
+        
+        # starting Markov-Chain Monte Carlo for sampling
+        x_old= X_min[np.random.choice(np.where(r > 0)[0])]
+        p_old= p_x(x_old)
+        while len(samples) < num_to_sample:
+            x_new= np.random.multivariate_normal(x_old, covariance)
+            p_new= p_x(x_new)
+            
+            alpha= p_new/p_old
+            u= np.random.random()
+            if u < alpha:
+                x_old= x_new
+                p_old= p_new
+            else:
+                pass
+            
+            it= it + 1
+            if it % periods == 0 and it > burn_in:
+                samples.append(x_old)
+            
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'k': self.k, 'h': self.h}
+
+class MOT2LD(OverSampling):
+    """
+    @InProceedings{MOT2LD,
+                    author="Xie, Zhipeng
+                    and Jiang, Liyang
+                    and Ye, Tengju
+                    and Li, Xiaoli",
+                    editor="Renz, Matthias
+                    and Shahabi, Cyrus
+                    and Zhou, Xiaofang
+                    and Cheema, Muhammad Aamir",
+                    title="A Synthetic Minority Oversampling Method Based on Local Densities in Low-Dimensional Space for Imbalanced Learning",
+                    booktitle="Database Systems for Advanced Applications",
+                    year="2015",
+                    publisher="Springer International Publishing",
+                    address="Cham",
+                    pages="3--18",
+                    abstract="Imbalanced class distribution is a challenging problem in many real-life classification problems. Existing synthetic oversampling do suffer from the curse of dimensionality because they rely heavily on Euclidean distance. This paper proposed a new method, called Minority Oversampling Technique based on Local Densities in Low-Dimensional Space (or MOT2LD in short). MOT2LD first maps each training sample into a low-dimensional space, and makes clustering of their low-dimensional representations. It then assigns weight to each minority sample as the product of two quantities: local minority density and local majority count, indicating its importance of sampling. The synthetic minority class samples are generated inside some minority cluster. MOT2LD has been evaluated on 15 real-world data sets. The experimental results have shown that our method outperforms some other existing methods including SMOTE, Borderline-SMOTE, ADASYN, and MWMOTE, in terms of G-mean and F-measure.",
+                    isbn="978-3-319-18123-3"
+                    }
+
+
+    URL: https://drive.google.com/open?id=191-gIFEmY1EmOT7iq0mK8fNr3btKovQ6
+    
+    Clusters might contain 1 elements, and all points can be filtered as noise.
+    """
+    def __init__(self, proportion= 1.0, n_components= 2, k= 5, d_cut= 'auto'):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_components (int): number of components for stochastic neighborhood embedding
+            k (int): number of neighbors in the nearest neighbor component
+            d_cut (float/str): distance cut value/'auto' for automated selection
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, 'proportion', 0)
+        self.check_greater_or_equal(n_components, 'n_component', 1)
+        self.check_greater_or_equal(k, 'k', 1)
+        if isinstance(d_cut, float) or isinstance(d_cut, int):
+            if d_cut <= 0:
+                raise ValueError('Non-positive d_cut is not allowed')
+        elif d_cut != 'auto':
+            raise ValueError('d_cut value %s not implemented' % d_cut)
+        
+        self.proportion= proportion
+        self.n_components= n_components
+        self.k= k
+        self.d_cut= d_cut
+        
+        self.set_cat_uses_clustering()
+        self.set_cat_extensive()
+        self.set_cat_sample_ordinary()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_components': [2, 3], 'k': [3, 5, 7], 'd_cut': ['auto']})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        # do the stochastic embedding
+        X_tsne= TSNE(self.n_components).fit_transform(X)
+        X_min= X_tsne[y == self.minority_label]
+        
+        # fitting nearest neighbors model for all training data
+        nn= NearestNeighbors(n_neighbors= self.k + 1)
+        nn.fit(X_tsne)
+        distances, indices= nn.kneighbors(X_min)
+        
+        if isinstance(self.d_cut, float):
+            d_cut= self.d_cut
+        elif self.d_cut == 'auto':
+            d_cut= np.max(distances[:,1])
+        
+        # fitting nearest neighbors model for the minority data
+        nn_min= NearestNeighbors(n_neighbors= len(X_min))
+        nn_min.fit(X_min)
+        distances_min, indices_min= nn_min.kneighbors(X_min)
+        
+        # extracting the number of neighbors in a given radius
+        rho= np.array([len(nn.radius_neighbors(x.reshape(1, -1), d_cut, return_distance= False)[0]) for x in X_min])
+        closest_highest= []
+        delta= []
+        
+        # implementation of the density peak clustering algorithm
+        # based on http://science.sciencemag.org/content/344/6191/1492.full
+        for i in range(len(rho)):
+            closest_neighbors= indices_min[i]
+            closest_densities= rho[closest_neighbors]
+            closest_highs= np.where(closest_densities > rho[i])[0]
+
+            if len(closest_highs) > 0:
+                closest_highest.append(closest_highs[0])
+                delta.append(distances_min[i][closest_highs[0]])
+            else:
+                closest_highest.append(-1)
+                delta.append(np.max(distances_min))
+        
+        r, d, idx= zip(*sorted(zip(rho, delta, np.arange(len(rho))), key= lambda x: x[0]))
+        r, d, idx= np.array(r), np.array(d), np.array(idx)
+        peak_indices= np.array(ssignal.find_peaks_cwt(d, widths= np.arange(1, len(r))))
+        cluster_center_indices= idx[peak_indices]
+        cluster_centers= X_min[cluster_center_indices]
+        
+        # finding closest cluster center to minority points and deriving cluster labels
+        nn_cluster= NearestNeighbors(n_neighbors= 1)
+        nn_cluster.fit(cluster_centers)
+        dist_cluster, ind_cluster= nn_cluster.kneighbors(X_min)
+        cluster_labels= ind_cluster[:, 0]
+        
+        # computing local minority counts and determining noisy samples
+        local_minority_count= np.array([np.sum(y[indices[i][1:]] == self.minority_label) for i in range(len(X_min))])
+        noise= np.where(np.logical_or(rho == 1, local_minority_count == 0))[0]
+
+        # determining importance scores
+        importance= local_minority_count/rho
+        prob= importance
+        prob[noise]= 0.0
+        prob= prob/np.sum(prob)
+        
+        # extracting cluster indices
+        cluster_indices= [np.where(cluster_labels == i)[0] for i in np.unique(cluster_labels)]
+        # removing noise from clusters
+        cluster_indices= [list(set(c).difference(set(noise))) for c in cluster_indices]
+        
+        # carrying out the sampling
+        X_min= X[y == self.minority_label]
+        samples= []
+        for _ in range(num_to_sample):
+            # random sample according to the distribution computed
+            random_idx= np.random.choice(np.arange(len(X_min)), p= prob)
+            # cluster label of the random minority sample
+            cluster_label= cluster_labels[random_idx]
+            if len(cluster_indices[cluster_label]) == 1:
+                # if the cluster has only 1 elements, it is repeated
+                samples.append(X_min[random_idx])
+                continue
+            else:            
+                # otherwise a random cluster index is selected for sample generation
+                random_neighbor_in_cluster_idx= np.random.choice(cluster_indices[cluster_label])
+                while random_idx == random_neighbor_in_cluster_idx:
+                    random_neighbor_in_cluster_idx= np.random.choice(cluster_indices[cluster_label])
+                samples.append(self.sample_between_points(X_min[random_idx], X_min[random_neighbor_in_cluster_idx]))
+        
+        return np.vstack([np.delete(X, noise, axis= 0), np.vstack(samples)]), np.hstack([np.delete(y, noise), np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_components': self.n_components, 'k': self.k, 'd_cut': self.d_cut}
+
+class V_SYNTH(OverSampling):
+    """
+    @article{v_synth,
+             author = {Young,Ii, William A. and Nykl, Scott L. and Weckman, Gary R. and Chelberg, David M.},
+             title = {Using Voronoi Diagrams to Improve Classification Performances when Modeling Imbalanced Datasets},
+             journal = {Neural Comput. Appl.},
+             issue_date = {July      2015},
+             volume = {26},
+             number = {5},
+             month = jul,
+             year = {2015},
+             issn = {0941-0643},
+             pages = {1041--1054},
+             numpages = {14},
+             url = {http://dx.doi.org/10.1007/s00521-014-1780-0},
+             doi = {10.1007/s00521-014-1780-0},
+             acmid = {2790665},
+             publisher = {Springer-Verlag},
+             address = {London, UK, UK},
+             keywords = {Data engineering, Data mining, Imbalanced datasets, Knowledge extraction, Numerical algorithms, Synthetic over-sampling},
+            } 
+
+    URL: https://drive.google.com/open?id=1mbp816SazOpTOL22eMHfDkmJEKRaUKez
+    
+    The proposed encompassing bounding box generation is incorrect.
+    Voronoi diagram generation in high dimensional spaces is instable
+    """
+    def __init__(self, proportion= 1.0, n_components= 3):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_components (int): number of components for PCA
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_components, "n_component", 1)
+        
+        self.proportion= proportion
+        self.n_components= n_components
+        
+        self.set_cat_extensive()
+        self.set_cat_sample_ordinary()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_components': [3]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        # creating the bounding box
+        mins= np.min(X, axis= 0)
+        maxs= np.max(X, axis= 0)
+        mins= mins - np.abs(mins)
+        maxs= maxs + np.abs(maxs)
+        
+        bounding_box= [np.where(np.random.randint(0, 1, size=len(X[0])) == 0, mins, maxs) for i in range(min(100, len(X[0])))]
+        X_bb= np.vstack([X, bounding_box])
+        
+        # applying PCA to reduce the dimensionality of the data
+        n_components= min(len(X[0]), self.n_components)
+        pca= PCA(n_components= n_components)
+        X_pca= pca.fit_transform(X_bb)
+
+        # doing the Voronoi tessellation
+        voronoi= sspatial.Voronoi(X_pca)
+        
+        # extracting those ridge point pairs which are candidates for generating
+        # an edge between two cells of different class labels
+        candidate_face_generators= []
+        for i, r in enumerate(voronoi.ridge_points):
+            if r[0] < len(y) and r[1] < len(y) and not y[r[0]] == y[r[1]]:
+                candidate_face_generators.append(i)
+        
+        # generating samples
+        samples= []
+        for _ in range(num_to_sample):
+            # randomly choosing a pair from the ridge point pairs of different labels
+            random_face= np.random.choice(candidate_face_generators)
+            # extracting the vertices of the face between the points
+            face_vertices= voronoi.vertices[voronoi.ridge_vertices[random_face]]
+            # creating a random vector for sampling the face (supposed to be convex)
+            w= np.random.random(size= len(X_pca[0]))
+            w= w/np.sum(w)
+            
+            # initiating a sample point on the face
+            sample_point_on_face= np.zeros(len(X_pca[0]))
+            for i in range(len(X_pca[0])):
+                sample_point_on_face= sample_point_on_face + w[i]*face_vertices[i]
+                
+            # finding the ridge point with the minority label
+            if y[voronoi.ridge_points[random_face][0]] == self.minority_label:
+                h= voronoi.points[voronoi.ridge_points[random_face][0]]
+            else:
+                h= voronoi.points[voronoi.ridge_points[random_face][1]]
+                
+            # generating a point between the minority ridge point and the random point on the face
+            samples.append(self.sample_between_points(sample_point_on_face, h))
+        
+        return np.vstack([X, pca.inverse_transform(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_components': self.n_components}
+
+class OUPS(OverSampling):
+    """
+    @article{oups,
+                title = "A priori synthetic over-sampling methods for increasing classification sensitivity in imbalanced data sets",
+                journal = "Expert Systems with Applications",
+                volume = "66",
+                pages = "124 - 135",
+                year = "2016",
+                issn = "0957-4174",
+                doi = "https://doi.org/10.1016/j.eswa.2016.09.010",
+                url = "http://www.sciencedirect.com/science/article/pii/S0957417416304882",
+                author = "William A. Rivera and Petros Xanthopoulos",
+                keywords = "SMOTE, OUPS, Class imbalance, Classification"
+                }
+
+    URL: https://drive.google.com/open?id=1Q9X9Ye7F3igLrIV9GRqrAoyNmp592TGn
+    
+    In the description of the algorithm a fractional number p (j) is used to index a vector.
+    """
+    def __init__(self, proportion= 1.0):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+        """
+        super().__init__()
+        
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        
+        self.proportion= proportion
+        
+        self.set_cat_extensive()
+        self.set_cat_sample_ordinary()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        # extracting propensity scores
+        lr= LogisticRegression()
+        lr.fit(X, y)
+        propensity= lr.predict_proba(X)[:,1]
+        
+        # sorting indices according to propensity scores
+        prop_sorted= sorted(zip(propensity, np.arange(len(propensity))), key= lambda x: -x[0])
+        
+        p= np.sum(y == self.majority_label)/np.sum(y == self.minority_label)
+        n= 0
+        samples= []
+        # implementing Algorithm 1 in the cited paper with some minor changes to enable
+        # the proper sampling of p numbers
+        while n < len(propensity) and len(samples) < num_to_sample:
+            if y[prop_sorted[n][1]] == self.minority_label and n < len(propensity) - 1:
+                num= 1
+                p_tmp= p
+                while p_tmp > 0 and n + num < len(propensity):
+                    if np.random.random() < p_tmp:
+                        samples.append(self.sample_between_points(X[prop_sorted[n][1]], X[prop_sorted[n+num][1]]))
+                    p_tmp= p_tmp - 1
+                    num= num + 1
+            n= n + 1
+        
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion}
+
+class SMOTE_D(OverSampling):
+    """
+    @InProceedings{smote_d,
+                    author="Torres, Fredy Rodr{\'i}guez
+                    and Carrasco-Ochoa, Jes{\'u}s A.
+                    and Mart{\'i}nez-Trinidad, Jos{\'e} Fco.",
+                    editor="Mart{\'i}nez-Trinidad, Jos{\'e} Francisco
+                    and Carrasco-Ochoa, Jes{\'u}s Ariel
+                    and Ayala Ramirez, Victor
+                    and Olvera-L{\'o}pez, Jos{\'e} Arturo
+                    and Jiang, Xiaoyi",
+                    title="SMOTE-D a Deterministic Version of SMOTE",
+                    booktitle="Pattern Recognition",
+                    year="2016",
+                    publisher="Springer International Publishing",
+                    address="Cham",
+                    pages="177--188",
+                    abstract="Imbalanced data is a problem of current research interest. This problem arises when the number of objects in a class is much lower than in other classes. In order to address this problem several methods for oversampling the minority class have been proposed. Oversampling methods generate synthetic objects for the minority class in order to balance the amount of objects between classes, among them, SMOTE is one of the most successful and well-known methods. In this paper, we introduce a modification of SMOTE which deterministically generates synthetic objects for the minority class. Our proposed method eliminates the random component of SMOTE and generates different amount of synthetic objects for each object of the minority class. An experimental comparison of the proposed method against SMOTE in standard imbalanced datasets is provided. The experimental results show an improvement of our proposed method regarding SMOTE, in terms of F-measure.",
+                    isbn="978-3-319-39393-3"
+                    }
+
+    URL: https://drive.google.com/open?id=1x_9IYnDvVBXeYjBcwgV9FOlL7pj-Yi2f
+    
+    Copying happens if two points are the neighbors of each other.
+    """
+    def __init__(self, proportion= 1.0, k= 3):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            k (int): number of neighbors in nearest neighbors component
+        """
+        super().__init__()
+        
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(k, "k", 1)
+        
+        self.proportion= proportion
+        self.k= k
+        
+        self.set_cat_extensive()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'k': [3, 5, 7]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        
+        # fitting nearest neighbors model
+        nn= NearestNeighbors(n_neighbors= self.k+1)
+        nn.fit(X_min)
+        dist, ind= nn.kneighbors(X_min)
+        
+        # extracting standard deviations of distances
+        stds= np.std(dist[:,1:], axis= 1)
+        # estimating sampling density
+        p_i= stds/np.sum(stds)
+        
+        # the other component of sampling density
+        p_ij= dist[:,1:]/np.sum(dist[:,1:], axis= 1)[:,None]
+        
+        # number of samples to generate between minority points
+        counts_ij= np.round(num_to_sample*p_i[:,None]*p_ij).astype(int)
+        
+        # do the sampling
+        samples= []
+        for i in range(len(p_i)):
+            for j in range(self.k):
+                if counts_ij[i][j] > 0:
+                    samples.append(X_min[i] + (X_min[ind[i][j+1]] - X_min[i])/(counts_ij[i][j]+1))
+        
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'k': self.k}
+
+class SMOTE_PSO(OverSampling):
+    """
+    @article{SMOTE_PSO,
+                title = "PSO-based method for SVM classification on skewed data sets",
+                journal = "Neurocomputing",
+                volume = "228",
+                pages = "187 - 197",
+                year = "2017",
+                note = "Advanced Intelligent Computing: Theory and Applications",
+                issn = "0925-2312",
+                doi = "https://doi.org/10.1016/j.neucom.2016.10.041",
+                url = "http://www.sciencedirect.com/science/article/pii/S0925231216312668",
+                author = "Jair Cervantes and Farid Garcia-Lamont and Lisbeth Rodriguez and Asdrúbal López and José Ruiz Castilla and Adrian Trueba",
+                keywords = "Skew data sets, SVM, Hybrid algorithms"
+                }
+
+    URL: https://drive.google.com/open?id=1rJu-2aLrosz_NGlcoRdz3qyCGlExQsvZ
+    
+    Remarks:
+    1) I find the description of the technique a bit confusing, especially on
+    the bounds of the search space of velocities and positions. Equations 15 and
+    16 specify the lower and upper bounds, the lower bound is in fact a vector
+    while the upper bound is a distance. I tried to implement something meaningful.
+    2) I also find the setting of accelerating constant 2.0 strange, most of the time 
+    the velocity will be bounded due to this choice. 
+    3) Also, training and predicting probabilities with a non-linear SVM as the 
+    evaluation function becomes fairly expensive when the number of training 
+    vectors reaches a couple of thousands. To reduce computational burden,
+    minority and majority vectors far from the other class are removed to reduce
+    the size of both classes to a maximum of 500 samples. Generally, this shouldn't
+    really affect the results as the technique focuses on the samples near the
+    class boundaries.
+    """
+    
+    def __init__(self, k= 3, eps= 0.05, n_pop= 10, w= 1.0, c1= 2.0, c2= 2.0, num_it= 10):
+        """
+        Constructor of the sampling object
+        Args:
+            k (int): number of neighbors in nearest neighbors component, this is also the
+                        multiplication factor of minority support vectors
+            eps (float): use to specify the initially generated support vectors along minority-
+                            majority lines
+            n_pop (int): size of population
+            w (float): intertia constant
+            c1 (float): acceleration constant of local optimum
+            c2 (float): acceleration constant of population optimum
+            num_it (int): number of iterations
+        """
+        super().__init__()
+        self.check_greater_or_equal(k, "k", 1)
+        self.check_greater(eps, "eps", 0)
+        self.check_greater_or_equal(n_pop, "n_pop", 1)
+        self.check_greater_or_equal(w, "w", 0)
+        self.check_greater_or_equal(c1, "c1", 0)
+        self.check_greater_or_equal(c2, "c2", 0)
+        self.check_greater_or_equal(num_it, "num_it", 1)
+        
+        self.k= k
+        self.eps= eps
+        self.n_pop= n_pop
+        self.w= w
+        self.c1= c1
+        self.c2= c2
+        self.num_it= num_it
+        
+        self.set_cat_extensive()
+        self.set_cat_memetic()
+        self.set_cat_uses_classifier()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'k': [3, 5, 7], 'eps': [0.05], 'n_pop': [5], 'w': [0.5, 1.0], 'c1': [1.0, 2.0], 'c2': [1.0, 2.0], 'num_it': [5]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # saving original dataset
+        X_orig= X
+        y_orig= y
+        
+        # scaling the records
+        mms= MinMaxScaler()
+        X_scaled= mms.fit_transform(X)
+        
+        # removing majority and minority samples far from the training data if needed to
+        # increase performance
+        performance_threshold= 500
+        
+        n_maj_to_remove= np.sum(y == self.majority_label) - performance_threshold
+        if n_maj_to_remove > 0:
+            # if majority samples are to be removed
+            nn= NearestNeighbors(n_neighbors= 1).fit(X_scaled[y == self.minority_label])
+            dist, ind= nn.kneighbors(X_scaled)
+            di= sorted([(dist[i][0], i) for i in range(len(ind))], key= lambda x: x[0])
+            to_remove= []
+            # finding the proper number of samples farest from the minority samples
+            for i in reversed(range(len(di))):
+                if y[di[i][1]] == self.majority_label:
+                    to_remove.append(di[i][1])
+                if len(to_remove) >= n_maj_to_remove:
+                    break
+            # removing the samples
+            X_scaled= np.delete(X_scaled, to_remove, axis= 0)
+            y= np.delete(y, to_remove)
+            
+        n_min_to_remove= np.sum(y == self.minority_label) - performance_threshold
+        if n_min_to_remove > 0:
+            # if majority samples are to be removed
+            nn= NearestNeighbors(n_neighbors= 1).fit(X_scaled[y == self.majority_label])
+            dist, ind= nn.kneighbors(X_scaled)
+            di= sorted([(dist[i][0], i) for i in range(len(ind))], key= lambda x: x[0])
+            to_remove= []
+            # finding the proper number of samples farest from the minority samples
+            for i in reversed(range(len(di))):
+                if y[di[i][1]] == self.minority_label:
+                    to_remove.append(di[i][1])
+                if len(to_remove) >= n_min_to_remove:
+                    break
+            # removing the samples
+            X_scaled= np.delete(X_scaled, to_remove, axis= 0)
+            y= np.delete(y, to_remove)
+        
+        # fitting SVM to extract initial support vectors
+        svc= SVC(kernel= 'rbf', probability= True)
+        svc.fit(X_scaled, y)
+        
+        # extracting the support vectors
+        SV_min= np.array([i for i in svc.support_ if y[i] == self.minority_label])
+        SV_maj= np.array([i for i in svc.support_ if y[i] == self.majority_label])
+        
+        X_SV_min= X_scaled[SV_min]
+        X_SV_maj= X_scaled[SV_maj]
+        
+        # finding nearest majority support vectors
+        nn= NearestNeighbors(n_neighbors= self.k)
+        nn.fit(X_SV_maj)
+        dist, ind= nn.kneighbors(X_SV_min)
+        
+        # finding the initial particle and specifying the search space
+        X_min_gen= []
+        search_space= []
+        init_velocity= []
+        for i in range(len(SV_min)):
+            for j in range(self.k):
+                min_vector= X_SV_min[i]
+                maj_vector= X_SV_maj[ind[i][j]]
+                # the upper bound of the search space if specified by the closest majority support vector
+                upper_bound= X_SV_maj[ind[i][0]]
+                # the third element of the search space specification is the distance of the vector and the closest
+                # majority support vector, which specifies the radius of the search
+                search_space.append([min_vector, maj_vector, np.linalg.norm(min_vector - upper_bound)])
+                # initial particles
+                X_min_gen.append(min_vector + self.eps*(maj_vector - min_vector))
+                # initial velocities
+                init_velocity.append(self.eps*(maj_vector - min_vector))
+        
+        X_min_gen= np.vstack(X_min_gen)
+        init_velocity= np.vstack(init_velocity)
+        
+        # evaluates a specific particle
+        def evaluate(X_train, y_train, X_test, y_test):
+            """
+            Trains support vector classifier and evaluates it
+            Args:
+                X_train (np.matrix): training vectors
+                y_train (np.array): target labels
+                X_test (np.matrix): test vectors
+                y_test (np.array): test labels
+            """
+            svc.fit(X_train, y_train)
+            y_pred= svc.predict_proba(X_test)
+            return roc_auc_score(y_test, y_pred[:,1])
+        
+        # initializing the particle swarm and the particle and population level
+        # memory
+        particle_swarm= [X_min_gen.copy() for _ in range(self.n_pop)]
+        velocities= [init_velocity.copy() for _ in range(self.n_pop)]
+        local_best= [X_min_gen.copy() for _ in range(self.n_pop)]
+        local_best_scores= [0.0]*self.n_pop
+        global_best= X_min_gen.copy()
+        global_best_score= 0.0
+
+        for i in range(self.num_it):
+            logging.info("Iteration %d" % i)
+            # evaluate population
+            scores= [evaluate(np.vstack([X_scaled, p]), np.hstack([y, np.repeat(self.minority_label, len(p))]), X_scaled, y) for p in particle_swarm]
+            
+            # update best scores
+            for i, s in enumerate(scores):
+                if s > local_best_scores[i]:
+                    local_best_scores[i]= s
+                    local_best[i]= particle_swarm[i]
+                if s > global_best_score:
+                    global_best_score= s
+                    global_best= particle_swarm[i]
+            
+            # update velocities
+            for i, p in enumerate(particle_swarm):
+                velocities[i]= self.w*velocities[i] + self.c1*np.random.random()*(local_best[i] - p) + self.c2*np.random.random()*(global_best - p)
+            
+            # bound velocities according to search space constraints
+            for v in velocities:
+                for i in range(len(v)):
+                    if np.linalg.norm(v[i]) > search_space[i][2]/2.0:
+                        v[i]= v[i]/np.linalg.norm(v[i])*search_space[i][2]/2.0
+            
+            # update positions
+            for i, p in enumerate(particle_swarm):
+                particle_swarm[i]= particle_swarm[i] + velocities[i]
+            
+            # bound positions according to search space constraints
+            for p in particle_swarm:
+                for i in range(len(p)):
+                    if np.linalg.norm(p[i] - search_space[i][0]) > search_space[i][2]:
+                        p[i]= search_space[i][0] + (p[i] - search_space[i][0])/np.linalg.norm(p[i] - search_space[i][0])*search_space[i][2]
+            
+        return np.vstack([X_orig, mms.inverse_transform(global_best)]), np.hstack([y_orig, np.repeat(self.minority_label, len(global_best))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'k': self.k, 'eps': self.eps, 'n_pop': self.n_pop, 'w': self.w, 'c1': self.c1, 'c2': self.c2, 'num_it': self.num_it}
+
+class CURE_SMOTE(OverSampling):
+    """
+    @Article{cure_smote,
+                author="Ma, Li
+                and Fan, Suohai",
+                title="CURE-SMOTE algorithm and hybrid algorithm for feature selection and parameter optimization based on random forests",
+                journal="BMC Bioinformatics",
+                year="2017",
+                month="Mar",
+                day="14",
+                volume="18",
+                number="1",
+                pages="169",
+                abstract="The random forests algorithm is a type of classifier with prominent universality, a wide application range, and robustness for avoiding overfitting. But there are still some drawbacks to random forests. Therefore, to improve the performance of random forests, this paper seeks to improve imbalanced data processing, feature selection and parameter optimization.",
+                issn="1471-2105",
+                doi="10.1186/s12859-017-1578-z",
+                url="https://doi.org/10.1186/s12859-017-1578-z"
+                }
+
+    URL: https://drive.google.com/open?id=1XJua_4oAcffDxt_seCu-eQHhfG9ig1Og
+    
+    It is not specified how to determine the cluster with the "slowest growth rate"
+    """
+    def __init__(self, proportion= 1.0, n_clusters= 5, noise_th= 2):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_clusters (int): number of clusters to generate
+            noise_th (int): below this number of elements the cluster is considered as noise
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_clusters, "n_clusters", 1)
+        self.check_greater_or_equal(noise_th, "noise_th", 0)
+        
+        self.proportion= proportion
+        self.n_clusters= n_clusters
+        self.noise_th= noise_th
+        
+        self.set_cat_extensive()
+        self.set_cat_uses_clustering()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_clusters': [5, 10, 15], 'noise_th': [1, 3]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        # standardizing the data
+        mms= MinMaxScaler()
+        X_scaled= mms.fit_transform(X)
+        
+        X_min= X_scaled[y == self.minority_label]
+        
+        # initiating clustering
+        clusters= [np.array([i]) for i in range(len(X_min))]
+        dm= pairwise_distances(X_min)
+        
+        # setting the diagonal of the distance matrix to infinity
+        for i in range(len(dm)):
+            dm[i,i]= np.inf
+        
+        # starting the clustering iteration
+        iteration= 0
+        while len(clusters) > self.n_clusters:
+            iteration= iteration + 1
+            
+            # delete a cluster with slowest growth rate, determined by
+            # the cluster size
+            if iteration % self.n_clusters == 0:
+                # extracting cluster sizes
+                cluster_sizes= np.array([len(c) for c in clusters])
+                # removing one of the clusters with the smallest size
+                to_remove= np.where(cluster_sizes == np.min(cluster_sizes))[0]
+                to_remove= np.random.choice(to_remove)
+                del clusters[to_remove]
+                # adjusting the distance matrix accordingly
+                dm= np.delete(dm, to_remove, axis= 0)
+                dm= np.delete(dm, to_remove, axis= 1)
+            
+            # finding the cluster pair with the smallest distance
+            min_coord= np.where(dm == np.min(dm))
+            merge_a= min_coord[0][0]
+            merge_b= min_coord[1][0]
+            
+            # merging the clusters
+            clusters[merge_a]= np.hstack([clusters[merge_a], clusters[merge_b]])
+            # removing one of them
+            del clusters[merge_b]
+            # adjusting the distances in the distance matrix
+            dm[merge_a]= np.min(np.vstack([dm[merge_a], dm[merge_b]]), axis= 0)
+            dm[:,merge_a]= dm[merge_a]
+            # removing the row and column corresponding to one of the merged clusters
+            dm= np.delete(dm, merge_b, axis= 0)
+            dm= np.delete(dm, merge_b, axis= 1)
+            # updating the diagonal
+            for i in range(len(dm)):
+                dm[i,i]= np.inf
+        
+        # removing clusters declared as noise
+        to_remove= []
+        for i in range(len(clusters)):
+            if len(clusters[i]) < self.noise_th:
+                to_remove.append(i)
+        clusters= [clusters[i] for i in range(len(clusters)) if not i in to_remove]
+        
+        # generating samples
+        samples= []
+        for _ in range(num_to_sample):
+            cluster_idx= np.random.randint(len(clusters))
+            center= np.mean(X_min[clusters[cluster_idx]], axis= 0)
+            representative= X_min[np.random.choice(clusters[cluster_idx])]
+            samples.append(self.sample_between_points(center, representative))
+        
+        return np.vstack([X, mms.inverse_transform(np.vstack(samples))]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_clusters': self.n_clusters, 'noise_th': self.noise_th}
+
+class SOMO(OverSampling):
+    """
+    @article{somo,
+                title = "Self-Organizing Map Oversampling (SOMO) for imbalanced data set learning",
+                journal = "Expert Systems with Applications",
+                volume = "82",
+                pages = "40 - 52",
+                year = "2017",
+                issn = "0957-4174",
+                doi = "https://doi.org/10.1016/j.eswa.2017.03.073",
+                url = "http://www.sciencedirect.com/science/article/pii/S0957417417302324",
+                author = "Georgios Douzas and Fernando Bacao"
+                }
+
+    URL: https://drive.google.com/open?id=1RiPlh4KQ383YTr04-voi3Vq2iBBE-1Ij
+    
+    It is not specified how to handle those cases when a cluster contains 1 minority samples,
+    the mean of within-cluster distances is set to 100 in these cases.
+    """
+    def __init__(self, proportion= 1.0, n_grid= 10, sigma= 0.2, learning_rate= 0.5, n_iter= 100):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_grid (int): size of grid
+            sigma (float): sigma of SOM
+            learning_rate (float) learning rate of SOM
+            n_iter (int): number of iterations
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, 'proportion', 0)
+        self.check_greater_or_equal(n_grid, 'n_grid', 2)
+        self.check_greater(sigma, 'sigma', 0)
+        self.check_greater(learning_rate, 'learning_rate', 0)
+        self.check_greater_or_equal(n_iter, 'n_iter', 1)
+        
+        self.proportion= proportion
+        self.n_grid= n_grid
+        self.sigma= sigma
+        self.learning_rate= learning_rate
+        self.n_iter= n_iter
+        
+        self.set_cat_uses_clustering()
+        self.set_cat_extensive()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_grid': [5, 9, 13], 'sigma': [0.4], 'learning_rate': [0.3, 0.5], 'n_iter': [100]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        N_inter= num_to_sample/2
+        N_intra= num_to_sample/2
+        
+        # training SOM
+        som= minisom.MiniSom(self.n_grid, self.n_grid, len(X[0]), sigma= self.sigma, learning_rate= self.learning_rate)
+        som.train_random(X, self.n_iter)
+        
+        # constructing the grid
+        grid_min= {}
+        grid_maj= {}
+        for i in range(len(y)):
+            tmp= som.winner(X[i])
+            idx= (tmp[0], tmp[1])
+            if not idx in grid_min:
+                grid_min[idx]= []
+            if not idx in grid_maj:
+                grid_maj[idx]= []
+            if y[i] == self.minority_label:
+                grid_min[idx].append(i)
+            else:
+                grid_maj[idx].append(i)
+
+        # converting the grid to arrays
+        for i in grid_min:
+            grid_min[i]= np.array(grid_min[i])
+        for i in grid_maj:
+            grid_maj[i]= np.array(grid_maj[i])
+            
+        # filtering
+        filtered= {}
+        for i in grid_min:
+            if not i in grid_maj:
+                filtered[i]= True
+            else:
+                filtered[i]= (len(grid_maj[i]) + 1)/(len(grid_min[i])+1) < 1.0
+        
+        # computing densities
+        densities= {}
+        for i in filtered:
+            if filtered[i]:
+                if len(grid_min[i]) > 1:
+                    densities[i]= len(grid_min[i])/np.mean(pairwise_distances(X[grid_min[i]]))**2
+                else:
+                    densities[i]= 10
+        
+        # computing neighbour densities, using 4 neighborhood
+        neighbors= [[0, 1], [0, -1], [1, 0], [-1, 0]]
+        pair_densities= {}
+        for i in densities:
+            for n in neighbors:
+                j= (i[0] + n[0], i[1] + n[1]),
+                if j in densities:
+                    pair_densities[(i,j)]= densities[i] + densities[j]
+        
+        # computing weights
+        density_keys= list(densities.keys())
+        density_vals= np.array(list(densities.values()))
+        
+        # determining pair keys and density values
+        pair_keys= list(pair_densities.keys())
+        pair_vals= np.array(list(pair_densities.values()))
+        
+        # determining densities
+        density_vals= (1.0/density_vals)/np.sum(1.0/density_vals)
+        pair_dens_vals= (1.0/pair_vals)/np.sum(1.0/pair_vals)
+        
+        # computing num of samples to generate
+        if len(pair_vals) > 0:
+            dens_num= N_intra
+            pair_num= N_inter
+        else:
+            dens_num= N_inter + N_intra
+            pair_num= 0
+        
+        # generating the samples according to the extracted distributions
+        samples= []
+        while len(samples) < dens_num:
+            cluster_idx= density_keys[np.random.choice(np.arange(len(density_keys)), p= density_vals)]
+            cluster= grid_min[cluster_idx]
+            sample_a, sample_b= np.random.choice(cluster, 2)
+            samples.append(self.sample_between_points(X[sample_a], X[sample_b]))
+        
+        while len(samples) < pair_num:
+            idx= pair_keys[np.random.choice(np.arange(len(pair_keys)), p= pair_dens_vals)]
+            cluster_a= grid_min[idx[0]]
+            cluster_b= grid_min[idx[1]]
+            samples.append(self.sample_between_points(X[np.random.choice(cluster_a)], X[np.random.choice(cluster_b)]))
+        
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_grid': self.n_grid, 'sigma': self.sigma, 'learining_rate': self.learning_rate, 'n_iter': self.n_iter}
+
+class ISOMAP_Hybrid(OverSampling):
+    """
+    @inproceedings{isomap_hybrid,
+                     author = {Gu, Qiong and Cai, Zhihua and Zhu, Li},
+                     title = {Classification of Imbalanced Data Sets by Using the Hybrid Re-sampling Algorithm Based on Isomap},
+                     booktitle = {Proceedings of the 4th International Symposium on Advances in Computation and Intelligence},
+                     series = {ISICA '09},
+                     year = {2009},
+                     isbn = {978-3-642-04842-5},
+                     location = {Huangshi, China},
+                     pages = {287--296},
+                     numpages = {10},
+                     url = {http://dx.doi.org/10.1007/978-3-642-04843-2_31},
+                     doi = {10.1007/978-3-642-04843-2_31},
+                     acmid = {1691478},
+                     publisher = {Springer-Verlag},
+                     address = {Berlin, Heidelberg},
+                     keywords = {Imbalanced data set, Isomap, NCR, Smote, re-sampling},
+                    } 
+
+    URL: https://drive.google.com/open?id=1_j8kYoKt8mFxr8Y_ceNVPlejfTXk6-5w
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_components= 3):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): number of neighbors
+            n_components (int): number of components
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_greater_or_equal(n_components, "n_components", 1)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        self.n_components= n_components
+        
+        self.set_cat_extensive()
+        self.set_cat_noise_removal()
+        self.set_cat_dim_reduction()
+        self.set_cat_changes_majority()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'n_components': [2, 3, 4]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        isomap= Isomap(n_neighbors= self.n_neighbors, n_components= self.n_components)
+        X_trans= isomap.fit_transform(X, y)
+        X_sm, y_sm= SMOTE(self.proportion).sample(X_trans, y)
+        
+        return NeighborhoodCleaningRule().remove_noise(X_sm, y_sm)
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_components': self.n_components}
+
+class CE_SMOTE(OverSampling):
+    """
+    @INPROCEEDINGS{ce_smote, 
+                        author={S. Chen and G. Guo and L. Chen}, 
+                        booktitle={2010 IEEE 24th International Conference on Advanced Information Networking and Applications Workshops}, 
+                        title={A New Over-Sampling Method Based on Cluster Ensembles}, 
+                        year={2010}, 
+                        volume={}, 
+                        number={}, 
+                        pages={599-604}, 
+                        keywords={data mining;Internet;pattern classification;pattern clustering;over sampling method;cluster ensembles;classification method;imbalanced data handling;CE-SMOTE;clustering consistency index;cluster boundary minority samples;imbalanced public data set;Mathematics;Computer science;Electronic mail;Accuracy;Nearest neighbor searches;Application software;Data mining;Conferences;Web sites;Information retrieval;classification;imbalanced data sets;cluster ensembles;over-sampling}, 
+                        doi={10.1109/WAINA.2010.40}, 
+                        ISSN={}, 
+                        month={April}}
+
+    URL: https://drive.google.com/open?id=1erU3PsoePzxFCyv8aVwNJ2LO1hHX6dTz
+    """
+    def __init__(self, proportion= 1.0, h= 10, k= 5, alpha= 0.5):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            h (int): size of ensemble
+            k (int): number of clusters/neighbors
+            alpha (float): [0,1] threshold to select boundary samples
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(h, "h", 1)
+        self.check_greater_or_equal(k, "k", 1)
+        self.check_in_range(alpha, "alpha", [0, 1])
+        
+        self.proportion= proportion
+        self.h= h
+        self.k= k
+        self.alpha= alpha
+        
+        self.set_cat_uses_clustering()
+        self.set_cat_borderline()
+        self.set_cat_extensive()
+        self.set_cat_sample_ordinary()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'h': [5, 10, 15], 'k': [3, 5, 7], 'alpha': [0.2, 0.5, 0.8]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        # do the clustering and labelling
+        d= len(X[0])
+        labels= []
+        for _ in range(self.h):
+            f= np.random.randint(int(d/2), d)
+            features= np.random.choice(np.arange(d), f)
+            labels.append(KMeans(n_clusters= self.k).fit(X[:,features]).labels_)
+        
+        # do the cluster matching, clustering 0 will be considered the one to match the others to
+        # the problem of finding cluster matching is basically the "assignment problem"
+        base_label= 0
+        for i in range(len(labels)):
+            if not i == base_label:
+                cost_matrix= np.zeros(shape=(self.k, self.k))
+                for j in range(self.k):
+                    for k in range(self.k):
+                        cost_matrix[j,k]= np.sum(np.logical_and(labels[base_label] == j, labels[i] == k))
+                # solving the assignment problem
+                row_ind, col_ind= soptimize.linear_sum_assignment(-cost_matrix)
+                # doing the relabeling
+                relabeling= labels[i].copy()
+                for j in range(len(row_ind)):
+                    relabeling[labels[i] == k]= j
+                labels[i]= relabeling
+        
+        # compute clustering consistency index
+        labels= np.hstack(labels)
+        cci= np.apply_along_axis(lambda x: max(set(x.tolist()), key= x.tolist().count), 0, labels)
+        cci= cci/self.h
+        
+        # determining minority boundary samples
+        P_boundary= X[np.logical_and(y == self.minority_label, cci < self.alpha)]
+        
+        # finding nearest neighbors of boundary samples
+        nn= NearestNeighbors(self.k)
+        nn.fit(P_boundary)
+        dist, ind= nn.kneighbors(P_boundary)
+        
+        # do the sampling
+        samples= []
+        for _ in range(num_to_sample):
+            idx= np.random.randint(len(ind))
+            samples.append(self.sample_between_points(P_boundary[idx], P_boundary[np.random.choice(ind[idx][1:])]))
+        
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'h': self.h, 'k': self.k, 'alpha': self.alpha}
+
+class Edge_Det_SMOTE(OverSampling):
+    """
+    @INPROCEEDINGS{Edge_Det_SMOTE, 
+                    author={Y. Kang and S. Won}, 
+                    booktitle={ICCAS 2010}, 
+                    title={Weight decision algorithm for oversampling technique on class-imbalanced learning}, 
+                    year={2010}, 
+                    volume={}, 
+                    number={}, 
+                    pages={182-186}, 
+                    keywords={edge detection;learning (artificial intelligence);weight decision algorithm;oversampling technique;class-imbalanced learning;class imbalanced data problem;edge detection algorithm;spatial space representation;Classification algorithms;Image edge detection;Training;Noise measurement;Glass;Training data;Machine learning;Imbalanced learning;Classification;Weight decision;Oversampling;Edge detection}, 
+                    doi={10.1109/ICCAS.2010.5669889}, 
+                    ISSN={}, 
+                    month={Oct}}
+
+    URL: https://drive.google.com/open?id=11eSqSkAzhVTeutlLNqWNo2g3ZYIZbEdM
+    
+    This technique is very loosely specified.
+    """
+    def __init__(self, proportion= 1.0, k= 5):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            k (int): number of neighbors
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(k, "k", 1)
+        
+        self.proportion= proportion
+        self.k= k
+        
+        self.set_cat_density_estimation()
+        self.set_cat_borderline()
+        self.set_cat_extensive()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'k': [3, 5, 7]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        d= len(X[0])
+        X_min= X[y == self.minority_label]
+        
+        # organizing class labels according to feature ranking
+        magnitudes= np.zeros(len(X))
+        for i in range(d):
+            _, idx, label= zip(*sorted(zip(X[:,i], np.arange(len(X)), y), key= lambda x: x[0]))
+            # extracting edge magnitudes in this dimension
+            for j in range(1, len(idx)-1):
+                magnitudes[idx[j]]= magnitudes[idx[j]] + (label[j-1] - label[j+1])**2
+        
+        # density estimation
+        magnitudes= magnitudes[y == self.minority_label]
+        magnitudes= np.sqrt(magnitudes)
+        magnitudes= magnitudes/np.sum(magnitudes)
+        
+        # fitting nearest neighbors models to minority samples
+        nn= NearestNeighbors(n_neighbors= self.k+1)
+        nn.fit(X_min)
+        dist, ind= nn.kneighbors(X_min)
+        
+        # do the sampling
+        samples= []
+        for _ in range(num_to_sample):
+            idx= np.random.choice(np.arange(len(X_min)), p= magnitudes)
+            samples.append(self.sample_between_points(X_min[idx], X_min[np.random.choice(ind[idx][1:])]))
+        
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'k': self.k}
+
+class CBSO(OverSampling):
+    """
+    @InProceedings{CBSO,
+                    author="Barua, Sukarna
+                    and Islam, Md. Monirul
+                    and Murase, Kazuyuki",
+                    editor="Lu, Bao-Liang
+                    and Zhang, Liqing
+                    and Kwok, James",
+                    title="A Novel Synthetic Minority Oversampling Technique for Imbalanced Data Set Learning",
+                    booktitle="Neural Information Processing",
+                    year="2011",
+                    publisher="Springer Berlin Heidelberg",
+                    address="Berlin, Heidelberg",
+                    pages="735--744",
+                    abstract="Imbalanced data sets contain an unequal distribution of data samples among the classes and pose a challenge to the learning algorithms as it becomes hard to learn the minority class concepts. Synthetic oversampling techniques address this problem by creating synthetic minority samples to balance the data set. However, most of these techniques may create wrong synthetic minority samples which fall inside majority regions. In this respect, this paper presents a novel Cluster Based Synthetic Oversampling (CBSO) algorithm. CBSO adopts its basic idea from existing synthetic oversampling techniques and incorporates unsupervised clustering in its synthetic data generation mechanism. CBSO ensures that synthetic samples created via this method always lie inside minority regions and thus, avoids any wrong synthetic sample creation. Simualtion analyses on some real world datasets show the effectiveness of CBSO showing improvements in various assesment metrics such as overall accuracy, F-measure, and G-mean.",
+                    isbn="978-3-642-24958-7"
+                    }
+
+    URL: https://drive.google.com/open?id=16OYKeBf5UPeHJgXCD7-WZtqdc2Am4kBQ
+    
+    Clusters containing 1 element induce cloning of samples.
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5, C_p= 1.3):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): number of neighbors
+            C_p (float): used to set the threshold of clustering
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_greater(C_p, "C_p", 0)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        self.C_p= C_p
+        
+        self.set_cat_uses_clustering()
+        self.set_cat_density_estimation()
+        self.set_cat_extensive()
+        self.set_cat_sample_ordinary()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'C_p': [0.8, 1.0, 1.3, 1.6]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        
+        # fitting nearest neighbors model to find neighbors of minority points
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1).fit(X)
+        dist, ind= nn.kneighbors(X_min)
+        
+        # extracting the number of majority neighbors
+        weights= [np.sum(y[ind[i][1:]] == self.majority_label) for i in range(len(X_min))]
+        # determine distribution of generating data
+        weights= weights/np.sum(weights)
+        
+        # do the clustering
+        nn= NearestNeighbors(n_neighbors= 2).fit(X_min)
+        d_avg= np.mean(nn.kneighbors(X_min)[0][:,1])
+        T_h= d_avg*self.C_p
+        
+        # initiating clustering
+        clusters= [np.array([i]) for i in range(len(X_min))]
+        dm= pairwise_distances(X_min)
+        
+        # setting the diagonal of the distance matrix to infinity
+        for i in range(len(dm)):
+            dm[i,i]= np.inf
+        
+        # starting the clustering iteration
+        while True:
+            # finding the cluster pair with the smallest distance
+            min_coord= np.where(dm == np.min(dm))
+            merge_a= min_coord[0][0]
+            merge_b= min_coord[1][0]
+            
+            # check termination conditions
+            if dm[merge_a, merge_b] > T_h or len(dm) == 1:
+                break
+            
+            # merging the clusters
+            clusters[merge_a]= np.hstack([clusters[merge_a], clusters[merge_b]])
+            # removing one of them
+            del clusters[merge_b]
+            # adjusting the distances in the distance matrix
+            dm[merge_a]= np.min(np.vstack([dm[merge_a], dm[merge_b]]), axis= 0)
+            dm[:,merge_a]= dm[merge_a]
+            # removing the row and column corresponding to one of the merged clusters
+            dm= np.delete(dm, merge_b, axis= 0)
+            dm= np.delete(dm, merge_b, axis= 1)
+            # updating the diagonal
+            for i in range(len(dm)):
+                dm[i,i]= np.inf
+
+        # extracting cluster labels
+        labels= np.zeros(len(X_min)).astype(int)
+        for i in range(len(clusters)):
+            for j in clusters[i]:
+                labels[j]= i
+        
+        # do the sampling
+        samples= []
+        while len(samples) < num_to_sample:
+            idx= np.random.choice(np.arange(len(X_min)), p= weights)
+            if len(clusters[labels[idx]]) <= 1:
+                samples.append(X_min[idx])
+                continue
+            else:
+                random_idx= np.random.choice(clusters[labels[idx]])
+                while random_idx == idx:
+                    random_idx= np.random.choice(clusters[labels[idx]])
+            samples.append(self.sample_between_points(X_min[idx], X_min[random_idx]))
+        
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'C_p': self.C_p}
+    
+class E_SMOTE(OverSampling):
+    """
+    @INPROCEEDINGS{e_smote, 
+                    author={T. Deepa and M. Punithavalli}, 
+                    booktitle={2011 3rd International Conference on Electronics Computer Technology}, 
+                    title={An E-SMOTE technique for feature selection in High-Dimensional Imbalanced Dataset}, 
+                    year={2011}, 
+                    volume={2}, 
+                    number={}, 
+                    pages={322-324}, 
+                    keywords={bioinformatics;data mining;pattern classification;support vector machines;E-SMOTE technique;feature selection;high-dimensional imbalanced dataset;data mining;bio-informatics;dataset balancing;SVM classification;micro array dataset;Feature extraction;Genetic algorithms;Support vector machines;Data mining;Machine learning;Bioinformatics;Cancer;Imbalanced dataset;Featue Selection;E-SMOTE;Support Vector Machine[SVM]}, 
+                    doi={10.1109/ICECTECH.2011.5941710}, 
+                    ISSN={}, 
+                    month={April}}
+
+    URL: https://drive.google.com/open?id=1P-4XvnbNuA6OzdeaYBeQEBcUnCgV1R3M
+    
+    This technique is basically unreproducible. I try to implement something
+    following the idea of applying some simple genetic algorithm for optimization.
+    In my best understanding, the technique uses evolutionary algorithms to
+    for feature selection and then applies vanilla SMOTE on the selected features
+    only.
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): number of neighbors in the nearest neighbors component
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        
+        self.set_cat_dim_reduction()
+        self.set_cat_memetic()
+        self.set_cat_extensive()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        # parameters of the evolutionary algorithm
+        n_generations= 100
+        n_population= 10
+        
+        # creating initial mask
+        mask= np.random.choice([True, False], len(X[0]), replace= True)
+        # fixing if the mask doesn't contiain any features
+        if np.sum(mask) == 0:
+            mask[np.random.randint(len(mask))]= True
+        
+        def crossover(mask_a, mask_b):
+            """
+            Crossover operation for two masks
+            Args:
+                mask_a (np.array): binary mask 1
+                mask_b (np.array): binary mask 2
+            Returns:
+                np.array: the result of crossover
+            """
+            mask= mask_a.copy()
+            for i in range(len(mask_b)):
+                if np.random.randint(0, 2) == 0:
+                    mask[i]= mask_b[i]
+                    
+            if np.sum(mask) > 0:
+                return mask
+            else:
+                mask[np.random.randint(len(mask))]= True
+            return mask
+        
+        def mutate(mask_old):
+            """
+            Mutation operation for a mask
+            Args:
+                mask_old (np.array): binary mask
+            Returns:
+                np.array: the result of mutation
+            """
+            mask= mask_old.copy()
+            for i in range(len(mask)):
+                if np.random.randint(0, 2) == 0:
+                    mask[i]= not mask[i]
+            
+            if np.sum(mask) > 0:
+                return mask
+            else:
+                mask[np.random.randint(len(mask))]= True
+            return mask
+        
+        # generating initial population
+        population= [[0, mask.copy()] for _ in range(n_population)]
+        for _ in range(n_generations):
+            # in each generation
+            for _ in range(n_population):
+                # for each element of a population
+                if np.random.randint(0, 2) == 0:
+                    # crossover
+                    mask= crossover(population[np.random.randint(n_population)][1], population[np.random.randint(n_population)][1])
+                else:
+                    # mutation
+                    mask= mutate(population[np.random.randint(n_population)][1])
+                # evaluation
+                score= np.sum(y == SVC().fit(X[:,np.where(mask)[0]], y).predict(X[:,np.where(mask)[0]]))/len(y)
+                # appending the result to the population
+                population.append([score, mask])
+            # sorting the population in a reversed order and keeping the elements with the highest scores
+            population= sorted(population, key= lambda x: -x[0])[:n_population]
+        
+        # resampling the population in the given dimensions
+        return SMOTE(self.proportion, self.n_neighbors).sample(X[:,population[0][1]], y)
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+
+class DBSMOTE(OverSampling):
+    """
+    @Article{dbsmote,
+                author="Bunkhumpornpat, Chumphol
+                and Sinapiromsaran, Krung
+                and Lursinsap, Chidchanok",
+                title="DBSMOTE: Density-Based Synthetic Minority Over-sampling TEchnique",
+                journal="Applied Intelligence",
+                year="2012",
+                month="Apr",
+                day="01",
+                volume="36",
+                number="3",
+                pages="664--684",
+                abstract="A dataset exhibits the class imbalance problem when a target class has a very small number of instances relative to other classes. A trivial classifier typically fails to detect a minority class due to its extremely low incidence rate. In this paper, a new over-sampling technique called DBSMOTE is proposed. Our technique relies on a density-based notion of clusters and is designed to over-sample an arbitrarily shaped cluster discovered by DBSCAN. DBSMOTE generates synthetic instances along a shortest path from each positive instance to a pseudo-centroid of a minority-class cluster. Consequently, these synthetic instances are dense near this centroid and are sparse far from this centroid. Our experimental results show that DBSMOTE improves precision, F-value, and AUC more effectively than SMOTE, Borderline-SMOTE, and Safe-Level-SMOTE for imbalanced datasets.",
+                issn="1573-7497",
+                doi="10.1007/s10489-011-0287-y",
+                url="https://doi.org/10.1007/s10489-011-0287-y"
+                }
+
+    URL: https://drive.google.com/open?id=1FczQWnv7ZveAuLME1flnQw9ogEAcYQ5a
+    
+    Standardization is needed to use absolute ebs values.
+    The clustering is likely to identify all instances as noise, fixed by
+    recursive call with increaseing eps.
+    """
+    def __init__(self, proportion= 1.0, eps= 0.8, min_samples= 3):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            eps (float): eps paramter of DBSCAN
+            min_samples (int): min_samples paramter of DBSCAN
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater(eps, "eps", 0)
+        self.check_greater_or_equal(min_samples, "min_samples", 1)
+        
+        self.proportion= proportion
+        self.eps= eps
+        self.min_samples= min_samples
+        
+        self.set_cat_uses_clustering()
+        self.set_cat_extensive()
+        self.set_cat_density_estimation()
+        self.set_cat_noise_removal()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'eps': [0.5, 0.8, 1.2], 'min_samples': [1, 3, 5]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        ss= StandardScaler().fit(X)
+        X_ss= ss.transform(X)
+        
+        # doing the clustering using DBSCAN
+        X_min= X_ss[y == self.minority_label]
+        db= DBSCAN(self.eps, self.min_samples).fit(X_min)
+        labels= db.labels_
+        num_labels= np.max(labels)+1
+        
+        if num_labels == 0:
+            # adjusting the parameters if no clusters were identified
+            logging.info("Number of clusters is 0, trying to increase eps")
+            return DBSMOTE(proportion= self.proportion, eps= self.eps*1.5, min_samples= self.min_samples).sample(X, y)
+        
+        # determining cluster size distribution
+        clusters= [np.where(labels == i)[0] for i in range(num_labels)]
+        cluster_sizes= np.array([np.sum(labels == i) for i in range(num_labels)])
+        cluster_dist= cluster_sizes/np.sum(cluster_sizes)
+        
+        # Bellman-Ford algorithm, inspired by https://gist.github.com/joninvski/701720
+        def initialize(graph, source):
+            """
+            Initializes shortest path algorithm.
+            Args:
+                graph (dict): graph in dictionary representation
+                source (key): source node
+            Returns:
+                dict, dict: initialized distance and path dictionaries
+            """
+            d = {}
+            p = {}
+            for node in graph:
+                d[node] = float('Inf')
+                p[node] = None
+            d[source] = 0
+            return d, p
+        
+        def relax(u, v, graph, d, p):
+            """
+            Checks if shorter path exists.
+            Args:
+                u (key): key of a node
+                v (key): key of another node
+                graph (dict): the graph object
+                d (dict): the distances dictionary
+                p (dict): the paths dictionary
+            """
+            if d[v] > d[u] + graph[u][v]:
+                d[v]  = d[u] + graph[u][v]
+                p[v] = u
+        
+        def bellman_ford(graph, source):
+            """
+            Main entry point of the Bellman-Ford algorithm
+            Args:
+                graph (dict): a graph in dictionary representation
+                source (key): the key of the source node
+            """
+            d, p = initialize(graph, source)
+            for i in range(len(graph)-1):
+                for u in graph:
+                    for v in graph[u]:
+                        relax(u, v, graph, d, p)
+            for u in graph:
+                for v in graph[u]:
+                    assert d[v] <= d[u] + graph[u][v]
+            return d, p
+        
+        # extract graphs and center-like objects
+        graphs= []
+        centroid_indices= []
+        shortest_paths= []
+        for c in range(num_labels):
+            # extracting the cluster elements
+            cluster= X_min[clusters[c]]
+            # initializing the graph object
+            graph= {}
+            for i in range(len(cluster)):
+                graph[i]= {}
+            
+            # fitting nearest neighbors model to the cluster elements
+            nn= NearestNeighbors(n_neighbors= len(cluster))
+            nn.fit(cluster)
+            dist, ind= nn.kneighbors(cluster)
+            
+            # extracting graph edges according to directly density reachabality definition
+            for i in range(len(cluster)):
+                for j in range(len(cluster)):
+                    if j in ind[i][1:min([len(cluster), (self.min_samples + 1)])] and dist[i][ind[i] == j][0] < self.eps:
+                        graph[i][j]= dist[i][ind[i] == j][0]
+            graphs.append(graph)
+            # finding the index of the center like object
+            centroid_ind= nn.kneighbors(np.mean(cluster, axis= 0).reshape(1, -1))[1][0][0]
+            centroid_indices.append(centroid_ind)
+            # extracting shortest paths from centroid object
+            shortest_paths.append(bellman_ford(graph, centroid_ind))
+        
+        # generating samples
+        samples= []
+        while len(samples) < num_to_sample:
+            cluster_idx= np.random.choice(np.arange(len(clusters)), p= cluster_dist)
+            idx= np.random.choice(range(len(clusters)))
+            
+            # executing shortest path algorithm
+            distances, parents= shortest_paths[cluster_idx]
+            
+            # extracting path
+            path= [idx]
+            while not parents[path[-1]] == None:
+                path.append(parents[path[-1]])
+                
+                if len(path) == 1:
+                    # if the center like object is selected
+                    samples.append(cluster[path[0]])
+                elif len(path) == 2:
+                    # if the path consists of 1 edge
+                    samples.append(self.sample_between_points_componentwise(cluster[path[0]], cluster[path[1]]))
+                else:
+                    # if the path consists of at least two edges
+                    random_vertex= np.random.randint(len(path)-1)
+                    samples.append(self.sample_between_points_componentwise(cluster[path[random_vertex]], cluster[path[random_vertex + 1]]))
+        
+        return np.vstack([X, ss.inverse_transform(np.vstack(samples))]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'eps': self.eps, 'min_samples': self.min_samples}
+
+class ASMOBD(OverSampling):
+    """
+    @INPROCEEDINGS{asmobd, 
+                    author={Senzhang Wang and Zhoujun Li and Wenhan Chao and Qinghua Cao}, 
+                    booktitle={The 2012 International Joint Conference on Neural Networks (IJCNN)}, 
+                    title={Applying adaptive over-sampling technique based on data density and cost-sensitive SVM to imbalanced learning}, 
+                    year={2012}, 
+                    volume={}, 
+                    number={}, 
+                    pages={1-8}, 
+                    keywords={data analysis;learning (artificial intelligence);sampling methods;smoothing methods;support vector machines;adaptive over-sampling technique;cost-sensitive SVM;imbalanced learning;resampling method;data density information;overfitting;minority sample;learning difficulty;decision region;over generalization;smoothing method;cost-sensitive learning;UCI dataset;G-mean of;receiver operation curve;Smoothing methods;Noise;Support vector machines;Classification algorithms;Interpolation;Measurement;Algorithm design and analysis;over-sampling;Cost-sensitive SVM;imbalanced learning}, 
+                    doi={10.1109/IJCNN.2012.6252696}, 
+                    ISSN={2161-4407}, 
+                    month={June}}
+
+    URL: https://drive.google.com/open?id=1rF4H2L5W4Y1myX2K3TbKYj1IuwclOWsW
+    
+    In order to use absolute thresholds, the data is standardized.
+    The technique has many parameters, not easy to find the right combination.
+    """
+    def __init__(self, proportion= 1.0, min_samples= 3, eps= 0.8, eta= 0.5, T_1= 1.0, T_2= 1.0, t_1= 4.0, t_2= 4.0, a= 0.05, smoothing= 'linear'):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            min_samples (int): parameter of OPTICS
+            eps (float): parameter of OPTICS
+            eta (float): tradeoff paramter
+            T_1 (float): noise threshold (see paper)
+            T_2 (float): noise threshold (see paper)
+            t_1 (float): noise threshold (see paper)
+            t_2 (float): noise threshold (see paper)
+            a (float): smoothing factor (see paper)
+            smoothing (str): 'sigmoid'/'linear'
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(min_samples, "min_samples", 1)
+        self.check_greater(eps, "eps", 0)
+        self.check_in_range(eta, "eta", [0,1])
+        self.check_greater(T_1, "T_1", 0)
+        self.check_greater(T_2, "T_2", 0)
+        self.check_greater(t_1, "t_1", 0)
+        self.check_greater(t_2, "t_2", 0)
+        self.check_greater(a, "a", 0)
+        self.check_isin(smoothing, "smoothing", ['sigmoid', 'linear'])
+        
+        self.proportion= proportion
+        self.min_samples= min_samples
+        self.eps= eps
+        self.eta= eta
+        self.T_1= T_1
+        self.T_2= T_2
+        self.t_1= t_1
+        self.t_2= t_2
+        self.a= a
+        self.smoothing= smoothing
+        
+        self.set_cat_extensive()
+        self.set_cat_uses_clustering()
+        self.set_cat_noise_removal()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5],
+                                                   'min_samples': [3],
+                                                   'eps': [0.3],
+                                                   'eta': [0.5],
+                                                   'T_1': [0.7, 1.0, 1.4],
+                                                   'T_2': [0.7, 1.0, 1.4],
+                                                   't_1': [4.0],
+                                                   't_2': [4.0],
+                                                   'a': [0.05, 0.1],
+                                                   'smoothing': ['sigmoid', 'linear']})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        # standardizing the data to enable using absolute thresholds
+        ss= StandardScaler().fit(X)
+        X_ss= ss.transform(X)
+        
+        X_min= X_ss[y == self.minority_label]
+        
+        # executing the optics algorithm
+        o= OPTICS(min_samples= self.min_samples, max_eps= self.eps)
+        o.fit(X_min)
+        cd= o.core_distances_
+        r= o.reachability_
+        
+        # identifying noise
+        noise= np.logical_and(cd > self.T_1, r > self.T_2)
+        
+        # fitting nearest neighbors models to identify the number of majority samples in local environments
+        nn= NearestNeighbors(n_neighbors= self.min_samples)
+        nn.fit(X_ss)
+        n_majs= []
+        ratio= []
+        for i in range(len(X_min)):
+            ind= nn.radius_neighbors(X_min[i].reshape(1,-1), radius= cd[i], return_distance= False)[0]
+            n_maj= np.sum(y[ind] == self.majority_label)/len(ind)
+            n_majs.append(n_maj)
+            n_min= len(ind) - n_maj - 1
+            if n_min == 0:
+                ratio.append(np.inf)
+            else:
+                ratio.append(n_maj/n_min)
+        
+        n_maj= np.array(n_maj)
+        ratio= np.array(ratio)
+        
+        # second constraint on noise
+        noise_2= np.logical_and(cd > np.mean(cd)*self.t_1, r > np.mean(r)*self.t_2)
+        
+        # calculating density according to the smoothing function specified
+        if self.smoothing == 'sigmoid':
+            balance_ratio= np.abs(2.0/(1.0 + np.exp(-self.a*ratio[i])) - 1.0)
+            df= self.eta*cd + (1.0 - self.eta)*n_maj - balance_ratio
+        else:
+            df= self.eta*(self.eta*cd + (1.0 - self.eta)*n_maj) + (1 - self.eta)*len(X_min)/num_to_sample
+        
+        # unifying the conditions on noise
+        not_noise= np.logical_not(np.logical_or(noise, noise_2))
+        
+        # checking if there are not noise samples remaining
+        if np.sum(not_noise) == 0:
+            logging.info("All minority samples found to be noise, increasing noise thresholds")
+            return ASMOBD(proportion= self.proportion, min_samples= self.min_samples, eps= self.eps,
+                          eta= self.eta, T_1= self.T_1*1.5, T_2= self.T_2*1.5, t_1= self.t_1*1.5, t_2= self.t_2*1.5, 
+                          a= self.a, smoothing= self.smoothing).sample(X, y)
+        
+        # removing noise and adjusting the density factors accordingly
+        X_min_not_noise= X_min[not_noise]
+        df= np.delete(df, np.where(np.logical_not(not_noise))[0])
+        density= df/np.sum(df)
+        
+        # fitting nearest neighbors model to non-noise minority samples
+        nn_not_noise= NearestNeighbors(n_neighbors= self.min_samples + 1)
+        nn_not_noise.fit(X_min_not_noise)
+        dist, ind= nn_not_noise.kneighbors(X_min_not_noise)
+        
+        # do the sampling
+        samples= []
+        while len(samples) < num_to_sample:
+            idx= np.random.choice(np.arange(len(X_min_not_noise)), p= density)
+            random_neighbor_idx= np.random.choice(ind[idx][1:])
+            samples.append(self.sample_between_points(X_min_not_noise[idx], X_min_not_noise[random_neighbor_idx]))
+        
+        return np.vstack([X, ss.inverse_transform(np.vstack(samples))]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'min_samples': self.min_samples, 'eps': self.eps, 'eta': self.eta, 'T_1': self.T_1, 'T_2': self.T_2, 't_1': self.t_1, 't_2': self.t_2, 'a': self.a, 'smoothing': self.smoothing}
+
+class Assembled_SMOTE(OverSampling):
+    """
+    @INPROCEEDINGS{assembled_smote, 
+                    author={B. Zhou and C. Yang and H. Guo and J. Hu}, 
+                    booktitle={The 2013 International Joint Conference on Neural Networks (IJCNN)}, 
+                    title={A quasi-linear SVM combined with assembled SMOTE for imbalanced data classification}, 
+                    year={2013}, 
+                    volume={}, 
+                    number={}, 
+                    pages={1-7}, 
+                    keywords={approximation theory;interpolation;pattern classification;sampling methods;support vector machines;trees (mathematics);quasilinear SVM;assembled SMOTE;imbalanced dataset classification problem;oversampling method;quasilinear kernel function;approximate nonlinear separation boundary;mulitlocal linear boundaries;interpolation;data distribution information;minimal spanning tree;local linear partitioning method;linear separation boundary;synthetic minority class samples;oversampled dataset classification;standard SVM;composite quasilinear kernel function;artificial data datasets;benchmark datasets;classification performance improvement;synthetic minority over-sampling technique;Support vector machines;Kernel;Merging;Standards;Sociology;Statistics;Interpolation}, 
+                    doi={10.1109/IJCNN.2013.6707035}, 
+                    ISSN={2161-4407}, 
+                    month={Aug}}
+
+    URL: https://drive.google.com/open?id=1r3odAQ9aMPvy373wUFbdfr2r8uV0KLHO
+    
+    Absolute value of the angles extracted should be taken. (implemented this way)
+    The use of SMOTE is a bit misleading in the paper, needs majority samples
+    as well, here only the minority samples are used in the SMOTE, which is 
+    rather a SMOTE-like behaviour than SMOTE itself.
+    It is not specified how many samples are generated in the various clusters.
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5, pop= 2, thres= 0.3):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): number of neighbors in nearest neighbors component
+            pop (int): lower threshold on cluster sizes
+            thres (float): threshold on angles
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_greater_or_equal(pop, "pop", 1)
+        self.check_in_range(thres, "thres", [0,1])
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        self.pop= pop
+        self.thres= thres
+        
+        self.set_cat_extensive()
+        self.set_cat_borderline()
+        self.set_cat_uses_clustering()
+        self.set_cat_sample_ordinary()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'pop': [2, 4, 5], 'thres': [0.1, 0.3, 0.5]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        
+        # fitting nearest neighbors model
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1)
+        nn.fit(X)
+        dist, ind= nn.kneighbors(X_min)
+        
+        # finding the set of border and non-border minority elements
+        border_mask= np.array([np.sum(y[ind[i]] == self.minority_label) != self.n_neighbors + 1 for i in range(len(ind))])
+        X_border= X_min[border_mask]
+        X_non_border= X_min[np.logical_not(border_mask)]
+        
+        # initializing clustering
+        clusters= [np.array([i]) for i in range(len(X_border))]
+        dm= pairwise_distances(X_border)
+        for i in range(len(dm)):
+            dm[i,i]= np.inf
+
+        # do the clustering 
+        while len(dm) > 1 and np.min(dm) < np.inf:
+            # extracting coordinates of clusters with the minimum distance
+            min_coord= np.where(dm == np.min(dm))
+            merge_a= min_coord[0][0]
+            merge_b= min_coord[1][0]
+            
+            # checking the size of clusters to see if they should be merged
+            if len(clusters[merge_a]) < self.pop or len(clusters[merge_b]) < self.pop:
+                # if both clusters are small, do the merge
+                clusters[merge_a]= np.hstack([clusters[merge_a], clusters[merge_b]])
+                del clusters[merge_b]
+                # update the distance matrix accordingly
+                dm[merge_a]= np.min(np.vstack([dm[merge_a], dm[merge_b]]), axis= 0)
+                dm[:,merge_a]= dm[merge_a]
+                # remove columns
+                dm= np.delete(dm, merge_b, axis= 0)
+                dm= np.delete(dm, merge_b, axis= 1)
+                # fix the diagonal entries
+                for i in range(len(dm)):
+                    dm[i,i]= np.inf
+            else:
+                # otherwise find principal directions
+                pca_a= PCA(n_components= 1).fit(X_border[clusters[merge_a]])
+                pca_b= PCA(n_components= 1).fit(X_border[clusters[merge_b]])
+                # extract the angle of principal directions
+                angle= abs(np.dot(pca_a.components_[0], pca_b.components_[0])/(np.linalg.norm(pca_a.components_[0])*np.linalg.norm(pca_b.components_[0])))
+                # check if angle if angle is above a specific threshold
+                if angle > self.thres:
+                    # do the merge
+                    clusters[merge_a]= np.hstack([clusters[merge_a], clusters[merge_b]])
+                    del clusters[merge_b]
+                    # update the distance matrix acoordingly
+                    dm[merge_a]= np.min(np.vstack([dm[merge_a], dm[merge_b]]), axis= 0)
+                    dm[:,merge_a]= dm[merge_a]
+                    # remove columns 
+                    dm= np.delete(dm, merge_b, axis= 0)
+                    dm= np.delete(dm, merge_b, axis= 1)
+                    # fixing the digaonal entries
+                    for i in range(len(dm)):
+                        dm[i,i]= np.inf
+                else:
+                    # changing the distance of clusters to fininte
+                    dm[merge_a, merge_b]= np.inf
+                    dm[merge_b, merge_a]= np.inf
+        
+        # extract vectors belonging to the various clusters
+        vectors= [X_border[c] for c in clusters if len(c) > 0]
+        # adding non-border samples
+        vectors.append(X_non_border)
+        
+        # extract cluster sizes and calculating point distribution in clusters
+        # the last element of the clusters is the set of non-border xamples
+        cluster_sizes= np.array([len(v) for v in vectors])
+        densities= cluster_sizes/np.sum(cluster_sizes)
+        
+        # extracting nearest neighbors in clusters
+        nns= [NearestNeighbors(n_neighbors= min([self.n_neighbors + 1, len(vectors[i])])).fit(vectors[i]).kneighbors(vectors[i]) for i in range(len(vectors))]
+        
+        samples= []
+        while len(samples) < num_to_sample:
+            cluster_idx= np.random.choice(len(vectors), p= densities)
+            sample_idx= np.random.choice(np.arange(len(vectors[cluster_idx])))
+            if len(vectors[cluster_idx]) > 1:
+                random_neighbor_idx= np.random.choice(nns[cluster_idx][1][sample_idx][1:])
+            else:
+                random_neighbor_idx= sample_idx
+            samples.append(self.sample_between_points(vectors[cluster_idx][sample_idx], vectors[cluster_idx][random_neighbor_idx]))
+        
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'pop': self.pop, 'thres': self.thres}
+
+class SDSMOTE(OverSampling):
+    """
+    @INPROCEEDINGS{sdsmote, 
+                    author={K. Li and W. Zhang and Q. Lu and X. Fang}, 
+                    booktitle={2014 International Conference on Identification, Information and Knowledge in the Internet of Things}, 
+                    title={An Improved SMOTE Imbalanced Data Classification Method Based on Support Degree}, 
+                    year={2014}, 
+                    volume={}, 
+                    number={}, 
+                    pages={34-38}, 
+                    keywords={data mining;pattern classification;sampling methods;improved SMOTE imbalanced data classification method;support degree;data mining;class distribution;imbalanced data-set classification;over sampling method;minority class sample generation;minority class sample selection;minority class boundary sample identification;Classification algorithms;Training;Bagging;Computers;Testing;Algorithm design and analysis;Data mining;Imbalanced data-sets;Classification;Boundary sample;Support degree;SMOTE}, 
+                    doi={10.1109/IIKI.2014.14}, 
+                    ISSN={}, 
+                    month={Oct}}
+
+    URL: https://drive.google.com/open?id=1jq20pUZJliHkkndyGYjL_A70kF3nKcNU
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): number of neighbors in nearest neighbors component
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        
+        self.set_cat_extensive()
+        self.set_cat_borderline()
+        self.set_cat_sample_ordinary()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        X_maj= X[y == self.majority_label]
+        
+        # fitting nearest neighbors model to find closest majority points to minority samples
+        nn= NearestNeighbors(n_neighbors= len(X_maj))
+        nn.fit(X_maj)
+        dist, ind= nn.kneighbors(X_min)
+        
+        # calculating the sum according to S3 in the paper
+        S_i= np.sum(dist, axis= 1)
+        # calculating average distance according to S5
+        S= np.sum(S_i)
+        S_ave= S/(len(X_min)*len(X_maj))
+        
+        # calculate support degree
+        k= np.array([len(nn.radius_neighbors(X_min[i].reshape(1, -1), S_ave, return_distance= False)[0]) for i in range(len(X_min))])
+        density= k/np.sum(k)
+        
+        # fitting nearest neighbors model to minority samples to run SMOTE-like sampling
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors)
+        nn.fit(X_min)
+        dist, ind= nn.kneighbors(X_min)
+        
+        # do the sampling
+        samples= []
+        while len(samples) < num_to_sample:
+            idx= np.random.choice(np.arange(len(density)), p= density)
+            random_neighbor_idx= np.random.choice(ind[idx][1:])
+            samples.append(self.sample_between_points(X_min[idx], X_min[random_neighbor_idx]))
+
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+
+class DSMOTE(OverSampling):
+    """
+    @INPROCEEDINGS{dsmote, 
+                    author={S. Mahmoudi and P. Moradi and F. Akhlaghian and R. Moradi}, 
+                    booktitle={2014 4th International Conference on Computer and Knowledge Engineering (ICCKE)}, 
+                    title={Diversity and separable metrics in over-sampling technique for imbalanced data classification}, 
+                    year={2014}, 
+                    volume={}, 
+                    number={}, 
+                    pages={152-158}, 
+                    keywords={learning (artificial intelligence);pattern classification;sampling methods;diversity metric;separable metric;over-sampling technique;imbalanced data classification;class distribution techniques;under-sampling technique;DSMOTE method;imbalanced learning problem;diversity measure;separable measure;Iran University of Medical Science;UCI dataset;Accuracy;Classification algorithms;Vectors;Educational institutions;Euclidean distance;Data mining;Diversity measure;Separable Measure;Over-Sampling;Imbalanced Data;Classification problems}, 
+                    doi={10.1109/ICCKE.2014.6993409}, 
+                    ISSN={}, 
+                    month={Oct}}
+
+    URL: https://drive.google.com/open?id=1l2rhdGRICI-ttTlMAPYDK_SGPamSR1Fo
+    
+    The method is highly inefficient when the number of minority samples is high,
+    time complexity is O(n^3), with 1000 minority samples it takes about 1e9 objective
+    function evaluations to find 1 new sample points. Adding 1000 samples would take
+    about 1e12 evaluations of the objective function, which is unfeasible. We introduce
+    a new parameter, n_step, and during the search for the new sample at most n_step
+    combinations of minority samples are tried.
+    Abnormality of minority points is defined in the paper as D_maj/D_min, high abnormality
+    means that the minority point is close to other minority points and very far from majority
+    points. This is definitely not abnormality, I have implemented the opposite.
+    Nothing ensures that the fisher statistics and the variance from the geometric mean
+    remain comparable, which might skew the optimization towards one of the sub-objectives.
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5, rate= 0.1, n_step= 100):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): number of neighbors in nearest neighbors component
+            rate (float): [0,1] rate of minority samples to turn into majority
+            n_step (int): number of random configurations to check for new samples
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_in_range(rate, "rate", [0,1])
+        self.check_greater_or_equal(n_step, "n_step", 1)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        self.rate= rate
+        self.n_step= n_step
+        
+        self.set_cat_changes_majority()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'rate': [0.1, 0.2], 'n_step': [100]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        mms= MinMaxScaler()
+        X= mms.fit_transform(X)
+        
+        X_min= X[y == self.minority_label]
+        X_maj= X[y == self.majority_label]
+        
+        # fitting nearest neighbors model
+        nn= NearestNeighbors(n_neighbors= len(X_maj))
+        nn.fit(X_maj)
+        dist, ind= nn.kneighbors(X_min)
+        
+        # compute mean distances, the D_min is compenstaed for taking into consideration self-distances in the mean
+        D_maj= np.mean(dist, axis= 1)
+        D_min= np.mean(pairwise_distances(X_min), axis= 1)*len(X_min)/(len(X_min)-1)
+        
+        # computing degree of abnormality
+        abnormality= D_min/D_maj
+        
+        # sorting minority indices in decreasing order by abnormality
+        abnormality, indices= zip(*sorted(zip(abnormality, np.arange(len(abnormality))), key= lambda x: -x[0]))
+        rate= int(self.rate*len(abnormality))
+        
+        # moving the most abnormal points to the majority class
+        X_maj= np.vstack([X_maj, X_min[np.array(indices[:rate])]])
+        # removing the most abnormal points form the minority class
+        X_min= np.delete(X_min, indices[:rate], axis= 0)
+        
+        # computing the mean and variance of points in the majority class
+        var_maj= np.mean(np.var(X_maj, axis= 0))
+        mean_maj= np.mean(X_maj)
+        
+        def objective(X):
+            """
+            The objective function to be maximized
+            Args:
+                X (np.matrix): dataset
+            Returns:
+                float: the value of the objective function
+            """
+            gm= gmean(X, axis= 0)
+            gdiv= np.mean([np.linalg.norm(gm - x) for x in X])
+            fisher= (np.mean(X) - mean_maj)**2/(np.mean(np.var(X, axis= 0)) + var_maj)
+            return gdiv + fisher
+        
+        # do the sampling
+        n_added= 0
+        while n_added < num_to_sample:
+            best_candidate= None
+            highest_score= 0.0
+            # we try n_step combinations of minority samples
+            for _ in range(min([len(X_min)*(len(X_min)-1)*(len(X_min)-2), self.n_step])):
+                i,j,k= np.random.choice(np.arange(len(X_min)), 3, replace= False)
+                gm= gmean(X_min[np.array([i,j,k])], axis= 0)
+                # evaluate the objective function
+                score= objective(np.vstack([X_min, gm]))
+                # check if the score is better than the best so far
+                if score > highest_score:
+                    highest_score= score
+                    best_candidate= gm
+            # add the best candidate to the minority samples
+            X_min= np.vstack([X_min, best_candidate])
+            n_added= n_added + 1
+        
+        return mms.inverse_transform(np.vstack([X_maj, X_min])), np.hstack([np.repeat(self.majority_label, len(X_maj)), np.repeat(self.minority_label, len(X_min))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'rate': self.rate, 'n_step': self.n_step}
+
+class G_SMOTE(OverSampling):
+    """
+    @INPROCEEDINGS{g_smote, 
+                    author={T. Sandhan and J. Y. Choi}, 
+                    booktitle={2014 22nd International Conference on Pattern Recognition}, 
+                    title={Handling Imbalanced Datasets by Partially Guided Hybrid Sampling for Pattern Recognition}, 
+                    year={2014}, 
+                    volume={}, 
+                    number={}, 
+                    pages={1449-1453}, 
+                    keywords={Gaussian processes;learning (artificial intelligence);pattern classification;regression analysis;sampling methods;support vector machines;imbalanced datasets;partially guided hybrid sampling;pattern recognition;real-world domains;skewed datasets;dataset rebalancing;learning algorithm;extremely low minority class samples;classification tasks;extracted hidden patterns;support vector machine;logistic regression;nearest neighbor;Gaussian process classifier;Support vector machines;Proteins;Pattern recognition;Kernel;Databases;Gaussian processes;Vectors;Imbalanced dataset;protein classification;ensemble classifier;bootstrapping;Sat-image classification;medical diagnoses}, 
+                    doi={10.1109/ICPR.2014.258}, 
+                    ISSN={1051-4651}, 
+                    month={Aug}}
+
+    URL: https://drive.google.com/open?id=1GJ67qd2r0RH3MMJV5XqVhUBDVfnz4ErF
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5, method= 'linear'):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): number of neighbors in nearest neighbors component
+            method (str): 'linear'/'non-linear_2.0' - the float can be any number: standard deviation in the Gaussian-kernel
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        if not method == 'linear' and not method.startswith('non-linear'):
+            raise ValueError('Method parameter %s is not supported' % method)
+        elif method.startswith('non-linear'):
+            parameter= float(method.split('_')[-1])
+            if parameter <= 0:
+                raise ValueError("Non-positive non-linear parameter %f is not supported" % parameter)
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        self.method= method
+        
+        self.set_cat_extensive()
+        self.set_cat_sample_componentwise()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'method': ['linear', 'non-linear_0.1', 'non-linear_1.0', 'non-linear_2.0']})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        
+        # fitting nearest neighbors model
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1)
+        nn.fit(X_min)
+        dist, ind= nn.kneighbors(X_min)
+        
+        if self.method == 'linear':
+            # finding H_l by linear decomposition
+            cov= np.cov(X_min, rowvar= False)
+            w, v= np.linalg.eig(cov)
+            H_l= v[np.argmax(w)]
+        else:
+            # building a non-linear kernel matrix and finding H_n by its decomposition
+            self.sigma= float(self.method.split('_')[-1])
+            kernel_matrix= pairwise_distances(X_min)
+            kernel_matrix= kernel_matrix/(2.0*self.sigma**2)
+            kernel_matrix= np.exp(kernel_matrix)
+            w_k, v_k= np.linalg.eig(kernel_matrix)
+            H_n= v_k[np.argmax(w_k)]
+            def kernel(x, y):
+                return np.linalg.norm(x - y)/(2.0*self.sigma**2)
+        
+        # generating samples
+        samples= []
+        while len(samples) < num_to_sample:
+            idx= np.random.randint(len(X_min))
+            # calculating difference vectors from all neighbors
+            P= X_min[ind[idx][1:]] - X_min[idx]
+            if self.method == 'linear':
+                # calculating angles with the principal direction
+                thetas= np.array([np.arccos(np.abs(np.dot(P[n], H_l))/(np.linalg.norm(P[n])*np.linalg.norm(H_l))) for n in range(len(P))])
+            else:
+                thetas= []
+                # calculating angles of the difference vectors and the principal direction in feature space
+                for n in range(len(P)):
+                    # calculating representation in feature space
+                    feature_vector= np.array([kernel(X_min[k], P[n]) for k in range(len(X_min))])
+                    dp= np.dot(H_n, feature_vector)
+                    thetas.append(np.arccos(np.abs(dp)/(np.linalg.norm(feature_vector)*np.linalg.norm(H_n))))
+                thetas= np.array(thetas)
+            
+            # using the neighbor with the along the most similar direction to the principal direction of the data
+            n= np.argmin(thetas)
+            samples.append(self.sample_between_points_componentwise(X_min[idx], X_min[ind[idx][1:][n]]))
+        
+        return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'method': self.method}
+
+class NT_SMOTE(OverSampling):
+    """
+    @INPROCEEDINGS{nt_smote, 
+                    author={Y. H. Xu and H. Li and L. P. Le and X. Y. Tian}, 
+                    booktitle={2014 Seventh International Joint Conference on Computational Sciences and Optimization}, 
+                    title={Neighborhood Triangular Synthetic Minority Over-sampling Technique for Imbalanced Prediction on Small Samples of Chinese Tourism and Hospitality Firms}, 
+                    year={2014}, 
+                    volume={}, 
+                    number={}, 
+                    pages={534-538}, 
+                    keywords={financial management;pattern classification;risk management;sampling methods;travel industry;Chinese tourism;hospitality firms;imbalanced risk prediction;minority class samples;up-sampling approach;neighborhood triangular synthetic minority over-sampling technique;NT-SMOTE;nearest neighbor idea;triangular area sampling idea;single classifiers;data excavation principles;hospitality industry;missing financial indicators;financial data filtering;financial risk prediction;MDA;DT;LSVM;logit;probit;firm risk prediction;Joints;Optimization;imbalanced datasets;NT-SMOTE;neighborhood triangular;random sampling}, 
+                    doi={10.1109/CSO.2014.104}, 
+                    ISSN={}, 
+                    month={July}}
+
+    URL: https://drive.google.com/open?id=1iMeem5Ax2AkvwatvMpf1ZGMfHSsI3vQi
+    """
+    def __init__(self, proportion= 1.0):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        
+        self.proportion= proportion
+        
+        self.set_cat_extensive()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        
+        # find two nearest minority samples
+        nn= NearestNeighbors(n_neighbors= 3)
+        nn.fit(X_min)
+        dist, ind= nn.kneighbors(X_min)
+                
+        samples= []
+        while len(samples) < num_to_sample:
+            # select point randomly
+            idx= np.random.randint(len(X_min))
+            P_1= X_min[idx]
+            # find two closest neighbors
+            P_2= X_min[ind[idx][1]]
+            P_3= X_min[ind[idx][2]]
+            # generate random point by sampling the specified triangle
+            samples.append((P_3 + np.random.random()*((P_1 + np.random.random()*(P_2 - P_1)) - P_3)))
+        
+        return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion}
+
+class Lee(OverSampling):
+    """
+    @inproceedings{Lee,
+                     author = {Lee, Jaedong and Kim, Noo-ri and Lee, Jee-Hyong},
+                     title = {An Over-sampling Technique with Rejection for Imbalanced Class Learning},
+                     booktitle = {Proceedings of the 9th International Conference on Ubiquitous Information Management and Communication},
+                     series = {IMCOM '15},
+                     year = {2015},
+                     isbn = {978-1-4503-3377-1},
+                     location = {Bali, Indonesia},
+                     pages = {102:1--102:6},
+                     articleno = {102},
+                     numpages = {6},
+                     url = {http://doi.acm.org/10.1145/2701126.2701181},
+                     doi = {10.1145/2701126.2701181},
+                     acmid = {2701181},
+                     publisher = {ACM},
+                     address = {New York, NY, USA},
+                     keywords = {data distribution, data preprocessing, imbalanced problem, rejection rule, synthetic minority oversampling technique}
+                    } 
+
+    URL: https://drive.google.com/open?id=1omttVQFQ8oDZHeZ87bUSa5Hr7fqt2Vwf
+    """
+    def __init__(self, proportion= 1.0, n_neighbors= 5, rejection_level= 0.5):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): number of neighbors in nearest neighbor component
+            rejection_level (float): the rejection level of generated samples, if the
+                                        fraction of majority labels in the local environment
+                                        is higher than this number, the generated point
+                                        is rejected
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_in_range(rejection_level, "rejection_level", [0, 1])
+        
+        self.proportion= proportion
+        self.n_neighbors= n_neighbors
+        self.rejection_level= rejection_level
+        
+        self.set_cat_extensive()
+        self.set_cat_sample_ordinary()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'rejection_level': [0.3, 0.5, 0.7]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        
+        # fitting nearest neighbors models to find neighbors of minority samples inthe total data
+        # and in the minority datasets
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn.fit(X)
+        dist, ind= nn.kneighbors(X_min)
+        
+        nn_min= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn_min.fit(X_min)
+        dist_min, ind_min= nn_min.kneighbors(X_min)
+        
+        # do the sampling, we impleneted a continouos tweaking of rejection levels
+        # in order to fix situations when no unrejectable data can be can be generated
+        samples= []
+        passed= 0
+        trial= 0
+        rejection_level= self.rejection_level
+        while len(samples) < num_to_sample:
+            # checking if we managed to generate a single data in 1000 trials
+            if passed == trial and passed > 1000:
+                rejection_level= rejection_level + 0.1
+                trial= 0
+                passed= 0
+            trial= trial + 1
+            # generating random point
+            idx= np.random.randint(len(X_min))
+            random_neighbor_idx= np.random.choice(ind_min[idx][1:])
+            random_point= self.sample_between_points(X_min[idx], X_min[random_neighbor_idx])
+            # checking if the local environment is above the rejection level
+            dist_new, ind_new= nn.kneighbors(random_point.reshape(1, -1))
+            if np.sum(y[ind_new][:-1] == self.majority_label)/self.n_neighbors < rejection_level:
+                samples.append(random_point)
+            else:
+                passed= passed + 1
+        
+        return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'rejection_level': self.rejection_level}
+
+class SPY(OverSampling):
+    """
+    @INPROCEEDINGS{spy, 
+                    author={X. T. Dang and D. H. Tran and O. Hirose and K. Satou}, 
+                    booktitle={2015 Seventh International Conference on Knowledge and Systems Engineering (KSE)}, 
+                    title={SPY: A Novel Resampling Method for Improving Classification Performance in Imbalanced Data}, 
+                    year={2015}, 
+                    volume={}, 
+                    number={}, 
+                    pages={280-285}, 
+                    keywords={decision making;learning (artificial intelligence);pattern classification;sampling methods;SPY;resampling method;decision-making process;biomedical data classification;class imbalance learning method;SMOTE;oversampling method;UCI machine learning repository;G-mean value;borderline-SMOTE;safe-level-SMOTE;Support vector machines;Training;Bioinformatics;Proteins;Protein engineering;Radio frequency;Sensitivity;Imbalanced dataset;Over-sampling;Under-sampling;SMOTE;borderline-SMOTE}, 
+                    doi={10.1109/KSE.2015.24}, 
+                    ISSN={}, 
+                    month={Oct}}
+
+    URL: https://drive.google.com/open?id=1B3qUj6lPdO21EjxuVKLHi8OV68gLZUUA
+    """
+    def __init__(self, n_neighbors= 5, threshold= 0.5):
+        """
+        Constructor of the sampling object
+        Args:
+            n_neighbors (int): number of neighbors in nearest neighbor component
+            threshold (float): threshold*n_neighbors gives the threshold z described in the paper
+        """
+        super().__init__()
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_in_range(threshold, "threshold", [0, 1])
+        
+        self.n_neighbors= n_neighbors
+        self.threshold= threshold
+        
+        self.set_cat_changes_majority()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'n_neighbors': [3, 5, 7], 'threshold': [0.3, 0.5, 0.7]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        X_min= X[y == self.minority_label]
+        
+        # fitting nearest neighbors model
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn.fit(X)
+        dist, ind= nn.kneighbors(X_min)
+        
+        y_new= y.copy()
+        z= self.threshold*self.n_neighbors
+        
+        # checking the neighbors of each minority sample
+        for i in range(len(X_min)):
+            majority_mask= y[ind[i][1:]] == self.majority_label
+            x= np.sum(majority_mask)
+            # if the number of majority samples in the neighborhood is smaller than a threshold
+            # their labels are changed to minority
+            if x < z:
+                y_new[ind[i][1:][majority_mask]]= self.minority_label
+        
+        return X.copy(), y_new
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'n_neighbors': self.n_neighbors, 'threshold': self.threshold}
+
+class SMOTE_PSOBAT(OverSampling):
+    """
+    @INPROCEEDINGS{smote_pso, 
+                    author={J. Li and S. Fong and Y. Zhuang}, 
+                    booktitle={2015 3rd International Symposium on Computational and Business Intelligence (ISCBI)}, 
+                    title={Optimizing SMOTE by Metaheuristics with Neural Network and Decision Tree}, 
+                    year={2015}, 
+                    volume={}, 
+                    number={}, 
+                    pages={26-32}, 
+                    keywords={data mining;particle swarm optimisation;pattern classification;data mining;classifier;metaherustics;SMOTE parameters;performance indicators;selection optimization;PSO;particle swarm optimization algorithm;BAT;bat-inspired algorithm;metaheuristic optimization algorithms;nearest neighbors;imbalanced dataset problem;synthetic minority over-sampling technique;decision tree;neural network;Classification algorithms;Neural networks;Decision trees;Training;Optimization;Particle swarm optimization;Data mining;SMOTE;Swarm Intelligence;parameter selection optimization}, 
+                    doi={10.1109/ISCBI.2015.12}, 
+                    ISSN={}, 
+                    month={Dec}}
+
+    URL: https://drive.google.com/open?id=1PQfIJRpKkNVcwQixzJxPN-K1FKEr_oDc
+    
+    The parameters of the memetic algorithms are not specified.
+    I have checked multiple paper describing the BAT algorithm, but the meaning of
+    "Generate a new solution by flying randomly" is still unclear. It is also
+    unclear if best solutions are recorded for each bat, or the entire population.
+    """
+    def __init__(self, maxit= 50, c1= 0.3, c2= 0.1, c3= 0.1, alpha= 0.9, gamma= 0.9, method= 'bat'):
+        """
+        Constructor of the sampling object
+        Args:
+            maxit (int): maximum number of iterations
+            c1 (float): intertia weight of PSO
+            c2 (float): attraction of local maximums
+            c3 (float): attraction of global maximum
+            method (str): optimization technique to be used
+        """
+        super().__init__()
+        self.check_greater_or_equal(maxit, "maxit", 1)
+        self.check_greater_or_equal(c1, "c1", 0)
+        self.check_greater_or_equal(c2, "c2", 0)
+        self.check_greater_or_equal(c3, "c3", 0)
+        self.check_greater_or_equal(alpha, "alpha", 0)
+        self.check_greater_or_equal(gamma, "gamma", 0)
+        self.check_isin(method, "method", ['pso', 'bat'])
+        
+        self.maxit= maxit
+        self.c1= c1
+        self.c2= c2
+        self.c3= c3
+        self.alpha= alpha
+        self.gamma= gamma
+        self.method= method
+        
+        self.set_cat_extensive()
+        self.set_cat_uses_classifier()
+        self.set_cat_sample_ordinary()
+        self.set_cat_memetic()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        bat_pc= cls.generate_parameter_combinations({'maxit': [50], 'alpha': [0.7, 0.9], 'gamma': [0.7, 0.9], 'method': ['bat']})
+        pso_pc= cls.generate_paramter_combinations({'maxit': [50], 'c1': [0.2, 0.5], 'c2': [0.1, 0.2], 'c3': [0.1, 0.2], 'method': ['pso']})
+        return bat_pc.extend(pso_pc)
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        def evaluate(K, proportion):
+            """
+            Evaluate given configuration
+            Args:
+                K (int): number of neighbors in nearest neighbors component
+                proportion (float): proportion of missing data to generate
+            Returns:
+                float, float: kappa and accuracy scores
+            """
+            X_samp, y_samp= SMOTE(proportion= proportion, n_neighbors= K).sample(X, y)
+            
+            # doing k-fold cross validation
+            kfold= KFold(5)
+            preds= []
+            tests= []
+            for train, test in kfold.split(X_samp):
+                preds.append(DecisionTreeClassifier().fit(X_samp[train], y_samp[train]).predict(X_samp[test]))
+                tests.append(y_samp[test])
+            preds= np.hstack(preds)
+            tests= np.hstack(tests)
+            # computing the kappa score
+            tp= np.sum(np.logical_and(preds == tests, tests == self.minority_label))
+            fn= np.sum(np.logical_and(preds != tests, tests == self.minority_label))
+            tn= np.sum(np.logical_and(preds == tests, tests == self.majority_label))
+            fp= np.sum(np.logical_and(preds != tests, tests == self.majority_label))
+            
+            p_o= (tp + tn)/(tp + fn + tn + fp)
+            p_e= (tp + fn)*(tp + fp)/(tp + fn + tn + fp)**2 + (fp + tn)*(fn + tn)/(tp + fn + tn + fp)**2
+            
+            kappa= (p_o - p_e)/(1.0 - p_e)
+            
+            return kappa, p_o
+        
+        def PSO():
+            """
+            PSO optimization
+            Returns:
+                int, float: the best K and proportion values
+            """
+            # a reasonable range of nearest neighbors to use with SMOTE
+            k_range= [2, min([np.sum(y == self.minority_label), 10])]
+            # a reasonable range of proportions
+            proportion_range= [0.1, 2.0]
+            # population size
+            n_pop= 10
+            
+            # initial particles
+            ps= [np.array([np.random.randint(k_range[0], k_range[1]), np.random.random()*(proportion_range[1] - proportion_range[0]) + proportion_range[0]]) for _ in range(n_pop)]
+            # initial velocities
+            velocities= [np.array([0, 0]) for _ in range(n_pop)]
+            # best configurations of particles
+            local_best= [ps[i].copy() for i in range(n_pop)]
+            # scores of best configurations of particles
+            local_scores= [(0, 0) for _ in range(n_pop)]
+            # global best configuration of particles
+            global_best= ps[0].copy()
+            # global best score
+            global_scores= (0, 0)
+            
+            # executing the particle swarm optimization
+            not_changed= 0
+            for _ in range(self.maxit):
+                # if the configurations didn't change for 10 iterations, stop
+                if not_changed > len(ps)*10:
+                    break
+                # evaluating each of the configurations
+                for i in range(len(ps)):
+                    scores= evaluate(np.int(ps[i][0]), ps[i][1])
+                    # recording if the best scores didn't change
+                    not_changed= not_changed + 1
+                    # registering locally and globally best scores
+                    if min([local_scores[i][0], scores[0]]) > 0.4 and local_scores[i][1] > scores[1]:
+                        local_scores[i]= scores
+                        local_best[i]= ps[i].copy()
+                        not_changed= 0
+                    elif scores[0] > 0.4 and local_scores[i][0] <= 0.4:
+                        local_scores[i]= scores
+                        local_best[i]= ps[i].copy()
+                        not_changed= 0
+                    
+                    if min([global_scores[0], scores[0]]) > 0.4 and global_scores[1] > scores[1]:
+                        global_scores= scores
+                        global_best= ps[i].copy()
+                        not_changed= 0
+                    elif scores[0] > 0.4 and global_scores[0] <= 0.4:
+                        global_scores= scores
+                        global_best= ps[i].copy()
+                        not_changed= 0
+    
+                # update velocities
+                for i in range(len(ps)):
+                    velocities[i]= self.c1*velocities[i] + (local_best[i] - ps[i])*self.c2 + (global_best - ps[i])*self.c3
+                    # clipping velocities if required
+                    while abs(velocities[i][0]) > k_range[1] - k_range[0]:
+                        velocities[i][0]= velocities[i][0]/2.0
+                    while abs(velocities[i][1]) > proportion_range[1] - proportion_range[0]:
+                        velocities[i][1]= velocities[i][1]/2.0
+                    
+                # update positions
+                for i in range(len(ps)):
+                    ps[i]= ps[i] + velocities[i]
+                    # clipping positions according to the specified ranges
+                    ps[i][0]= np.clip(ps[i][0], k_range[0], k_range[1])
+                    ps[i][1]= np.clip(ps[i][1], proportion_range[0], proportion_range[1])
+                
+            return global_best
+        
+        def BAT():
+            """
+            BAT optimization
+            Returns:
+                int, float: the best K and proportion values
+            """
+            
+            # a reasonable range of nearest neighbors to use with SMOTE
+            k_range= [2, min([np.sum(y == self.minority_label), 10])]
+            # a reasonable range of proportions
+            proportion_range= [0.1, 2.0]
+            # population size
+            n_pop= 10
+            # maximum frequency
+            f_max= 10
+            
+            # initial bat positions
+            bats= [np.array([np.random.randint(k_range[0], k_range[1]), np.random.random()*(proportion_range[1] - proportion_range[0]) + proportion_range[0]]) for _ in range(n_pop)]
+            # initial velocities
+            velocities= [np.array([0, 0]) for _ in range(10)]
+            # best configurations of particles
+            local_best= [[[[0.0, 0.0], bats[i].copy()]] for i in range(len(bats))]
+            # scores of best configurations of particles
+            global_best= [[0.0, 0.0], bats[0].copy()]
+            # pulse frequencies
+            f= np.random.random(size= n_pop)*f_max
+            # pulse rates
+            r= np.random.random(size= n_pop)
+            # loudness
+            A= np.random.random(size= n_pop)
+            
+            # gamma parameter according to the BAT paper
+            gamma= self.gamma
+            # alpha parameter according to the BAT paper
+            alpha= self.alpha
+            
+            # initial best solution
+            bat_star= bats[0].copy()
+            
+            not_changed= 0
+            for t in range(self.maxit):
+                not_changed= not_changed + 1
+                
+                if not_changed > 10:
+                    break
+                
+                # update frequencies
+                f= np.random.random(size= n_pop)*f_max
+                
+                # update velocities
+                for i in range(len(velocities)):
+                    velocities[i]= velocities[i] + (bats[i] - bat_star)*f[i]
+                
+                # update bats
+                for i in range(len(bats)):
+                    bats[i]= bats[i] + velocities[i]
+                    bats[i][0]= np.clip(bats[i][0], k_range[0], k_range[1])
+                    bats[i][1]= np.clip(bats[i][1], proportion_range[0], proportion_range[1])
+                
+                for i in range(n_pop):
+                    # generate local solution
+                    if np.random.random() > r[i]:
+                        random_best_sol= local_best[i][np.random.randint(min([len(local_best[i]), 5]))][1]
+                        bats[i]= random_best_sol + np.random.random(size=len(bat_star))*A[i]
+                
+                # evaluate and do local search
+                for i in range(n_pop):
+                    scores= evaluate(int(bats[i][0]), bats[i][1])
+                    
+                    # checking if the scores are better than the global score
+                    # implementation of the multi-objective criterion in the SMOTE-PSOBAT paper
+                    improved_global= False
+                    if min([global_best[0][0], scores[0]]) > 0.4 and global_best[0][1] > scores[1]:
+                        improved_global= True
+                        not_changed= 0
+                    elif scores[0] > 0.4 and global_best[0][0] <= 0.4:
+                        improved_global= True
+                        not_changed= 0
+                    
+                    # checking if the scores are better than the local scores
+                    # implementation of the multi-objective criterion in the SMOTE-PSOBAT paper
+                    improved_local= False
+                    if min([local_best[i][0][0][0], scores[0]]) > 0.4 and local_best[i][0][0][1] > scores[1]:
+                        improved_local= True
+                    elif scores[0] > 0.4 and local_best[i][0][0][0] <= 0.4:
+                        improved_local= True
+                    
+                    # local search in the bet algorithm
+                    if np.random.random() < A[i] and improved_local:
+                        local_best[i].append([scores, bats[i].copy()])
+                        A[i]= A[i]*alpha
+                        r[i]= r[i]*(1 - np.exp(-gamma*t))
+                    if np.random.random() < A[i] and improved_global:
+                        global_best= [scores, bats[i].copy()]
+
+                    # ranking local solutions to keep track of the best 5
+                    local_best[i]= sorted(local_best[i], key= lambda x: -x[0][0])[:min([len(local_best[i]), 5])]
+                    
+                t= t + 1
+        
+            return global_best[1]
+            
+        if self.method == 'pso':
+            best_combination= PSO()
+        elif self.method == 'bat':
+            best_combination= BAT()
+        else:
+            raise ValueError("Search method %s not supported yet." % self.method)
+        
+        return SMOTE(proportion= best_combination[1], n_neighbors= int(best_combination[0])).sample(X, y)
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'maxit': self.maxit, 'c1': self.c1, 'c2': self.c2, 'c3': self.c3, 'alpha': self.alpha, 'gamma': self.gamma, 'method': self.method}
+
+class MDO(OverSampling):
+    """
+    @ARTICLE{mdo, 
+                author={L. Abdi and S. Hashemi}, 
+                journal={IEEE Transactions on Knowledge and Data Engineering}, 
+                title={To Combat Multi-Class Imbalanced Problems by Means of Over-Sampling Techniques}, 
+                year={2016}, 
+                volume={28}, 
+                number={1}, 
+                pages={238-251}, 
+                keywords={covariance analysis;learning (artificial intelligence);modelling;pattern classification;sampling methods;statistical distributions;minority class instance modelling;probability contour;covariance structure;MDO;Mahalanobis distance-based oversampling technique;data-oriented technique;model-oriented solution;machine learning algorithm;data skewness;multiclass imbalanced problem;Mathematical model;Training;Accuracy;Eigenvalues and eigenfunctions;Machine learning algorithms;Algorithm design and analysis;Benchmark testing;Multi-class imbalance problems;over-sampling techniques;Mahalanobis distance;Multi-class imbalance problems;over-sampling techniques;Mahalanobis distance}, 
+                doi={10.1109/TKDE.2015.2458858}, 
+                ISSN={1041-4347}, 
+                month={Jan}}
+
+    URL: https://drive.google.com/open?id=1O_X4rhJcMx5h4eION2WJGHTqLyxoGO9i
+    """
+    def __init__(self, proportion= 1.0, K2= 5, K1_frac= 0.5):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            K2 (int): number of neighbors
+            K1_frac (float): the fraction of K2 to set K1
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(K2, "K2", 1)
+        self.check_greater_or_equal(K1_frac, "K1_frac", 0)
+        
+        self.proportion= proportion
+        self.K2= K2
+        self.K1_frac= K1_frac
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'K2': [3, 5, 7], 'K1_frac': [0.3, 0.5, 0.7]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        
+        # determining K1
+        self.K1= int(self.K2*self.K1_frac)
+        
+        # Algorithm 2
+        nn= NearestNeighbors(n_neighbors= self.K2 + 1)
+        nn.fit(X)
+        dist, ind= nn.kneighbors(X_min)
+        
+        # extracting the number of minority samples in local neighborhoods
+        n_min= np.array([np.sum(y[ind[i][1:]] == self.minority_label) for i in range(len(X_min))])
+        
+        X_sel= X_min[n_min >= self.K1]
+        weights= n_min[n_min >= self.K1]/self.K2
+        weights= weights/np.sum(weights)
+        
+        # Algorithm 1
+        mu= np.mean(X_sel, axis= 0)
+        Z= X_sel - mu
+        pca= PCA(n_components= len(Z[0])).fit(Z)
+        T= pca.transform(Z)
+        V= np.var(T, axis= 0)
+        
+        samples= []
+        while len(samples) < num_to_sample:
+            idx= np.random.choice(np.arange(len(X_sel)), p= weights)
+            X_temp= T[idx]
+            X_temp_square= X_temp**2
+            alpha= np.sum(X_temp_square/V)
+            alpha_V= alpha*V
+            X_new= np.zeros(len(X_temp))
+            s= 0
+            for j in range(len(X_temp)-1):
+                r= (2*np.random.random()-1)*np.sqrt(alpha_V[j])
+                X_temp[j]= r
+                s= s + (r**2/alpha_V[j])
+            last_fea_val= np.sqrt((1 - s)*alpha*V[-1])
+            X_new[-1]= (2*np.random.random()-1)*last_fea_val
+            samples.append(X_new)
+        
+        return np.vstack([X, pca.inverse_transform(samples) + mu]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'K2': self.K2, 'K1_frac': self.K1_frac}
+
+class Random_SMOTE(OverSampling):
+    """
+    @InProceedings{random_smote,
+                    author="Dong, Yanjie
+                    and Wang, Xuehua",
+                    editor="Xiong, Hui
+                    and Lee, W. B.",
+                    title="A New Over-Sampling Approach: Random-SMOTE for Learning from Imbalanced Data Sets",
+                    booktitle="Knowledge Science, Engineering and Management",
+                    year="2011",
+                    publisher="Springer Berlin Heidelberg",
+                    address="Berlin, Heidelberg",
+                    pages="343--352",
+                    abstract="For imbalanced data sets, examples of minority class are sparsely distributed in sample space compared with the overwhelming amount of majority class. This presents a great challenge for learning from the minority class. Enlightened by SMOTE, a new over-sampling method, Random-SMOTE, which generates examples randomly in the sample space of minority class is proposed. According to the experiments on real data sets, Random-SMOTE is more effective compared with other random sampling approaches.",
+                    isbn="978-3-642-25975-3"
+                    }
+
+    URL: https://drive.google.com/open?id=1_Wd2KaqlIcSmnjvlksYBgu5PsWIhDhbY
+    """
+    def __init__(self, strategy= 1.0, n_neighbors= 5):
+        """
+        Constructor of the sampling object
+        Args:
+            strategy (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): number of neighbors
+        """
+        super().__init__()
+        self.strategy= strategy
+        self.n_neighbors= n_neighbors
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'strategy': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.strategy, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn.fit(X_min)
+        dist, ind= nn.kneighbors(X_min)
+        
+        samples= []
+        while len(samples) < num_to_sample:
+            idx= np.random.choice(np.arange(len(X_min)))
+            y_1_idx, y_2_idx= np.random.choice(ind[idx][1:], 2)
+            t= self.sample_between_points_componentwise(X_min[y_1_idx], X_min[y_2_idx])
+            samples.append(self.sample_between_points_componentwise(X_min[idx], t))
+        
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'strategy': self.strategy, 'n_neighbors': self.n_neighbors}
+    
+class ISMOTE(OverSampling):
+    """
+    @InProceedings{ismote,
+                    author="Li, Hu
+                    and Zou, Peng
+                    and Wang, Xiang
+                    and Xia, Rongze",
+                    editor="Sun, Zengqi
+                    and Deng, Zhidong",
+                    title="A New Combination Sampling Method for Imbalanced Data",
+                    booktitle="Proceedings of 2013 Chinese Intelligent Automation Conference",
+                    year="2013",
+                    publisher="Springer Berlin Heidelberg",
+                    address="Berlin, Heidelberg",
+                    pages="547--554",
+                    abstract="Imbalanced data is commonly in the real world and brings a lot of challenges. In this paper, we propose a combination sampling method which resamples both minority class and majority class. Improved SMOTE (ISMOTE) is used to do over-sampling on minority class, while distance-based under-sampling (DUS) method is used to do under-sampling on majority class. We adjust the sampling times to search for the optimal results while maintain the dataset size unchanged. Experiments on UCI datasets show that the proposed method performs better than using single over-sampling or under-sampling method.",
+                    isbn="978-3-642-38466-0"
+                    }
+
+    URL: https://drive.google.com/open?id=1z5J2-eDZBOobFvYH4jsXmT8-b3eJ0f6W
+    """
+    def __init__(self, n_neighbors= 5, minority_weight= 0.5):
+        """
+        Constructor of the sampling object
+        Args:
+            n_neighbors (int): number of neighbors
+            minority_weight (float): weight parameter according to the paper
+        """
+        super().__init__()
+        self.n_neighbors= n_neighbors
+        self.minority_weight= minority_weight
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'n_neighbors': [3, 5, 7], 'minority_weight': [0.2, 0.5, 0.8]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        self.class_label_statistics(X, y)
+        
+        X_min= X[y == self.minority_label]
+        X_maj= X[y == self.majority_label]
+        
+        num_to_sample= int((len(X_maj) - len(X_min))/2)
+        
+        nn= NearestNeighbors(n_neighbors= 1)
+        nn.fit(X_min)
+        dist, ind= nn.kneighbors(X_maj)
+        
+        ind_sorted, dist_sorted= zip(*sorted(zip(np.arange(len(X_maj)), dist[:,0]), key= lambda x: -x[1]))
+        X_maj= X_maj[list(ind_sorted[num_to_sample:])]
+        
+        X_new= np.vstack([X_maj, X_min])
+        y_new= np.hstack([np.repeat(self.majority_label, len(X_maj)), np.repeat(self.minority_label, len(X_min))])
+        
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn.fit(X_new)
+        dist, ind= nn.kneighbors(X_min)
+        
+        samples= []
+        while len(samples) < num_to_sample:
+            idx= np.random.choice(np.arange(len(X_min)))
+            y_idx= np.random.choice(ind[idx][1:])
+            
+            if y_new[y_idx] == self.minority_label:
+                samples.append(X_min[idx] + np.random.random()*(X_new[y_idx] - X_min[idx])*self.minority_weight)
+            else:
+                samples.append(X_min[idx] + np.random.random()*(X_new[y_idx] - X_min[idx])*(1.0 - self.minority_weight))
+        
+        return np.vstack([X_new, np.vstack(samples)]), np.hstack([y_new, np.repeat(self.minority_label, len(samples))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'n_neighbors': self.n_neighbors, 'minority_weight': self.minority_weight}
+
+class VIS_RST(OverSampling):
+    """
+    @InProceedings{vis_rst,
+                    author="Borowska, Katarzyna
+                    and Stepaniuk, Jaros{\l}aw",
+                    editor="Saeed, Khalid
+                    and Homenda, W{\l}adys{\l}aw",
+                    title="Imbalanced Data Classification: A Novel Re-sampling Approach Combining Versatile Improved SMOTE and Rough Sets",
+                    booktitle="Computer Information Systems and Industrial Management",
+                    year="2016",
+                    publisher="Springer International Publishing",
+                    address="Cham",
+                    pages="31--42",
+                    abstract="In recent years, the problem of learning from imbalanced data has emerged as important and challenging. The fact that one of the classes is underrepresented in the data set is not the only reason of difficulties. The complex distribution of data, especially small disjuncts, noise and class overlapping, contributes to the significant depletion of classifier's performance. Hence, the numerous solutions were proposed. They are categorized into three groups: data-level techniques, algorithm-level methods and cost-sensitive approaches. This paper presents a novel data-level method combining Versatile Improved SMOTE and rough sets. The algorithm was applied to the two-class problems, data sets were characterized by the nominal attributes. We evaluated the proposed technique in comparison with other preprocessing methods. The impact of the additional cleaning phase was specifically verified.",
+                    isbn="978-3-319-45378-1"
+                    }
+
+    URL: https://drive.google.com/open?id=1mTca65RRZ39SLNOy4hxvh23qlNha8kpj
+    """
+    def __init__(self, strategy= 1.0, n_neighbors= 5):
+        """
+        Constructor of the sampling object
+        Args:
+            strategy (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): number of neighbors
+        """
+        super().__init__()
+        self.strategy= strategy
+        self.n_neighbors= n_neighbors
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'strategy': [1.0], 'n_neighbors': [3, 5, 7]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.strategy, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        ss= StandardScaler()
+        ss.fit(X)
+        X= ss.transform(X)
+        y= y.copy()
+        
+        X_min= X[y == self.minority_label]
+        X_maj= X[y == self.majority_label]
+        
+        # determining boundary region
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn.fit(X)
+        dist, ind= nn.kneighbors(X_maj)
+        
+        boundary= np.array([np.sum(y[ind[i]] == self.majority_label) != self.n_neighbors + 1 for i in range(len(X_maj))])
+        y[y == self.majority_label][boundary]= self.minority_label
+        
+        X_min= X[y == self.minority_label]
+        X_maj= X[y == self.majority_label]
+        
+        # labeling minority samples
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn.fit(X)
+        dist, ind= nn.kneighbors(X_min)
+        
+        labels= []
+        for i in range(len(ind)):
+            min_class_neighbors= np.sum(y[ind[i][1:]] == self.minority_label)
+            if min_class_neighbors == self.n_neighbors:
+                labels.append('noise')
+            elif min_class_neighbors < self.n_neighbors/2:
+                labels.append('safe')
+            else:
+                labels.append('danger')
+                
+        safe= len([l == 'safe' for l in labels])
+        noise= len([l == 'noise' for l in labels])
+        danger= len([l == 'danger' for l in labels])
+        
+        if safe == 0:
+            mode= 'no_safe'
+        elif danger > 0.3*len(X_min):
+            mode= 'high_complexity'
+        else:
+            mode= 'low_complexity'
+        
+        nn_min= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn_min.fit(X_min)
+        dist_min, ind_min= nn_min.kneighbors(X_min)
+        
+        samples= []
+        mask= np.repeat(False, len(X_min))
+        while len(samples) < num_to_sample:
+            idx= np.random.choice(np.arange(len(X_min)))
+            
+            if mode == 'high_complexity':
+                if labels[idx] == 'noise':
+                    pass
+                elif labels[idx] == 'danger' and not mask[idx]:
+                    samples.append(X_min[idx])
+                    mask[idx]= True
+                else:
+                    samples.append(self.sample_between_points(X_min[idx], X_min[np.random.choice(ind_min[idx][1:])]))
+            elif mode == 'low_complexity':
+                if labels[idx] == 'noise':
+                    pass
+                elif labels[idx] == 'danger':
+                    samples.append(self.sample_between_points(X_min[idx], X_min[np.random.choice(ind_min[idx][1:])]))
+                elif not mask[idx]:
+                    samples.append(X_min[idx]) 
+                    mask[idx]= True
+            else:
+                samples.add(self.sample_between_points(X_min[idx], X_min[np.random.choice(ind_min[idx][1:])]))
+        
+        X_samp= np.vstack(samples)
+        dist_check, ind_check= nn.kneighbors(X_samp)
+        num_maj= np.array([np.sum(y[ind_check[i][:1]] == self.majority_label) for i in range(len(samples))])
+        mask= num_maj == 0
+        X_samp= X_samp[mask]
+        
+        return ss.inverse_transform(np.vstack([X, X_samp])), np.hstack([y, np.repeat(self.minority_label, len(X_samp))])
+        
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'strategy': self.strategy, 'n_neighbors': self.n_neighbors}
+
+class GASMOTE(OverSampling):
+    """
+    @Article{gasmote,
+                author="Jiang, Kun
+                and Lu, Jing
+                and Xia, Kuiliang",
+                title="A Novel Algorithm for Imbalance Data Classification Based on Genetic Algorithm Improved SMOTE",
+                journal="Arabian Journal for Science and Engineering",
+                year="2016",
+                month="Aug",
+                day="01",
+                volume="41",
+                number="8",
+                pages="3255--3266",
+                abstract="The classification of imbalanced data has been recognized as a crucial problem in machine learning and data mining. In an imbalanced dataset, there are significantly fewer training instances of one class compared to another class. Hence, the minority class instances are much more likely to be misclassified. In the literature, the synthetic minority over-sampling technique (SMOTE) has been developed to deal with the classification of imbalanced datasets. It synthesizes new samples of the minority class to balance the dataset, by re-sampling the instances of the minority class. Nevertheless, the existing algorithms-based SMOTE uses the same sampling rate for all instances of the minority class. This results in sub-optimal performance. To address this issue, we propose a novel genetic algorithm-based SMOTE (GASMOTE) algorithm. The GASMOTE algorithm uses different sampling rates for different minority class instances and finds the combination of optimal sampling rates. The experimental results on ten typical imbalance datasets show that, compared with SMOTE algorithm, GASMOTE can increase 5.9{\%} on F-measure value and 1.6{\%} on G-mean value, and compared with Borderline-SMOTE algorithm, GASMOTE can increase 3.7{\%} on F-measure value and 2.3{\%} on G-mean value. GASMOTE can be used as a new over-sampling technique to deal with imbalance dataset classification problem. We have particularly applied the GASMOTE algorithm to a practical engineering application: prediction of rockburst in the VCR rockburst datasets. The experiment results indicate that the GASMOTE algorithm can accurately predict the rockburst occurrence and hence provides guidance to the design and construction of safe deep mining engineering structures.",
+                issn="2191-4281",
+                doi="10.1007/s13369-016-2179-2",
+                url="https://doi.org/10.1007/s13369-016-2179-2"
+                }
+
+    URL: https://drive.google.com/open?id=1VYA2Y_lKXPlMIYNEYO9p2ylymTVcnNR_
+    """
+    def __init__(self, n_neighbors= 5, maxn= 7, n_pop= 10, popl3= 5, pm= 0.3, pr= 0.2, Ge= 10):
+        """
+        Constructor of the sampling object
+        Args:
+            n_neighbors (int): number of neighbors
+            maxn (int): maximum number of samples to generate per minority instances
+            n_pop (int): size of population
+            popl3 (int): number of crossovers
+            pm (float): mutation probability
+            pr (float): selection probability
+            Ge (int): number of generations
+        """
+        super().__init__()
+        self.n_neighbors= n_neighbors
+        self.maxn= maxn
+        self.n_pop= n_pop
+        self.popl3=popl3
+        self.pm= pm
+        self.pr= pr
+        self.Ge= Ge
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'n_neighbors': [7], 'maxn': [2, 3, 4], 'n_pop': [10], 'popl3': [4], 'pm': [0.3], 'pr': [0.2], 'Ge': [10]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        self.class_label_statistics(X, y)
+        
+        X_min= X[y == self.minority_label]
+        
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn.fit(X_min)
+        dist, ind= nn.kneighbors(X_min)
+        kfold= KFold(5)
+        
+        def fitness(conf):
+            samples= []
+            for i in range(len(conf)):
+                for j in range(conf[i]):
+                    samples.append(self.sample_between_points(X_min[i], X_min[np.random.choice(ind[i][1:])]))
+            X_new= np.vstack([X, np.vstack(samples)])
+            y_new= np.hstack([y, np.repeat(self.minority_label, len(samples))])
+            preds, tests= [], []
+            for train, test in kfold.split(X_new):
+                dt= DecisionTreeClassifier().fit(X_new[train], y_new[train])
+                preds.append(dt.predict(X_new[test]))
+                tests.append(y_new[test])
+            preds= np.hstack(preds)
+            tests= np.hstack(tests)
+            tp= np.sum(np.logical_and(tests == self.minority_label, tests == preds))
+            tn= np.sum(np.logical_and(tests == self.majority_label, tests == preds))
+            fp= np.sum(np.logical_and(tests == self.majority_label, tests != preds))
+            fn= np.sum(np.logical_and(tests == self.minority_label, tests != preds))
+            sens= tp/(tp + fn)
+            spec= tn/(fp + tn)
+            return np.sqrt(sens*spec)
+        
+        def crossover(conf_a, conf_b):
+            for _ in range(self.popl3):
+                k= np.random.randint(len(conf_a))
+                conf_a, conf_b= np.hstack([conf_a[:k], conf_b[k:]]), np.hstack([conf_b[:k], conf_a[k:]])
+            return conf_a, conf_b
+        
+        def mutation(conf, ge):
+            conf= conf.copy()
+            if np.random.random() < self.pm:
+                pass
+            else:
+                for i in range(len(conf)):
+                    r= np.random.random()**((1 - ge/self.Ge)**3)
+                    if np.random.randint(2) == 0:
+                        conf[i]= int(conf[i] + (self.maxn - conf[i])*r)
+                    else:
+                        conf[i]= int(conf[i] - (conf[i] - 0)*r)
+            return conf
+        
+        population= [[np.random.randint(self.maxn, size=len(X_min)), 0] for _ in range(self.n_pop)]
+        
+        for p in population:
+            p[1]= fitness(p[0])
+        
+        ge= 0
+        while ge < self.Ge:
+            population= sorted(population, key= lambda x: -x[1])
+            
+            pp= int(self.n_pop*self.pr)
+            population_new= []
+            for i in range(pp):
+                population_new.append(population[i])
+                population_new.append(population[i])
+            population_new.extend(population[pp:(self.n_pop - pp)])
+            population= population_new
+            
+            ge= ge + 1
+            for _ in range(int(self.n_pop/2)):
+                conf_a, conf_b= crossover(population[np.random.randint(self.n_pop)][0], population[np.random.randint(self.n_pop)][0])
+                population.append([conf_a, fitness(conf_a)])
+                population.append([conf_b, fitness(conf_b)])
+            for _ in range(int(self.n_pop/2)):
+                conf= mutation(population[np.random.randint(self.n_pop)][0], ge)
+                population.append([conf, fitness(conf)])
+        
+        conf= population[0][0]
+        samples= []
+        for i in range(len(conf)):
+            for j in range(conf[i]):
+                samples.append(self.sample_between_points(X_min[i], X_min[np.random.choice(ind[i][1:])]))
+        X_new= np.vstack([X, np.vstack(samples)])
+        y_new= np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+        return X_new, y_new
+
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'n_neighbors': self.n_neighbors, 'maxn': self.maxn, 'n_pop': self.n_pop, 'popl3': self.popl3, 'pm': self.pm, 'pr': self.pr, 'Ge': self.Ge}
+
+class A_SUWO(OverSampling):
+    """
+    @article{a_suwo,
+                title = "Adaptive semi-unsupervised weighted oversampling (A-SUWO) for imbalanced datasets",
+                journal = "Expert Systems with Applications",
+                volume = "46",
+                pages = "405 - 416",
+                year = "2016",
+                issn = "0957-4174",
+                doi = "https://doi.org/10.1016/j.eswa.2015.10.031",
+                url = "http://www.sciencedirect.com/science/article/pii/S0957417415007356",
+                author = "Iman Nekooeimehr and Susana K. Lai-Yuen",
+                keywords = "Imbalanced dataset, Classification, Clustering, Oversampling"
+                }
+
+    URL: https://drive.google.com/open?id=14ePxLnx4LlPITR4K_Sjm2PWW41kdczMy
+    """
+    def __init__(self, strategy= 1.0, n_neighbors= 5, n_clus_maj= 7, c_thres= 0.8):
+        """
+        Constructor of the sampling object
+        Args:
+            strategy (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): number of neighbors
+            n_clus_maj (int): number of majority clusters
+            c_thres (float): threshold on distances
+        """
+        super().__init__()
+        self.strategy= strategy
+        self.n_neighbors= n_neighbors
+        self.n_clus_maj= n_clus_maj
+        self.c_thres= c_thres
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'strategy': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'n_clus_maj': [5, 7, 9], 'c_thres': [0.5, 0.8]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.strategy, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        
+        # remoing noisy samples
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn.fit(X)
+        dist, ind= nn.kneighbors(X)
+        
+        noise= np.where(np.array([np.sum(y[ind[i][1:]] == y[i]) == 0 for i in range(len(X))]))[0]
+        X= np.delete(X, noise, axis= 0)
+        y= np.delete(y, noise)
+        
+        X_min= X[y == self.minority_label]
+        X_maj= X[y == self.majority_label]
+        
+        # clustering majority samples
+        ac= AgglomerativeClustering(n_clusters= self.n_clus_maj)
+        ac.fit(X_maj)
+        maj_clusters= [np.where(ac.labels_ == i)[0] for i in range(self.n_clus_maj)]
+        
+        # initialize minority clusters
+        min_clusters= [np.array([i]) for i in range(len(X_min))]
+        
+        # compute cluster distances
+        dm_min= pairwise_distances(X_min)
+        for i in range(len(dm_min)):
+            dm_min[i,i]= np.inf
+        
+        dm_maj= np.zeros(shape=(len(X_min), len(maj_clusters)))
+        for i in range(len(X_min)):
+            for j in range(len(maj_clusters)):
+                dm_maj[i,j]= np.min(pairwise_distances(X_min[min_clusters[i]], X_maj[maj_clusters[j]]))
+        
+        # compute threshold
+        nn= NearestNeighbors(n_neighbors= len(X_min))
+        nn.fit(X_min)
+        dist, ind= nn.kneighbors(X_min)
+        d_med= np.median(dist, axis= 1)
+        T= np.mean(d_med)*self.c_thres
+        
+        # do the clustering of minority samples
+        while True:
+            pi= np.min(dm_min)
+            if pi > T:
+                break
+            
+            min_dist_pair= np.where(dm_min == pi)
+            min_i= min_dist_pair[0][0]
+            min_j= min_dist_pair[1][0]
+            
+            min_clusters[min_i]= np.hstack([min_clusters[min_i], min_clusters[min_j]])
+            min_clusters= np.delete(min_clusters, min_j)
+            
+            A= np.where(np.logical_and(dm_maj[min_i] < pi, dm_maj[min_j] < pi))[0]
+            if len(A) > 0:
+                dm_min[min_i, min_j]= np.inf
+                dm_min[min_j, min_i]= np.inf
+            
+            dm_min[min_i]= np.min(np.vstack([dm_min[min_i], dm_min[min_j]]), axis= 0)
+            dm_min[min_j]= dm_min[min_i]
+            dm_min= np.delete(dm_min, min_j, axis= 0)
+            dm_min= np.delete(dm_min, min_j, axis= 1)
+            
+            for i in range(len(dm_min)):
+                dm_min[i,i]= np.inf
+            
+            dm_maj[min_i]= np.min(np.vstack([dm_maj[min_i], dm_maj[min_j]]), axis= 0)
+            dm_maj= np.delete(dm_maj, min_j, axis= 0)
+        
+        # adaptive sub-cluster sizing
+        eps= []
+        for c in min_clusters:
+            if len(c) > 1:
+                k= min(len(c), 5)
+                kfold= KFold(k)
+                preds= []
+                for train, test in kfold.split(X_min[c]):
+                    X_train= np.vstack([X_maj, X_min[c][train]])
+                    y_train= np.hstack([np.repeat(self.majority_label, len(X_maj)), np.repeat(self.minority_label, len(X_min[c][train]))])
+                    preds.append(LinearDiscriminantAnalysis().fit(X_train, y_train).predict(X_min[test]))
+                preds= np.hstack(preds)
+                eps.append(np.sum(preds == self.minority_label)/len(preds))
+            else:
+                eps.append(1.0)
+        min_cluster_dist= eps/np.sum(eps)
+        
+        # synthetic instance generation - determining within cluster distribution
+        nn= NearestNeighbors(n_neighbors= 1)
+        nn.fit(X_maj)
+        dist, ind= nn.kneighbors(X_min)
+        dist= dist/len(X[0])
+        dist= 1.0/dist
+        
+        THs= []
+        for c in min_clusters:
+            THs.append(np.mean(dist[c,0]))
+        
+        within_cluster_dist= []
+        for i, c in enumerate(min_clusters):
+            Gamma= dist[c,0]
+            Gamma[Gamma > THs[i]]= THs[i]
+            within_cluster_dist.append(Gamma/np.sum(Gamma))
+        
+        within_cluster_neighbors= []
+        for c in min_clusters:
+            nn= NearestNeighbors(n_neighbors= min(len(c), self.n_neighbors))
+            nn.fit(X_min[c])
+            within_cluster_neighbors.append(nn.kneighbors(X_min[c])[1])
+        
+        # sampling
+        samples= []
+        while len(samples) < num_to_sample:
+            cluster_idx= np.random.choice(np.arange(len(min_clusters)), p= min_cluster_dist)
+            if len(min_clusters[cluster_idx]) > 1:
+                sample_idx= np.random.choice(np.arange(len(min_clusters[cluster_idx])), p= within_cluster_dist[cluster_idx])
+                neighbor_idx= np.random.choice(within_cluster_neighbors[cluster_idx][sample_idx][1:])
+                point= X_min[min_clusters[cluster_idx][sample_idx]]
+                neighbor= X_min[min_clusters[cluster_idx][neighbor_idx]]
+                samples.append(self.sample_between_points(point, neighbor))
+            else:
+                pass
+        
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'strategy': self.strategy, 'n_neighbors': self.n_neighbors, 'n_clus_maj': self.n_clus_maj, 'c_thres': self.c_thres}
+
+class SMOTE_FRST_2T(OverSampling):
+    """
+    @article{smote_frst_2t,
+                title = "Fuzzy-rough imbalanced learning for the diagnosis of High Voltage Circuit Breaker maintenance: The SMOTE-FRST-2T algorithm",
+                journal = "Engineering Applications of Artificial Intelligence",
+                volume = "48",
+                pages = "134 - 139",
+                year = "2016",
+                issn = "0952-1976",
+                doi = "https://doi.org/10.1016/j.engappai.2015.10.009",
+                url = "http://www.sciencedirect.com/science/article/pii/S0952197615002389",
+                author = "E. Ramentol and I. Gondres and S. Lajes and R. Bello and Y. Caballero and C. Cornelis and F. Herrera",
+                keywords = "High Voltage Circuit Breaker (HVCB), Imbalanced learning, Fuzzy rough set theory, Resampling methods"
+                }
+
+    URL: https://drive.google.com/open?id=1Zmb2MmKGszJB8Q1k7eTZLNG-8KhF4KTc
+    """
+    def __init__(self, gamma_S= 0.8, gamma_M= 0.03, maxit= 20):
+        """
+        Constructor of the sampling object
+        Args:
+            gamma_S (float): threshold of synthesized samples
+            gamma_M (float): threshold of majority samples
+            maxit (int): maximum number of iterations
+        """
+        super().__init__()
+        self.gamma_S= gamma_S
+        self.gamma_M= gamma_M
+        self.maxit= maxit
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'gamma_S': [0.3, 0.5, 0.8], 'gamma_M': [0.3, 0.5, 0.8], 'maxit': [20]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        self.class_label_statistics(X, y)
+        
+        X_min= X[y == self.minority_label]
+        X_maj= X[y == self.majority_label]
+        ranges= np.max(X, axis= 0) - np.min(X, axis= 0)
+        
+        def pos(x, y):
+            r= 1.0 - np.abs(x-y)/ranges
+            sum_r= np.sum(r[r > 0])
+            t= max(sum_r - len(y) + 1, 0)
+            return 1.0 - t
+        
+        pos_cache= pairwise_distances(X_min, X_maj, metric= pos)
+        
+        result_synth= []
+        result_maj= []
+        iteration= 0
+        while iteration < self.maxit and (len(X_min) + len(result_synth) + len(result_maj)) < len(X_maj):
+            iteration= iteration + 1
+            
+            X_samp, y_samp= SMOTE(strategy= 0.2).sample(X, y)
+            X_samp= X_samp[len(X):]
+            
+            new_synth= []
+            pos_synth= pairwise_distances(X_min, X_samp)
+            for i in range(len(X_samp)):
+                min_pos= np.min(pos_synth[:,i])
+                if min_pos < self.gamma_S:
+                    result_synth.append(X_samp[i])
+                    new_synth.append(X_samp[i])
+            
+            to_remove= []
+            for j in range(len(X_maj)):
+                min_pos= np.min(pos_cache[:,j])
+                if min_pos < self.gamma_M:
+                    result_maj.append(X_maj[j])
+                    to_remove.append(j)
+            
+            X_maj= np.delete(X_maj, to_remove, axis= 0)
+            pos_cache= np.delete(pos_cache, to_remove, axis= 1)
+
+            if len(new_synth) > 0:
+                pos_cache_new= pairwise_distances(np.vstack(new_synth), X_maj, metric= pos)
+                pos_cache= np.vstack([pos_cache, pos_cache_new])
+        
+        return np.vstack([X_maj, X_min, np.vstack(result_synth), np.vstack(result_maj)]), np.hstack([np.repeat(self.majority_label, len(X_maj)), np.repeat(self.minority_label, len(X_min) + len(result_synth) + len(result_maj))])
+
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'gamma_S': self.gamma_S, 'gamma_M': self.gamma_M, 'maxit': self.maxit}
+
+class AND_SMOTE(OverSampling):
+    """
+    @inproceedings{and_smote,
+                     author = {Yun, Jaesub and Ha, Jihyun and Lee, Jong-Seok},
+                     title = {Automatic Determination of Neighborhood Size in SMOTE},
+                     booktitle = {Proceedings of the 10th International Conference on Ubiquitous Information Management and Communication},
+                     series = {IMCOM '16},
+                     year = {2016},
+                     isbn = {978-1-4503-4142-4},
+                     location = {Danang, Viet Nam},
+                     pages = {100:1--100:8},
+                     articleno = {100},
+                     numpages = {8},
+                     url = {http://doi.acm.org/10.1145/2857546.2857648},
+                     doi = {10.1145/2857546.2857648},
+                     acmid = {2857648},
+                     publisher = {ACM},
+                     address = {New York, NY, USA},
+                     keywords = {SMOTE, imbalanced learning, synthetic data generation},
+                    } 
+
+    URL: https://drive.google.com/open?id=1bwj4hQiFnFgfCPDM2e8_GGloZcUd3vBG
+    """
+    def __init__(self, strategy= 1.0, K= 15):
+        """
+        Constructor of the sampling object
+        Args:
+            strategy (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            K (int): maximum number of nearest neighbors (K in paper)
+        """
+        super().__init__()
+        self.strategy= strategy
+        self.K= K
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'strategy': [0.5, 1.0, 1.5], 'K': [9, 15, 21]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.strategy, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        X_maj= X[y == self.majority_label]
+        
+        nn= NearestNeighbors(n_neighbors= self.K+1)
+        nn.fit(X)
+        dist, ind= nn.kneighbors(X)
+        
+        min_ind= np.where(y == self.minority_label)[0]
+        
+        kappa= []
+        for i in range(len(min_ind)):
+            regions_min= []
+            regions_maj= []
+            for j in range(1, self.K+1):
+                if y[ind[min_ind[i]][j]] != self.minority_label:
+                    pass
+                
+                reg= np.hstack([min_ind[i], ind[min_ind[i]][j]])
+                reg_min= np.min(X[reg])
+                reg_max= np.max(X[reg])
+                
+                r_min= []
+                r_maj= []
+                for k in ind[min_ind[i]][:(j+1)]:
+                    if np.all(reg_min <= X[k]) and np.all(X[k] <= reg_max):
+                        if y[k] == self.minority_label:
+                            r_min.append(k)
+                        else:
+                            r_maj.append(k)
+                
+                regions_min.append(r_min)
+                regions_maj.append(r_maj)
+            
+            for j in range(1, len(regions_min)):
+                regions_min[j]= list(set(regions_min[j]).union(set(regions_min[j-1])))
+                regions_maj[j]= list(set(regions_maj[j]).union(set(regions_maj[j-1])))
+            
+            regions_min= np.array([len(r) for r in regions_min])
+            regions_maj= np.array([len(r) for r in regions_maj])
+            
+            prec= regions_min/(regions_min + regions_maj)
+            d= np.diff(prec, 1)
+            k= np.argmin(d) + 1
+            kappa.append(k)
+        
+        nn= NearestNeighbors(n_neighbors= max(kappa))
+        nn.fit(X_min)
+        dist, ind= nn.kneighbors(X_min)
+        
+        samples= []
+        while len(samples) < num_to_sample:
+            idx= np.random.randint(len(X_min))
+            if kappa[idx] > 0:
+                samples.append(self.sample_between_points(X_min[idx], X_min[np.random.choice(ind[idx][1:(kappa[idx]+1)])]))
+        
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'strategy': self.strategy, 'K': self.K}
+
+class NRAS(OverSampling):
+    """
+    @article{nras,
+                title = "Noise Reduction A Priori Synthetic Over-Sampling for class imbalanced data sets",
+                journal = "Information Sciences",
+                volume = "408",
+                pages = "146 - 161",
+                year = "2017",
+                issn = "0020-0255",
+                doi = "https://doi.org/10.1016/j.ins.2017.04.046",
+                url = "http://www.sciencedirect.com/science/article/pii/S0020025517307089",
+                author = "William A. Rivera",
+                keywords = "NRAS, SMOTE, OUPS, Class imbalance, Classification"
+                }
+
+    URL: https://drive.google.com/open?id=1AZ_jRoplDczplH8g1AM3Zn_jujMxaAxA
+    """
+    def __init__(self, strategy= 1.0, n_neighbors= 5, t= 0.5):
+        """
+        Constructor of the sampling object
+        Args:
+            strategy (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): number of neighbors
+            t (float): [0,1] fraction of n_neighbors as threshold
+        """
+        super().__init__()
+        self.strategy= strategy
+        self.n_neighbors= n_neighbors
+        self.t= t
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'strategy': [0.5, 1.0, 1.5], 'n_neighbors': [5, 7, 9], 't': [0.3, 0.5, 0.8]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.strategy, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        lr= LogisticRegression()
+        lr.fit(X, y)
+        propensity= lr.predict_proba(X)[:,1]
+        
+        X_min= X[y == self.minority_label]
+        
+        X_new= np.column_stack([X, propensity])
+        X_min_new= X_new[y == self.minority_label]
+        
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1)
+        nn.fit(X_new)
+        dist, ind= nn.kneighbors(X_min_new)
+        
+        samples= []
+        to_remove= []
+        while len(samples) < num_to_sample:
+            idx= np.random.randint(len(X_min))
+            t_hat= np.sum(y[ind[idx][1:]] == self.minority_label)
+            if t_hat < self.t*self.n_neighbors:
+                to_remove.append(idx)
+            else:
+                min_neighbors= np.where(y[ind[idx][1:]] == self.minority_label)[0]
+                s0= X_min[idx]
+                s1= X[np.random.choice(ind[idx][1:][min_neighbors])]
+                samples.append(self.sample_between_points(s0, s1))
+        
+        X= np.delete(X, to_remove, axis= 0)
+        y= np.delete(y, to_remove)
+        
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'strategy': self.strategy, 'n_neighbors': self.n_neighbors, 't': self.t}
+
+class AMSCO(OverSampling):
+    """
+    @article{amsco,
+                title = "Adaptive multi-objective swarm fusion for imbalanced data classification",
+                journal = "Information Fusion",
+                volume = "39",
+                pages = "1 - 24",
+                year = "2018",
+                issn = "1566-2535",
+                doi = "https://doi.org/10.1016/j.inffus.2017.03.007",
+                url = "http://www.sciencedirect.com/science/article/pii/S1566253517302087",
+                author = "Jinyan Li and Simon Fong and Raymond K. Wong and Victor W. Chu",
+                keywords = "Swarm fusion, Swarm intelligence algorithm, Multi-objective, Crossover rebalancing, Imbalanced data classification"
+                }
+
+    URL: https://drive.google.com/open?id=1Y90GGJMZeFjp4I_emwk1Z430kjwnNQnt
+    
+    It is not clear how the kappa threshold is used.
+    """
+    def __init__(self, n_pop= 10, n_iter= 5, omega= 0.3, r1= 0.1, r2= 0.1):
+        """
+        Constructor of the sampling object
+        Args:
+            n_pop (int): size of populations
+            n_iter (int): optimization steps
+            omega (float): intertia of PSO
+            r1 (float): force towards local optimum
+            r2 (float): force towards global optimum
+        """
+        super().__init__()
+        self.n_pop= n_pop
+        self.n_iter= n_iter
+        self.omega= omega
+        self.r1= r1
+        self.r2= r2
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'n_pop': [10], 'n_iter': [5], 'omega': [0.1, 0.3, 0.5], 'r1': [0.1, 0.3], 'r2': [0.1, 0.3]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        self.class_label_statistics(X, y)
+        
+        X_min= X[y == self.minority_label]
+        X_maj= X[y == self.majority_label]
+        
+        def fitness(X_min, X_maj):
+            kfold= KFold(5)
+            preds= []
+            tests= []
+            X= np.vstack([X_min, X_maj])
+            y= np.hstack([np.repeat(self.minority_label, len(X_min)), np.repeat(self.majority_label, len(X_maj))])
+            for train, test in kfold.split(X):
+                preds.append(KNeighborsClassifier(n_neighbors= 1).fit(X[train], y[train]).predict(X[test]))
+                tests.append(y[test])
+            preds= np.hstack(preds)
+            tests= np.hstack(tests)
+            tp= np.sum(np.logical_and(preds == tests, tests == self.minority_label))
+            fn= np.sum(np.logical_and(preds != tests, tests == self.minority_label))
+            tn= np.sum(np.logical_and(preds == tests, tests == self.majority_label))
+            fp= np.sum(np.logical_and(preds != tests, tests == self.majority_label))
+            
+            p_o= (tp + tn)/(tp + fn + tn + fp)
+            p_e= (tp + fn)*(tp + fp)/(tp + fn + tn + fp)**2 + (fp + tn)*(fn + tn)/(tp + fn + tn + fp)**2
+            
+            kappa= (p_o - p_e)/(1.0 - p_e)
+            accuracy= (tp + tn)/(tp + fn + tn + fp)
+            return kappa, accuracy
+        
+        def OSMOTE(X_min, X_maj):
+            print('start OSMOTE')
+            particles= [np.array([np.random.random()/2.0+0.5, np.random.randint(3, 10)]) for _ in range(self.n_pop)]
+            velocities= [np.array([0.1, 1]) for _ in range(self.n_pop)]
+            limits= [np.array([0.5, 3]), np.array([1.0, 10])]
+            local_best= [particles[i].copy() for i in range(self.n_pop)]
+            local_score= [(0.0, 0.0)]*self.n_pop
+            global_best= particles[0].copy()
+            global_score= (0.0, 0.0)
+            best_dataset= None
+            
+            for _ in range(self.n_iter):
+                # update velocities
+                for i in range(len(velocities)):
+                    velocities[i]= velocities[i]*self.omega + self.r1*(local_best[i] - velocities[i]) + self.r2*(global_best - velocities[i])
+                    if velocities[i][0] < -limits[1][0]:
+                        velocities[i][0]= -limits[1][0]
+                    if velocities[i][0] > limits[1][0]:
+                        velocities[i][0]= limits[1][0]
+                    if velocities[i][1] < -limits[1][1]:
+                        velocities[i][1]= -limits[1][1]
+                    if velocities[i][1] > limits[1][1]:
+                        velocities[i][1]= limits[1][1]
+                        
+                # update particles
+                for i in range(len(particles)):
+                    particles[i]= particles[i] + velocities[i]
+                    if particles[i][0] < limits[0][0]: 
+                        particles[i][0]= limits[0][0]
+                    elif particles[i][0] > limits[1][0]: 
+                        particles[i][0]= limits[1][0]
+                    elif particles[i][1] < limits[0][1]: 
+                        particles[i][1]= limits[0][1]
+                    elif particles[i][1] < limits[1][1]: 
+                        particles[i][1]= limits[1][1]
+                
+                # evaluate
+                scores= []
+                for i in range(len(particles)):
+                    X_samp, y_samp= SMOTE(particles[i][0], int(np.rint(particles[i][1]))).sample(np.vstack([X_maj, X_min]), np.hstack([np.repeat(self.majority_label, len(X_maj)), np.repeat(self.minority_label, len(X_min))]))
+                    scores.append(fitness(X_samp[len(X_maj):], X_samp[:len(X_maj)]))
+                    if (scores[i][0] > local_score[i][0] and scores[i][1] > local_score[i][1]):
+                        local_score[i]= scores[i]
+                    if (scores[i][0] > global_score[0] and scores[i][1] > global_score[1]):
+                        global_score= scores[i]
+                        best_dataset= (X_samp[len(X_maj):], X_samp[:len(X_maj)])
+                print(scores)
+            return best_dataset[0], best_dataset[1]
+            
+        def SIS(X_min, X_maj):
+            print('start SIS')
+            min_num= len(X_min)
+            max_num= len(X_maj)
+            if min_num >= max_num:
+                return X_min, X_maj
+                
+            particles= [np.random.choice(np.arange(len(X_maj)), np.random.randint(min_num, max_num)) for _ in range(self.n_pop)]
+            scores= [fitness(X_min, X_maj[particles[i]]) for i in range(self.n_pop)]
+            best_score= (0.0, 0.0)
+            best_dataset= None
+            
+            for _ in range(self.n_iter):
+                # mutate and evaluate
+                # the way mutation or applying PSO is not described in the paper in details
+                for i in range(self.n_pop):
+                    to_remove= np.random.choice(np.arange(len(particles[i])), np.random.randint(1, 10))
+                    mutant= np.delete(particles[i], to_remove)
+                    diff= list(set(np.arange(len(X_maj))).difference(set(particles[i])))
+                    mutant= np.hstack([mutant, np.array(np.random.choice(diff, np.random.randint(0, min(10, len(diff)))))])
+                    score= fitness(X_min, X_maj[mutant])
+                    if score[1] > scores[i][1]:
+                        particles[i]= mutant
+                        scores[i]= score
+                    if score[1] > best_score[1]:
+                        best_score= score
+                        best_dataset= mutant
+                print(scores)
+            return X_min, X_maj[best_dataset]
+        
+        current_min= X_min
+        current_maj= X_maj
+        for _ in range(self.n_iter):
+            print('staring iteration')
+            new_min, _= OSMOTE(X_min, current_maj)
+            _, new_maj= SIS(current_min, X_maj)
+            
+            print('calculating fitnesses')
+            fitness_0= fitness(new_min, current_maj)
+            fitness_1= fitness(current_min, current_maj)
+            fitness_2= fitness(new_min, new_maj)
+            fitness_3= fitness(current_min, new_maj)
+            
+            fitness_0= fitness_0[0]*fitness_0[1]
+            fitness_1= fitness_1[0]*fitness_1[1]
+            fitness_2= fitness_2[0]*fitness_2[1]
+            fitness_3= fitness_3[0]*fitness_3[1]
+            
+            print(fitness_0, fitness_1, fitness_2, fitness_3)
+            if fitness_2 == np.max([fitness_0, fitness_1, fitness_2, fitness_3]) or fitness_3 == np.max([fitness_0, fitness_1, fitness_2, fitness_3]):
+                current_maj= new_maj
+            if fitness_0 == np.max([fitness_0, fitness_1, fitness_2, fitness_3]) or fitness_2 == np.max([fitness_0, fitness_1, fitness_2, fitness_3]):
+                current_min= new_min
+        
+        return np.vstack([current_maj, current_min]), np.hstack([np.repeat(self.majority_label, len(current_maj)), np.repeat(self.minority_label, len(current_min))])
+
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'n_pop': self.n_pop, 'n_iter': self.n_iter, 'omega': self.omega, 'r1': self.r1, 'r2': self.r2}
+
+class SSO(OverSampling):
+    """
+    @InProceedings{sso,
+                    author="Rong, Tongwen
+                    and Gong, Huachang
+                    and Ng, Wing W. Y.",
+                    editor="Wang, Xizhao
+                    and Pedrycz, Witold
+                    and Chan, Patrick
+                    and He, Qiang",
+                    title="Stochastic Sensitivity Oversampling Technique for Imbalanced Data",
+                    booktitle="Machine Learning and Cybernetics",
+                    year="2014",
+                    publisher="Springer Berlin Heidelberg",
+                    address="Berlin, Heidelberg",
+                    pages="161--171",
+                    abstract="Data level technique is proved to be effective in imbalance learning. The SMOTE is a famous oversampling technique generating synthetic minority samples by linear interpolation between adjacent minorities. However, it becomes inefficiency for datasets with sparse distributions. In this paper, we propose the Stochastic Sensitivity Oversampling (SSO) which generates synthetic samples following Gaussian distributions in the Q-union of minority samples. The Q-union is the union of Q-neighborhoods (hypercubes centered at minority samples) and such that new samples are synthesized around minority samples. Experimental results show that the proposed algorithm performs well on most of datasets, especially those with a sparse distribution.",
+                    isbn="978-3-662-45652-1"
+                    }
+
+    URL: https://drive.google.com/open?id=1iW1g0gefhC5bjpXvd9l63N85JgSWTyAc
+    
+    It is not clear how the kappa threshold is used.
+    """
+    def __init__(self, strategy= 1.0, n_neighbors= 5, h= 10, n_iter= 5):
+        """
+        Constructor of the sampling object
+        Args:
+            strategy (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): number of neighbors
+            h (int): number of hidden units
+            n_iter (int): optimization steps
+        """
+        super().__init__()
+        self.strategy= strategy
+        self.n_neighbors= n_neighbors
+        self.h= h
+        self.n_iter= n_iter
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'strategy': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5], 'h': [10], 'n_iter': [5]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        self.class_label_statistics(X, y)
+        
+        samp_per_iter= int(self.number_of_instances_to_sample(self.strategy, self.class_stats[self.majority_label], self.class_stats[self.minority_label])/self.n_iter)
+        
+        for _ in range(self.n_iter):
+            X_min= X[y == self.minority_label]
+            
+            print('kmeans')
+            kmeans= KMeans(n_clusters= self.h)
+            kmeans.fit(X)
+            print('kmeans_finished')
+            u= kmeans.cluster_centers_
+            nn_cent= NearestNeighbors(n_neighbors= 2)
+            nn_cent.fit(u)
+            dist_cent, ind_cent= nn_cent.kneighbors(u)
+            v= dist_cent[:,1]
+            
+            phi= pairwise_distances(X, u)
+            phi= phi**2
+            phi= np.exp(-phi/v**2)
+            
+            print('linreg')
+            lr= LinearRegression()
+            lr.fit(phi, y)
+            f= lr.predict(phi[np.where(y == self.minority_label)[0]])
+            w= lr.coef_
+            print('linreg_finished')
+            
+            def eq_6(Q, w, u, v, x):
+                tmp_sum= np.zeros(self.h)
+                for i in range(self.h):
+                    a= (x - u[i] + Q)/np.sqrt(2*v[i])
+                    b= (x - u[i] - Q)/np.sqrt(2*v[i])
+                    tmp_prod= (sspecial.erf(a) - sspecial.erf(b))
+                    tmp_sum[i]= np.sqrt(np.pi/2)*v[i]*np.prod(tmp_prod)
+                return np.dot(tmp_sum, w)/(2*Q)**len(x)
+            
+            def eq_8(Q, w, u, v, x):
+                res= 0.0
+                for i in range(self.h):
+                    for r in range(self.h):
+                        tmp_prod= np.zeros(len(x))
+                        for j in range(len(x)):
+                            a00= (v[i]**2 + v[r]**2)*(x[j] + Q)
+                            a01= v[i]**2*u[r][j] + v[r]**2*u[i][j]
+                            a0= (a00 - a01)
+                            a1= (np.sqrt(2*v[i]**2*v[r]**2*(v[i]**2 + v[r]**2)))
+                            a= a0/a1
+                            b= ((v[i]**2 + v[r]**2)*(x[j] - Q) - (v[i]**2*u[r][j] + v[r]**2*u[i][j]))/(np.sqrt(2*v[i]**2*v[r]**2*(v[i]**2 + v[r]**2)))
+                            tmp_prod[j]= sspecial.erf(a) - sspecial.erf(b)
+                        tmp_a= (np.sqrt(2*v[i]**2*v[r]**2*(v[i]**2 + v[r]**2))/(v[i]**2 + v[r]**2))**len(x)
+                        tmp_b= np.exp(-0.5*np.linalg.norm(u[r] - u[i])**2/(v[i]**2 + v[r]**2))
+                        res= res + tmp_a*tmp_b*np.prod(tmp_prod)*w[i]*w[r]
+                return (np.sqrt(np.pi)/(4*Q))**len(x)*res
+            
+            nn= NearestNeighbors(n_neighbors= self.n_neighbors+1, metric= 'l1')
+            nn.fit(X)
+            dist, ind= nn.kneighbors(X_min)
+            
+            Q= np.mean(dist[:,self.n_neighbors])/np.sqrt(len(X[0]))
+            
+            print('I_1')
+            I_1= np.array([eq_6(Q, w, u, v, x) for x in X_min])
+            print('I_2')
+            I_2= np.array([eq_8(Q, w, u, v, x) for x in X_min])
+            print('finished')
+            
+            stsm= f**2 - 2*f*I_1 + I_2
+            weights= np.abs(stsm)/np.sum(np.abs(stsm))
+        
+            nn= NearestNeighbors(n_neighbors= self.n_neighbors+1)
+            nn.fit(X_min)
+            dist, ind= nn.kneighbors(X_min)
+        
+            samples= []
+            for _ in range(samp_per_iter):
+                idx= np.random.choice(np.arange(len(X_min)), p= weights)
+                neighbor_idx= np.random.choice(ind[idx][1:])
+                samples.append(self.sample_between_points(X_min[idx], X_min[neighbor_idx]))
+            
+            samples= np.vstack(samples)
+            X= np.vstack([X, samples])
+            y= np.hstack([y, np.repeat(self.minority_label, len(samples))])
+                    
+        return X, y
+
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'strategy': self.strategy, 'n_neighbors': self.n_neighbors, 'h': self.h, 'n_iter': self.n_iter}
+
+class NDO_sampling(OverSampling):
+    """
+    @INPROCEEDINGS{ndo_sampling, 
+                    author={L. Zhang and W. Wang}, 
+                    booktitle={2011 International Conference of Information Technology, Computer Engineering and Management Sciences}, 
+                    title={A Re-sampling Method for Class Imbalance Learning with Credit Data}, 
+                    year={2011}, 
+                    volume={1}, 
+                    number={}, 
+                    pages={393-397}, 
+                    keywords={data handling;sampling methods;resampling method;class imbalance learning;credit rating;imbalance problem;synthetic minority over-sampling technique;sample distribution;synthetic samples;credit data set;Training;Measurement;Support vector machines;Logistics;Testing;Noise;Classification algorithms;class imbalance;credit rating;SMOTE;sample distribution}, 
+                    doi={10.1109/ICM.2011.34}, 
+                    ISSN={}, 
+                    month={Sept}}
+
+    URL: https://drive.google.com/open?id=1vrCst6Jk97kTiu-2aJZt3oN5uGHRQA6Q
+    """
+    def __init__(self, strategy= 1.0, n_neighbors= 5):
+        """
+        Constructor of the sampling object
+        Args:
+            strategy (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): number of neighbors
+        """
+        super().__init__()
+        self.strategy= strategy
+        self.n_neighbors= n_neighbors
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'strategy': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.strategy, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1)
+        nn.fit(X)
+        dist, ind= nn.kneighbors(X_min)
+        
+        d_intra= []
+        d_exter= []
+        for i in range(len(X_min)):
+            min_mask= np.where(y[ind[i][1:]] == self.minority_label)[0]
+            maj_mask= np.where(y[ind[i][1:]] == self.majority_label)[0]
+            if len(min_mask) > 0:
+                d_intra.append(np.mean(dist[i][1:][min_mask]))
+            if len(maj_mask) > 0:
+                d_exter.append(np.mean(dist[i][1:][maj_mask]))
+        d_intra_mean= np.mean(np.array(d_intra))
+        d_exter_mean= np.mean(np.array(d_exter))
+        
+        alpha= d_intra_mean/d_exter_mean
+        if alpha < 0.5:
+            return SMOTE(self.strategy).sample(X, y)
+        
+        samples= []
+        while len(samples) < num_to_sample:
+            idx= np.random.randint(len(X_min))
+            random_idx= np.random.choice(ind[idx][1:])
+            samples.append(X_min[idx] + (X[random_idx] - X_min[idx])*np.random.random()/2.0)
+            if y[random_idx] == self.minority_label:
+                samples.append(X[random_idx] + (X_min[idx] - X[random_idx])*np.random.random()/2.0)
+                    
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'strategy': self.strategy, 'n_neighbors': self.n_neighbors}
+
+class RBFNeuron:
+    def __init__(self, c, I, O, ranges, range_mins, init_conn_mask, init_conn_weights):
+        self.d= len(c)
+        self.c= c
+        self.I= I
+        self.O= O
+        self.init_conn_mask= init_conn_mask
+        self.init_conn_weights= init_conn_weights
+        self.ranges= ranges
+        self.range_mins= range_mins
+        self.beta= (np.random.random()-0.5)*O
+        self.mask= init_conn_mask
+        self.input_weights= init_conn_weights
+        self.r= np.random.random()
+    
+    def clone(self):
+        r= RBFNeuron(self.c, self.I, self.O, self.ranges, self.range_mins, self.init_conn_mask, self.init_conn_weights)
+        r.beta= self.beta
+        r.mask= self.mask.copy()
+        r.input_weights= self.input_weights.copy()
+        r.r= self.r
+        return r
+    
+    def evaluate(self, X):
+        wX= X[:,self.mask]*self.input_weights
+        return self.beta*np.exp(-np.linalg.norm(wX - self.c[self.mask], axis= 1)**2/self.r**2)
+    
+    def mutate(self):
+        r= np.random.random()
+        if r < 0.2:
+            self.c= np.random.normal(self.c, self.r)
+        elif r < 0.4:
+            tmp= np.random.normal(self.r, np.var(self.ranges))
+            if tmp > 0:
+                self.r= tmp
+        elif r < 0.6:
+            self.c= np.random.random(size=len(self.c))*self.ranges + self.range_mins
+        elif r < 0.8:
+            self.r= np.random.random()*np.mean(self.ranges)
+        else:
+            self.beta= np.random.normal(self.beta, self.O)
+    
+    def add_connection(self):
+        if len(self.mask) < self.d:
+            self.mask= np.hstack([self.mask, np.array(np.random.choice(list(set(range(self.d)).difference(set(self.mask.tolist())))))])
+            self.input_weights= np.hstack([self.input_weights, (np.random.random()-0.5)*self.I])
+            
+    def delete_connection(self):
+        if len(self.mask) > 1:
+            idx= np.random.randint(len(self.mask))
+            self.mask= np.delete(self.mask, idx)
+            self.input_weights= np.delete(self.input_weights, idx)
+    
+class RBF:
+    def __init__(self, X, m_min, m_max, I, O, init_conn_mask, init_conn_weights):
+        self.X= X
+        self.m_min= m_min
+        self.m_max= m_max
+        self.I= I
+        self.O= O
+        self.init_conn_mask= init_conn_mask
+        self.init_conn_weights= init_conn_weights
+        
+        self.neurons= []
+        self.range_mins= np.min(X, axis= 0)
+        self.ranges= np.max(X, axis= 0) - self.range_mins
+        
+        num_neurons= np.random.randint(m_min, m_max)
+        for _ in range(num_neurons):
+            self.neurons.append(self.create_new_node())
+            
+        self.beta_0= (np.random.random()-0.5)*O
+    
+    def clone(self):
+        r= RBF(self.X, self.m_min, self.m_max, self.I, self.O, self.init_conn_mask, self.init_conn_weights)
+        r.neurons= [n.clone() for n in self.neurons]
+        r.range_mins= self.range_mins.copy()
+        r.ranges= self.ranges.copy()
+        r.beta_0= self.beta_0
+        
+        return r
+    
+    def create_new_node(self):
+        return RBFNeuron(self.X[np.random.randint(len(self.X))], self.I, self.O, self.ranges, self.range_mins, self.init_conn_mask, self.init_conn_weights)
+    
+    def update_data(self, X):
+        self.X= X
+        for n in self.neurons:
+            n.X= X
+    
+    def improve_centers(self):
+        kmeans= KMeans(n_clusters=len(self.neurons), init=np.vstack([n.c for n in self.neurons]), max_iter= 30)
+        kmeans.fit(self.X)
+        for i in range(len(self.neurons)):
+            self.neurons[i].c= kmeans.cluster_centers_[i]
+    
+    def evaluate(self, X, y):
+        f= self.beta_0 + np.sum(np.column_stack([n.evaluate(X) for n in self.neurons]), axis= 1)
+        L_star= np.mean(abs(y[y == 1] - f[y == 1])) + np.mean(abs(y[y == 0] - f[y == 0]))
+        return L_star
+    
+    def mutation(self):
+        rbf= self.clone()
+        for n in rbf.neurons:
+            # mutation of neurons
+            n.mutate()
+        return rbf
+            
+    def structural_mutation(self):
+        # in the binary case the removal of output connections is the same as
+        # removing hidden nodes
+        rbf= self.clone()
+        r= np.random.random()
+        if r < 0.5:
+            if len(rbf.neurons) < rbf.m_max:
+                rbf.neurons.append(rbf.create_new_node())
+            elif len(rbf.neurons) > rbf.m_min:
+                del rbf.neurons[np.random.randint(len(rbf.neurons))]
+        else:
+            rbf.neurons[np.random.randint(len(rbf.neurons))].delete_connection()
+            rbf.neurons[np.random.randint(len(rbf.neurons))].add_connection()
+        
+        return rbf
+            
+    def recombine(self, rbf):
+        # the order of neurons doesn't matter, so the logic can be simplified
+        new= self.clone()
+        if np.random.random() < 0.5:
+            new_neurons_0= np.random.choice(new.neurons, np.random.randint(1, len(new.neurons)))
+            new_neurons_1=np.random.choice(rbf.neurons, np.random.randint(1, len(rbf.neurons)))
+            new.neurons= [n.clone() for n in new_neurons_0]
+            new.neurons.extend([n.clone() for n in new_neurons_1])
+        else:
+            for i in range(len(new.neurons)):
+                if np.random.random() < 0.2:
+                    new.neurons[i]= rbf.neurons[np.random.randint(len(rbf.neurons))].clone()
+        return new
+
+class DSRBF(OverSampling):
+    """
+    @article{dsrbf,
+                title = "A dynamic over-sampling procedure based on sensitivity for multi-class problems",
+                journal = "Pattern Recognition",
+                volume = "44",
+                number = "8",
+                pages = "1821 - 1833",
+                year = "2011",
+                issn = "0031-3203",
+                doi = "https://doi.org/10.1016/j.patcog.2011.02.019",
+                url = "http://www.sciencedirect.com/science/article/pii/S0031320311000823",
+                author = "Francisco Fernández-Navarro and César Hervás-Martínez and Pedro Antonio Gutiérrez",
+                keywords = "Classification, Multi-class, Sensitivity, Accuracy, Memetic algorithm, Imbalanced datasets, Over-sampling method, SMOTE"
+                }
+
+    URL: https://drive.google.com/open?id=1bUOgi2rFcv55ujfRWuHm_9nHzdg3Uilh
+    """
+    def __init__(self, m_min= 4, m_max= 10, I= 2, O= 2, n_pop= 500, n_init_pop= 5000, n_iter= 40, n_sampling_epoch= 5):
+        """
+        Constructor of the sampling object
+        Args:
+            m_min (int): minimum number of hidden units
+            m_max (int): maximum number of hidden units
+            I (float): input weight range
+            O (float): output weight range
+            n_pop (int): size of population
+            n_init_pop (int): size of initial population
+            n_iter (int): number of iterations
+            n_sampling_epoch (int): resampling after this many iterations
+        """
+        super().__init__()
+        self.m_min= m_min
+        self.m_max= m_max
+        self.I= I
+        self.O= O
+        self.n_pop= n_pop
+        self.n_init_pop= n_init_pop
+        self.n_iter= n_iter
+        self.n_sampling_epoch= n_sampling_epoch
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'m_min': [4], 'm_max': [10], 'I': [2.0], 'O': [2.0], 'n_pop': [500], 'n_init_pop': [5000], 'n_iter': [40], 'n_sampling_epoch': [8]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        self.class_label_statistics(X, y)
+        
+        init_conn_mask= np.random.choice(np.arange(len(X[0])), int(len(X[0])/2))
+        init_conn_weights= np.random.random(size= len(init_conn_mask))
+        
+        epoch_len= int(self.n_iter/self.n_sampling_epoch)
+        smote_strat= self.strategy/epoch_len
+        
+        population= [RBF(X, self.m_min, self.m_max, self.I, self.O, init_conn_mask, init_conn_weights) for _ in range(self.init_pop)]
+        population= [[p, X, y, np.inf] for p in population]
+        population= sorted([[p[0], p[1], p[2], p[0].evaluate(p[1], p[2])] for p in population], key= lambda x: x[3])
+        population= population[:self.n_pop]
+        
+        
+        for p in population:
+            p[0].improve_centers()
+        
+        for iteration in range(self.n_iter):
+            for p in population:
+                if p[3] == np.inf:
+                    p[3]= p[0].evaluate(p[1], p[2])
+            
+            population= sorted([p for p in population], key= lambda x: x[3])
+            population= population[:self.n_pop]
+            
+            p_best= population[0]
+            p_parametric_mut= population[:int(0.1*self.n_pop)]
+            p_structural_mut= population[:int(0.9*self.n_pop-1)]
+            p_recombination= population[:int(0.1*self.n_pop)]
+            
+            for p in p_parametric_mut:
+                population.append([p[0].mutation(), p[1], p[2], np.inf])
+            
+            for p in p_structural_mut:
+                population.append([p[0].structural_mutation(), p[1], p[2], np.inf])
+            
+            for p in p_recombination:
+                population.append([p[0].recombine(p_recombination[np.random.choice(len(p_recombination))][0]), p[1], p[2], np.inf])
+            
+            if iteration % epoch_len == 0:
+                X, y= SMOTE(strategy= smote_strat).sample(X, y)
+                for i in range(self.n_pop):
+                    tmp= [population[i][0].clone(), X, y, np.inf]
+                    tmp[0].update_data(X)
+                    tmp[0].improve_centers()
+                    population.append(tmp)
+                
+        for p in population:
+            if p[3] == np.inf:
+                p[3]= p[0].evaluate(p[1], p[2])
+            
+        population= sorted([p for p in population], key= lambda x: x[3])[:self.n_pop]
+            
+        return p_best[1], p_best[2]
+
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'m_min': self.m_min, 'm_max': self.m_max, 'I': self.I, 'O': self.O, 'n_pop': self.n_pop, 'n_init_pop': self.n_init_pop, 'n_iter': self.n_iter, 'n_sampling_epoch': self.n_sampling_epoch}
+
+class Gaussian_SMOTE(OverSampling):
+    """
+    @article{gaussian_smote,
+              title={Gaussian-Based SMOTE Algorithm for Solving Skewed Class Distributions},
+              author={Hansoo Lee and Jonggeun Kim and Sungshin Kim},
+              journal={Int. J. Fuzzy Logic and Intelligent Systems},
+              year={2017},
+              volume={17},
+              pages={229-234}
+            }
+
+    URL: https://drive.google.com/open?id=12oKlw_GRqsT5-Z4WmvJErBD-vcz5ekwN
+    """
+    def __init__(self, strategy= 1.0, n_neighbors= 5, sigma= 1.0):
+        """
+        Constructor of the sampling object
+        Args:
+            strategy (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): number of neighbors
+            sigma (float): variance
+        """
+        super().__init__()
+        self.strategy= strategy
+        self.n_neighbors= n_neighbors
+        self.sigma= sigma
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'strategy': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'sigma': [0.5, 1.0, 2.0]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.strategy, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        X_min= X[y == self.minority_label]
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors)
+        nn.fit(X_min)
+        dist, ind= nn.kneighbors(X_min)
+        
+        samples= []
+        while len(samples) < num_to_sample:
+            idx= np.random.randint(len(X_min))
+            random_neighbor= np.random.choice(ind[idx][1:])
+            s0= self.sample_between_points(X_min[idx], X_min[random_neighbor])
+            samples.append(np.random.normal(s0, self.sigma))
+            
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'strategy': self.strategy, 'n_neighbors': self.n_neighbors, 'sigma': self.sigma}
+
+class kmeans_SMOTE(OverSampling):
+    """
+    @article{kmeans_smote,
+                title = "Improving imbalanced learning through a heuristic oversampling method based on k-means and SMOTE",
+                journal = "Information Sciences",
+                volume = "465",
+                pages = "1 - 20",
+                year = "2018",
+                issn = "0020-0255",
+                doi = "https://doi.org/10.1016/j.ins.2018.06.056",
+                url = "http://www.sciencedirect.com/science/article/pii/S0020025518304997",
+                author = "Georgios Douzas and Fernando Bacao and Felix Last",
+                keywords = "Class-imbalanced learning, Oversampling, Classification, Clustering, Supervised learning, Within-class imbalance"
+                }
+
+    URL: https://drive.google.com/open?id=1cFpaCsWBXTRYCTIS0hTSOMp_xOwGAPNK
+    """
+    def __init__(self, strategy= 1.0, n_neighbors= 5, n_clusters= 10, irt= 1.0):
+        """
+        Constructor of the sampling object
+        Args:
+            strategy (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            n_neighbors (int): number of neighbors
+            n_clusters (int): number of clusters
+            irt (float): imbalanced ratio threshold
+        """
+        super().__init__()
+        self.strategy= strategy
+        self.n_neighbors= n_neighbors
+        self.n_clusters= n_clusters
+        self.irt= irt
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_paramter_combinations({'strategy': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'n_clusters': [10, 20, 50], 'irt': [0.5, 0.8, 1.0, 1.5]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.strategy, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        kmeans= KMeans(n_clusters= self.n_clusters)
+        kmeans.fit(X)
+        
+        labels= kmeans.labels_
+        clusters= [np.where(labels == l)[0] for l in range(self.n_clusters)]
+        
+        # cluster filtering
+        filt_clusters= [c for c in clusters if (np.sum(y[c] == self.majority_label) + 1)/(np.sum(y[c] == self.minority_label) + 1) < self.irt]
+        
+        sparsity= []
+        nearest_neighbors= []
+        cluster_minority_ind= []
+        for c in filt_clusters:
+            minority_ind= c[y[c] == self.minority_label]
+            cluster_minority_ind.append(minority_ind)
+            dm= pairwise_distances(X[minority_ind])
+            min_count= len(minority_ind)
+            avg_min_dist= (np.sum(dm) - dm.trace())/(len(minority_ind)**2 - len(minority_ind))
+            sparsity.append(avg_min_dist**len(X[0])/min_count)
+            nearest_neighbors.append(NearestNeighbors(n_neighbors= self.n_neighbors).fit(X[minority_ind]).kneighbors(X[minority_ind]))
+            
+        weights= sparsity/np.sum(sparsity)
+        
+        samples= []
+        while len(samples) < num_to_sample:
+            clust_ind= np.random.choice(np.arange(len(weights)), p= weights)
+            idx= np.random.randint(len(cluster_minority_ind[clust_ind]))
+            base_idx= cluster_minority_ind[clust_ind][idx]
+            neighbor_idx= np.random.choice(cluster_minority_ind[clust_ind][nearest_neighbors[clust_ind][1][idx][1:]])
+            samples.append(self.sample_between_points(X[base_idx], X[neighbor_idx]))
+            
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'strategy': self.strategy, 'n_neighbors': self.n_neighbors, 'n_clusters': self.n_clusters, 'irt': self.irt}
+
+
+class Evaluation():
+    def __init__(self, samplers, classifiers, datasets, cache_path= None, validator= RepeatedStratifiedKFold(n_splits= 4, n_repeats= 10)):
+        self.samplers= samplers
+        self.classifiers= classifiers
+        self.datasets= datasets
+        self.cache_path= cache_path
+        self.validator= validator
+    
+    def calculate_metrics(self, all_pred, all_test):
+        results= {}
+        all_pred_labels= np.apply_along_axis(lambda x: np.argmax(x), 1, all_pred)
+
+        results['tp']= np.sum(np.logical_and(np.equal(all_test, all_pred_labels), (all_test == 1)))
+        results['tn']= np.sum(np.logical_and(np.equal(all_test, all_pred_labels), (all_test == 0)))
+        results['fp']= np.sum(np.logical_and(np.logical_not(np.equal(all_test, all_pred_labels)), (all_test == 0)))
+        results['fn']= np.sum(np.logical_and(np.logical_not(np.equal(all_test, all_pred_labels)), (all_test == 1)))
+        results['p']= results['tp'] + results['fn']
+        results['n']= results['fp'] + results['tn']
+        results['acc']= (results['tp'] + results['tn'])/(results['p'] + results['n'])
+        results['sens']= results['tp']/results['p']
+        results['spec']= results['tn']/results['n']
+        results['ppv']= results['tp']/(results['tp'] + results['fp'])
+        results['npv']= results['tn']/(results['tn'] + results['fn'])
+        results['fpr']= 1.0 - results['spec']
+        results['fdr']= 1.0 - results['ppv']
+        results['fnr']= 1.0 - results['sens']
+        results['bacc']= (results['tp']/results['p'] + results['tn']/results['n'])/2.0
+        results['f1']= 2*results['tp']/(2*results['tp'] + results['fp'] + results['fn'])
+        results['mcc']= (results['tp']*results['tn'] - results['fp']*results['fn'])/np.sqrt((results['tp'] + results['fp'])*(results['tp'] + results['fn'])*(results['tn'] + results['fp'])*(results['tn'] + results['fn']))
+        results['l']= (results['p'] + results['n'])*np.log(results['p'] + results['n'])
+        results['ltp']= results['tp']*np.log(results['tp']/((results['tp'] + results['fp'])*(results['tp'] + results['fn'])))
+        results['lfp']= results['fp']*np.log(results['fp']/((results['fp'] + results['tp'])*(results['fp'] + results['tn'])))
+        results['lfn']= results['fn']*np.log(results['fn']/((results['fn'] + results['tp'])*(results['fn'] + results['tn'])))
+        results['ltn']= results['tn']*np.log(results['tn']/((results['tn'] + results['fp'])*(results['tn'] + results['fn'])))
+        results['lp']= results['p']*np.log(results['p']/(results['p'] + results['n']))
+        results['ln']= results['n']*np.log(results['n']/(results['p'] + results['n']))
+        results['uc']= (results['l'] + results['ltp'] + results['lfp'] + results['lfn'] + results['ltn'])/(results['l'] + results['lp'] + results['ln'])
+        results['informedness']= results['sens'] + results['spec'] - 1.0
+        results['markedness']= results['ppv'] + results['npv'] - 1.0
+        results['log_loss']= log_loss(all_test, all_pred)
+        results['auc']= roc_auc_score(all_test, all_pred[:,1])
+        return results
+    
+    def check_cache(self, label):
+        hash_code= hash(label)
+        filename= str(hash_code) + '.pickle'
+        
+        if self.cache_path is None:
+            return None, None
+        
+        filename_path= os.path.join(self.cache_path, filename)
+        
+        if (not self.cache_path is None) and not os.path.isfile(filename_path):
+            return None, filename_path
+        
+        if (not self.cache_path is None) and os.path.isfile(filename_path):
+            print('Reading from cache %s' % filename_path)
+            return pickle.load(open(filename_path, 'rb')), None
+            
+    
+    def evaluate_combination(self, sampler, classifier, X, y, label):
+        results, filename_path= self.check_cache(label)
+        if not results is None:
+            return results
+
+        all_pred= []
+        all_test= []
+        for train_index, test_index in self.validator.split(X, y, y):
+            X_train, X_test= X[train_index], X[test_index]
+            y_train, y_test= y[train_index], y[test_index]
+            X_samp, y_samp= sampler.sample(X_train, y_train)
+            classifier.fit(X_samp, y_samp)
+            y_pred= classifier.predict_proba(X_test)
+            all_pred.append(y_pred)
+            all_test.append(y_test)
+        
+        all_pred= np.vstack(all_pred)
+        all_test= np.hstack(all_test)
+        
+        results= self.calculate_metrics(all_pred, all_test)
+        
+        if not filename_path is None:
+            print('Writing to cache %s' % filename_path)
+            pickle.dump(results, filename_path)
+    
+    def evaluate(self):
+        results= {}
+        for s_class in self.samplers:
+            for s_par in s_class.parameter_combinations():
+                s= s_class(**s_par)
+                sampler_name= s.__class__.__name__
+                sampler_params= str(s.get_params())
+                for c in self.classifiers:
+                    classifier_name= c.__class__.__name__
+                    classifier_params= str(c.get_params())
+                    for d in self.datasets:
+                        dataset= d()
+                        X= dataset['data']
+                        y= dataset['target']
+                        dataset_name= dataset['DESCR']
+                        print('processing sampler %s classifier %s dataset %s' % (sampler_name, classifier_name, dataset_name))
+                        label= ((sampler_name, sampler_params), (classifier_name, classifier_params), dataset_name)
+                        tmp= self.evaluate_combination(s, c, X, y, label)
+                        print(tmp)
+                        results[label]= tmp
+                    
+        return results
+        
+e= Evaluation(samplers= [SMOTE, SMOTE_TomekLinks, SMOTE_ENN, Borderline_SMOTE1, Borderline_SMOTE2, ADASYN],
+               classifiers= [KNeighborsClassifier(n_neighbors= 5), LogisticRegression()],
+               datasets= [rd.load_glass],
+               cache_path= '/home/gykovacs')
+
+results= e.evaluate()
