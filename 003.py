@@ -15,7 +15,7 @@ import numpy as np
 
 import rare_databases as rd
 
-from sklearn.model_selection import RepeatedStratifiedKFold, KFold, cross_val_score
+from sklearn.model_selection import RepeatedStratifiedKFold, KFold, cross_val_score, StratifiedKFold
 from sklearn.neighbors import NearestNeighbors, KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.metrics import log_loss, roc_auc_score, accuracy_score
@@ -135,7 +135,8 @@ __all__= ['TomekLinkRemoval',
 'NDO_sampling',
 'DSRBF',
 'Gaussian_SMOTE',
-'kmeans_SMOTE']
+'kmeans_SMOTE',
+'Supervised_SMOTE']
 
 class StatisticsMixin:
     """
@@ -1986,6 +1987,7 @@ class SMMO(OverSampling):
     In this implementation the ensemble is not specified. I have selected some
     very fast, basic classifiers.
     Also, it is not clear what the authors mean by "weighted distance".
+    Not prepared for the case when no minority samples are classified correctly be the ensemble.
     """
     def __init__(self, proportion= 1.0, n_neighbors= 5):
         """
@@ -2033,7 +2035,7 @@ class SMMO(OverSampling):
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
         # specifying the ensemble
-        ensemble= [QuadraticDiscriminantAnalysis(), DecisionTreeClassifier(max_depth= 5), GaussianNB()]
+        ensemble= [QuadraticDiscriminantAnalysis(), DecisionTreeClassifier(), GaussianNB()]
         
         # training and in-sample prediction (out-of-sample by k-fold cross validation might be better)
         predictions= []
@@ -2045,12 +2047,16 @@ class SMMO(OverSampling):
         
         # create mask of minority samples to sample
         mask_to_sample= np.where(np.logical_and(np.logical_not(np.equal(pred, y)), y == self.minority_label))[0]
+        if len(mask_to_sample) < 2:
+            # fallback to a SMOTE-like sampling
+            logging.info("Not enough minority samples selected %d" % len(mask_to_sample))
+            mask_to_sample= np.where(y == self.minority_label)[0]
         
         X_min= X[y == self.minority_label]
         X_min_to_sample= X[mask_to_sample]
         
         # fitting nearest neighbors model for sampling
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]))
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min_to_sample)
         
@@ -2426,6 +2432,8 @@ class Safe_Level_SMOTE(OverSampling):
                  keywords = {Class Imbalanced Problem, Over-sampling, SMOTE, Safe Level},
                 } 
     URL: https://drive.google.com/open?id=18XNDTxIYeQ9GMocEXU_-zyj3W_5ovplR
+    
+    Not prepared for the case when no minority sample has minority neighbors.
     """
     def __init__(self, proportion= 1.0, n_neighbors= 5):
         """
@@ -2518,8 +2526,12 @@ class Safe_Level_SMOTE(OverSampling):
                     dif= n[atti] - p[atti]
                     s[atti]= p[atti] + gap*dif
                 samples.append(s)
-
-        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+                
+        if len(samples) == 0:
+            logging.warning("No samples generated")
+            return X.copy(), y.copy()
+        else:
+            return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
     
     def get_params(self):
         """
@@ -2687,7 +2699,7 @@ class DE_oversampling(OverSampling):
         return cls.generate_parameter_combinations({'proportion': [0.5, 1.0], 
                                                     'n_neighbors': [3, 5, 7],
                                                     'crossover_rate': [0.1, 0.5, 0.9],
-                                                    'similarity_thershold': [0.5, 0.9],
+                                                    'similarity_threshold': [0.5, 0.9],
                                                     'n_clusters': [10, 20, 50]})
     
     def sample(self, X, y):
@@ -3208,7 +3220,7 @@ class MSYN(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'pressure': [2.5, 2.0, 1.5], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'pressure': [2.5, 2.0, 1.5], 'n_neighbors': [3, 5, 7]})
 
     def sample(self, X, y):
         """
@@ -3433,7 +3445,7 @@ class TRIM_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.25, 0.5, 0.75, 1.0], 'n_neighbors': [3, 5, 7], 'min_precision': [0.3]})
+        return cls.generate_parameter_combinations({'proportion': [0.25, 0.5, 0.75, 1.0], 'n_neighbors': [3, 5, 7], 'min_precision': [0.3]})
     
     def trim(self, y):
         """
@@ -3782,7 +3794,7 @@ class ProWSyn(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'L': [3, 5, 7], 'theta': [0.1, 1.0, 2.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'L': [3, 5, 7], 'theta': [0.1, 1.0, 2.0]})
     
     def sample(self, X, y):
         """
@@ -3898,7 +3910,7 @@ class SL_graph_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.25, 0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.25, 0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
@@ -3983,7 +3995,7 @@ class NRSBoundary_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'w': [0.005, 0.01, 0.05]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'w': [0.005, 0.01, 0.05]})
     
     def sample(self, X, y):
         """
@@ -4109,7 +4121,7 @@ class LVQ_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'n_clusters': [4, 8, 12]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'n_clusters': [4, 8, 12]})
     
     def sample(self, X, y):
         """
@@ -4211,7 +4223,7 @@ class SOI_CJ(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'method': ['interpolation', 'jittering']})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'method': ['interpolation', 'jittering']})
     
     def clustering(self, X, y):
         """
@@ -4388,7 +4400,7 @@ class ROSE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0]})
     
     def sample(self, X, y):
         """
@@ -4465,7 +4477,7 @@ class SMOTE_OUT(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
@@ -4555,7 +4567,7 @@ class SMOTE_Cosine(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
@@ -4661,7 +4673,7 @@ class Selected_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'perc_sign_attr': [0.3, 0.5, 0.8]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'perc_sign_attr': [0.3, 0.5, 0.8]})
     
     def sample(self, X, y):
         """
@@ -4773,7 +4785,7 @@ class LN_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
@@ -4942,7 +4954,7 @@ class MWMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'k1': [5, 9], 'k2': [5, 9], 'k3': [5, 9], 'M': [4, 10], 'cf_th': [5.0], 'cmax': [10.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'k1': [5, 9], 'k2': [5, 9], 'k3': [5, 9], 'M': [4, 10], 'cf_th': [5.0], 'cmax': [10.0]})
     
     def sample(self, X, y):
         """
@@ -5094,7 +5106,7 @@ class PDFOS(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0]})
     
     def _sample_by_kernel_density_estimation(self, X, num_to_sample, n_optimize= 100):
         """
@@ -5282,7 +5294,7 @@ class IPADE_ID(OverSampling):
         """
         # as the OT and max_it parameters control the discovery of the feature
         # space it is enough to try sufficiently large numbers
-        return cls.generate_paramter_combinations({'F': [0.1, 0.2], 'G': [0.1, 0.2], 'OT': [30], 'max_it': [40]})
+        return cls.generate_parameter_combinations({'F': [0.1, 0.2], 'G': [0.1, 0.2], 'OT': [30], 'max_it': [40]})
     
     def sample(self, X, y):
         """
@@ -5506,7 +5518,7 @@ class RWO_sampling(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0]})
     
     def sample(self, X, y):
         """
@@ -5593,7 +5605,7 @@ class NEATER(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'b': [3, 5, 7], 'alpha': [0.1], 'h': [20]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'b': [3, 5, 7], 'alpha': [0.1], 'h': [20]})
     
     def sample(self, X, y):
         """
@@ -5745,7 +5757,7 @@ class DEAGO(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'e': [20], 'h': [0.2], 'sigma': [0.1]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'e': [20], 'h': [0.2], 'sigma': [0.1]})
     
     def sample(self, X, y):
         """
@@ -5844,7 +5856,7 @@ class Gazzah(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_components': [2, 3, 4, 5]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0], 'n_components': [2, 3, 4, 5]})
     
     def sample(self, X, y):
         """
@@ -5925,7 +5937,7 @@ class MCT(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5, 2.0]})
     
     def sample(self, X, y):
         """
@@ -6027,7 +6039,7 @@ class ADG(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [1.0, 1.5], 'kernel': ['inner', 'rbf_0.5', 'rbf_1.0', 'rbf_2.0'], 
+        return cls.generate_parameter_combinations({'proportion': [1.0, 1.5], 'kernel': ['inner', 'rbf_0.5', 'rbf_1.0', 'rbf_2.0'], 
                                                    'lam': [1.0, 2.0], 'mu': [1.0, 2.0], 'k': [12], 'gamma': [1.0, 2.0]})
     
     def sample(self, X, y):
@@ -6331,7 +6343,7 @@ class SMOTE_IPF(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_folds': [9], 'k': [3], 'p': [0.01], 'voting': ['majority', 'consensus']})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_folds': [9], 'k': [3], 'p': [0.01], 'voting': ['majority', 'consensus']})
     
     def sample(self, X, y):
         """
@@ -6441,7 +6453,7 @@ class KernelADASYN(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'k': [5, 7, 9], 'h': [0.01, 0.1, 1.0, 10.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'k': [5, 7, 9], 'h': [0.01, 0.1, 1.0, 10.0]})
     
     def sample(self, X, y):
         """
@@ -6584,7 +6596,7 @@ class MOT2LD(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_components': [2, 3], 'k': [3, 5, 7], 'd_cut': ['auto']})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_components': [2, 3], 'k': [3, 5, 7], 'd_cut': ['auto']})
     
     def sample(self, X, y):
         """
@@ -6747,7 +6759,7 @@ class V_SYNTH(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_components': [3]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_components': [3]})
     
     def sample(self, X, y):
         """
@@ -6865,7 +6877,7 @@ class OUPS(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]})
     
     def sample(self, X, y):
         """
@@ -6966,7 +6978,7 @@ class SMOTE_D(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'k': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'k': [3, 5, 7]})
     
     def sample(self, X, y):
         """
@@ -7092,7 +7104,7 @@ class SMOTE_PSO(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'k': [3, 5, 7], 'eps': [0.05], 'n_pop': [5], 'w': [0.5, 1.0], 'c1': [1.0, 2.0], 'c2': [1.0, 2.0], 'num_it': [5]})
+        return cls.generate_parameter_combinations({'k': [3, 5, 7], 'eps': [0.05], 'n_pop': [5], 'w': [0.5, 1.0], 'c1': [1.0, 2.0], 'c2': [1.0, 2.0], 'num_it': [5]})
     
     def sample(self, X, y):
         """
@@ -7308,7 +7320,7 @@ class CURE_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_clusters': [5, 10, 15], 'noise_th': [1, 3]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_clusters': [5, 10, 15], 'noise_th': [1, 3]})
     
     def sample(self, X, y):
         """
@@ -7454,7 +7466,7 @@ class SOMO(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_grid': [5, 9, 13], 'sigma': [0.4], 'learning_rate': [0.3, 0.5], 'n_iter': [100]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_grid': [5, 9, 13], 'sigma': [0.4], 'learning_rate': [0.3, 0.5], 'n_iter': [100]})
     
     def sample(self, X, y):
         """
@@ -7621,7 +7633,7 @@ class ISOMAP_Hybrid(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'n_components': [2, 3, 4]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'n_components': [2, 3, 4]})
     
     def sample(self, X, y):
         """
@@ -7700,7 +7712,7 @@ class CE_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'h': [5, 10, 15], 'k': [3, 5, 7], 'alpha': [0.2, 0.5, 0.8]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'h': [5, 10, 15], 'k': [3, 5, 7], 'alpha': [0.2, 0.5, 0.8]})
     
     def sample(self, X, y):
         """
@@ -7815,7 +7827,7 @@ class Edge_Det_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'k': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'k': [3, 5, 7]})
     
     def sample(self, X, y):
         """
@@ -7921,7 +7933,7 @@ class CBSO(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'C_p': [0.8, 1.0, 1.3, 1.6]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'C_p': [0.8, 1.0, 1.3, 1.6]})
     
     def sample(self, X, y):
         """
@@ -8064,7 +8076,7 @@ class E_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
@@ -8214,7 +8226,7 @@ class DBSMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'eps': [0.5, 0.8, 1.2], 'min_samples': [1, 3, 5]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'eps': [0.5, 0.8, 1.2], 'min_samples': [1, 3, 5]})
     
     def sample(self, X, y):
         """
@@ -8432,7 +8444,7 @@ class ASMOBD(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5],
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5],
                                                    'min_samples': [3],
                                                    'eps': [0.3],
                                                    'eta': [0.5],
@@ -8593,7 +8605,7 @@ class Assembled_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'pop': [2, 4, 5], 'thres': [0.1, 0.3, 0.5]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'pop': [2, 4, 5], 'thres': [0.1, 0.3, 0.5]})
     
     def sample(self, X, y):
         """
@@ -8749,7 +8761,7 @@ class SDSMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
@@ -8864,7 +8876,7 @@ class DSMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'rate': [0.1, 0.2], 'n_step': [100]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'rate': [0.1, 0.2], 'n_step': [100]})
     
     def sample(self, X, y):
         """
@@ -9003,7 +9015,7 @@ class G_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'method': ['linear', 'non-linear_0.1', 'non-linear_1.0', 'non-linear_2.0']})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'method': ['linear', 'non-linear_0.1', 'non-linear_1.0', 'non-linear_2.0']})
     
     def sample(self, X, y):
         """
@@ -9113,7 +9125,7 @@ class NT_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5]})
     
     def sample(self, X, y):
         """
@@ -9211,7 +9223,7 @@ class Lee(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'rejection_level': [0.3, 0.5, 0.7]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'rejection_level': [0.3, 0.5, 0.7]})
     
     def sample(self, X, y):
         """
@@ -9312,7 +9324,7 @@ class SPY(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'n_neighbors': [3, 5, 7], 'threshold': [0.3, 0.5, 0.7]})
+        return cls.generate_parameter_combinations({'n_neighbors': [3, 5, 7], 'threshold': [0.3, 0.5, 0.7]})
     
     def sample(self, X, y):
         """
@@ -9417,7 +9429,7 @@ class SMOTE_PSOBAT(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         bat_pc= cls.generate_parameter_combinations({'maxit': [50], 'alpha': [0.7, 0.9], 'gamma': [0.7, 0.9], 'method': ['bat']})
-        pso_pc= cls.generate_paramter_combinations({'maxit': [50], 'c1': [0.2, 0.5], 'c2': [0.1, 0.2], 'c3': [0.1, 0.2], 'method': ['pso']})
+        pso_pc= cls.generate_parameter_combinations({'maxit': [50], 'c1': [0.2, 0.5], 'c2': [0.1, 0.2], 'c3': [0.1, 0.2], 'method': ['pso']})
         return bat_pc.extend(pso_pc)
     
     def sample(self, X, y):
@@ -9693,6 +9705,9 @@ class MDO(OverSampling):
         self.proportion= proportion
         self.K2= K2
         self.K1_frac= K1_frac
+        
+        self.set_cat_extensive()
+        self.set_cat_dim_reduction()
     
     @classmethod
     def parameter_combinations(cls):
@@ -9701,7 +9716,7 @@ class MDO(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'proportion': [0.5, 1.0, 1.5], 'K2': [3, 5, 7], 'K1_frac': [0.3, 0.5, 0.7]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'K2': [3, 5, 7], 'K1_frac': [0.3, 0.5, 0.7]})
     
     def sample(self, X, y):
         """
@@ -9722,7 +9737,7 @@ class MDO(OverSampling):
         # determining K1
         self.K1= int(self.K2*self.K1_frac)
         
-        # Algorithm 2
+        # Algorithm 2 - chooseSamples
         nn= NearestNeighbors(n_neighbors= self.K2 + 1)
         nn.fit(X)
         dist, ind= nn.kneighbors(X_min)
@@ -9730,32 +9745,49 @@ class MDO(OverSampling):
         # extracting the number of minority samples in local neighborhoods
         n_min= np.array([np.sum(y[ind[i][1:]] == self.minority_label) for i in range(len(X_min))])
         
+        # extracting selected samples from minority ones
         X_sel= X_min[n_min >= self.K1]
+        
+        # computing distribution
         weights= n_min[n_min >= self.K1]/self.K2
         weights= weights/np.sum(weights)
         
-        # Algorithm 1
+        # Algorithm 1 - MDO over-sampling
         mu= np.mean(X_sel, axis= 0)
         Z= X_sel - mu
+        # executing PCA
         pca= PCA(n_components= len(Z[0])).fit(Z)
         T= pca.transform(Z)
+        # computing variances (step 13)
         V= np.var(T, axis= 0)
         
+        # generating samples
         samples= []
         while len(samples) < num_to_sample:
+            # selecting a sample randomly according to the distribution
             idx= np.random.choice(np.arange(len(X_sel)), p= weights)
+            
+            # finding vector in PCA space
             X_temp= T[idx]
             X_temp_square= X_temp**2
+            
+            # computing alphas
             alpha= np.sum(X_temp_square/V)
             alpha_V= alpha*V
+
+            # initializing a new vector
             X_new= np.zeros(len(X_temp))
+            
+            # sampling components of the new vector
             s= 0
             for j in range(len(X_temp)-1):
                 r= (2*np.random.random()-1)*np.sqrt(alpha_V[j])
-                X_temp[j]= r
+                X_new[j]= r
                 s= s + (r**2/alpha_V[j])
             last_fea_val= np.sqrt((1 - s)*alpha*V[-1])
+            # determine last component to fulfill the ellipse equation
             X_new[-1]= (2*np.random.random()-1)*last_fea_val
+            # append to new samples
             samples.append(X_new)
         
         return np.vstack([X, pca.inverse_transform(samples) + mu]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
@@ -9786,18 +9818,24 @@ class Random_SMOTE(OverSampling):
 
     URL: https://drive.google.com/open?id=1_Wd2KaqlIcSmnjvlksYBgu5PsWIhDhbY
     """
-    def __init__(self, strategy= 1.0, n_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5):
         """
         Constructor of the sampling object
         Args:
-            strategy (float): proportion of the difference of n_maj and n_min to sample
+            proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors
         """
         super().__init__()
-        self.strategy= strategy
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        
+        self.proportion= proportion
         self.n_neighbors= n_neighbors
+        
+        self.set_cat_extensive()
+        self.set_cat_sample_componentwise()
     
     @classmethod
     def parameter_combinations(cls):
@@ -9806,7 +9844,7 @@ class Random_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'strategy': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
@@ -9817,15 +9855,19 @@ class Random_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
         self.class_label_statistics(X, y)
-        num_to_sample= self.number_of_instances_to_sample(self.strategy, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
         X_min= X[y == self.minority_label]
         
+        # fitting nearest neighbors model to find closest neighbors of minority points
         nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
+        # generating samples
         samples= []
         while len(samples) < num_to_sample:
             idx= np.random.choice(np.arange(len(X_min)))
@@ -9840,8 +9882,8 @@ class Random_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'strategy': self.strategy, 'n_neighbors': self.n_neighbors}
-    
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+
 class ISMOTE(OverSampling):
     """
     @InProceedings{ismote,
@@ -9871,8 +9913,13 @@ class ISMOTE(OverSampling):
             minority_weight (float): weight parameter according to the paper
         """
         super().__init__()
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_greater_or_equal(minority_weight, "minority_weight", 0)
+        
         self.n_neighbors= n_neighbors
         self.minority_weight= minority_weight
+        
+        self.set_cat_changes_majority()
     
     @classmethod
     def parameter_combinations(cls):
@@ -9881,7 +9928,7 @@ class ISMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'n_neighbors': [3, 5, 7], 'minority_weight': [0.2, 0.5, 0.8]})
+        return cls.generate_parameter_combinations({'n_neighbors': [3, 5, 7], 'minority_weight': [0.2, 0.5, 0.8]})
     
     def sample(self, X, y):
         """
@@ -9892,6 +9939,8 @@ class ISMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
         self.class_label_statistics(X, y)
         
         X_min= X[y == self.minority_label]
@@ -9899,25 +9948,34 @@ class ISMOTE(OverSampling):
         
         num_to_sample= int((len(X_maj) - len(X_min))/2)
         
-        nn= NearestNeighbors(n_neighbors= 1)
+        # computing distances of majority samples from minority ones
+        nn= NearestNeighbors(n_neighbors= len(X_min))
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_maj)
         
-        ind_sorted, dist_sorted= zip(*sorted(zip(np.arange(len(X_maj)), dist[:,0]), key= lambda x: -x[1]))
+        # sort majority instances in descending order by their mean distance from minority samples
+        ind_sorted, dist_sorted= zip(*sorted(zip(np.arange(len(X_maj)), np.mean(dist, axis= 1)), key= lambda x: -x[1]))
+        # remove the ones being farthest from the minority samples
         X_maj= X_maj[list(ind_sorted[num_to_sample:])]
         
+        # construct new dataset
         X_new= np.vstack([X_maj, X_min])
         y_new= np.hstack([np.repeat(self.majority_label, len(X_maj)), np.repeat(self.minority_label, len(X_min))])
         
+        X_min= X_new[y_new == self.minority_label]
+        
+        # fitting nearest neighbors model
         nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
         nn.fit(X_new)
         dist, ind= nn.kneighbors(X_min)
         
+        # do the oversampling
         samples= []
         while len(samples) < num_to_sample:
             idx= np.random.choice(np.arange(len(X_min)))
             y_idx= np.random.choice(ind[idx][1:])
             
+            # different generation scheme depending on the class label
             if y_new[y_idx] == self.minority_label:
                 samples.append(X_min[idx] + np.random.random()*(X_new[y_idx] - X_min[idx])*self.minority_weight)
             else:
@@ -9950,19 +10008,27 @@ class VIS_RST(OverSampling):
                     }
 
     URL: https://drive.google.com/open?id=1mTca65RRZ39SLNOy4hxvh23qlNha8kpj
+    
+    Replication of DANGER samples will be removed by the last step of noise filtering.
     """
-    def __init__(self, strategy= 1.0, n_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5):
         """
         Constructor of the sampling object
         Args:
-            strategy (float): proportion of the difference of n_maj and n_min to sample
+            proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors
         """
         super().__init__()
-        self.strategy= strategy
+        self.check_greater_or_equal(proportion, "proportion", 0.0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        
+        self.proportion= proportion
         self.n_neighbors= n_neighbors
+        
+        self.set_cat_changes_majority()
+        self.set_cat_noise_removal()
     
     @classmethod
     def parameter_combinations(cls):
@@ -9971,7 +10037,7 @@ class VIS_RST(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'strategy': [1.0], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [1.0], 'n_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
@@ -9982,9 +10048,12 @@ class VIS_RST(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        self.class_label_statistics(X, y)
-        num_to_sample= self.number_of_instances_to_sample(self.strategy, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        logging.info("Running sampling via %s" % self.descriptor())
         
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        # standardizing the data
         ss= StandardScaler()
         ss.fit(X)
         X= ss.transform(X)
@@ -9993,14 +10062,18 @@ class VIS_RST(OverSampling):
         X_min= X[y == self.minority_label]
         X_maj= X[y == self.majority_label]
         
-        # determining boundary region
+        # fitting nearest neighbors model to determine boundary region
         nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
         nn.fit(X)
         dist, ind= nn.kneighbors(X_maj)
         
+        # determining boundary region of majority samples
         boundary= np.array([np.sum(y[ind[i]] == self.majority_label) != self.n_neighbors + 1 for i in range(len(X_maj))])
-        y[y == self.majority_label][boundary]= self.minority_label
+        y_maj= y[y == self.majority_label]
+        y_maj[boundary]= self.minority_label
+        y[y == self.majority_label]= y_maj
         
+        # extracting new minority and majority set
         X_min= X[y == self.minority_label]
         X_maj= X[y == self.majority_label]
         
@@ -10009,18 +10082,19 @@ class VIS_RST(OverSampling):
         nn.fit(X)
         dist, ind= nn.kneighbors(X_min)
         
+        # extracting labels
         labels= []
         for i in range(len(ind)):
-            min_class_neighbors= np.sum(y[ind[i][1:]] == self.minority_label)
+            min_class_neighbors= np.sum(y[ind[i][1:]] == self.majority_label)
             if min_class_neighbors == self.n_neighbors:
                 labels.append('noise')
             elif min_class_neighbors < self.n_neighbors/2:
                 labels.append('safe')
             else:
                 labels.append('danger')
-                
+        
+        # extracting the number of different labels (noise is not used)
         safe= len([l == 'safe' for l in labels])
-        noise= len([l == 'noise' for l in labels])
         danger= len([l == 'danger' for l in labels])
         
         if safe == 0:
@@ -10030,15 +10104,19 @@ class VIS_RST(OverSampling):
         else:
             mode= 'low_complexity'
         
+        # fitting nearest neighbors to find the neighbors of minority elements among minority elements
         nn_min= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
         nn_min.fit(X_min)
         dist_min, ind_min= nn_min.kneighbors(X_min)
         
+        # do the sampling
         samples= []
         mask= np.repeat(False, len(X_min))
         while len(samples) < num_to_sample:
+            # choosing a random minority sample
             idx= np.random.choice(np.arange(len(X_min)))
             
+            # implementation of sampling rules depending on the mode
             if mode == 'high_complexity':
                 if labels[idx] == 'noise':
                     pass
@@ -10059,10 +10137,12 @@ class VIS_RST(OverSampling):
                 samples.add(self.sample_between_points(X_min[idx], X_min[np.random.choice(ind_min[idx][1:])]))
         
         X_samp= np.vstack(samples)
+        
+        # final noise removal by removing those minority samples generated and not belonging to the lower approximation
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1).fit(X)
         dist_check, ind_check= nn.kneighbors(X_samp)
-        num_maj= np.array([np.sum(y[ind_check[i][:1]] == self.majority_label) for i in range(len(samples))])
-        mask= num_maj == 0
-        X_samp= X_samp[mask]
+        num_maj_mask= np.array([np.sum(y[ind_check[i][1:]] == self.majority_label) == 0 for i in range(len(samples))])
+        X_samp= X_samp[num_maj_mask]
         
         return ss.inverse_transform(np.vstack([X, X_samp])), np.hstack([y, np.repeat(self.minority_label, len(X_samp))])
         
@@ -10071,7 +10151,7 @@ class VIS_RST(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'strategy': self.strategy, 'n_neighbors': self.n_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
 
 class GASMOTE(OverSampling):
     """
@@ -10108,6 +10188,13 @@ class GASMOTE(OverSampling):
             Ge (int): number of generations
         """
         super().__init__()
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_greater_or_equal(maxn, "maxn", 1)
+        self.check_greater_or_equal(n_pop, "n_pop", 1)
+        self.check_in_range(pm, "pm", [0, 1])
+        self.check_in_range(pr, "pr", [0, 1])
+        self.check_greater_or_equal(Ge, "Ge", 1)
+        
         self.n_neighbors= n_neighbors
         self.maxn= maxn
         self.n_pop= n_pop
@@ -10115,6 +10202,10 @@ class GASMOTE(OverSampling):
         self.pm= pm
         self.pr= pr
         self.Ge= Ge
+        
+        self.set_cat_extensive()
+        self.set_cat_memetic()
+        self.set_cat_sample_ordinary()
     
     @classmethod
     def parameter_combinations(cls):
@@ -10123,7 +10214,7 @@ class GASMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'n_neighbors': [7], 'maxn': [2, 3, 4], 'n_pop': [10], 'popl3': [4], 'pm': [0.3], 'pr': [0.2], 'Ge': [10]})
+        return cls.generate_parameter_combinations({'n_neighbors': [7], 'maxn': [2, 3, 4], 'n_pop': [10], 'popl3': [4], 'pm': [0.3], 'pr': [0.2], 'Ge': [10]})
     
     def sample(self, X, y):
         """
@@ -10134,22 +10225,35 @@ class GASMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
         self.class_label_statistics(X, y)
         
         X_min= X[y == self.minority_label]
         
+        # fitting nearest neighbors model to find minority neighbors of minority samples
         nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         kfold= KFold(5)
         
         def fitness(conf):
+            """
+            Evluate fitness of configuration
+            Args:
+                conf (list(list)): configuration
+            """
+            # generate new samples
             samples= []
             for i in range(len(conf)):
-                for j in range(conf[i]):
+                for _ in range(conf[i]):
                     samples.append(self.sample_between_points(X_min[i], X_min[np.random.choice(ind[i][1:])]))
+            
+            # construct dataset
             X_new= np.vstack([X, np.vstack(samples)])
             y_new= np.hstack([y, np.repeat(self.minority_label, len(samples))])
+            
+            # execute kfold cross validation
             preds, tests= [], []
             for train, test in kfold.split(X_new):
                 dt= DecisionTreeClassifier().fit(X_new[train], y_new[train])
@@ -10157,21 +10261,38 @@ class GASMOTE(OverSampling):
                 tests.append(y_new[test])
             preds= np.hstack(preds)
             tests= np.hstack(tests)
+            
+            # compute fitness measure
             tp= np.sum(np.logical_and(tests == self.minority_label, tests == preds))
             tn= np.sum(np.logical_and(tests == self.majority_label, tests == preds))
             fp= np.sum(np.logical_and(tests == self.majority_label, tests != preds))
             fn= np.sum(np.logical_and(tests == self.minority_label, tests != preds))
             sens= tp/(tp + fn)
             spec= tn/(fp + tn)
+            
             return np.sqrt(sens*spec)
         
         def crossover(conf_a, conf_b):
+            """
+            Crossover
+            Args:
+                conf_a (list(list)): configuration to crossover
+                conf_b (list(list)): configuration to crossover
+            Returns:
+                list(list), list(list): the configurations after crossover
+            """
             for _ in range(self.popl3):
                 k= np.random.randint(len(conf_a))
                 conf_a, conf_b= np.hstack([conf_a[:k], conf_b[k:]]), np.hstack([conf_b[:k], conf_a[k:]])
             return conf_a, conf_b
         
         def mutation(conf, ge):
+            """
+            Mutation
+            Args:
+                conf (list(list)): configuration to mutate
+                ge (int): iteration number
+            """
             conf= conf.copy()
             if np.random.random() < self.pm:
                 pass
@@ -10184,41 +10305,53 @@ class GASMOTE(OverSampling):
                         conf[i]= int(conf[i] - (conf[i] - 0)*r)
             return conf
         
+        # generate initial population
         population= [[np.random.randint(self.maxn, size=len(X_min)), 0] for _ in range(self.n_pop)]
         
+        # calculate fitness values
         for p in population:
             p[1]= fitness(p[0])
         
+        # start iteration
         ge= 0
         while ge < self.Ge:
+            # sorting population in descending order by fitness scores
             population= sorted(population, key= lambda x: -x[1])
             
+            # selection operation (Step 2)
             pp= int(self.n_pop*self.pr)
             population_new= []
             for i in range(pp):
                 population_new.append(population[i])
-                population_new.append(population[i])
-            population_new.extend(population[pp:(self.n_pop - pp)])
+            population_new.extend(population[:(self.n_pop - pp)])
             population= population_new
             
-            ge= ge + 1
+            # crossover
             for _ in range(int(self.n_pop/2)):
                 conf_a, conf_b= crossover(population[np.random.randint(self.n_pop)][0], population[np.random.randint(self.n_pop)][0])
                 population.append([conf_a, fitness(conf_a)])
                 population.append([conf_b, fitness(conf_b)])
+            
+            #mutation
             for _ in range(int(self.n_pop/2)):
                 conf= mutation(population[np.random.randint(self.n_pop)][0], ge)
                 population.append([conf, fitness(conf)])
+                
+            ge= ge + 1
         
+        # sorting final population
+        population= sorted(population, key= lambda x: -x[1])
+        
+        # get best configuration
         conf= population[0][0]
+        
+        # generate final samples
         samples= []
         for i in range(len(conf)):
-            for j in range(conf[i]):
+            for _ in range(conf[i]):
                 samples.append(self.sample_between_points(X_min[i], X_min[np.random.choice(ind[i][1:])]))
-        X_new= np.vstack([X, np.vstack(samples)])
-        y_new= np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-        return X_new, y_new
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
 
     def get_params(self):
         """
@@ -10243,12 +10376,15 @@ class A_SUWO(OverSampling):
                 }
 
     URL: https://drive.google.com/open?id=14ePxLnx4LlPITR4K_Sjm2PWW41kdczMy
+    
+    Equation (7) misses a division by R_j.
+    It is not specified how to sample from clusters with 1 instances.
     """
-    def __init__(self, strategy= 1.0, n_neighbors= 5, n_clus_maj= 7, c_thres= 0.8):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_clus_maj= 7, c_thres= 0.8):
         """
         Constructor of the sampling object
         Args:
-            strategy (float): proportion of the difference of n_maj and n_min to sample
+            proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors
@@ -10256,10 +10392,19 @@ class A_SUWO(OverSampling):
             c_thres (float): threshold on distances
         """
         super().__init__()
-        self.strategy= strategy
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_greater_or_equal(n_clus_maj, "n_clus_maj", 1)
+        self.check_greater_or_equal(c_thres, "c_thres", 0)
+        
+        self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_clus_maj= n_clus_maj
         self.c_thres= c_thres
+        
+        self.set_cat_extensive()
+        self.set_cat_uses_clustering()
+        self.set_cat_density_estimation()
     
     @classmethod
     def parameter_combinations(cls):
@@ -10268,7 +10413,7 @@ class A_SUWO(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'strategy': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'n_clus_maj': [5, 7, 9], 'c_thres': [0.5, 0.8]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'n_clus_maj': [5, 7, 9], 'c_thres': [0.5, 0.8]})
     
     def sample(self, X, y):
         """
@@ -10279,20 +10424,24 @@ class A_SUWO(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
         self.class_label_statistics(X, y)
-        num_to_sample= self.number_of_instances_to_sample(self.strategy, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
-        X_min= X[y == self.minority_label]
-        
-        # remoing noisy samples
+        # fitting nearest neighbors to find neighbors of all samples
         nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
         nn.fit(X)
         dist, ind= nn.kneighbors(X)
         
+        # identifying as noise those samples which do not have neighbors of the same label
         noise= np.where(np.array([np.sum(y[ind[i][1:]] == y[i]) == 0 for i in range(len(X))]))[0]
+        
+        # removing noise
         X= np.delete(X, noise, axis= 0)
         y= np.delete(y, noise)
         
+        # extarcting modified minority and majority datasets
         X_min= X[y == self.minority_label]
         X_maj= X[y == self.majority_label]
         
@@ -10304,11 +10453,12 @@ class A_SUWO(OverSampling):
         # initialize minority clusters
         min_clusters= [np.array([i]) for i in range(len(X_min))]
         
-        # compute cluster distances
+        # compute minority distance matrix of cluster
         dm_min= pairwise_distances(X_min)
         for i in range(len(dm_min)):
             dm_min[i,i]= np.inf
         
+        # compute distance matrix of minority and majority clusters
         dm_maj= np.zeros(shape=(len(X_min), len(maj_clusters)))
         for i in range(len(X_min)):
             for j in range(len(maj_clusters)):
@@ -10323,85 +10473,111 @@ class A_SUWO(OverSampling):
         
         # do the clustering of minority samples
         while True:
+            # finding minimum distance between minority clusters
             pi= np.min(dm_min)
+            
+            # if the minimum distance is higher than the threshold, stop
             if pi > T:
                 break
             
+            # find cluster pair of minimum distance
             min_dist_pair= np.where(dm_min == pi)
             min_i= min_dist_pair[0][0]
             min_j= min_dist_pair[1][0]
             
-            min_clusters[min_i]= np.hstack([min_clusters[min_i], min_clusters[min_j]])
-            min_clusters= np.delete(min_clusters, min_j)
-            
+            # Step 3 - find majority clusters closer than pi
             A= np.where(np.logical_and(dm_maj[min_i] < pi, dm_maj[min_j] < pi))[0]
+            
+            # Step 4 - checking if there is a majority cluster between the minority ones
             if len(A) > 0:
                 dm_min[min_i, min_j]= np.inf
                 dm_min[min_j, min_i]= np.inf
-            
-            dm_min[min_i]= np.min(np.vstack([dm_min[min_i], dm_min[min_j]]), axis= 0)
-            dm_min[min_j]= dm_min[min_i]
-            dm_min= np.delete(dm_min, min_j, axis= 0)
-            dm_min= np.delete(dm_min, min_j, axis= 1)
-            
-            for i in range(len(dm_min)):
-                dm_min[i,i]= np.inf
-            
-            dm_maj[min_i]= np.min(np.vstack([dm_maj[min_i], dm_maj[min_j]]), axis= 0)
-            dm_maj= np.delete(dm_maj, min_j, axis= 0)
+            else:
+                # Step 5
+                # unifying minority clusters
+                min_clusters[min_i]= np.hstack([min_clusters[min_i], min_clusters[min_j]])
+                # removing one of them
+                min_clusters= np.delete(min_clusters, min_j)
+                
+                # updating the minority distance matrix
+                dm_min[min_i]= np.min(np.vstack([dm_min[min_i], dm_min[min_j]]), axis= 0)
+                dm_min[:,min_i]= dm_min[min_i]
+                # removing jth row and column (merged in i)
+                dm_min= np.delete(dm_min, min_j, axis= 0)
+                dm_min= np.delete(dm_min, min_j, axis= 1)
+                
+                # fixing the diagonal elements
+                for i in range(len(dm_min)):
+                    dm_min[i,i]= np.inf
+                
+                # updating the minority-majority distance matrix
+                dm_maj[min_i]= np.min(np.vstack([dm_maj[min_i], dm_maj[min_j]]), axis= 0)
+                dm_maj= np.delete(dm_maj, min_j, axis= 0)
         
         # adaptive sub-cluster sizing
         eps= []
+        # going through all minority clusters
         for c in min_clusters:
+            # checking if cluster size is higher than 1
             if len(c) > 1:
                 k= min(len(c), 5)
                 kfold= KFold(k)
                 preds= []
+                # executing k-fold cross validation with linear discriminant analysis
                 for train, test in kfold.split(X_min[c]):
                     X_train= np.vstack([X_maj, X_min[c][train]])
                     y_train= np.hstack([np.repeat(self.majority_label, len(X_maj)), np.repeat(self.minority_label, len(X_min[c][train]))])
                     preds.append(LinearDiscriminantAnalysis().fit(X_train, y_train).predict(X_min[test]))
                 preds= np.hstack(preds)
-                eps.append(np.sum(preds == self.minority_label)/len(preds))
+                # extracting error rate
+                eps.append(np.sum(preds == self.majority_label)/len(preds))
             else:
                 eps.append(1.0)
+        
+        # sampling distribution over clusters
         min_cluster_dist= eps/np.sum(eps)
         
         # synthetic instance generation - determining within cluster distribution
+        # finding majority neighbor distances of minority samples
         nn= NearestNeighbors(n_neighbors= 1)
         nn.fit(X_maj)
         dist, ind= nn.kneighbors(X_min)
         dist= dist/len(X[0])
         dist= 1.0/dist
         
+        # computing the THs
         THs= []
         for c in min_clusters:
             THs.append(np.mean(dist[c,0]))
         
+        # determining within cluster distributions
         within_cluster_dist= []
         for i, c in enumerate(min_clusters):
             Gamma= dist[c,0]
             Gamma[Gamma > THs[i]]= THs[i]
             within_cluster_dist.append(Gamma/np.sum(Gamma))
         
+        # extracting within cluster neighbors
         within_cluster_neighbors= []
         for c in min_clusters:
             nn= NearestNeighbors(n_neighbors= min(len(c), self.n_neighbors))
             nn.fit(X_min[c])
             within_cluster_neighbors.append(nn.kneighbors(X_min[c])[1])
         
-        # sampling
+        # do the sampling
         samples= []
         while len(samples) < num_to_sample:
+            # choose random cluster index
             cluster_idx= np.random.choice(np.arange(len(min_clusters)), p= min_cluster_dist)
             if len(min_clusters[cluster_idx]) > 1:
+                # if the cluster has at least two elemenets
                 sample_idx= np.random.choice(np.arange(len(min_clusters[cluster_idx])), p= within_cluster_dist[cluster_idx])
                 neighbor_idx= np.random.choice(within_cluster_neighbors[cluster_idx][sample_idx][1:])
                 point= X_min[min_clusters[cluster_idx][sample_idx]]
                 neighbor= X_min[min_clusters[cluster_idx][neighbor_idx]]
                 samples.append(self.sample_between_points(point, neighbor))
             else:
-                pass
+                samples.append(X_min[min_clusters[cluster_idx][0]])
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
 
@@ -10410,7 +10586,7 @@ class A_SUWO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'strategy': self.strategy, 'n_neighbors': self.n_neighbors, 'n_clus_maj': self.n_clus_maj, 'c_thres': self.c_thres}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_clus_maj': self.n_clus_maj, 'c_thres': self.c_thres}
 
 class SMOTE_FRST_2T(OverSampling):
     """
@@ -10428,8 +10604,14 @@ class SMOTE_FRST_2T(OverSampling):
                 }
 
     URL: https://drive.google.com/open?id=1Zmb2MmKGszJB8Q1k7eTZLNG-8KhF4KTc
+    
+    Unlucky setting of parameters might result 0 points added, we have fixed this
+    by increasing the gamma_S threshold if the number of samples accepted is low.
+    In my opinion, in the algorithm presented in the paper the relations are incorrect.
+    The authors talk about accepting samples having POS score below a threshold, and 
+    in the algorithm in both places POS >= gamma is used.
     """
-    def __init__(self, gamma_S= 0.8, gamma_M= 0.03, maxit= 20):
+    def __init__(self, gamma_S= 0.7, gamma_M= 0.7):
         """
         Constructor of the sampling object
         Args:
@@ -10438,9 +10620,15 @@ class SMOTE_FRST_2T(OverSampling):
             maxit (int): maximum number of iterations
         """
         super().__init__()
+        self.check_greater_or_equal(gamma_S, "gamma_S", 0)
+        self.check_greater_or_equal(gamma_M, "gamma_M", 0)
+        
         self.gamma_S= gamma_S
         self.gamma_M= gamma_M
-        self.maxit= maxit
+        
+        self.set_cat_changes_majority()
+        self.set_cat_noise_removal()
+        self.set_cat_sample_ordinary()
     
     @classmethod
     def parameter_combinations(cls):
@@ -10449,7 +10637,7 @@ class SMOTE_FRST_2T(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'gamma_S': [0.3, 0.5, 0.8], 'gamma_M': [0.3, 0.5, 0.8], 'maxit': [20]})
+        return cls.generate_parameter_combinations({'gamma_S': [0.8, 1.0], 'gamma_M': [0.03, 0.05, 0.1]})
     
     def sample(self, X, y):
         """
@@ -10460,59 +10648,99 @@ class SMOTE_FRST_2T(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
         self.class_label_statistics(X, y)
         
         X_min= X[y == self.minority_label]
         X_maj= X[y == self.majority_label]
+        
+        # extracting the attribute ranges
         ranges= np.max(X, axis= 0) - np.min(X, axis= 0)
         
         def pos(x, y):
+            """
+            Membership to positive region
+            Args:
+                x (np.array): minority sample
+                y (np.array): majority sample
+            Returns:
+                float: membership to positive region
+            """
             r= 1.0 - np.abs(x-y)/ranges
             sum_r= np.sum(r[r > 0])
             t= max(sum_r - len(y) + 1, 0)
             return 1.0 - t
         
+        # calculate POS values for all minority and majority pairs
         pos_cache= pairwise_distances(X_min, X_maj, metric= pos)
         
         result_synth= []
         result_maj= []
         iteration= 0
-        while iteration < self.maxit and (len(X_min) + len(result_synth) + len(result_maj)) < len(X_maj):
+        
+        gamma_S= self.gamma_S
+        
+        # iterating until the dataset becomes balanced
+        while (len(X_min) + len(result_synth) + len(result_maj)) < len(X_maj):
             iteration= iteration + 1
             
-            X_samp, y_samp= SMOTE(strategy= 0.2).sample(X, y)
+            # checking if the parameters aren't too conservative
+            if len(result_synth) < iteration and (iteration % 20 == 0):
+                gamma_S= gamma_S*1.1
+                logging.info("gamma_S decreased to %f" % gamma_S)
+            
+            # executing SMOTE to generate some minority samples
+            X_samp, y_samp= SMOTE(proportion= 0.2).sample(X, y)
             X_samp= X_samp[len(X):]
             
             new_synth= []
+            # computing POS membership values for the new samples
             pos_synth= pairwise_distances(X_min, X_samp)
             for i in range(len(X_samp)):
+                # finding the minimum membership of the ith sample
                 min_pos= np.min(pos_synth[:,i])
-                if min_pos < self.gamma_S:
+                # if greater than the threshold, add to the result set
+                if min_pos <= gamma_S:
                     result_synth.append(X_samp[i])
                     new_synth.append(X_samp[i])
             
+            # finding majority samples to be removed
             to_remove= []
             for j in range(len(X_maj)):
+                # computing pos value for majority sample
                 min_pos= np.min(pos_cache[:,j])
-                if min_pos < self.gamma_M:
+                # addig it to the result set if pos value is greater than a threshold
+                if min_pos <= self.gamma_M:
                     result_maj.append(X_maj[j])
                     to_remove.append(j)
             
+            # adjusting majority set and pos cache
             X_maj= np.delete(X_maj, to_remove, axis= 0)
             pos_cache= np.delete(pos_cache, to_remove, axis= 1)
 
+            # updating pos cache
             if len(new_synth) > 0:
                 pos_cache_new= pairwise_distances(np.vstack(new_synth), X_maj, metric= pos)
                 pos_cache= np.vstack([pos_cache, pos_cache_new])
         
-        return np.vstack([X_maj, X_min, np.vstack(result_synth), np.vstack(result_maj)]), np.hstack([np.repeat(self.majority_label, len(X_maj)), np.repeat(self.minority_label, len(X_min) + len(result_synth) + len(result_maj))])
+        # packing the results
+        X_res= np.vstack([X_maj, X_min])
+        if len(result_synth) > 0:
+            X_res= np.vstack([X_res, np.vstack(result_synth)])
+        if len(result_maj) > 0:
+            X_res= np.vstack([X_res, np.vstack(result_maj)])
+        
+        y_res= np.hstack([np.repeat(self.majority_label, len(X_maj)), np.repeat(self.minority_label, len(X_min) + len(result_synth) + len(result_maj))])
+        
+        return X_res, y_res
 
     def get_params(self):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'gamma_S': self.gamma_S, 'gamma_M': self.gamma_M, 'maxit': self.maxit}
+        return {'gamma_S': self.gamma_S, 'gamma_M': self.gamma_M}
 
 class AND_SMOTE(OverSampling):
     """
@@ -10537,18 +10765,24 @@ class AND_SMOTE(OverSampling):
 
     URL: https://drive.google.com/open?id=1bwj4hQiFnFgfCPDM2e8_GGloZcUd3vBG
     """
-    def __init__(self, strategy= 1.0, K= 15):
+    def __init__(self, proportion= 1.0, K= 15):
         """
         Constructor of the sampling object
         Args:
-            strategy (float): proportion of the difference of n_maj and n_min to sample
+            proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
-            K (int): maximum number of nearest neighbors (K in paper)
+            K (int): maximum number of nearest neighbors
         """
         super().__init__()
-        self.strategy= strategy
+        self.check_greater_or_equal(proportion, "proportion", 1)
+        self.check_greater_or_equal(K, "K", 2)
+        
+        self.proportion= proportion
         self.K= K
+        
+        self.set_cat_extensive()
+        self.set_cat_sample_ordinary()
     
     @classmethod
     def parameter_combinations(cls):
@@ -10557,7 +10791,7 @@ class AND_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'strategy': [0.5, 1.0, 1.5], 'K': [9, 15, 21]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'K': [9, 15, 21]})
     
     def sample(self, X, y):
         """
@@ -10568,32 +10802,41 @@ class AND_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
         self.class_label_statistics(X, y)
-        num_to_sample= self.number_of_instances_to_sample(self.strategy, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
         X_min= X[y == self.minority_label]
-        X_maj= X[y == self.majority_label]
         
+        # find K nearest neighbors of all samples
         nn= NearestNeighbors(n_neighbors= self.K+1)
         nn.fit(X)
         dist, ind= nn.kneighbors(X)
         
         min_ind= np.where(y == self.minority_label)[0]
         
+        # Executing the algorithm
         kappa= []
         for i in range(len(min_ind)):
             regions_min= []
             regions_maj= []
+            
             for j in range(1, self.K+1):
+                # continueing if the label of the neighbors is minority
                 if y[ind[min_ind[i]][j]] != self.minority_label:
-                    pass
+                    continue
                 
+                # region coordinates
                 reg= np.hstack([min_ind[i], ind[min_ind[i]][j]])
+                # compute corner points
                 reg_min= np.min(X[reg])
                 reg_max= np.max(X[reg])
                 
                 r_min= []
                 r_maj= []
+                # all the points in the region must be among the neighbors
+                # what we do is counting how many of them are minority and majority samples
                 for k in ind[min_ind[i]][:(j+1)]:
                     if np.all(reg_min <= X[k]) and np.all(X[k] <= reg_max):
                         if y[k] == self.minority_label:
@@ -10601,27 +10844,42 @@ class AND_SMOTE(OverSampling):
                         else:
                             r_maj.append(k)
                 
+                # appending the coordinates of points to the minority and majority regions
                 regions_min.append(r_min)
                 regions_maj.append(r_maj)
             
+            # taking the cumulative unions of minority and majority points
             for j in range(1, len(regions_min)):
                 regions_min[j]= list(set(regions_min[j]).union(set(regions_min[j-1])))
                 regions_maj[j]= list(set(regions_maj[j]).union(set(regions_maj[j-1])))
             
+            # computing the lengths of the increasing minority and majority sets
             regions_min= np.array([len(r) for r in regions_min])
             regions_maj= np.array([len(r) for r in regions_maj])
             
+            # computing the precision of minority classification (all points are supposed to
+            # be classified as minority)
             prec= regions_min/(regions_min + regions_maj)
+            # taking the difference
             d= np.diff(prec, 1)
-            k= np.argmin(d) + 1
+            # finding the biggest drop (+1 because diff reduces length, +1 because of indexing begins with 0)
+            if len(d) == 0:
+                k= 0
+            else:
+                k= np.argmin(d) + 2
+            # appending the coordinate of the biggest drop as the ideal neighborhood size
+            # note that k indices the minority neighbors
             kappa.append(k)
         
-        nn= NearestNeighbors(n_neighbors= max(kappa))
+        # finding nearest minority neighbors of minority samples
+        nn= NearestNeighbors(n_neighbors= max(kappa) + 1)
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
+        # do the sampling
         samples= []
         while len(samples) < num_to_sample:
+            # choose random point
             idx= np.random.randint(len(X_min))
             if kappa[idx] > 0:
                 samples.append(self.sample_between_points(X_min[idx], X_min[np.random.choice(ind[idx][1:(kappa[idx]+1)])]))
@@ -10633,7 +10891,7 @@ class AND_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'strategy': self.strategy, 'K': self.K}
+        return {'proportion': self.proportion, 'K': self.K}
 
 class NRAS(OverSampling):
     """
@@ -10652,20 +10910,27 @@ class NRAS(OverSampling):
 
     URL: https://drive.google.com/open?id=1AZ_jRoplDczplH8g1AM3Zn_jujMxaAxA
     """
-    def __init__(self, strategy= 1.0, n_neighbors= 5, t= 0.5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, t= 0.5):
         """
         Constructor of the sampling object
         Args:
-            strategy (float): proportion of the difference of n_maj and n_min to sample
+            proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors
             t (float): [0,1] fraction of n_neighbors as threshold
         """
         super().__init__()
-        self.strategy= strategy
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_in_range(t, "t", [0, 1])
+        
+        self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.t= t
+        
+        self.set_cat_sample_ordinary()
+        self.set_cat_noise_removal()
     
     @classmethod
     def parameter_combinations(cls):
@@ -10674,7 +10939,7 @@ class NRAS(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'strategy': [0.5, 1.0, 1.5], 'n_neighbors': [5, 7, 9], 't': [0.3, 0.5, 0.8]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [5, 7, 9], 't': [0.3, 0.5, 0.8]})
     
     def sample(self, X, y):
         """
@@ -10685,46 +10950,61 @@ class NRAS(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        self.class_label_statistics(X, y)
-        num_to_sample= self.number_of_instances_to_sample(self.strategy, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        logging.info("Running sampling via %s" % self.descriptor())
         
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        # standardization is needed to make the range of the propensity scores similar to that of the features
+        mms= MinMaxScaler()
+        X= mms.fit_transform(X)
+        
+        # determining propensity scores using logistic regression
         lr= LogisticRegression()
         lr.fit(X, y)
-        propensity= lr.predict_proba(X)[:,1]
+        propensity= lr.predict_proba(X)[:,np.where(lr.classes_ == self.minority_label)[0][0]]
         
         X_min= X[y == self.minority_label]
         
+        # adding propensity scores as a new feature
         X_new= np.column_stack([X, propensity])
         X_min_new= X_new[y == self.minority_label]
         
+        # finding nearest neighbors of minority samples
         nn= NearestNeighbors(n_neighbors= self.n_neighbors+1)
         nn.fit(X_new)
         dist, ind= nn.kneighbors(X_min_new)
         
+        # do the sampling
         samples= []
         to_remove= []
         while len(samples) < num_to_sample:
             idx= np.random.randint(len(X_min))
+            # finding the number of minority neighbors
             t_hat= np.sum(y[ind[idx][1:]] == self.minority_label)
             if t_hat < self.t*self.n_neighbors:
-                to_remove.append(idx)
+                # removing the minority point if the number of minority neighbors is less then the threshold
+                # to_remove indexes X_min
+                if not idx in to_remove:
+                    to_remove.append(idx)
+                    # compensating the removal of the minority point
+                    num_to_sample= num_to_sample + 1
             else:
-                min_neighbors= np.where(y[ind[idx][1:]] == self.minority_label)[0]
-                s0= X_min[idx]
-                s1= X[np.random.choice(ind[idx][1:][min_neighbors])]
-                samples.append(self.sample_between_points(s0, s1))
+                # otherwise do the sampling
+                samples.append(self.sample_between_points(X_min[idx], X[np.random.choice(ind[idx][1:])]))
         
-        X= np.delete(X, to_remove, axis= 0)
-        y= np.delete(y, to_remove)
+        # remove noisy elements
+        X_maj= X[y == self.majority_label]
+        X_min= np.delete(X_min, to_remove, axis= 0)
         
-        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        return mms.inverse_transform(np.vstack([X_maj, X_min, np.vstack(samples)])), np.hstack([np.repeat(self.majority_label, len(X_maj)), np.repeat(self.minority_label, len(X_min)), np.repeat(self.minority_label, len(samples))])
 
     def get_params(self):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'strategy': self.strategy, 'n_neighbors': self.n_neighbors, 't': self.t}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 't': self.t}
 
 class AMSCO(OverSampling):
     """
@@ -10743,9 +11023,21 @@ class AMSCO(OverSampling):
 
     URL: https://drive.google.com/open?id=1Y90GGJMZeFjp4I_emwk1Z430kjwnNQnt
     
-    It is not clear how the kappa threshold is used.
+    It is not clear how the kappa threshold is used, I do use the RA score to drive
+    all the evolution. Particularly:
+        "In the last phase of each iteration, the average Kappa value
+        in current non-inferior set is compare with the latest threshold
+        value, the threshold is then increase further if the average value
+        increases, and vice versa. By doing so, the non-inferior region will
+        be progressively reduced as the Kappa threshold lifts up."
+    I don't see why would the Kappa threshold lift up if the kappa thresholds
+    are decreased if the average Kappa decreases ("vice versa").
+    
+    Due to the interpretation of kappa threshold and the lack of detailed
+    description of the SIS process, the implementation is not exactly what
+    is described in the paper, but something very similar.
     """
-    def __init__(self, n_pop= 10, n_iter= 5, omega= 0.3, r1= 0.1, r2= 0.1):
+    def __init__(self, n_pop= 10, n_iter= 20, omega= 0.3, r1= 0.1, r2= 0.1):
         """
         Constructor of the sampling object
         Args:
@@ -10756,11 +11048,21 @@ class AMSCO(OverSampling):
             r2 (float): force towards global optimum
         """
         super().__init__()
+        self.check_greater_or_equal(n_pop, "n_pop", 1)
+        self.check_greater_or_equal(n_iter, "n_iter", 1)
+        self.check_greater_or_equal(omega, "omega", 0)
+        self.check_greater_or_equal(r1, "r1", 0)
+        self.check_greater_or_equal(r2, "r2", 0)
+        
         self.n_pop= n_pop
         self.n_iter= n_iter
         self.omega= omega
         self.r1= r1
         self.r2= r2
+        
+        self.set_cat_changes_majority()
+        self.set_cat_memetic()
+        self.set_cat_uses_classifier()
     
     @classmethod
     def parameter_combinations(cls):
@@ -10769,7 +11071,7 @@ class AMSCO(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'n_pop': [10], 'n_iter': [5], 'omega': [0.1, 0.3, 0.5], 'r1': [0.1, 0.3], 'r2': [0.1, 0.3]})
+        return cls.generate_parameter_combinations({'n_pop': [10], 'n_iter': [20], 'omega': [0.1, 0.3], 'r1': [0.1, 0.3], 'r2': [0.1, 0.3]})
     
     def sample(self, X, y):
         """
@@ -10780,22 +11082,38 @@ class AMSCO(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
         self.class_label_statistics(X, y)
         
         X_min= X[y == self.minority_label]
         X_maj= X[y == self.majority_label]
         
         def fitness(X_min, X_maj):
-            kfold= KFold(5)
+            """
+            Calculating fitness function
+            Args:
+                X_min (np.matrix): minority samples
+                X_maj (np.matrix): majority samples
+            Returns:
+                float, float: kappa, accuracy
+            """
+            kfold= StratifiedKFold(4)
+            
+            # prepare dataset
+            X_ass= np.vstack([X_min, X_maj])
+            y_ass= np.hstack([np.repeat(self.minority_label, len(X_min)), np.repeat(self.majority_label, len(X_maj))])
+            
             preds= []
             tests= []
-            X= np.vstack([X_min, X_maj])
-            y= np.hstack([np.repeat(self.minority_label, len(X_min)), np.repeat(self.majority_label, len(X_maj))])
-            for train, test in kfold.split(X):
-                preds.append(KNeighborsClassifier(n_neighbors= 1).fit(X[train], y[train]).predict(X[test]))
-                tests.append(y[test])
+            for train, test in kfold.split(X_ass, y_ass):
+                #preds.append(KNeighborsClassifier(n_neighbors= 1).fit(X_ass[train], y_ass[train]).predict(X))
+                preds.append(DecisionTreeClassifier().fit(X_ass[train], y_ass[train]).predict(X))
+                tests.append(y)
             preds= np.hstack(preds)
             tests= np.hstack(tests)
+            
+            # calculate kappa and accuracy scores
             tp= np.sum(np.logical_and(preds == tests, tests == self.minority_label))
             fn= np.sum(np.logical_and(preds != tests, tests == self.minority_label))
             tn= np.sum(np.logical_and(preds == tests, tests == self.majority_label))
@@ -10806,64 +11124,84 @@ class AMSCO(OverSampling):
             
             kappa= (p_o - p_e)/(1.0 - p_e)
             accuracy= (tp + tn)/(tp + fn + tn + fp)
+            
             return kappa, accuracy
         
         def OSMOTE(X_min, X_maj):
-            print('start OSMOTE')
+            """
+            Executing OSMOTE phase
+            Args:
+                X_min (np.matrix): minority samples
+                X_maj (np.matrix): majority samples
+            Returns:
+                np.matrix, np.matrix: new minority and majority datasets
+            """
+            
+            # initialize particles, first coordinate represents proportion parameter of SMOTE
+            # the second coordinate represents the number of neighbors to take into consideration
             particles= [np.array([np.random.random()/2.0+0.5, np.random.randint(3, 10)]) for _ in range(self.n_pop)]
+            # velocities initialized
             velocities= [np.array([0.1, 1]) for _ in range(self.n_pop)]
-            limits= [np.array([0.5, 3]), np.array([1.0, 10])]
+            # setting the limits of the search space
+            limits= [np.array([0.25, 3]), np.array([4.0, 10])]
+            # local best results
             local_best= [particles[i].copy() for i in range(self.n_pop)]
+            # local best scores
             local_score= [(0.0, 0.0)]*self.n_pop
+            # global best result
             global_best= particles[0].copy()
+            # global best score
             global_score= (0.0, 0.0)
+            # best dataset
             best_dataset= None
             
+            # running the optimization
             for _ in range(self.n_iter):
                 # update velocities
                 for i in range(len(velocities)):
                     velocities[i]= velocities[i]*self.omega + self.r1*(local_best[i] - velocities[i]) + self.r2*(global_best - velocities[i])
-                    if velocities[i][0] < -limits[1][0]:
-                        velocities[i][0]= -limits[1][0]
-                    if velocities[i][0] > limits[1][0]:
-                        velocities[i][0]= limits[1][0]
-                    if velocities[i][1] < -limits[1][1]:
-                        velocities[i][1]= -limits[1][1]
-                    if velocities[i][1] > limits[1][1]:
-                        velocities[i][1]= limits[1][1]
+                    # clipping velocities using the upper bounds of the particle search space
+                    velocities[i][0]= np.clip(velocities[i][0], -limits[1][0]/2, limits[1][0]/2)
+                    velocities[i][1]= np.clip(velocities[i][1], -limits[1][1]/2, limits[1][1]/2)
                         
                 # update particles
                 for i in range(len(particles)):
                     particles[i]= particles[i] + velocities[i]
-                    if particles[i][0] < limits[0][0]: 
-                        particles[i][0]= limits[0][0]
-                    elif particles[i][0] > limits[1][0]: 
-                        particles[i][0]= limits[1][0]
-                    elif particles[i][1] < limits[0][1]: 
-                        particles[i][1]= limits[0][1]
-                    elif particles[i][1] < limits[1][1]: 
-                        particles[i][1]= limits[1][1]
+                    # clipping the particle positions using the lower and upper bounds
+                    particles[i][0]= np.clip(particles[i][0], limits[0][0], limits[1][0])
+                    particles[i][1]= np.clip(particles[i][1], limits[0][1], limits[1][1])
                 
                 # evaluate
                 scores= []
                 for i in range(len(particles)):
+                    # apply SMOTE
                     X_samp, y_samp= SMOTE(particles[i][0], int(np.rint(particles[i][1]))).sample(np.vstack([X_maj, X_min]), np.hstack([np.repeat(self.majority_label, len(X_maj)), np.repeat(self.minority_label, len(X_min))]))
+                    # evaluate
                     scores.append(fitness(X_samp[len(X_maj):], X_samp[:len(X_maj)]))
-                    if (scores[i][0] > local_score[i][0] and scores[i][1] > local_score[i][1]):
+                    # update scores according to the multiobjective setting
+                    if (scores[i][0]*scores[i][1] > local_score[i][0]*local_score[i][1]):
                         local_score[i]= scores[i]
-                    if (scores[i][0] > global_score[0] and scores[i][1] > global_score[1]):
+                    if (scores[i][0]*scores[i][1] > global_score[0]*global_score[1]):
                         global_score= scores[i]
                         best_dataset= (X_samp[len(X_maj):], X_samp[:len(X_maj)])
-                print(scores)
+
             return best_dataset[0], best_dataset[1]
             
         def SIS(X_min, X_maj):
-            print('start SIS')
+            """
+            SIS procedure
+            Args:
+                X_min (np.matrix): minority dataset
+                X_maj (np.matrix): majority dataset
+            Returns:
+                np.matrix, np.matrix: new minority and majority datasets
+            """
             min_num= len(X_min)
             max_num= len(X_maj)
             if min_num >= max_num:
                 return X_min, X_maj
-                
+            
+            # initiate particles
             particles= [np.random.choice(np.arange(len(X_maj)), np.random.randint(min_num, max_num)) for _ in range(self.n_pop)]
             scores= [fitness(X_min, X_maj[particles[i]]) for i in range(self.n_pop)]
             best_score= (0.0, 0.0)
@@ -10873,10 +11211,13 @@ class AMSCO(OverSampling):
                 # mutate and evaluate
                 # the way mutation or applying PSO is not described in the paper in details
                 for i in range(self.n_pop):
-                    to_remove= np.random.choice(np.arange(len(particles[i])), np.random.randint(1, 10))
+                    # removing some random elements
+                    to_remove= np.random.choice(np.arange(len(particles[i])), np.random.randint(0, min(10, len(particles[i]))))
                     mutant= np.delete(particles[i], to_remove)
+                    # adding some random elements
                     diff= list(set(np.arange(len(X_maj))).difference(set(particles[i])))
                     mutant= np.hstack([mutant, np.array(np.random.choice(diff, np.random.randint(0, min(10, len(diff)))))])
+                    # evaluating the variant
                     score= fitness(X_min, X_maj[mutant])
                     if score[1] > scores[i][1]:
                         particles[i]= mutant
@@ -10884,28 +11225,25 @@ class AMSCO(OverSampling):
                     if score[1] > best_score[1]:
                         best_score= score
                         best_dataset= mutant
-                print(scores)
+
             return X_min, X_maj[best_dataset]
         
+        # executing the main optimization procedure
         current_min= X_min
         current_maj= X_maj
-        for _ in range(self.n_iter):
-            print('staring iteration')
+        for it in range(self.n_iter):
+            logging.info('staring iteration %d' % it)
             new_min, _= OSMOTE(X_min, current_maj)
             _, new_maj= SIS(current_min, X_maj)
             
-            print('calculating fitnesses')
-            fitness_0= fitness(new_min, current_maj)
-            fitness_1= fitness(current_min, current_maj)
-            fitness_2= fitness(new_min, new_maj)
-            fitness_3= fitness(current_min, new_maj)
+            # calculating fitness values of the four combinations
+            fitness_0= np.prod(fitness(new_min, current_maj))
+            fitness_1= np.prod(fitness(current_min, current_maj))
+            fitness_2= np.prod(fitness(new_min, new_maj))
+            fitness_3= np.prod(fitness(current_min, new_maj))
             
-            fitness_0= fitness_0[0]*fitness_0[1]
-            fitness_1= fitness_1[0]*fitness_1[1]
-            fitness_2= fitness_2[0]*fitness_2[1]
-            fitness_3= fitness_3[0]*fitness_3[1]
-            
-            print(fitness_0, fitness_1, fitness_2, fitness_3)
+            # selecting the new current_maj and current_min datasets
+            logging.info('fitness scores: %f %f %f %f' % (fitness_0, fitness_1, fitness_2, fitness_3))
             if fitness_2 == np.max([fitness_0, fitness_1, fitness_2, fitness_3]) or fitness_3 == np.max([fitness_0, fitness_1, fitness_2, fitness_3]):
                 current_maj= new_maj
             if fitness_0 == np.max([fitness_0, fitness_1, fitness_2, fitness_3]) or fitness_2 == np.max([fitness_0, fitness_1, fitness_2, fitness_3]):
@@ -10942,13 +11280,15 @@ class SSO(OverSampling):
 
     URL: https://drive.google.com/open?id=1iW1g0gefhC5bjpXvd9l63N85JgSWTyAc
     
-    It is not clear how the kappa threshold is used.
+    In the algorithm point 2d addes a constant to a vector. I have changed it
+    to a componentwise adjustment, and also used the normalized STSM as I don't
+    see any reason why it would be some reasonable, bounded value.
     """
-    def __init__(self, strategy= 1.0, n_neighbors= 5, h= 10, n_iter= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, h= 10, n_iter= 5):
         """
         Constructor of the sampling object
         Args:
-            strategy (float): proportion of the difference of n_maj and n_min to sample
+            proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors
@@ -10956,10 +11296,20 @@ class SSO(OverSampling):
             n_iter (int): optimization steps
         """
         super().__init__()
-        self.strategy= strategy
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_greater_or_equal(h, "h", 1)
+        self.check_greater_or_equal(n_iter, "n_iter", 1)
+        
+        self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.h= h
         self.n_iter= n_iter
+        
+        self.set_cat_extensive()
+        self.set_cat_uses_classifier()
+        self.set_cat_uses_clustering()
+        self.set_cat_density_estimation()
     
     @classmethod
     def parameter_combinations(cls):
@@ -10968,7 +11318,7 @@ class SSO(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'strategy': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5], 'h': [10], 'n_iter': [5]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5], 'h': [10], 'n_iter': [5]})
     
     def sample(self, X, y):
         """
@@ -10979,35 +11329,45 @@ class SSO(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
         self.class_label_statistics(X, y)
         
-        samp_per_iter= int(self.number_of_instances_to_sample(self.strategy, self.class_stats[self.majority_label], self.class_stats[self.minority_label])/self.n_iter)
+        # number of samples to generate in each iteration
+        samp_per_iter= int(self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])/self.n_iter)
         
+        # executing the algorithm
         for _ in range(self.n_iter):
             X_min= X[y == self.minority_label]
             
-            print('kmeans')
+            # applying kmeans clustering to find the hidden neurons
             kmeans= KMeans(n_clusters= self.h)
             kmeans.fit(X)
-            print('kmeans_finished')
+            
+            # extracting the hidden center elements
             u= kmeans.cluster_centers_
+            
+            # extracting scale parameters as the distances of closest centers
             nn_cent= NearestNeighbors(n_neighbors= 2)
             nn_cent.fit(u)
             dist_cent, ind_cent= nn_cent.kneighbors(u)
             v= dist_cent[:,1]
             
+            # computing the response of the hidden units
             phi= pairwise_distances(X, u)
             phi= phi**2
             phi= np.exp(-phi/v**2)
             
-            print('linreg')
+            # applying linear regression to find the best weights
             lr= LinearRegression()
             lr.fit(phi, y)
             f= lr.predict(phi[np.where(y == self.minority_label)[0]])
             w= lr.coef_
-            print('linreg_finished')
             
             def eq_6(Q, w, u, v, x):
+                """
+                Equation 6 in the paper
+                """
                 tmp_sum= np.zeros(self.h)
                 for i in range(self.h):
                     a= (x - u[i] + Q)/np.sqrt(2*v[i])
@@ -11017,6 +11377,9 @@ class SSO(OverSampling):
                 return np.dot(tmp_sum, w)/(2*Q)**len(x)
             
             def eq_8(Q, w, u, v, x):
+                """
+                Equation 8 in the paper
+                """
                 res= 0.0
                 for i in range(self.h):
                     for r in range(self.h):
@@ -11034,19 +11397,20 @@ class SSO(OverSampling):
                         res= res + tmp_a*tmp_b*np.prod(tmp_prod)*w[i]*w[r]
                 return (np.sqrt(np.pi)/(4*Q))**len(x)*res
             
-            nn= NearestNeighbors(n_neighbors= self.n_neighbors+1, metric= 'l1')
+            # applying nearest neighbors to extract Q values
+            nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
             nn.fit(X)
             dist, ind= nn.kneighbors(X_min)
             
             Q= np.mean(dist[:,self.n_neighbors])/np.sqrt(len(X[0]))
             
-            print('I_1')
+            # calculating the sensitivity factors
             I_1= np.array([eq_6(Q, w, u, v, x) for x in X_min])
-            print('I_2')
             I_2= np.array([eq_8(Q, w, u, v, x) for x in X_min])
-            print('finished')
             
             stsm= f**2 - 2*f*I_1 + I_2
+            
+            # calculating the sampling weights
             weights= np.abs(stsm)/np.sum(np.abs(stsm))
         
             nn= NearestNeighbors(n_neighbors= self.n_neighbors+1)
@@ -11056,8 +11420,11 @@ class SSO(OverSampling):
             samples= []
             for _ in range(samp_per_iter):
                 idx= np.random.choice(np.arange(len(X_min)), p= weights)
-                neighbor_idx= np.random.choice(ind[idx][1:])
-                samples.append(self.sample_between_points(X_min[idx], X_min[neighbor_idx]))
+                X_new= X_min[idx].copy()
+                for s in range(len(X_new)):
+                    lam= np.random.random()*(2*(1 - weights[idx])) - (1 - weights[idx])
+                    X_new[s]= X_new[s] + Q*lam
+                samples.append(X_new)
             
             samples= np.vstack(samples)
             X= np.vstack([X, samples])
@@ -11070,7 +11437,7 @@ class SSO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'strategy': self.strategy, 'n_neighbors': self.n_neighbors, 'h': self.h, 'n_iter': self.n_iter}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'h': self.h, 'n_iter': self.n_iter}
 
 class NDO_sampling(OverSampling):
     """
@@ -11089,18 +11456,27 @@ class NDO_sampling(OverSampling):
 
     URL: https://drive.google.com/open?id=1vrCst6Jk97kTiu-2aJZt3oN5uGHRQA6Q
     """
-    def __init__(self, strategy= 1.0, n_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, T= 0.5):
         """
         Constructor of the sampling object
         Args:
-            strategy (float): proportion of the difference of n_maj and n_min to sample
+            proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors
+            T (float): threshold parameter
         """
         super().__init__()
-        self.strategy= strategy
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_greater_or_equal(T, "T", 0)
+        
+        self.proportion= proportion
         self.n_neighbors= n_neighbors
+        self.T= T
+        
+        self.set_cat_extensive()
+        self.set_cat_sample_ordinary()
     
     @classmethod
     def parameter_combinations(cls):
@@ -11109,7 +11485,7 @@ class NDO_sampling(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'strategy': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'T': [0.5]})
     
     def sample(self, X, y):
         """
@@ -11120,15 +11496,19 @@ class NDO_sampling(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
         self.class_label_statistics(X, y)
-        num_to_sample= self.number_of_instances_to_sample(self.strategy, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
         X_min= X[y == self.minority_label]
         
+        # fitting nearest neighbors model to find the neighbors of minority samples among all elements
         nn= NearestNeighbors(n_neighbors= self.n_neighbors+1)
         nn.fit(X)
         dist, ind= nn.kneighbors(X_min)
         
+        # calculating the distances between samples in the same and different classes
         d_intra= []
         d_exter= []
         for i in range(len(X_min)):
@@ -11141,16 +11521,22 @@ class NDO_sampling(OverSampling):
         d_intra_mean= np.mean(np.array(d_intra))
         d_exter_mean= np.mean(np.array(d_exter))
         
+        # calculating the alpha value
         alpha= d_intra_mean/d_exter_mean
-        if alpha < 0.5:
+        
+        # deciding if SMOTE is enough
+        if alpha < self.T:
             return SMOTE(self.strategy).sample(X, y)
         
+        # do the sampling
         samples= []
         while len(samples) < num_to_sample:
             idx= np.random.randint(len(X_min))
             random_idx= np.random.choice(ind[idx][1:])
+            # create sample close to the initial minority point
             samples.append(X_min[idx] + (X[random_idx] - X_min[idx])*np.random.random()/2.0)
             if y[random_idx] == self.minority_label:
+                # create another sample close to the neighboring minority point
                 samples.append(X[random_idx] + (X_min[idx] - X[random_idx])*np.random.random()/2.0)
                     
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
@@ -11160,10 +11546,24 @@ class NDO_sampling(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'strategy': self.strategy, 'n_neighbors': self.n_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'T': self.T}
 
 class RBFNeuron:
+    """
+    This class abstracts a neuron of an RBF network
+    """
     def __init__(self, c, I, O, ranges, range_mins, init_conn_mask, init_conn_weights):
+        """
+        Constructor of the neuron
+        Args:
+            c (np.array): center of the hidden unit
+            I (float): upper bound on the absolute values of input weights
+            O (float): upper bound on the absolute values of output weights
+            ranges (np.array): ranges widths of parameters
+            range_min (np.array): lower bounds of parameter ranges
+            init_conn_mask (np.array): initial input connections
+            init_conn_weights (np.array): initial weights of input connections
+        """
         self.d= len(c)
         self.c= c
         self.I= I
@@ -11178,6 +11578,11 @@ class RBFNeuron:
         self.r= np.random.random()
     
     def clone(self):
+        """
+        Clones the neuron
+        Returns:
+            RBFNeuron: an identical neuron
+        """
         r= RBFNeuron(self.c, self.I, self.O, self.ranges, self.range_mins, self.init_conn_mask, self.init_conn_weights)
         r.beta= self.beta
         r.mask= self.mask.copy()
@@ -11186,37 +11591,72 @@ class RBFNeuron:
         return r
     
     def evaluate(self, X):
+        """
+        Evaluates the system on dataset X
+        Args:
+            X (np.matrix): dataset to evaluate on
+        Returns:
+            np.array: the output of the network
+        """
         wX= X[:,self.mask]*self.input_weights
         return self.beta*np.exp(-np.linalg.norm(wX - self.c[self.mask], axis= 1)**2/self.r**2)
     
     def mutate(self):
+        """
+        Mutates the neuron
+        """
         r= np.random.random()
         if r < 0.2:
+            # centre creep
             self.c= np.random.normal(self.c, self.r)
         elif r < 0.4:
+            # radius creep
             tmp= np.random.normal(self.r, np.var(self.ranges))
             if tmp > 0:
                 self.r= tmp
         elif r < 0.6:
+            # randomize centers
             self.c= np.random.random(size=len(self.c))*self.ranges + self.range_mins
         elif r < 0.8:
+            # randomize radii 
             self.r= np.random.random()*np.mean(self.ranges)
         else:
+            # randomize output weight
             self.beta= np.random.normal(self.beta, self.O)
     
     def add_connection(self):
+        """
+        Adds a random input connection to the neuron
+        """
         if len(self.mask) < self.d:
             self.mask= np.hstack([self.mask, np.array(np.random.choice(list(set(range(self.d)).difference(set(self.mask.tolist())))))])
             self.input_weights= np.hstack([self.input_weights, (np.random.random()-0.5)*self.I])
             
     def delete_connection(self):
+        """
+        Deletes a random input connection
+        """
         if len(self.mask) > 1:
             idx= np.random.randint(len(self.mask))
             self.mask= np.delete(self.mask, idx)
             self.input_weights= np.delete(self.input_weights, idx)
     
 class RBF:
+    """
+    RBF network abstraction
+    """
     def __init__(self, X, m_min, m_max, I, O, init_conn_mask, init_conn_weights):
+        """
+        Initializes the RBF network
+        Args:
+            X (np.matrix): dataset to work with
+            m_min (int): minimum number of hidden neurons
+            m_max (int): maximum number of hidden neurons
+            I (float): maximum absolute value of input weights
+            O (float): maximum absolute value of output weights
+            init_conn_mask (np.array): initial input connections
+            init_conn_weights (np.array): initial input weights
+        """
         self.X= X
         self.m_min= m_min
         self.m_max= m_max
@@ -11229,13 +11669,19 @@ class RBF:
         self.range_mins= np.min(X, axis= 0)
         self.ranges= np.max(X, axis= 0) - self.range_mins
         
+        # adding initial neurons
         num_neurons= np.random.randint(m_min, m_max)
         for _ in range(num_neurons):
             self.neurons.append(self.create_new_node())
-            
+        
         self.beta_0= (np.random.random()-0.5)*O
     
     def clone(self):
+        """
+        Clones the entire network
+        Returns:
+            RBF: the cloned network
+        """
         r= RBF(self.X, self.m_min, self.m_max, self.I, self.O, self.init_conn_mask, self.init_conn_weights)
         r.neurons= [n.clone() for n in self.neurons]
         r.range_mins= self.range_mins.copy()
@@ -11245,32 +11691,57 @@ class RBF:
         return r
     
     def create_new_node(self):
+        """
+        Creates a new node.
+        Returns:
+            RBFNeuron: a new hidden neuron
+        """
         return RBFNeuron(self.X[np.random.randint(len(self.X))], self.I, self.O, self.ranges, self.range_mins, self.init_conn_mask, self.init_conn_weights)
     
     def update_data(self, X):
+        """
+        Updates the data to work with
+        """
         self.X= X
         for n in self.neurons:
             n.X= X
     
     def improve_centers(self):
+        """
+        Improves the center locations by kmeans clustering
+        """
         kmeans= KMeans(n_clusters=len(self.neurons), init=np.vstack([n.c for n in self.neurons]), max_iter= 30)
         kmeans.fit(self.X)
         for i in range(len(self.neurons)):
             self.neurons[i].c= kmeans.cluster_centers_[i]
     
     def evaluate(self, X, y):
+        """
+        Evaluates the target function
+        Returns:
+            float: the target function value
+        """
         f= self.beta_0 + np.sum(np.column_stack([n.evaluate(X) for n in self.neurons]), axis= 1)
         L_star= np.mean(abs(y[y == 1] - f[y == 1])) + np.mean(abs(y[y == 0] - f[y == 0]))
         return L_star
     
     def mutation(self):
+        """
+        Mutates the neurons
+        Returns:
+            RBF: a new, mutated RBF network
+        """
         rbf= self.clone()
         for n in rbf.neurons:
-            # mutation of neurons
             n.mutate()
         return rbf
             
     def structural_mutation(self):
+        """
+        Applies structural mutation
+        Returns:
+            RBF: a new, structurally mutated network
+        """
         # in the binary case the removal of output connections is the same as
         # removing hidden nodes
         rbf= self.clone()
@@ -11287,6 +11758,13 @@ class RBF:
         return rbf
             
     def recombine(self, rbf):
+        """
+        Recombines two networks
+        Args:
+            rbf (RBF): another network
+        Returns:
+            RBF: the result of recombination
+        """
         # the order of neurons doesn't matter, so the logic can be simplified
         new= self.clone()
         if np.random.random() < 0.5:
@@ -11317,11 +11795,23 @@ class DSRBF(OverSampling):
                 }
 
     URL: https://drive.google.com/open?id=1bUOgi2rFcv55ujfRWuHm_9nHzdg3Uilh
+    
+    It is not entirely clear why J-1 output is supposed where J is the number
+    of classes.
+    The fitness function is changed to a balanced mean loss, as I found that
+    it just ignores classification on minority samples (class label +1) in the binary case.
+    The iRprop+ optimization is not implemented.
+    The original paper proposes using SMOTE incrementally. Instead of that, this implementation applies SMOTE
+    to generate all samples needed in the sampling epochs and the evolution of RBF networks 
+    is used to select the sampling providing the best results.
     """
-    def __init__(self, m_min= 4, m_max= 10, I= 2, O= 2, n_pop= 500, n_init_pop= 5000, n_iter= 40, n_sampling_epoch= 5):
+    def __init__(self, proportion= 1.0, m_min= 4, m_max= 10, I= 2, O= 2, n_pop= 500, n_init_pop= 5000, n_iter= 200, n_sampling_epoch= 5):
         """
         Constructor of the sampling object
         Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
             m_min (int): minimum number of hidden units
             m_max (int): maximum number of hidden units
             I (float): input weight range
@@ -11332,6 +11822,17 @@ class DSRBF(OverSampling):
             n_sampling_epoch (int): resampling after this many iterations
         """
         super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(m_min, "m_min", 1)
+        self.check_greater_or_equal(m_max, "m_max", 1)
+        self.check_greater(I, "I", 0)
+        self.check_greater(O, "O", 0)
+        self.check_greater_or_equal(n_pop, "n_pop", 2)
+        self.check_greater_or_equal(n_init_pop, "n_pop", 2)
+        self.check_greater_or_equal(n_iter, "n_iter", 0)
+        self.check_greater_or_equal(n_sampling_epoch, "n_sampling_epoch", 1)
+        
+        self.proportion= proportion
         self.m_min= m_min
         self.m_max= m_max
         self.I= I
@@ -11340,6 +11841,11 @@ class DSRBF(OverSampling):
         self.n_init_pop= n_init_pop
         self.n_iter= n_iter
         self.n_sampling_epoch= n_sampling_epoch
+        
+        self.set_cat_memetic()
+        self.set_cat_extensive()
+        self.set_cat_uses_classifier()
+        self.set_cat_sample_ordinary()
     
     @classmethod
     def parameter_combinations(cls):
@@ -11348,7 +11854,9 @@ class DSRBF(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'m_min': [4], 'm_max': [10], 'I': [2.0], 'O': [2.0], 'n_pop': [500], 'n_init_pop': [5000], 'n_iter': [40], 'n_sampling_epoch': [8]})
+        # as the technique optimizes, it is unnecessary to check various combinations
+        # except one specifying a decent workspace with a large number of iterations
+        return cls.generate_parameter_combinations({'proportion': [0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'm_min': [4], 'm_max': [10], 'I': [2.0], 'O': [2.0], 'n_pop': [500], 'n_init_pop': [5000], 'n_iter': [40], 'n_sampling_epoch': [8]})
     
     def sample(self, X, y):
         """
@@ -11359,67 +11867,91 @@ class DSRBF(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
         self.class_label_statistics(X, y)
         
+        # Standardizing the data to let the network work with comparable attributes
+        ss= StandardScaler()
+        X= ss.fit_transform(X)
+        X_orig= X
+        y_orig= y
+        
+        X, y= SMOTE(proportion= self.proportion).sample(X, y)
+        
+        # generate initial connections and weights randomly
         init_conn_mask= np.random.choice(np.arange(len(X[0])), int(len(X[0])/2))
         init_conn_weights= np.random.random(size= len(init_conn_mask))
         
+        # setting epoch lengths
         epoch_len= int(self.n_iter/self.n_sampling_epoch)
-        smote_strat= self.strategy/epoch_len
+        smote_proportion= self.proportion/self.n_sampling_epoch
         
-        population= [RBF(X, self.m_min, self.m_max, self.I, self.O, init_conn_mask, init_conn_weights) for _ in range(self.init_pop)]
+        # generating initial population
+        population= [RBF(X, self.m_min, self.m_max, self.I, self.O, init_conn_mask, init_conn_weights) for _ in range(self.n_init_pop)]
         population= [[p, X, y, np.inf] for p in population]
         population= sorted([[p[0], p[1], p[2], p[0].evaluate(p[1], p[2])] for p in population], key= lambda x: x[3])
         population= population[:self.n_pop]
         
-        
+        # executing center improval in the hidden units
         for p in population:
             p[0].improve_centers()
         
+        # executing the optimization process
         for iteration in range(self.n_iter):
+            logging.info("Iteration %d/%d, loss: %f, data size %d" % (iteration, self.n_iter, population[0][3], len(population[0][1])))
+            # evaluating non-evaluated elements
             for p in population:
                 if p[3] == np.inf:
                     p[3]= p[0].evaluate(p[1], p[2])
             
+            # sorting the population by the loss values
             population= sorted([p for p in population], key= lambda x: x[3])
             population= population[:self.n_pop]
             
+            # determining the number of elements to be changed
             p_best= population[0]
             p_parametric_mut= population[:int(0.1*self.n_pop)]
             p_structural_mut= population[:int(0.9*self.n_pop-1)]
             p_recombination= population[:int(0.1*self.n_pop)]
             
+            # executing mutation
             for p in p_parametric_mut:
                 population.append([p[0].mutation(), p[1], p[2], np.inf])
             
+            # executing structural mutation
             for p in p_structural_mut:
                 population.append([p[0].structural_mutation(), p[1], p[2], np.inf])
             
+            # executing recombination
             for p in p_recombination:
                 population.append([p[0].recombine(p_recombination[np.random.choice(len(p_recombination))][0]), p[1], p[2], np.inf])
             
+            # do the sampling
             if iteration % epoch_len == 0:
-                X, y= SMOTE(strategy= smote_strat).sample(X, y)
+                X, y= SMOTE(proportion= self.proportion).sample(X_orig, y_orig)
                 for i in range(self.n_pop):
                     tmp= [population[i][0].clone(), X, y, np.inf]
                     tmp[0].update_data(X)
                     tmp[0].improve_centers()
                     population.append(tmp)
-                
+        
+        # evaluate unevaluated elements of the population
         for p in population:
             if p[3] == np.inf:
                 p[3]= p[0].evaluate(p[1], p[2])
-            
+        
+        # sorting the population
         population= sorted([p for p in population], key= lambda x: x[3])[:self.n_pop]
             
-        return p_best[1], p_best[2]
+        return ss.inverse_transform(p_best[1]), p_best[2]
 
     def get_params(self):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'m_min': self.m_min, 'm_max': self.m_max, 'I': self.I, 'O': self.O, 'n_pop': self.n_pop, 'n_init_pop': self.n_init_pop, 'n_iter': self.n_iter, 'n_sampling_epoch': self.n_sampling_epoch}
+        return {'proportion': self.proportion, 'm_min': self.m_min, 'm_max': self.m_max, 'I': self.I, 'O': self.O, 'n_pop': self.n_pop, 'n_init_pop': self.n_init_pop, 'n_iter': self.n_iter, 'n_sampling_epoch': self.n_sampling_epoch}
 
 class Gaussian_SMOTE(OverSampling):
     """
@@ -11434,20 +11966,26 @@ class Gaussian_SMOTE(OverSampling):
 
     URL: https://drive.google.com/open?id=12oKlw_GRqsT5-Z4WmvJErBD-vcz5ekwN
     """
-    def __init__(self, strategy= 1.0, n_neighbors= 5, sigma= 1.0):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, sigma= 1.0):
         """
         Constructor of the sampling object
         Args:
-            strategy (float): proportion of the difference of n_maj and n_min to sample
+            proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors
             sigma (float): variance
         """
         super().__init__()
-        self.strategy= strategy
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_greater(sigma, "sigma", 0.0)
+        
+        self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.sigma= sigma
+        
+        self.set_cat_extensive()
     
     @classmethod
     def parameter_combinations(cls):
@@ -11456,7 +11994,7 @@ class Gaussian_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'strategy': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'sigma': [0.5, 1.0, 2.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'sigma': [0.5, 1.0, 2.0]})
     
     def sample(self, X, y):
         """
@@ -11467,14 +12005,22 @@ class Gaussian_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        self.class_label_statistics(X, y)
-        num_to_sample= self.number_of_instances_to_sample(self.strategy, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        logging.info("Running sampling via %s" % self.descriptor())
         
-        X_min= X[y == self.minority_label]
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors)
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        # standardization applied to make sigma compatible with the data
+        ss= StandardScaler()
+        X_ss= ss.fit_transform(X)
+        
+        # fitting nearest neighbors model to find the minority neighbors of minority samples
+        X_min= X_ss[y == self.minority_label]
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
+        # do the sampling
         samples= []
         while len(samples) < num_to_sample:
             idx= np.random.randint(len(X_min))
@@ -11482,14 +12028,14 @@ class Gaussian_SMOTE(OverSampling):
             s0= self.sample_between_points(X_min[idx], X_min[random_neighbor])
             samples.append(np.random.normal(s0, self.sigma))
             
-        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        return np.vstack([X, ss.inverse_transform(np.vstack(samples))]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
 
     def get_params(self):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'strategy': self.strategy, 'n_neighbors': self.n_neighbors, 'sigma': self.sigma}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'sigma': self.sigma}
 
 class kmeans_SMOTE(OverSampling):
     """
@@ -11508,11 +12054,11 @@ class kmeans_SMOTE(OverSampling):
 
     URL: https://drive.google.com/open?id=1cFpaCsWBXTRYCTIS0hTSOMp_xOwGAPNK
     """
-    def __init__(self, strategy= 1.0, n_neighbors= 5, n_clusters= 10, irt= 1.0):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_clusters= 10, irt= 2.0):
         """
         Constructor of the sampling object
         Args:
-            strategy (float): proportion of the difference of n_maj and n_min to sample
+            proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors
@@ -11520,10 +12066,18 @@ class kmeans_SMOTE(OverSampling):
             irt (float): imbalanced ratio threshold
         """
         super().__init__()
-        self.strategy= strategy
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_greater_or_equal(n_clusters, "n_clusters", 1)
+        self.check_greater_or_equal(irt, "irt", 0)
+        
+        self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_clusters= n_clusters
         self.irt= irt
+        
+        self.set_cat_extensive()
+        self.set_cat_uses_clustering()
     
     @classmethod
     def parameter_combinations(cls):
@@ -11532,7 +12086,7 @@ class kmeans_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_paramter_combinations({'strategy': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'n_clusters': [10, 20, 50], 'irt': [0.5, 0.8, 1.0, 1.5]})
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'n_neighbors': [3, 5, 7], 'n_clusters': [10, 20, 50], 'irt': [0.5, 0.8, 1.0, 1.5]})
     
     def sample(self, X, y):
         """
@@ -11543,38 +12097,53 @@ class kmeans_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        self.class_label_statistics(X, y)
-        num_to_sample= self.number_of_instances_to_sample(self.strategy, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        logging.info("Running sampling via %s" % self.descriptor())
         
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        # applying kmeans clustering to all data
         kmeans= KMeans(n_clusters= self.n_clusters)
         kmeans.fit(X)
         
+        # extracting clusters
         labels= kmeans.labels_
         clusters= [np.where(labels == l)[0] for l in range(self.n_clusters)]
         
         # cluster filtering
         filt_clusters= [c for c in clusters if (np.sum(y[c] == self.majority_label) + 1)/(np.sum(y[c] == self.minority_label) + 1) < self.irt]
         
+        # Step 2 in the paper
         sparsity= []
         nearest_neighbors= []
         cluster_minority_ind= []
         for c in filt_clusters:
+            # extract minority indices in the cluster
             minority_ind= c[y[c] == self.minority_label]
             cluster_minority_ind.append(minority_ind)
+            # compute distance matrix of minority samples in the cluster
             dm= pairwise_distances(X[minority_ind])
             min_count= len(minority_ind)
+            # compute the average of distances
             avg_min_dist= (np.sum(dm) - dm.trace())/(len(minority_ind)**2 - len(minority_ind))
+            # compute sparsity (Step 4)
             sparsity.append(avg_min_dist**len(X[0])/min_count)
-            nearest_neighbors.append(NearestNeighbors(n_neighbors= self.n_neighbors).fit(X[minority_ind]).kneighbors(X[minority_ind]))
-            
+            # extract the nearest neighbors graph
+            nearest_neighbors.append(NearestNeighbors(n_neighbors= min([len(minority_ind), self.n_neighbors + 1])).fit(X[minority_ind]).kneighbors(X[minority_ind]))
+        
+        # Step 5 - compute density of sampling
         weights= sparsity/np.sum(sparsity)
         
+        # do the sampling
         samples= []
         while len(samples) < num_to_sample:
+            # choose random cluster index and random minority element
             clust_ind= np.random.choice(np.arange(len(weights)), p= weights)
             idx= np.random.randint(len(cluster_minority_ind[clust_ind]))
             base_idx= cluster_minority_ind[clust_ind][idx]
+            # choose random neighbor
             neighbor_idx= np.random.choice(cluster_minority_ind[clust_ind][nearest_neighbors[clust_ind][1][idx][1:]])
+            # sample
             samples.append(self.sample_between_points(X[base_idx], X[neighbor_idx]))
             
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
@@ -11584,7 +12153,100 @@ class kmeans_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'strategy': self.strategy, 'n_neighbors': self.n_neighbors, 'n_clusters': self.n_clusters, 'irt': self.irt}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_clusters': self.n_clusters, 'irt': self.irt}
+
+class Supervised_SMOTE(OverSampling):
+    """
+    @article{supervised_smote,
+                author = {Hu, Jun AND He, Xue AND Yu, Dong-Jun AND Yang, Xi-Bei AND Yang, Jing-Yu AND Shen, Hong-Bin},
+                journal = {PLOS ONE},
+                publisher = {Public Library of Science},
+                title = {A New Supervised Over-Sampling Algorithm with Application to Protein-Nucleotide Binding Residue Prediction},
+                year = {2014},
+                month = {09},
+                volume = {9},
+                url = {https://doi.org/10.1371/journal.pone.0107676},
+                pages = {1-10},
+                abstract = {Protein-nucleotide interactions are ubiquitous in a wide variety of biological processes. Accurately identifying interaction residues solely from protein sequences is useful for both protein function annotation and drug design, especially in the post-genomic era, as large volumes of protein data have not been functionally annotated. Protein-nucleotide binding residue prediction is a typical imbalanced learning problem, where binding residues are extremely fewer in number than non-binding residues. Alleviating the severity of class imbalance has been demonstrated to be a promising means of improving the prediction performance of a machine-learning-based predictor for class imbalance problems. However, little attention has been paid to the negative impact of class imbalance on protein-nucleotide binding residue prediction. In this study, we propose a new supervised over-sampling algorithm that synthesizes additional minority class samples to address class imbalance. The experimental results from protein-nucleotide interaction datasets demonstrate that the proposed supervised over-sampling algorithm can relieve the severity of class imbalance and help to improve prediction performance. Based on the proposed over-sampling algorithm, a predictor, called TargetSOS, is implemented for protein-nucleotide binding residue prediction. Cross-validation tests and independent validation tests demonstrate the effectiveness of TargetSOS. The web-server and datasets used in this study are freely available at http://www.csbio.sjtu.edu.cn/bioinf/TargetSOS/.},
+                number = {9},
+                doi = {10.1371/journal.pone.0107676}
+            }
+
+    URL: https://drive.google.com/open?id=1QwAVP9VUBprGFPtrqQra7y-xEBYvqO7Z
+    
+    I have choosen the simple, non-parametric LinearDiscriminantAnalysis classifier.
+    """
+    def __init__(self, proportion= 1.0, th_lower= 0.5, th_upper= 1.0):
+        """
+        Constructor of the sampling object
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min to sample
+                                    e.g. 1.0 means that after sampling the number of minority
+                                    samples will be equal to the number of majority samples
+            th_lower (float): lower bound of the confidence interval
+            th_upper (float): upper bound of the confidence interval
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_in_range(th_lower, "th_lower", [0, 1])
+        self.check_in_range(th_upper, "th_upper", [0, 1])
+        
+        self.proportion= proportion
+        self.th_lower= th_lower
+        self.th_upper= th_upper
+        
+        self.set_cat_extensive()
+        self.set_cat_sample_ordinary()
+        self.set_cat_uses_classifier()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_parameter_combinations({'proportion': [0.5, 1.0, 1.5], 'th_lower': [0.3, 0.5, 0.8], 'th_upper': [1.0]})
+    
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info("Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        # training the classifier
+        classifier= LinearDiscriminantAnalysis()
+        classifier.fit(X, y)
+        
+        X_min= X[y == self.minority_label]
+        
+        # do the sampling
+        samples= []
+        while len(samples) < num_to_sample:
+            x0, x1= X_min[np.random.choice(np.arange(len(X_min)), 2, replace= False)]
+            sample= self.generate_between_samples(x0, x1)
+            probs= classifier.predict_proba(sample.reshape(1, -1))
+            # extract probability
+            prob= probs[0][np.where(classifier.classes_ == self.minority_label)[0][0]]
+            if prob >= self.th_lower and prob <= self.th_upper:
+                samples.append(sample)
+            
+        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion, 'th_lower': self.th_lower, 'th_upper': self.th_upper}
 
 
 class Evaluation():
@@ -11630,38 +12292,106 @@ class Evaluation():
         results['auc']= roc_auc_score(all_test, all_pred[:,1])
         return results
     
-    def check_cache(self, label):
+    def standardize_label(self, label):
+        label= label.replace("'", "")
+        label= label.replace('"', "")
+        label= label.replace("\\", "")
+        label= label.replace(",", "")
+        label= label.replace(":", "")
+        label= label.replace(" ", "_")
+        label= label.replace("(", "")
+        label= label.replace(")", "")
+        label= label.replace("{", "")
+        label= label.replace("}", "")
+        return label
+    
+    def check_cache(self, label, cache_path):
         hash_code= hash(label)
-        filename= str(hash_code) + '.pickle'
+        #filename= 'results_' + self.standardize_label(str(label)) + '.pickle'
+        filename= 'results_' + str(hash_code) + '.pickle'
         
-        if self.cache_path is None:
+        if cache_path is None:
             return None, None
         
-        filename_path= os.path.join(self.cache_path, filename)
+        dir_path= os.path.join(cache_path, label[-1])
+        if not os.path.isdir(dir_path):
+            os.mkdir(dir_path)
         
-        if (not self.cache_path is None) and not os.path.isfile(filename_path):
+        filename_path= os.path.join(cache_path, label[-1], filename)
+        
+        if (not cache_path is None) and not os.path.isfile(filename_path):
             return None, filename_path
         
-        if (not self.cache_path is None) and os.path.isfile(filename_path):
+        if (not cache_path is None) and os.path.isfile(filename_path):
             print('Reading from cache %s' % filename_path)
             return pickle.load(open(filename_path, 'rb')), None
-            
+    
+    def database_folding_cache(self, X, y, db_name, cache_path):
+        filename= str(db_name) + "_folds" + ".pickle"
+        filename_path= os.path.join(cache_path, db_name, filename)
+        
+        if (not cache_path is None) and not os.path.isfile(filename_path):
+            logging.info("Doing database folding %s" % db_name)
+            folding= []
+            for train_index, test_index in self.validator.split(X, y, y):
+                ss= StandardScaler()
+                X_train_ss= ss.fit_transform(X[train_index])
+                X_test_ss= ss.transform(X[test_index])
+                folding.append((X_train_ss, y[train_index], X_test_ss, y[test_index]))
+            pickle.dump(folding, open(filename_path, 'wb'))
+        elif (not cache_path is None) and os.path.isfile(filename_path):
+            logging.info("Reading database folding from cache for database %s" % db_name)
+            return pickle.load(open(filename_path, 'rb'))
+        
+        return None
+    
+    def database_sampling_cache(self, folding, db_name, sampler, cache_path):
+        filename= str(db_name) + "_" + self.standardize_label(sampler.descriptor()) + ".pickle"
+        filename_path= os.path.join(cache_path, db_name, filename)
+        
+        if (not cache_path is None) and not os.path.isfile(filename_path):
+            logging.info("Doing the sampling for database %s" % db_name)
+            sampling= []
+            for X_train, y_train, _, _ in folding:
+                X_samp, y_samp= sampler.sample(X_train, y_train)
+                sampling.append([X_samp, y_samp])
+            pickle.dump(sampling, open(filename_path, 'wb'))
+        elif (not cache_path is None) and os.path.isfile(filename_path):
+            logging.info("Reading sampling from cache for database %s" % db_name)
+            return pickle.load(open(filename_path, 'rb'))
     
     def evaluate_combination(self, sampler, classifier, X, y, label):
-        results, filename_path= self.check_cache(label)
+        results, filename_path= self.check_cache(label, self.cache_path)
         if not results is None:
             return results
-
+        
+        folding= self.database_folding_cache(X, y, label[-1], self.cache_path)
+        if folding is None:
+            logging.info("Doing database folding")
+            folding= []
+            for train_index, test_index in self.validator.split(X, y, y):
+                ss= StandardScaler()
+                X_train_ss= ss.fit_transform(X[train_index])
+                X_test_ss= ss.transform(X[test_index])
+                folding.append((X_train_ss, y[train_index], X_test_ss, y[test_index]))
+        
+        sampling= self.database_sampling_cache(folding, label[-1], sampler, self.cache_path)
+        if sampling is None:
+            sampling= []
+            for X_train, y_train, _, _ in folding:
+                X_samp, y_samp= sampler.sample(X_train, y_train)
+                sampling.append([X_samp, y_samp])
+        
         all_pred= []
         all_test= []
-        for train_index, test_index in self.validator.split(X, y, y):
-            X_train, X_test= X[train_index], X[test_index]
-            y_train, y_test= y[train_index], y[test_index]
-            X_samp, y_samp= sampler.sample(X_train, y_train)
-            classifier.fit(X_samp, y_samp)
-            y_pred= classifier.predict_proba(X_test)
-            all_pred.append(y_pred)
-            all_test.append(y_test)
+        for f, s in zip(folding, sampling):
+            if np.sum(s[1] == s[1][0]) != len(s[1]):
+                classifier.fit(s[0], s[1])
+                all_test.append(f[-1])
+                all_pred.append(classifier.predict_proba(f[-2]))
+            else:
+                all_test.append(f[-1])
+                all_pred.append(np.vstack([[1.0, 0.0]]*len(f[-2])))
         
         all_pred= np.vstack(all_pred)
         all_test= np.hstack(all_test)
@@ -11669,8 +12399,8 @@ class Evaluation():
         results= self.calculate_metrics(all_pred, all_test)
         
         if not filename_path is None:
-            print('Writing to cache %s' % filename_path)
-            pickle.dump(results, filename_path)
+            logging.info('Writing to cache %s' % filename_path)
+            pickle.dump(results, open(filename_path, 'wb'))
     
     def evaluate(self):
         results= {}
@@ -11687,17 +12417,26 @@ class Evaluation():
                         X= dataset['data']
                         y= dataset['target']
                         dataset_name= dataset['DESCR']
-                        print('processing sampler %s classifier %s dataset %s' % (sampler_name, classifier_name, dataset_name))
+                        logging.info('processing sampler %s classifier %s dataset %s' % (sampler_name, classifier_name, dataset_name))
                         label= ((sampler_name, sampler_params), (classifier_name, classifier_params), dataset_name)
                         tmp= self.evaluate_combination(s, c, X, y, label)
-                        print(tmp)
+                        logging.info(tmp)
                         results[label]= tmp
                     
         return results
-        
+
+samplers= [globals()[s] for s in __all__[6:]]
+
+e= Evaluation(samplers= samplers,
+               classifiers= [KNeighborsClassifier(n_neighbors= 5), LogisticRegression()],
+               datasets= [rd.load_glass],
+               cache_path= '/home/gykovacs/workspaces/sampling_cache')
+
+e.evaluate()
+
 e= Evaluation(samplers= [SMOTE, SMOTE_TomekLinks, SMOTE_ENN, Borderline_SMOTE1, Borderline_SMOTE2, ADASYN],
                classifiers= [KNeighborsClassifier(n_neighbors= 5), LogisticRegression()],
                datasets= [rd.load_glass],
-               cache_path= '/home/gykovacs')
+               cache_path= '/home/gykovacs/workspaces/sampling_cache')
 
 results= e.evaluate()
