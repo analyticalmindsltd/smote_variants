@@ -13842,7 +13842,7 @@ class CacheAndValidate():
                  datasets, 
                  cache_path, 
                  validator= RepeatedStratifiedKFold(n_splits= 5, n_repeats= 3), 
-                 remove_sampling_cache= False, 
+                 remove_sampling_cache= True, 
                  max_n_sampler_par_comb= 35,
                  n_jobs= 1,
                  aggregations= {}):
