@@ -14,12 +14,14 @@ import logging
 import re
 import time
 import glob
+import inspect
 
 # used to parallelize evaluation
 from joblib import Parallel, delayed
 
 # numerical methods and arrays
 import numpy as np
+import pandas as pd
 
 # import packages used for the implementation of sampling methods
 from sklearn.model_selection import RepeatedStratifiedKFold, KFold, cross_val_score, StratifiedKFold
@@ -42,9 +44,6 @@ from sklearn.neural_network import MLPClassifier
 #from sklearn.calibration import CalibratedClassifierCV
 from sklearn.base import clone
 
-# for the mode function
-from statistics import mode
-
 # some statistical methods
 from scipy.stats import skew
 import scipy.signal as ssignal
@@ -55,9 +54,6 @@ from scipy.stats.mstats import gmean
 
 # self-organizing map implementation
 import minisom
-
-# to judge if a name is a class
-import inspect
 
 for handler in logging.root.handlers[:]:
     logging.root.removeHandler(handler)
@@ -180,6 +176,10 @@ def get_all_noisefilters():
     """
     return [globals()[s] for s in __all__ if s in globals() and inspect.isclass(globals()[s]) and issubclass(globals()[s], NoiseFilter)]
 
+def mode(data):
+    values, counts= np.unique(data, return_counts= True)
+    return values[np.where(counts == max(counts))[0][0]]
+
 class StatisticsMixin:
     """
     Mixin to compute class statistics and determine minority/majority labels
@@ -211,7 +211,7 @@ class ParameterCheckingMixin:
             ValueError
         """
         if x < r[0] or x > r[1]:
-            raise ValueError(self.__class__.__name__ + " " + "Value for parameter %s outside the range [%f,%f] is not allowed: %f" % (name, r[0], r[1], x))
+            raise ValueError(self.__class__.__name__ + ": " + "Value for parameter %s outside the range [%f,%f] is not allowed: %f" % (name, r[0], r[1], x))
     
     def check_out_range(self, x, name, r):
         """
@@ -224,7 +224,7 @@ class ParameterCheckingMixin:
             ValueError
         """
         if x >= r[0] and x <= r[1]:
-            raise ValueError(self.__class__.__name__ + " " + "Value for parameter %s outside the range [%f,%f] is not allowed: %f" % (name, r[0], r[1], x))
+            raise ValueError(self.__class__.__name__ + ": " + "Value for parameter %s outside the range [%f,%f] is not allowed: %f" % (name, r[0], r[1], x))
     
     def check_less_or_equal(self, x, name, val):
         """
@@ -237,7 +237,7 @@ class ParameterCheckingMixin:
             ValueError
         """
         if x > val:
-            raise ValueError(self.__class__.__name__ + " " + "Value for parameter %s greater than %f is not allowed: %f > %f" % (name, val, x, val))
+            raise ValueError(self.__class__.__name__ + ": " + "Value for parameter %s greater than %f is not allowed: %f > %f" % (name, val, x, val))
     
     def check_less_or_equal_par(self, x, name_x, y, name_y):
         """
@@ -251,7 +251,7 @@ class ParameterCheckingMixin:
             ValueError
         """
         if x > y:
-            raise ValueError(self.__class__.__name__ + " " + "Value for parameter %s greater than parameter %s is not allowed: %f > %f" % (name_x, name_y, x, y))
+            raise ValueError(self.__class__.__name__ + ": " + "Value for parameter %s greater than parameter %s is not allowed: %f > %f" % (name_x, name_y, x, y))
     
     def check_less(self, x, name, val):
         """
@@ -264,7 +264,7 @@ class ParameterCheckingMixin:
             ValueError
         """
         if x >= val:
-            raise ValueError(self.__class__.__name__ + " " + "Value for parameter %s greater than or equal to %f is not allowed: %f >= %f" % (name, val, x, val))
+            raise ValueError(self.__class__.__name__ + ": " + "Value for parameter %s greater than or equal to %f is not allowed: %f >= %f" % (name, val, x, val))
         
     def check_less_par(self, x, name_x, y, name_y):
         """
@@ -278,7 +278,7 @@ class ParameterCheckingMixin:
             ValueError
         """
         if x >= y:
-            raise ValueError(self.__class__.__name__ + " " + "Value for parameter %s greater than or equal to parameter %s is not allowed: %f >= %f" % (name_x, name_y, x, y))
+            raise ValueError(self.__class__.__name__ + ": " + "Value for parameter %s greater than or equal to parameter %s is not allowed: %f >= %f" % (name_x, name_y, x, y))
     
     def check_greater_or_equal(self, x, name, val):
         """
@@ -291,7 +291,7 @@ class ParameterCheckingMixin:
             ValueError
         """
         if x < val:
-            raise ValueError(self.__class__.__name__ + " " + "Value for parameter %s less than %f is not allowed: %f < %f" % (name, val, x, val))
+            raise ValueError(self.__class__.__name__ + ": " + "Value for parameter %s less than %f is not allowed: %f < %f" % (name, val, x, val))
         
     def check_greater_or_equal_par(self, x, name_x, y, name_y):
         """
@@ -305,7 +305,7 @@ class ParameterCheckingMixin:
             ValueError
         """
         if x < y:
-            raise ValueError(self.__class__.__name__ + " " + "Value for parameter %s less than parameter %s is not allowed: %f < %f" % (name_x, name_y, x, y))
+            raise ValueError(self.__class__.__name__ + ": " + "Value for parameter %s less than parameter %s is not allowed: %f < %f" % (name_x, name_y, x, y))
     
     def check_greater(self, x, name, val):
         """
@@ -318,7 +318,7 @@ class ParameterCheckingMixin:
             ValueError
         """
         if x <= val:
-            raise ValueError(self.__class__.__name__ + " " + "Value for parameter %s less than or equal to %f is not allowed: %f < %f" % (name, val, x, val))
+            raise ValueError(self.__class__.__name__ + ": " + "Value for parameter %s less than or equal to %f is not allowed: %f < %f" % (name, val, x, val))
         
     def check_greater_par(self, x, name_x, y, name_y):
         """
@@ -332,7 +332,7 @@ class ParameterCheckingMixin:
             ValueError
         """
         if x <= y:
-            raise ValueError(self.__class__.__name__ + " " + "Value for parameter %s less than or equal to parameter %s is not allowed: %f <= %f" % (name_x, name_y, x, y))
+            raise ValueError(self.__class__.__name__ + ": " + "Value for parameter %s less than or equal to parameter %s is not allowed: %f <= %f" % (name_x, name_y, x, y))
     
     def check_equal(self, x, name, val):
         """
@@ -345,7 +345,7 @@ class ParameterCheckingMixin:
             ValueError
         """
         if x == val:
-            raise ValueError(self.__class__.__name__ + " " + "Value for parameter %s equal to parameter %f is not allowed: %f == %f" % (name, val, x, val))
+            raise ValueError(self.__class__.__name__ + ": " + "Value for parameter %s equal to parameter %f is not allowed: %f == %f" % (name, val, x, val))
         
     def check_equal_par(self, x, name_x, y, name_y):
         """
@@ -359,7 +359,7 @@ class ParameterCheckingMixin:
             ValueError
         """
         if x == y:
-            raise ValueError(self.__class__.__name__ + " " + "Value for parameter %s equal to parameter %s is not allowed: %f == %f" % (name_x, name_y, x, y))
+            raise ValueError(self.__class__.__name__ + ": " + "Value for parameter %s equal to parameter %s is not allowed: %f == %f" % (name_x, name_y, x, y))
     
     def check_isin(self, x, name, l):
         """
@@ -372,7 +372,7 @@ class ParameterCheckingMixin:
             ValueError
         """
         if not x in l:
-            raise ValueError(self.__class__.__name__ + " " + "Value for parameter %s not in list %s is not allowed: %s" % (name, str(l), str(x)))
+            raise ValueError(self.__class__.__name__ + ": " + "Value for parameter %s not in list %s is not allowed: %s" % (name, str(l), str(x)))
 
 class ParameterCombinationsMixin:
     """
@@ -456,7 +456,7 @@ class TomekLinkRemoval(NoiseFilter):
         Returns:
             np.matrix, np.array: dataset after noise removal
         """
-        logging.info(self.__class__.__name__ + " " +"Running noise removal via %s" % self.__class__.__name__)
+        logging.info(self.__class__.__name__ + ": " +"Running noise removal via %s" % self.__class__.__name__)
         self.class_label_statistics(X, y)
         
         # using 2 neighbors because the first neighbor is the point itself
@@ -482,7 +482,7 @@ class TomekLinkRemoval(NoiseFilter):
                 to_remove.append(l[0])
                 to_remove.append(l[1])
             else:
-                raise ValueError(self.__class__.__name__ + " " + 'No Tomek link removal strategy %s implemented' % self.strategy)
+                raise ValueError(self.__class__.__name__ + ": " + 'No Tomek link removal strategy %s implemented' % self.strategy)
         
         to_remove= list(set(to_remove))
         
@@ -520,7 +520,7 @@ class CondensedNearestNeighbors(NoiseFilter):
         Returns:
             np.matrix, np.array: dataset after noise removal
         """
-        logging.info(self.__class__.__name__ + " " +"Running noise removal via %s" % self.__class__.__name__)
+        logging.info(self.__class__.__name__ + ": " +"Running noise removal via %s" % self.__class__.__name__)
         self.class_label_statistics(X, y)
         
         # Initial result set consists of all minority samples and 1 majority sample
@@ -583,7 +583,7 @@ class OneSidedSelection(NoiseFilter):
         Returns:
             np.matrix, np.array: cleaned features and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running noise removal via %s" % self.__class__.__name__)
+        logging.info(self.__class__.__name__ + ": " +"Running noise removal via %s" % self.__class__.__name__)
         self.class_label_statistics(X, y)
         
         t= TomekLinkRemoval()
@@ -631,7 +631,7 @@ class CNNTomekLinks(NoiseFilter):
         Returns:
             np.matrix, np.array: cleaned features and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running noise removal via %s" % self.__class__.__name__)
+        logging.info(self.__class__.__name__ + ": " +"Running noise removal via %s" % self.__class__.__name__)
         self.class_label_statistics(X, y)
         
         c= CondensedNearestNeighbors()
@@ -677,7 +677,7 @@ class NeighborhoodCleaningRule(NoiseFilter):
         Returns:
             np.matrix, np.array: cleaned features and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running noise removal via %s" % self.__class__.__name__)
+        logging.info(self.__class__.__name__ + ": " +"Running noise removal via %s" % self.__class__.__name__)
         self.class_label_statistics(X, y)
         
         # fitting nearest neighbors with proposed parameter
@@ -740,7 +740,7 @@ class EditedNearestNeighbors(NoiseFilter):
         Checks if the parameters of the technique are valid
         """
         if not self.remove in ['both', 'min', 'maj']:
-            raise ValueError(self.__class__.__name__ + " " + 'Remove mode %s not implemented' % self.remove)
+            raise ValueError(self.__class__.__name__ + ": " + 'Remove mode %s not implemented' % self.remove)
     
     def remove_noise(self, X, y):
         """
@@ -751,7 +751,7 @@ class EditedNearestNeighbors(NoiseFilter):
         Returns:
             np.matrix, np.array: cleaned features and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running noise removal via %s" % self.__class__.__name__)
+        logging.info(self.__class__.__name__ + ": " +"Running noise removal via %s" % self.__class__.__name__)
         self.class_label_statistics(X, y)
         
         nn= NearestNeighbors(n_neighbors= 4)
@@ -938,6 +938,7 @@ class OverSampling(StatisticsMixin, ParameterCheckingMixin, ParameterCombination
     cat_changes_majority= 'CM'
     cat_uses_clustering= 'Clus'
     cat_borderline= 'BL'
+    cat_application= 'A'
     
     def __init__(self):
         pass
@@ -955,7 +956,7 @@ class OverSampling(StatisticsMixin, ParameterCheckingMixin, ParameterCombination
         if isinstance(strategy, float) or isinstance(strategy, int):
             return max([0, int((n_maj - n_min)*strategy)])
         else:
-            raise ValueError(self.__class__.__name__ + " " + "Value %s for parameter strategy is not supported" % strategy)
+            raise ValueError(self.__class__.__name__ + ": " + "Value %s for parameter strategy is not supported" % strategy)
     
     def sample_between_points(self, x, y):
         """
@@ -1030,7 +1031,7 @@ class OverSampling(StatisticsMixin, ParameterCheckingMixin, ParameterCombination
     def sample_with_timing(self, X, y):
         begin= time.time()
         X_samp, y_samp= self.sample(X, y)
-        logging.info(self.__class__.__name__ + " " + ("runtime: %f" % (time.time() - begin)))
+        logging.info(self.__class__.__name__ + ": " + ("runtime: %f" % (time.time() - begin)))
         return X_samp, y_samp
     
     def transform(self, X):
@@ -1146,7 +1147,7 @@ class SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -1178,7 +1179,7 @@ class SMOTE(OverSampling):
 
 class SMOTE_TomekLinks(OverSampling):
     """
-    @article{smoteNoise0,
+    @article{smote_tomeklinks_enn,
              author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
              title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
              journal = {SIGKDD Explor. Newsl.},
@@ -1238,7 +1239,7 @@ class SMOTE_TomekLinks(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -1258,7 +1259,7 @@ class SMOTE_TomekLinks(OverSampling):
     
 class SMOTE_ENN(OverSampling):
     """
-    @article{smoteNoise0,
+    @article{smote_tomeklinks_enn,
              author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
              title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
              journal = {SIGKDD Explor. Newsl.},
@@ -1277,6 +1278,8 @@ class SMOTE_ENN(OverSampling):
              address = {New York, NY, USA},
             } 
     URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
+    
+    Can remove too many of minority samples.
     """
     
     categories= [OverSampling.cat_sample_ordinary,
@@ -1318,7 +1321,7 @@ class SMOTE_ENN(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -1397,7 +1400,7 @@ class Borderline_SMOTE1(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -1420,8 +1423,12 @@ class Borderline_SMOTE1(OverSampling):
                 danger.append(i)
         X_danger= X_min[danger]
         
+        if len(X_danger) == 0:
+            logging.info(self.__class__.__name__ + ": " + "No samples in danger")
+            return X.copy(), y.copy()
+        
         # fitting nearest neighbors model to minority samples
-        nn= NearestNeighbors(self.k_neighbors + 1)
+        nn= NearestNeighbors(min([len(X_min), self.k_neighbors + 1]))
         nn.fit(X_min)
         # extracting neighbors of samples in danger
         distances, indices= nn.kneighbors(X_danger)
@@ -1503,7 +1510,7 @@ class Borderline_SMOTE2(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -1525,6 +1532,10 @@ class Borderline_SMOTE2(OverSampling):
             if mode(y[indices[i][1:]]) == self.majority_label:
                 danger.append(i)
         X_danger= X_min[danger]
+        
+        if len(X_danger) == 0:
+            logging.info(self.__class__.__name__ + ": " + "No samples in danger")
+            return X.copy(), y.copy()
         
         # fitting nearest neighbors model to minority samples
         nn= NearestNeighbors(self.k_neighbors + 1)
@@ -1606,7 +1617,7 @@ class ADASYN(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -1621,7 +1632,7 @@ class ADASYN(OverSampling):
             return X.copy(), y.copy()
         
         # fitting nearest neighbors model to all samples
-        nn= NearestNeighbors(self.n_neighbors+1)
+        nn= NearestNeighbors(min([len(X_min), self.n_neighbors+1]))
         nn.fit(X)
         distances, indices= nn.kneighbors(X_min)
         
@@ -1635,7 +1646,7 @@ class ADASYN(OverSampling):
         num_to_sample= (m_maj - m_min)*self.beta
         
         # fitting nearest neighbors models to minority samples
-        nn= NearestNeighbors(self.n_neighbors + 1)
+        nn= NearestNeighbors(min([len(X_min), self.n_neighbors + 1]))
         nn.fit(X_min)
         distances, indices= nn.kneighbors(X_min)
         
@@ -1675,7 +1686,8 @@ class AHC(OverSampling):
     """
     
     categories= [OverSampling.cat_changes_majority,
-                 OverSampling.cat_uses_clustering]
+                 OverSampling.cat_uses_clustering,
+                 OverSampling.cat_application]
     
     def __init__(self, strategy= 'min'):
         """
@@ -1760,7 +1772,7 @@ class AHC(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -1845,7 +1857,7 @@ class LLE_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -1959,7 +1971,7 @@ class distance_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -1967,7 +1979,7 @@ class distance_SMOTE(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting the model
-        nn= NearestNeighbors(self.n_neighbors+1).fit(X_min)
+        nn= NearestNeighbors(min([len(X_min), self.n_neighbors+1])).fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
         # determine the number of samples to generate
@@ -2044,7 +2056,7 @@ class SMMO(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -2066,7 +2078,7 @@ class SMMO(OverSampling):
         mask_to_sample= np.where(np.logical_and(np.logical_not(np.equal(pred, y)), y == self.minority_label))[0]
         if len(mask_to_sample) < 2:
             # fallback to a SMOTE-like sampling
-            logging.info(self.__class__.__name__ + " " +"Not enough minority samples selected %d" % len(mask_to_sample))
+            logging.info(self.__class__.__name__ + ": " +"Not enough minority samples selected %d" % len(mask_to_sample))
             mask_to_sample= np.where(y == self.minority_label)[0]
         
         X_min= X[y == self.minority_label]
@@ -2149,7 +2161,7 @@ class polynom_fit_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -2163,14 +2175,14 @@ class polynom_fit_SMOTE(OverSampling):
         if self.topology == 'star':
             # Implementation of the star topology
             X_mean= np.mean(X_min, axis= 0)
-            k= int(np.rint(num_to_sample/len(X_min)))
+            k= max([1, int(np.rint(num_to_sample/len(X_min)))])
             for x in X_min:
                 diff= X_mean - x
                 for i in range(1, k+1):
                     samples.append(x + float(i)/(k+1)*diff)
         elif self.topology == 'bus':
             # Implementation of the bus topology
-            k= int(np.rint(num_to_sample/len(X_min)))
+            k= max([1, int(np.rint(num_to_sample/len(X_min)))])
             for i in range(1, len(X_min)):
                 diff= X_min[i-1] - X_min[i]
                 for j in range(1, k+1):
@@ -2184,7 +2196,7 @@ class polynom_fit_SMOTE(OverSampling):
                     diff= X_min[random_i] - X_min[random_j]
                     samples.append(X_min[random_i] + 0.5*diff)
             else:
-                k= int(np.rint(num_to_sample/(len(X_min)*(len(X_min)-1)/2)))
+                k= max([1, int(np.rint(num_to_sample/(len(X_min)*(len(X_min)-1)/2)))])
                 for i in range(len(X_min)):
                     for j in range(len(X_min)):
                         diff= X_min[i] - X_min[j]
@@ -2265,7 +2277,7 @@ class Stefanowski(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -2333,6 +2345,9 @@ class Stefanowski(OverSampling):
         to_remove= np.where(D)[0]
         X_noise_removed= np.delete(X, to_remove, axis= 0)
         y_noise_removed= np.delete(y, to_remove, axis= 0)
+        
+        if len(samples) == 0:
+            return X_noise_removed, y_noise_removed
             
         return np.vstack([X_noise_removed, np.vstack(samples)]), np.hstack([y_noise_removed, np.repeat(self.minority_label, len(samples))])
     
@@ -2397,7 +2412,7 @@ class ADOMS(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -2407,7 +2422,7 @@ class ADOMS(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting nearest neighbors model
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1)
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors+1]))
         nn.fit(X_min)
         distance, indices= nn.kneighbors(X_min)
         
@@ -2424,7 +2439,7 @@ class ADOMS(OverSampling):
             principal_direction= pca.components_[0]
             
             # do the sampling according to the description in the paper
-            random_neighbor= neighbors[np.random.randint(1, self.n_neighbors+1)]
+            random_neighbor= neighbors[np.random.randint(1, len(neighbors))]
             d= np.linalg.norm(random_neighbor - X_min[index])
             r= np.random.random()
             sign= 1.0 if np.dot(random_neighbor - X_min[index], principal_direction) > 0.0 else -1.0
@@ -2502,7 +2517,7 @@ class Safe_Level_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -2556,7 +2571,7 @@ class Safe_Level_SMOTE(OverSampling):
                 samples.append(s)
                 
         if len(samples) == 0:
-            logging.warning(self.__class__.__name__ + " " +"No samples generated")
+            logging.warning(self.__class__.__name__ + ": " +"No samples generated")
             return X.copy(), y.copy()
         else:
             return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
@@ -2587,6 +2602,8 @@ class MSMOTE(OverSampling):
                      keywords = {imbalanced data, over-sampling, SMOTE, AdaBoost, samples groups, SMOTEBoost},
                     } 
     URL: https://drive.google.com/open?id=1tFtNJWUSIYDKnhBAdb6QqIhYqy-khIxa
+    
+    Not prepared for the case when all minority samples are noise.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -2628,7 +2645,7 @@ class MSMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -2642,6 +2659,8 @@ class MSMOTE(OverSampling):
         nn.fit(X)
         distance, indices= nn.kneighbors(X_min)
         
+        noise_mask= np.repeat(False, len(X_min))
+        
         # generating samples        
         samples= []
         while len(samples) < num_to_sample:
@@ -2653,6 +2672,10 @@ class MSMOTE(OverSampling):
                 sample_type= 'security'
             elif n_p == 0:
                 sample_type= 'noise'
+                noise_mask[index]= True
+                if np.all(noise_mask):
+                    logging.info("All minority samples are noise")
+                    return X, y
             else:
                 sample_type= 'border'
                 
@@ -2741,7 +2764,7 @@ class DE_oversampling(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -2752,7 +2775,7 @@ class DE_oversampling(OverSampling):
         
         X_min= X[y == self.minority_label]
         
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1)
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors+1]))
         nn.fit(X_min)
         distance, indices= nn.kneighbors(X_min)
         
@@ -2864,7 +2887,7 @@ class OPTICS:
         n_samples = len(X)
 
         if self.min_samples > n_samples:
-            raise ValueError(self.__class__.__name__ + " " + "Number of training samples (n_samples=%d) must "
+            raise ValueError(self.__class__.__name__ + ": " + "Number of training samples (n_samples=%d) must "
                              "be greater than min_samples (min_samples=%d) "
                              "used for clustering." %
                              (n_samples, self.min_samples))
@@ -2872,11 +2895,11 @@ class OPTICS:
         if self.min_cluster_size <= 0 or (self.min_cluster_size !=
                                           int(self.min_cluster_size)
                                           and self.min_cluster_size > 1):
-            raise ValueError(self.__class__.__name__ + " " + 'min_cluster_size must be a positive integer or '
+            raise ValueError(self.__class__.__name__ + ": " + 'min_cluster_size must be a positive integer or '
                              'a float between 0 and 1. Got %r' %
                              self.min_cluster_size)
         elif self.min_cluster_size > n_samples:
-            raise ValueError(self.__class__.__name__ + " " + 'min_cluster_size must be no greater than the '
+            raise ValueError(self.__class__.__name__ + ": " + 'min_cluster_size must be no greater than the '
                              'number of samples (%d). Got %d' %
                              (n_samples, self.min_cluster_size))
 
@@ -3032,7 +3055,7 @@ class SMOBD(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -3043,7 +3066,7 @@ class SMOBD(OverSampling):
         
         # running the OPTICS technique based on the sklearn implementation
         # TODO: replace to sklearn call once it is stable
-        o= OPTICS(min_samples= self.min_samples, max_eps= self.max_eps)
+        o= OPTICS(min_samples= min([len(X_min)-1,self.min_samples]), max_eps= self.max_eps)
         o.fit(X_min)
         cd= o.core_distances_
         rd= o.reachability_
@@ -3054,7 +3077,7 @@ class SMOBD(OverSampling):
         noise= np.logical_and(cd > cd_average*self.t, rd > rd_average*self.t)
         
         # fitting a nearest neighbor model to be able to find neighbors in radius
-        nn= NearestNeighbors(n_neighbors= self.min_samples+1)
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.min_samples+1]))
         nn.fit(X_min)
         distances, indices= nn.kneighbors(X_min)
         
@@ -3108,7 +3131,8 @@ class SUNDO(OverSampling):
     URL: https://drive.google.com/open?id=1lVwDDE-wTx3bsA7HbwyQ2ifRX5BmO8rq
     """
     
-    categories= [OverSampling.cat_changes_majority]
+    categories= [OverSampling.cat_changes_majority,
+                 OverSampling.cat_application]
     
     def __init__(self):
         """
@@ -3134,7 +3158,7 @@ class SUNDO(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -3264,7 +3288,7 @@ class MSYN(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -3396,7 +3420,7 @@ class SVM_balance(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -3409,7 +3433,7 @@ class SVM_balance(OverSampling):
         best_score= 0
         best_C= 0.01
         for C in C_params:
-            logging.info(self.__class__.__name__ + " " +"Evaluating SVM with C=%f" % C)
+            logging.info(self.__class__.__name__ + ": " +"Evaluating SVM with C=%f" % C)
             svc= SVC(C= C, kernel= 'rbf')
             score= np.mean(cross_val_score(svc, X_norm, y, cv= 5))
             if score > best_score:
@@ -3562,7 +3586,7 @@ class TRIM_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -3574,7 +3598,7 @@ class TRIM_SMOTE(OverSampling):
         
         # executing the trimming
         # loop in line 2 of the paper
-        logging.info(self.__class__.__name__ + " " +"do the trimming process")
+        logging.info(self.__class__.__name__ + ": " +"do the trimming process")
         while len(leafs) > 0 or len(candidates) > 0:
             add_to_leafs= []
             # executing the loop starting in line 3
@@ -3640,7 +3664,7 @@ class TRIM_SMOTE(OverSampling):
         
         # handling the situation when no seeds were found
         if len(seeds) == 0:
-            logging.warning(self.__class__.__name__ + " " +"no seeds identified")
+            logging.warning(self.__class__.__name__ + ": " +"no seeds identified")
             return X.copy(), y.copy()
         
         # fix for bad choice of min_precision
@@ -3653,7 +3677,7 @@ class TRIM_SMOTE(OverSampling):
         X_seed= np.vstack([s[0] for s in seeds])
         y_seed= np.hstack([s[1] for s in seeds])
         
-        logging.info(self.__class__.__name__ + " " +"do the sampling process")
+        logging.info(self.__class__.__name__ + ": " +"do the sampling process")
         # generating samples by SMOTE
         X_seed_min= X_seed[y_seed == self.minority_label]
         nn= NearestNeighbors(n_neighbors= min([len(X_seed_min), self.n_neighbors+1]))
@@ -3746,7 +3770,7 @@ class SMOTE_RSB(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -3869,7 +3893,7 @@ class ProWSyn(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -3985,7 +4009,7 @@ class SL_graph_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -4071,7 +4095,7 @@ class NRSBoundary_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -4108,12 +4132,12 @@ class NRSBoundary_SMOTE(OverSampling):
         bound_set= np.array(bound_set)
         pos_set= np.array(pos_set)
         
-        if len(pos_set) == 0:
-            return X.copy, y.copy()
+        if len(pos_set) == 0 or len(bound_set) == 0:
+            return X.copy(), y.copy()
         
         # step 4 and 5
         # computing the nearest neighbors of the bound set from the minoriy set
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]))
         nn.fit(X_min)
         distances, indices= nn.kneighbors(X[bound_set])
         
@@ -4168,7 +4192,8 @@ class LVQ_SMOTE(OverSampling):
     to the neighborood of another pair of codebook elements.
     """
     
-    categories= [OverSampling.cat_extensive]
+    categories= [OverSampling.cat_extensive,
+                 OverSampling.cat_application]
     
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_clusters= 10):
         """
@@ -4207,7 +4232,7 @@ class LVQ_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -4221,13 +4246,13 @@ class LVQ_SMOTE(OverSampling):
         codebook= kmeans.cluster_centers_
         
         # get nearest neighbors of minority samples to codebook samples
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors)
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors]))
         nn.fit(X_min)
         distances, indices= nn.kneighbors(codebook)
         
         # do the sampling
         samples= []
-        for _ in range(num_to_sample):
+        while len(samples) < num_to_sample:
             # randomly selecting a pair of codebook elements
             cb_0, cb_1= np.random.choice(list(range(len(codebook))), 2, replace= False)
             diff= codebook[cb_0] - codebook[cb_1]
@@ -4244,7 +4269,7 @@ class LVQ_SMOTE(OverSampling):
             
             # translating a random neighbor of codebook element min_0 to 
             # the neighborhood of point_0
-            point_0= codebook[cb_0] + (X_min[indices[min_0][np.random.randint(self.n_neighbors)]] - codebook[min_0])
+            point_0= codebook[cb_0] + (X_min[indices[min_0][np.random.randint(len(indices[min_0]))]] - codebook[min_0])
             
             samples.append(point_0)
         
@@ -4383,7 +4408,7 @@ class SOI_CJ(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -4393,7 +4418,7 @@ class SOI_CJ(OverSampling):
         std_min= np.std(X_min, axis= 0)
         
         # do the clustering
-        logging.info(self.__class__.__name__ + " " +"Executing clustering")
+        logging.info(self.__class__.__name__ + ": " +"Executing clustering")
         clusters= self.clustering(X, y)
         
         # filtering the clusters, at least two points in a cluster are needed
@@ -4406,7 +4431,7 @@ class SOI_CJ(OverSampling):
             cluster_weights= cluster_nums/np.sum(cluster_nums)
             cluster_stds= [np.std(X[clusters_filtered[i]], axis= 0) for i in range(len(clusters_filtered))]
             
-            logging.info(self.__class__.__name__ + " " +"Executing sample generation")
+            logging.info(self.__class__.__name__ + ": " +"Executing sample generation")
             samples= []
             while len(samples) < num_to_sample:
                 cluster_idx= np.random.choice(np.arange(len(clusters_filtered)), p= cluster_weights)
@@ -4421,7 +4446,7 @@ class SOI_CJ(OverSampling):
             return np.vstack([X, samples]), np.hstack([y, np.array([self.minority_label]*len(samples))])
         else:
             # otherwise fall back to standard smote
-            logging.warning(self.__class__.__name__ + " " +"No clusters with more than 2 elements, falling back to SMOTE")
+            logging.warning(self.__class__.__name__ + ": " +"No clusters with more than 2 elements, falling back to SMOTE")
             return SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors).sample(X, y)
         
     def get_params(self):
@@ -4491,7 +4516,7 @@ class ROSE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -4569,7 +4594,7 @@ class SMOTE_OUT(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -4581,7 +4606,7 @@ class SMOTE_OUT(OverSampling):
         minority_indices= np.where(y == self.minority_label)[0]
         
         # nearest neighbors among minority points
-        nn_min= NearestNeighbors(self.n_neighbors + 1).fit(X_min)
+        nn_min= NearestNeighbors(min([len(X_min), self.n_neighbors + 1])).fit(X_min)
         min_distances, min_indices= nn_min.kneighbors(X_min)
         # nearest neighbors among majority points
         nn_maj= NearestNeighbors(self.n_neighbors).fit(X_maj)
@@ -4660,7 +4685,7 @@ class SMOTE_Cosine(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -4767,7 +4792,7 @@ class Selected_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -4778,7 +4803,7 @@ class Selected_SMOTE(OverSampling):
         
         minority_indices= np.where(y == self.minority_label)[0]
         
-        nn_min_euc= NearestNeighbors(self.n_neighbors + 1).fit(X_min)
+        nn_min_euc= NearestNeighbors(min([len(X_min), self.n_neighbors + 1])).fit(X_min)
         nn_min_dist, nn_min_ind= nn_min_euc.kneighbors(X_min)
         
         # significant attribute selection was not described in the paper
@@ -4880,7 +4905,7 @@ class LN_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -4946,8 +4971,9 @@ class LN_SMOTE(OverSampling):
             return delta
         
         # generating samples
+        trials= 0
         samples= []
-        for _ in range(num_to_sample):
+        while len(samples) < num_to_sample:
             p_idx= np.random.choice(minority_indices)
             # extract random neighbor of p
             n_idx= np.random.choice(indices[p_idx][1:-1])
@@ -4960,13 +4986,18 @@ class LN_SMOTE(OverSampling):
                 # can create
                 p= X[p_idx]
                 n= X[n_idx]
-                x_new= np.copy(p)
+                x_new= p.copy()
                 
                 for a in range(d):
                     delta= random_gap(slp, sln, y[n_idx])
                     diff= n[a] - p[a]
                     x_new[a]= p[a] + delta*diff
                 samples.append(x_new)
+            
+            trials= trials + 1
+            if len(samples)/trials < 1.0/num_to_sample:
+                logging.info(self.__class__.__name__ + ": " + "no instances with slp > 0 and sln > 0 found")
+                return X, y
         
         return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
@@ -5050,14 +5081,14 @@ class MWMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
         X_min= X[y == self.minority_label]
-        X_maj= X[y == self.minority_label]
+        X_maj= X[y == self.majority_label]
         
         minority= np.where(y == self.minority_label)[0]
         
@@ -5068,6 +5099,9 @@ class MWMOTE(OverSampling):
         
         # Step 2
         filtered_minority= np.array([i for i in minority if np.sum(y[ind1[i][1:]] == self.minority_label) > 0])
+        if len(filtered_minority) == 0:
+            logging.info(self.__class__.__name__ + ": " + "filtered_minority array is empty")
+            return X.copy(), y.copy()
         
         # Step 3 - ind2 needs to be indexed by indices of the lengh of X_maj
         nn_maj= NearestNeighbors(n_neighbors= self.k2)
@@ -5106,13 +5140,13 @@ class MWMOTE(OverSampling):
             return f/cf_th*cmax
         
         # Steps 7 - 9
-        logging.info(self.__class__.__name__ + " " +'computing closeness factors')        
+        logging.info(self.__class__.__name__ + ": " +'computing closeness factors')        
         closeness_factors= np.zeros(shape=(len(border_majority), len(informative_minority)))
         for i in range(len(border_majority)):
             for j in range(len(informative_minority)):
                 closeness_factors[i,j]= closeness_factor(X_maj[border_majority[i]], X_min[informative_minority[j]])
         
-        logging.info(self.__class__.__name__ + " " +'computing information weights')
+        logging.info(self.__class__.__name__ + ": " +'computing information weights')
         information_weights= np.zeros(shape=(len(border_majority), len(informative_minority)))
         for i in range(len(border_majority)):
             norm_factor= np.sum(closeness_factors[i,:])
@@ -5123,7 +5157,7 @@ class MWMOTE(OverSampling):
         selection_probabilities= selection_weights/np.sum(selection_weights)
         
         # Step 10
-        logging.info(self.__class__.__name__ + " " +'do clustering')
+        logging.info(self.__class__.__name__ + ": " +'do clustering')
         kmeans= KMeans(n_clusters= min([len(X_min), self.M]))
         kmeans.fit(X_min)
         imin_labels= kmeans.labels_[informative_minority]
@@ -5207,18 +5241,19 @@ class PDFOS(OverSampling):
         
         # computing the covariance matrix of the data
         S= np.cov(X, rowvar= False)
-        logging.info(self.__class__.__name__ + " " +"Condition number of covariance matrix: %f" % np.linalg.cond(S))
-        logging.info(self.__class__.__name__ + " " +"Input size: %d" % len(X))
-        logging.info(self.__class__.__name__ + " " +"Input dim: %d" % m)
+        logging.info(self.__class__.__name__ + ": " +"Condition number of covariance matrix: %f" % np.linalg.cond(S))
+        logging.info(self.__class__.__name__ + ": " +"Input size: %d" % len(X))
+        logging.info(self.__class__.__name__ + ": " +"Input dim: %d" % m)
         
         S_mrank= np.linalg.matrix_rank(S, tol=1e-2)
-        logging.info(self.__class__.__name__ + " " +"Matrix rank of covariance matrix: %d" % S_mrank)
+        logging.info(self.__class__.__name__ + ": " +"Matrix rank of covariance matrix: %d" % S_mrank)
         
         # checking the rank of the matrix
         if S_mrank < m:
-            logging.info(self.__class__.__name__ + " " +"The covariance matrix is singular, performing PCA to fix it")
+            logging.info(self.__class__.__name__ + ": " + "The covariance matrix is singular, performing PCA to fix it")
+            logging.info(self.__class__.__name__ + ": " + ("dim: %d, rank: %d, size: %d" % (m, S_mrank, len(X))))
             n_components= S_mrank
-            pca= PCA(n_components= min([n_components, len(X)])-1)
+            pca= PCA(n_components= max([min([n_components, len(X)])-1, 2]))
             X_low_dim= pca.fit_transform(X)
             X_samp= self._sample_by_kernel_density_estimation(X_low_dim, num_to_sample, n_optimize)
             return pca.inverse_transform(X_samp)
@@ -5226,7 +5261,7 @@ class PDFOS(OverSampling):
         S_inv= np.linalg.inv(S)
         det= np.linalg.det(S)
         
-        logging.info(self.__class__.__name__ + " " +"Determinant: %f" % det)
+        logging.info(self.__class__.__name__ + ": " +"Determinant: %f" % det)
         
         def eq_9(i, j, sigma, X):
             """
@@ -5281,7 +5316,7 @@ class PDFOS(OverSampling):
             if e < error:
                 error= e
                 best_sigma= sigma
-        logging.info(self.__class__.__name__ + " " +"best sigma found: %f" % best_sigma)
+        logging.info(self.__class__.__name__ + ": " +"best sigma found: %f" % best_sigma)
         
         # generating samples according to the 
         samples= []
@@ -5300,7 +5335,7 @@ class PDFOS(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -5392,7 +5427,7 @@ class IPADE_ID(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -5451,14 +5486,16 @@ class IPADE_ID(OverSampling):
             Args:
                 GS (np.matrix): actual training set
                 GS_y (np.array): list of corresponding class labels
-                X (np.matrix): complete training set
-                y (np.array): all class labels
+                TR (np.matrix): complete training set
+                TR_y (np.array): all class labels
                 base_classifier (object): classifier to be used
             Returns:
                 float: ROC AUC score
             """
             base_classifier.fit(GS, GS_y)
             pred= base_classifier.predict_proba(TR)[:,np.where(base_classifier.classes_ == self.minority_label)[0][0]]
+            if len(np.unique(TR_y)) != 2:
+                return 0.0
             return roc_auc_score(TR_y, pred)
         
         def evaluate_class(GS, GS_y, TR, TR_y, base_classifier):
@@ -5467,8 +5504,8 @@ class IPADE_ID(OverSampling):
             Args:
                 GS (np.matrix): actual training set
                 GS_y (np.array): list of corresponding class labels
-                X (np.matrix): complete training set
-                y (np.array): all class labels
+                TR (np.matrix): complete training set
+                TR_y (np.array): all class labels
                 base_classifier (object): classifier to be used
             Returns:
                 float: accuracy score
@@ -5478,7 +5515,7 @@ class IPADE_ID(OverSampling):
             return accuracy_score(TR_y, pred)
         
         # Phase 1: Initialization
-        logging.info(self.__class__.__name__ + " " +"Initialization")
+        logging.info(self.__class__.__name__ + ": " +"Initialization")
         dt_classifier.fit(X, y)
         leafs= dt_classifier.apply(X)
         unique_leafs= np.unique(leafs)
@@ -5494,12 +5531,19 @@ class IPADE_ID(OverSampling):
             GS_y.append(mode(y[indices]))
             if len(indices) == 1:
                 used_in_GS[indices[0]]= True
+        
         # updating the indices of the validation set excluding those used in GS
         for_validation= np.where(np.logical_not(used_in_GS))[0]
-        logging.info(self.__class__.__name__ + " " +"Size of validation set %d" % len(for_validation))
+        logging.info(self.__class__.__name__ + ": " +"Size of validation set %d" % len(for_validation))
+        if len(np.unique(y[for_validation])) == 1:
+            logging.info(self.__class__.__name__ + ": " + "No minority samples in validation set")
+            return X.copy(), y.copy()
+        if len(np.unique(GS_y)) == 1:
+            logging.info(self.__class__.__name__ + ": " + "No minority samples in reduced dataset")
+            return X.copy(), y.copy()
         
         # DE optimization takes place
-        logging.info(self.__class__.__name__ + " " +"DE optimization")
+        logging.info(self.__class__.__name__ + ": " +"DE optimization")
         base_classifier= DecisionTreeClassifier(random_state= 2)
         GS= DE_optimization(GS, GS_y, X, y, min_indices, maj_indices, base_classifier, for_validation)
         # evaluate results
@@ -5511,7 +5555,7 @@ class IPADE_ID(OverSampling):
         number_of_optimizations= {self.minority_label: 0, self.majority_label: 0}
         accuracy_class= {self.minority_label: 0, self.majority_label: 0}
         
-        logging.info(self.__class__.__name__ + " " +"Starting optimization")
+        logging.info(self.__class__.__name__ + ": " +"Starting optimization")
         while AUC < 1.0 and (register_class[self.minority_label] == 'optimizable' or register_class[self.majority_label] == 'optimizable'):
             less_accuracy= np.inf
             # loop in line 8
@@ -5617,7 +5661,7 @@ class RWO_sampling(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -5708,7 +5752,7 @@ class NEATER(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -5824,7 +5868,8 @@ class DEAGO(OverSampling):
     """
     
     categories= [OverSampling.cat_extensive,
-                 OverSampling.cat_density_estimation]
+                 OverSampling.cat_density_estimation,
+                 OverSampling.cat_application]
     
     def __init__(self, proportion= 1.0, n_neighbors= 5, e= 100, h= 0.3, sigma= 0.1):
         """
@@ -5869,7 +5914,7 @@ class DEAGO(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -5899,15 +5944,10 @@ class DEAGO(OverSampling):
         # extracting dimensions
         d= len(X[0])
         encoding_d= max([2, int(np.rint(d*self.h))])
-        logging.info(self.__class__.__name__ + " " +"Input dimension: %d, encoding dimension: %d" % (d, encoding_d))
+        logging.info(self.__class__.__name__ + ": " +"Input dimension: %d, encoding dimension: %d" % (d, encoding_d))
         
         # constructing the autoencoder
         callbacks= [self.EarlyStopping(monitor='val_loss', patience= 2)]
-        
-        val_perc= 0.2
-        val_num= int(val_perc*len(X_min))
-        X_min_train= X_min_normalized[:-val_num]
-        X_min_val= X_min_normalized[-val_num:]
         
         input_layer= self.Input(shape=(d,))
         noise= self.GaussianNoise(self.sigma)(input_layer)
@@ -5916,9 +5956,18 @@ class DEAGO(OverSampling):
         
         dae= self.Model(input_layer, decoded)
         dae.compile(optimizer='adadelta', loss='mean_squared_error')
-        actual_epochs= max([self.e, int(10000.0/len(X_min))])
-        #dae.fit(X_min_normalized, X_min_normalized, epochs= actual_epochs, verbose= 0)
-        dae.fit(X_min_train, X_min_train, epochs= actual_epochs, validation_data=(X_min_val, X_min_val), callbacks= callbacks)
+        actual_epochs= max([self.e, int(5000.0/len(X_min))])
+        
+        if len(X_min) > 10:
+            val_perc= 0.2
+            val_num= int(val_perc*len(X_min))
+            X_min_train= X_min_normalized[:-val_num]
+            X_min_val= X_min_normalized[-val_num:]
+            
+            #dae.fit(X_min_normalized, X_min_normalized, epochs= actual_epochs, verbose= 0)
+            dae.fit(X_min_train, X_min_train, epochs= actual_epochs, validation_data=(X_min_val, X_min_val), callbacks= callbacks, verbose= 0)
+        else:
+            dae.fit(X_min_normalized, X_min_normalized, epochs= actual_epochs, verbose= 0)
         
         # mapping the initial samples to the manifold
         samples= ss.inverse_transform(dae.predict(X_init_normalized))
@@ -5988,7 +6037,7 @@ class Gazzah(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -6000,14 +6049,18 @@ class Gazzah(OverSampling):
         X_maj= X[y == self.majority_label]
         
         # fitting the PCA model
-        pca= PCA(n_components= self.n_components)
+        pca= PCA(n_components= min([len(X[0]), self.n_components]))
         X_maj_trans= pca.fit_transform(X_maj)
         R= np.sqrt(np.sum(np.var(X_maj_trans, axis= 0)))
         # determining the majority samples to remove
         to_remove= np.where([np.linalg.norm(x) > R for x in X_maj_trans])[0]
-        logging.info(self.__class__.__name__ + " " +"Removing %d majority samples" % len(to_remove))
+        logging.info(self.__class__.__name__ + ": " +"Removing %d majority samples" % len(to_remove))
         # removing the majority samples
         X_maj= np.delete(X_maj, to_remove, axis= 0)
+        
+        if len(X_min_samp) == 0:
+            logging.info("no samples added")
+            return X, y
         
         return np.vstack([X_maj, X_min_samp]), np.hstack([np.repeat(self.majority_label,len(X_maj)), np.repeat(self.minority_label,len(X_min_samp))])
         
@@ -6070,7 +6123,7 @@ class MCT(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -6139,11 +6192,11 @@ class ADG(OverSampling):
         self.check_greater_or_equal(proportion, "proportion", 0)
         
         if kernel != 'inner' and not kernel.startswith('rbf'):
-            raise ValueError(self.__class__.__name__ + " " + 'Kernel function %s not supported' % kernel)
+            raise ValueError(self.__class__.__name__ + ": " + 'Kernel function %s not supported' % kernel)
         elif kernel.startswith('rbf'):
             par= float(kernel.split('_')[-1])
             if par <= 0.0:
-                raise ValueError(self.__class__.__name__ + " " + 'Kernel parameter %f is not supported' % par)
+                raise ValueError(self.__class__.__name__ + ": " + 'Kernel parameter %f is not supported' % par)
                 
         self.check_greater(lam, 'lam', 0)
         self.check_greater(mu, 'mu', 0)
@@ -6176,7 +6229,7 @@ class ADG(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -6365,7 +6418,7 @@ class ADG(OverSampling):
         total_added= 0
         # executing the sample generation
         while q > 1:
-            logging.info(self.__class__.__name__ + " " +"Starting iteration with q=%d" % q)
+            logging.info(self.__class__.__name__ + ": " +"Starting iteration with q=%d" % q)
             # step 1
             clusters= xmeans(X_plus_hat)
             l_c= np.array([np.sum(clusters.labels_ == i) for i in range(clusters.n_clusters)])
@@ -6387,7 +6440,7 @@ class ADG(OverSampling):
                 alpha_star= np.linalg.solve(A, b)
             except:
                 # handling the issue of singular matrix
-                logging.warning(self.__class__.__name__ + " " +"Singular matrix")
+                logging.warning(self.__class__.__name__ + ": " +"Singular matrix")
                 # deleting huge data structures
                 if q == num_to_sample:
                     if len(X[0]) == 1:
@@ -6395,7 +6448,7 @@ class ADG(OverSampling):
                     K, K_plus, K_minus= None, None, None
                     n_components= int(np.sqrt(len(X[0])))
                     pca= PCA(n_components= n_components).fit(X)
-                    logging.warning(self.__class__.__name__ + " " + ("reducing dimensionality to %d" % n_components))
+                    logging.warning(self.__class__.__name__ + ": " + ("reducing dimensionality to %d" % n_components))
                     X_trans= pca.transform(X)
                     X_samp, y_samp= ADG(proportion= self.proportion,
                                         kernel= self.kernel,
@@ -6428,7 +6481,7 @@ class ADG(OverSampling):
                 q= int(q/2)
                 continue
             
-            logging.info(self.__class__.__name__ + " " + "number of vectors added: %d/%d" % (len(Z_hat), q))
+            logging.info(self.__class__.__name__ + ": " + "number of vectors added: %d/%d" % (len(Z_hat), q))
             
             # step 8
             # this step is not used for anything, the identified clusters are only used in
@@ -6558,7 +6611,7 @@ class SMOTE_IPF(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -6584,10 +6637,10 @@ class SMOTE_IPF(OverSampling):
                 sum_votes= np.sum(predictions, axis= 0)
                 to_remove= np.where(np.logical_and(np.not_equal(pred_votes, y_samp), np.equal(sum_votes, self.n_folds)))[0]
             else:
-                raise ValueError(self.__class__.__name__ + " " + 'Voting scheme %s is not implemented' % self.voting)
+                raise ValueError(self.__class__.__name__ + ": " + 'Voting scheme %s is not implemented' % self.voting)
             
             # delete samples incorrectly classified
-            logging.info(self.__class__.__name__ + " " +'Removing %d elements' % len(to_remove))
+            logging.info(self.__class__.__name__ + ": " +'Removing %d elements' % len(to_remove))
             X_samp= np.delete(X_samp, to_remove, axis= 0)
             y_samp= np.delete(y_samp, to_remove)
             
@@ -6610,7 +6663,7 @@ class SMOTE_IPF(OverSampling):
 
 class KernelADASYN(OverSampling):
     """
-    @INPROCEEDINGS{kerneladasyn, 
+    @INPROCEEDINGS{kernel_adasyn, 
                     author={B. Tang and H. He}, 
                     booktitle={2015 IEEE Congress on Evolutionary Computation (CEC)}, 
                     title={KernelADASYN: Kernel based adaptive synthetic data generation for imbalanced learning}, 
@@ -6670,7 +6723,7 @@ class KernelADASYN(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -6679,12 +6732,17 @@ class KernelADASYN(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting the nearest neighbors model
-        nn= NearestNeighbors(self.k+1)
+        nn= NearestNeighbors(min([len(X_min), self.k+1]))
         nn.fit(X)
         distances, indices= nn.kneighbors(X_min)
         
         # computing majority score
         r= np.array([np.sum(y[indices[i][1:]] == self.majority_label) for i in range(len(X_min))])
+        
+        if np.all(r == 0):
+            logging.info(self.__class__.__name__ + ": " + "majority score is 0 for all minority samples")
+            return X.copy(), y.copy()
+        
         r= r/np.sum(r)
         
         # kernel density function
@@ -6714,7 +6772,10 @@ class KernelADASYN(OverSampling):
         covariance= np.cov(X_min[r > 0], rowvar= False)
         
         if np.linalg.cond(covariance) > 1000:
-            logging.info(self.__class__.__name__ + " " + "reducing dimensions due to inproperly conditioned covariance matrix")
+            logging.info(self.__class__.__name__ + ": " + "reducing dimensions due to inproperly conditioned covariance matrix")
+            if len(X[0]) == 2:
+                logging.info(self.__class__.__name__ + ": " + "matrix ill-conditioned")
+                return X.copy(), y.copy()
             n_components= int(len(covariance)/2)
             pca= PCA(n_components= n_components)
             X_trans= pca.fit_transform(X)
@@ -6757,7 +6818,7 @@ class KernelADASYN(OverSampling):
 
 class MOT2LD(OverSampling):
     """
-    @InProceedings{MOT2LD,
+    @InProceedings{mot2ld,
                     author="Xie, Zhipeng
                     and Jiang, Liyang
                     and Ye, Tengju
@@ -6805,9 +6866,9 @@ class MOT2LD(OverSampling):
         self.check_greater_or_equal(k, 'k', 1)
         if isinstance(d_cut, float) or isinstance(d_cut, int):
             if d_cut <= 0:
-                raise ValueError(self.__class__.__name__ + " " + 'Non-positive d_cut is not allowed')
+                raise ValueError(self.__class__.__name__ + ": " + 'Non-positive d_cut is not allowed')
         elif d_cut != 'auto':
-            raise ValueError(self.__class__.__name__ + " " + 'd_cut value %s not implemented' % d_cut)
+            raise ValueError(self.__class__.__name__ + ": " + 'd_cut value %s not implemented' % d_cut)
         
         self.proportion= proportion
         self.n_components= n_components
@@ -6832,20 +6893,20 @@ class MOT2LD(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
-        logging.info(self.__class__.__name__ + " " + "starting TSNE")
+        logging.info(self.__class__.__name__ + ": " + "starting TSNE")
         # do the stochastic embedding
         X_tsne= TSNE(self.n_components).fit_transform(X)
         X_min= X_tsne[y == self.minority_label]
-        logging.info(self.__class__.__name__ + " " + "TSNE finished")
+        logging.info(self.__class__.__name__ + ": " + "TSNE finished")
         
         # fitting nearest neighbors model for all training data
-        nn= NearestNeighbors(n_neighbors= self.k + 1)
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.k + 1]))
         nn.fit(X_tsne)
         distances, indices= nn.kneighbors(X_min)
         
@@ -6883,7 +6944,7 @@ class MOT2LD(OverSampling):
         peak_indices= np.array(ssignal.find_peaks_cwt(d, widths= np.arange(1, int(len(r)/2))))
         
         if len(peak_indices) == 0:
-            logging.info(self.__class__.__name__ + " " + "no peaks found")
+            logging.info(self.__class__.__name__ + ": " + "no peaks found")
             return X.copy(), y.copy()
         
         cluster_center_indices= idx[peak_indices]
@@ -6917,7 +6978,7 @@ class MOT2LD(OverSampling):
                 empty_clustering= False
         
         if empty_clustering:
-            logging.info(self.__class__.__name__ + " " +"Empty clustering")
+            logging.info(self.__class__.__name__ + ": " +"Empty clustering")
             return X.copy(), y.copy()
         
         cluster_indices_size_0= np.where(np.array([len(c) for c in cluster_indices]) == 0)[0]
@@ -7024,7 +7085,7 @@ class V_SYNTH(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -7143,7 +7204,7 @@ class OUPS(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -7245,7 +7306,7 @@ class SMOTE_D(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -7253,7 +7314,7 @@ class SMOTE_D(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting nearest neighbors model
-        nn= NearestNeighbors(n_neighbors= self.k+1)
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.k+1]))
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
@@ -7271,13 +7332,16 @@ class SMOTE_D(OverSampling):
         # do the sampling
         samples= []
         for i in range(len(p_i)):
-            for j in range(self.k):
+            for j in range(min([len(X_min)-1, self.k])):
                 while counts_ij[i][j] > 0:
                     if np.random.random() < counts_ij[i][j]:
                         samples.append(X_min[i] + (X_min[ind[i][j+1]] - X_min[i])/(counts_ij[i][j]+1))
                     counts_ij[i][j]= counts_ij[i][j] - 1
         
-        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        if len(samples) > 0:
+            return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        else:
+            return X.copy(), y.copy()
         
     def get_params(self):
         """
@@ -7288,7 +7352,7 @@ class SMOTE_D(OverSampling):
 
 class SMOTE_PSO(OverSampling):
     """
-    @article{SMOTE_PSO,
+    @article{smote_pso,
                 title = "PSO-based method for SVM classification on skewed data sets",
                 journal = "Neurocomputing",
                 volume = "228",
@@ -7373,7 +7437,7 @@ class SMOTE_PSO(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -7435,7 +7499,7 @@ class SMOTE_PSO(OverSampling):
         X_SV_maj= X_scaled[SV_maj]
         
         # finding nearest majority support vectors
-        nn= NearestNeighbors(n_neighbors= self.k)
+        nn= NearestNeighbors(n_neighbors= min([len(X_SV_maj), self.k]))
         nn.fit(X_SV_maj)
         dist, ind= nn.kneighbors(X_SV_min)
         
@@ -7444,7 +7508,7 @@ class SMOTE_PSO(OverSampling):
         search_space= []
         init_velocity= []
         for i in range(len(SV_min)):
-            for j in range(self.k):
+            for j in range(min([len(X_SV_maj), self.k])):
                 min_vector= X_SV_min[i]
                 maj_vector= X_SV_maj[ind[i][j]]
                 # the upper bound of the search space if specified by the closest majority support vector
@@ -7484,7 +7548,7 @@ class SMOTE_PSO(OverSampling):
         global_best_score= 0.0
 
         for i in range(self.num_it):
-            logging.info(self.__class__.__name__ + " " +"Iteration %d" % i)
+            logging.info(self.__class__.__name__ + ": " +"Iteration %d" % i)
             # evaluate population
             scores= [evaluate(np.vstack([X_scaled, p]), np.hstack([y, np.repeat(self.minority_label, len(p))]), X_scaled, y) for p in particle_swarm]
             
@@ -7591,7 +7655,7 @@ class CURE_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -7657,7 +7721,7 @@ class CURE_SMOTE(OverSampling):
         
         # all clusters can be noise
         if len(clusters) == 0:
-            logging.warning(self.__class__.__name__ + " " +"all clusters removed as noise")
+            logging.warning(self.__class__.__name__ + ": " +"all clusters removed as noise")
             return X.copy(), y.copy()
         
         # generating samples
@@ -7743,7 +7807,7 @@ class SOMO(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -7796,7 +7860,7 @@ class SOMO(OverSampling):
                     
         # all clusters can be filtered
         if len(densities) == 0:
-            logging.warning(self.__class__.__name__ + " " +"all clusters filtered")
+            logging.warning(self.__class__.__name__ + ": " +"all clusters filtered")
             return X.copy(), y.copy()
         
         # computing neighbour densities, using 4 neighborhood
@@ -7919,7 +7983,7 @@ class ISOMAP_Hybrid(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -8009,7 +8073,7 @@ class CE_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -8050,7 +8114,7 @@ class CE_SMOTE(OverSampling):
         
         # there might be no boundary samples
         if len(P_boundary) <= 1:
-            logging.warning(self.__class__.__name__ + " " +"empty boundary")
+            logging.warning(self.__class__.__name__ + ": " +"empty boundary")
             return X.copy(), y.copy()
         
         # finding nearest neighbors of boundary samples
@@ -8131,7 +8195,7 @@ class Edge_Det_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -8153,7 +8217,7 @@ class Edge_Det_SMOTE(OverSampling):
         magnitudes= magnitudes/np.sum(magnitudes)
         
         # fitting nearest neighbors models to minority samples
-        nn= NearestNeighbors(n_neighbors= self.k+1)
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.k+1]))
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
@@ -8238,7 +8302,7 @@ class CBSO(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -8382,7 +8446,7 @@ class E_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -8549,7 +8613,7 @@ class DBSMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -8565,8 +8629,12 @@ class DBSMOTE(OverSampling):
         
         if num_labels == 0:
             # adjusting the parameters if no clusters were identified
-            logging.info(self.__class__.__name__ + " " +"Number of clusters is 0, trying to increase eps")
-            return DBSMOTE(proportion= self.proportion, eps= self.eps*1.5, min_samples= self.min_samples).sample(X, y)
+            logging.info(self.__class__.__name__ + ": " +"Number of clusters is 0, trying to increase eps and decrease min_samples")
+            if self.eps >= 2 or self.min_samples <= 2:
+                logging.info(self.__class__.__name__ + ": " +"Number of clusters is 0, can't adjust parameters further")
+                return X, y
+            else:
+                return DBSMOTE(proportion= self.proportion, eps= self.eps*1.5, min_samples= self.min_samples-1).sample(X, y)
         
         # determining cluster size distribution
         clusters= [np.where(labels == i)[0] for i in range(num_labels)]
@@ -8778,7 +8846,7 @@ class ASMOBD(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -8790,7 +8858,7 @@ class ASMOBD(OverSampling):
         X_min= X_ss[y == self.minority_label]
         
         # executing the optics algorithm
-        o= OPTICS(min_samples= self.min_samples, max_eps= self.eps)
+        o= OPTICS(min_samples= min([len(X_min)-1, self.min_samples]), max_eps= self.eps)
         o.fit(X_min)
         cd= o.core_distances_
         r= o.reachability_
@@ -8831,7 +8899,7 @@ class ASMOBD(OverSampling):
         
         # checking if there are not noise samples remaining
         if np.sum(not_noise) == 0:
-            logging.info(self.__class__.__name__ + " " +"All minority samples found to be noise, increasing noise thresholds")
+            logging.info(self.__class__.__name__ + ": " +"All minority samples found to be noise, increasing noise thresholds")
             return ASMOBD(proportion= self.proportion, min_samples= self.min_samples, eps= self.eps,
                           eta= self.eta, T_1= self.T_1*1.5, T_2= self.T_2*1.5, t_1= self.t_1*1.5, t_2= self.t_2*1.5, 
                           a= self.a, smoothing= self.smoothing).sample(X, y)
@@ -8841,7 +8909,7 @@ class ASMOBD(OverSampling):
         
         # checking if there are not-noisy samples
         if len(X_min_not_noise) <= 2:
-            logging.warning(self.__class__.__name__ + " " +"no not-noise minority sample remained")
+            logging.warning(self.__class__.__name__ + ": " +"no not-noise minority sample remained")
             return X.copy(), y.copy()
         
         df= np.delete(df, np.where(np.logical_not(not_noise))[0])
@@ -8937,7 +9005,7 @@ class Assembled_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -8953,6 +9021,10 @@ class Assembled_SMOTE(OverSampling):
         border_mask= np.array([np.sum(y[ind[i]] == self.minority_label) != self.n_neighbors + 1 for i in range(len(ind))])
         X_border= X_min[border_mask]
         X_non_border= X_min[np.logical_not(border_mask)]
+        
+        if len(X_border) == 0:
+            logging.warning(self.__class__.__name__ + ": " + "X_border is empty")
+            return X.copy(), y.copy()
         
         # initializing clustering
         clusters= [np.array([i]) for i in range(len(X_border))]
@@ -9096,7 +9168,7 @@ class SDSMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -9120,7 +9192,7 @@ class SDSMOTE(OverSampling):
         density= k/np.sum(k)
         
         # fitting nearest neighbors model to minority samples to run SMOTE-like sampling
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors)
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors+1]))
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
@@ -9214,7 +9286,7 @@ class DSMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -9244,10 +9316,11 @@ class DSMOTE(OverSampling):
         abnormality, indices= zip(*sorted(zip(abnormality, np.arange(len(abnormality))), key= lambda x: -x[0]))
         rate= int(self.rate*len(abnormality))
         
-        # moving the most abnormal points to the majority class
-        X_maj= np.vstack([X_maj, X_min[np.array(indices[:rate])]])
-        # removing the most abnormal points form the minority class
-        X_min= np.delete(X_min, indices[:rate], axis= 0)
+        if rate > 0:
+            # moving the most abnormal points to the majority class
+            X_maj= np.vstack([X_maj, X_min[np.array(indices[:rate])]])
+            # removing the most abnormal points form the minority class
+            X_min= np.delete(X_min, indices[:rate], axis= 0)
         
         # computing the mean and variance of points in the majority class
         var_maj= np.mean(np.var(X_maj, axis= 0))
@@ -9388,11 +9461,11 @@ class G_SMOTE(OverSampling):
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         if not method == 'linear' and not method.startswith('non-linear'):
-            raise ValueError(self.__class__.__name__ + " " + 'Method parameter %s is not supported' % method)
+            raise ValueError(self.__class__.__name__ + ": " + 'Method parameter %s is not supported' % method)
         elif method.startswith('non-linear'):
             parameter= float(method.split('_')[-1])
             if parameter <= 0:
-                raise ValueError(self.__class__.__name__ + " " + "Non-positive non-linear parameter %f is not supported" % parameter)
+                raise ValueError(self.__class__.__name__ + ": " + "Non-positive non-linear parameter %f is not supported" % parameter)
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
@@ -9416,7 +9489,7 @@ class G_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -9424,7 +9497,7 @@ class G_SMOTE(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting nearest neighbors model
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1)
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors+1]))
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
@@ -9497,7 +9570,8 @@ class NT_SMOTE(OverSampling):
     URL: https://drive.google.com/open?id=1iMeem5Ax2AkvwatvMpf1ZGMfHSsI3vQi
     """
     
-    categories= [OverSampling.cat_extensive]
+    categories= [OverSampling.cat_extensive,
+                 OverSampling.cat_application]
     
     def __init__(self, proportion= 1.0):
         """
@@ -9530,7 +9604,7 @@ class NT_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -9564,7 +9638,7 @@ class NT_SMOTE(OverSampling):
 
 class Lee(OverSampling):
     """
-    @inproceedings{Lee,
+    @inproceedings{lee,
                      author = {Lee, Jaedong and Kim, Noo-ri and Lee, Jee-Hyong},
                      title = {An Over-sampling Technique with Rejection for Imbalanced Class Learning},
                      booktitle = {Proceedings of the 9th International Conference on Ubiquitous Information Management and Communication},
@@ -9629,7 +9703,7 @@ class Lee(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -9638,11 +9712,11 @@ class Lee(OverSampling):
         
         # fitting nearest neighbors models to find neighbors of minority samples inthe total data
         # and in the minority datasets
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]))
         nn.fit(X)
         dist, ind= nn.kneighbors(X_min)
         
-        nn_min= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn_min= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]))
         nn_min.fit(X_min)
         dist_min, ind_min= nn_min.kneighbors(X_min)
         
@@ -9731,7 +9805,7 @@ class SPY(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -9839,7 +9913,7 @@ class SMOTE_PSOBAT(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -10057,7 +10131,7 @@ class SMOTE_PSOBAT(OverSampling):
         elif self.method == 'bat':
             best_combination= BAT()
         else:
-            raise ValueError(self.__class__.__name__ + " " + "Search method %s not supported yet." % self.method)
+            raise ValueError(self.__class__.__name__ + ": " + "Search method %s not supported yet." % self.method)
         
         return SMOTE(proportion= best_combination[1], n_neighbors= int(best_combination[0])).sample(X, y)
         
@@ -10126,7 +10200,7 @@ class MDO(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -10149,7 +10223,7 @@ class MDO(OverSampling):
         
         # falling back to returning input data if all the input is considered noise
         if len(X_sel) == 0:
-            logging.info(self.__class__.__name__ + " " +"No samples selected")
+            logging.info(self.__class__.__name__ + ": " +"No samples selected")
             return X.copy(), y.copy()
         
         # computing distribution
@@ -10266,7 +10340,7 @@ class Random_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -10274,7 +10348,7 @@ class Random_SMOTE(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting nearest neighbors model to find closest neighbors of minority points
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]))
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
@@ -10351,7 +10425,7 @@ class ISMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -10461,7 +10535,7 @@ class VIS_RST(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -10518,7 +10592,7 @@ class VIS_RST(OverSampling):
             mode= 'low_complexity'
         
         # fitting nearest neighbors to find the neighbors of minority elements among minority elements
-        nn_min= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn_min= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]))
         nn_min.fit(X_min)
         dist_min, ind_min= nn_min.kneighbors(X_min)
         
@@ -10639,14 +10713,14 @@ class GASMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
         X_min= X[y == self.minority_label]
         
         # fitting nearest neighbors model to find minority neighbors of minority samples
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn= NearestNeighbors(n_neighbors= min([self.n_neighbors + 1, len(X_min)]))
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         kfold= KFold(5)
@@ -10805,7 +10879,8 @@ class A_SUWO(OverSampling):
     
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_uses_clustering,
-                 OverSampling.cat_density_based]
+                 OverSampling.cat_density_based,
+                 OverSampling.cat_noise_removal]
     
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_clus_maj= 7, c_thres= 0.8):
         """
@@ -10847,7 +10922,7 @@ class A_SUWO(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -10870,6 +10945,10 @@ class A_SUWO(OverSampling):
         # extarcting modified minority and majority datasets
         X_min= X[y == self.minority_label]
         X_maj= X[y == self.majority_label]
+        
+        if len(X_min) == 0:
+            logging.info("All minority samples removed as noise")
+            return X, y
         
         # clustering majority samples
         ac= AgglomerativeClustering(n_clusters= self.n_clus_maj)
@@ -11042,7 +11121,8 @@ class SMOTE_FRST_2T(OverSampling):
     
     categories= [OverSampling.cat_changes_majority,
                  OverSampling.cat_noise_removal,
-                 OverSampling.cat_sample_ordinary]
+                 OverSampling.cat_sample_ordinary,
+                 OverSampling.cat_application]
     
     def __init__(self, n_neighbors= 5, gamma_S= 0.7, gamma_M= 0.03):
         """
@@ -11079,7 +11159,7 @@ class SMOTE_FRST_2T(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -11115,7 +11195,7 @@ class SMOTE_FRST_2T(OverSampling):
             # checking if the parameters aren't too conservative
             if len(result_synth) < iteration:
                 gamma_S= gamma_S*1.1
-                logging.info(self.__class__.__name__ + " " +"gamma_S increased to %f" % gamma_S)
+                logging.info(self.__class__.__name__ + ": " +"gamma_S increased to %f" % gamma_S)
             
             # executing SMOTE to generate some minority samples
             X_samp, y_samp= SMOTE(proportion= 0.2, n_neighbors= self.n_neighbors).sample(X, y)
@@ -11146,7 +11226,7 @@ class SMOTE_FRST_2T(OverSampling):
             if len(to_remove) > (len(X_maj) - len(X_min))/2:
                 to_remove= np.array([])
                 gamma_M= gamma_M*0.9
-                logging.info(self.__class__.__name__ + " " +"gamma_M decreased to %f" % gamma_M)
+                logging.info(self.__class__.__name__ + ": " +"gamma_M decreased to %f" % gamma_M)
             else:
                 result_maj.extend(X_maj[to_remove])
                 X_maj= np.delete(X_maj, to_remove, axis= 0)
@@ -11171,6 +11251,10 @@ class SMOTE_FRST_2T(OverSampling):
             X_res= np.vstack([X_res, np.vstack(result_synth)])
         if len(result_maj) > 0:
             X_res= np.vstack([X_res, np.vstack(result_maj)])
+            
+        if len(X_maj) == 0:
+            logging.warning('All majority samples removed')
+            return mmscaler.inverse_transform(X), y
         
         y_res= np.hstack([np.repeat(self.majority_label, len(X_maj)), np.repeat(self.minority_label, len(X_min) + len(result_synth) + len(result_maj))])
         
@@ -11244,7 +11328,7 @@ class AND_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -11319,7 +11403,7 @@ class AND_SMOTE(OverSampling):
         dist, ind= nn.kneighbors(X_min)
         
         if np.sum(kappa) == 0:
-            logging.warning(self.__class__.__name__ + " " +"No minority samples in nearest neighbors")
+            logging.warning(self.__class__.__name__ + ": " +"No minority samples in nearest neighbors")
             return X.copy(), y.copy()
         
         # do the sampling
@@ -11397,7 +11481,7 @@ class NRAS(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -11438,7 +11522,7 @@ class NRAS(OverSampling):
                     num_to_sample= num_to_sample + 1
                     
                 if len(to_remove) == len(X_min):
-                    logging.warning(self.__class__.__name__ + " " +"all minority samples identified as noise")
+                    logging.warning(self.__class__.__name__ + ": " +"all minority samples identified as noise")
                     return X.copy(), y.copy()
             else:
                 # otherwise do the sampling
@@ -11536,7 +11620,7 @@ class AMSCO(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -11688,7 +11772,7 @@ class AMSCO(OverSampling):
         current_min= X_min
         current_maj= X_maj
         for it in range(self.n_iter):
-            logging.info(self.__class__.__name__ + " " +'staring iteration %d' % it)
+            logging.info(self.__class__.__name__ + ": " +'staring iteration %d' % it)
             new_min, _= OSMOTE(X_min, current_maj)
             _, new_maj= SIS(current_min, X_maj)
             
@@ -11699,7 +11783,7 @@ class AMSCO(OverSampling):
             fitness_3= np.prod(fitness(current_min, new_maj))
             
             # selecting the new current_maj and current_min datasets
-            logging.info(self.__class__.__name__ + " " +'fitness scores: %f %f %f %f' % (fitness_0, fitness_1, fitness_2, fitness_3))
+            logging.info(self.__class__.__name__ + ": " +'fitness scores: %f %f %f %f' % (fitness_0, fitness_1, fitness_2, fitness_3))
             if fitness_2 == np.max([fitness_0, fitness_1, fitness_2, fitness_3]) or fitness_3 == np.max([fitness_0, fitness_1, fitness_2, fitness_3]):
                 current_maj= new_maj
             if fitness_0 == np.max([fitness_0, fitness_1, fitness_2, fitness_3]) or fitness_2 == np.max([fitness_0, fitness_1, fitness_2, fitness_3]):
@@ -11786,12 +11870,12 @@ class SSO(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
         # number of samples to generate in each iteration
-        samp_per_iter= int(self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])/self.n_iter)
+        samp_per_iter= max([1, int(self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])/self.n_iter)])
         
         # executing the algorithm
         for _ in range(self.n_iter):
@@ -11874,7 +11958,7 @@ class SSO(OverSampling):
             # calculating the sampling weights
             weights= np.abs(stsm)/np.sum(np.abs(stsm))
         
-            nn= NearestNeighbors(n_neighbors= self.n_neighbors+1)
+            nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors+1]))
             nn.fit(X_min)
             dist, ind= nn.kneighbors(X_min)
         
@@ -11891,7 +11975,7 @@ class SSO(OverSampling):
             X= np.vstack([X, samples])
             y= np.hstack([y, np.repeat(self.minority_label, len(samples))])
                     
-        return X.copy(), y.copy()
+        return X, y
 
     def get_params(self):
         """
@@ -11919,7 +12003,8 @@ class NDO_sampling(OverSampling):
     """
     
     categories= [OverSampling.cat_extensive,
-                 OverSampling.cat_sample_ordinary]
+                 OverSampling.cat_sample_ordinary,
+                 OverSampling.cat_application]
     
     def __init__(self, proportion= 1.0, n_neighbors= 5, T= 0.5):
         """
@@ -11958,7 +12043,7 @@ class NDO_sampling(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -12333,7 +12418,7 @@ class DSRBF(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         
@@ -12364,7 +12449,7 @@ class DSRBF(OverSampling):
         
         # executing the optimization process
         for iteration in range(self.n_iter):
-            logging.info(self.__class__.__name__ + " " +"Iteration %d/%d, loss: %f, data size %d" % (iteration, self.n_iter, population[0][3], len(population[0][1])))
+            logging.info(self.__class__.__name__ + ": " +"Iteration %d/%d, loss: %f, data size %d" % (iteration, self.n_iter, population[0][3], len(population[0][1])))
             # evaluating non-evaluated elements
             for p in population:
                 if p[3] == np.inf:
@@ -12471,7 +12556,7 @@ class Gaussian_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -12482,7 +12567,7 @@ class Gaussian_SMOTE(OverSampling):
         
         # fitting nearest neighbors model to find the minority neighbors of minority samples
         X_min= X_ss[y == self.minority_label]
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]))
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
@@ -12564,7 +12649,7 @@ class kmeans_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -12581,7 +12666,7 @@ class kmeans_SMOTE(OverSampling):
         filt_clusters= [c for c in clusters if (np.sum(y[c] == self.majority_label) + 1)/(np.sum(y[c] == self.minority_label) + 1) < self.irt and np.sum(y[c] == self.minority_label) > 1]
         
         if len(filt_clusters) == 0:
-            logging.warning(self.__class__.__name__ + " " +"number of clusters after filtering is 0")
+            logging.warning(self.__class__.__name__ + ": " +"number of clusters after filtering is 0")
             return X.copy(), y.copy()
         
         # Step 2 in the paper
@@ -12648,7 +12733,8 @@ class Supervised_SMOTE(OverSampling):
     
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_ordinary,
-                 OverSampling.cat_uses_classifier]
+                 OverSampling.cat_uses_classifier,
+                 OverSampling.cat_application]
     
     def __init__(self, proportion= 1.0, th_lower= 0.5, th_upper= 1.0):
         """
@@ -12687,7 +12773,7 @@ class Supervised_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -12792,7 +12878,7 @@ class SN_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -12906,7 +12992,7 @@ class CCR(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -12977,6 +13063,7 @@ class CCR(OverSampling):
                 translation = (r - d) / d * (majority_point - minority_point)
                 translations[sorted_distances[j]] += translation
 
+        majority= majority.astype(float)
         majority += translations
 
         appended= []
@@ -12987,7 +13074,10 @@ class CCR(OverSampling):
 
             for _ in range(synthetic_samples):
                 appended.append(minority_point + taxicab_sample(len(minority_point), r))
-            
+        
+        if len(appended) == 0:
+            logging.info("No samples were added")
+            return X, y
         return np.vstack([X, np.vstack(appended)]), np.hstack([y, np.repeat(self.minority_label, len(appended))])
 
     def get_params(self):
@@ -13051,7 +13141,7 @@ class ANS(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -13103,7 +13193,7 @@ class ANS(OverSampling):
         
         # checking if there are minority samples left
         if len(Pused) == 0:
-            logging.info(self.__class__.__name__ + " " + "Pused is empty")
+            logging.info(self.__class__.__name__ + ": " + "Pused is empty")
             return X, y
         
         # finding the maximum distances of first positive neighbors
@@ -13119,7 +13209,7 @@ class ANS(OverSampling):
         Np= np.array([len(i) for i in ind])
         
         if np.all(Np == 1):
-            logging.info(self.__class__.__name__ + " " + "all samples have only 1 neighbor in the given radius")
+            logging.info(self.__class__.__name__ + ": " + "all samples have only 1 neighbor in the given radius")
             return X, y
         
         # determining the distribution used to generate samples
@@ -13210,7 +13300,7 @@ class CGAN(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        logging.info(self.__class__.__name__ + " " +"Running sampling via %s" % self.descriptor())
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
@@ -13489,6 +13579,7 @@ class Sampling():
         filename= '_'.join([prefix, db_name, sampler, sampler_parameters]) + '.pickle'
         filename= re.sub('["\\,:(){}]', '', filename)
         filename= filename.replace("'", '')
+        filename= filename.replace(": ", "_")
         filename= filename.replace(" ", "_")
         return filename
     
@@ -13597,37 +13688,77 @@ class Evaluation():
             dict: all metrics of binary classification
         """
         results= {}
-        all_pred_labels= np.apply_along_axis(lambda x: np.argmax(x), 1, all_pred)
-
-        results['tp']= np.sum(np.logical_and(np.equal(all_test, all_pred_labels), (all_test == 1)))
-        results['tn']= np.sum(np.logical_and(np.equal(all_test, all_pred_labels), (all_test == 0)))
-        results['fp']= np.sum(np.logical_and(np.logical_not(np.equal(all_test, all_pred_labels)), (all_test == 0)))
-        results['fn']= np.sum(np.logical_and(np.logical_not(np.equal(all_test, all_pred_labels)), (all_test == 1)))
-        results['p']= results['tp'] + results['fn']
-        results['n']= results['fp'] + results['tn']
-        results['acc']= (results['tp'] + results['tn'])/(results['p'] + results['n'])
-        results['sens']= results['tp']/results['p']
-        results['spec']= results['tn']/results['n']
-        results['ppv']= results['tp']/(results['tp'] + results['fp'])
-        results['npv']= results['tn']/(results['tn'] + results['fn'])
-        results['fpr']= 1.0 - results['spec']
-        results['fdr']= 1.0 - results['ppv']
-        results['fnr']= 1.0 - results['sens']
-        results['bacc']= (results['tp']/results['p'] + results['tn']/results['n'])/2.0
-        results['f1']= 2*results['tp']/(2*results['tp'] + results['fp'] + results['fn'])
-        results['mcc']= (results['tp']*results['tn'] - results['fp']*results['fn'])/np.sqrt((results['tp'] + results['fp'])*(results['tp'] + results['fn'])*(results['tn'] + results['fp'])*(results['tn'] + results['fn']))
-        results['l']= (results['p'] + results['n'])*np.log(results['p'] + results['n'])
-        results['ltp']= results['tp']*np.log(results['tp']/((results['tp'] + results['fp'])*(results['tp'] + results['fn'])))
-        results['lfp']= results['fp']*np.log(results['fp']/((results['fp'] + results['tp'])*(results['fp'] + results['tn'])))
-        results['lfn']= results['fn']*np.log(results['fn']/((results['fn'] + results['tp'])*(results['fn'] + results['tn'])))
-        results['ltn']= results['tn']*np.log(results['tn']/((results['tn'] + results['fp'])*(results['tn'] + results['fn'])))
-        results['lp']= results['p']*np.log(results['p']/(results['p'] + results['n']))
-        results['ln']= results['n']*np.log(results['n']/(results['p'] + results['n']))
-        results['uc']= (results['l'] + results['ltp'] + results['lfp'] + results['lfn'] + results['ltn'])/(results['l'] + results['lp'] + results['ln'])
-        results['informedness']= results['sens'] + results['spec'] - 1.0
-        results['markedness']= results['ppv'] + results['npv'] - 1.0
-        results['log_loss']= log_loss(all_test, all_pred)
-        results['auc']= roc_auc_score(all_test, all_pred[:,minority_class_index])
+        if not all_pred is None:
+            all_pred_labels= np.apply_along_axis(lambda x: np.argmax(x), 1, all_pred)
+    
+            results['tp']= np.sum(np.logical_and(np.equal(all_test, all_pred_labels), (all_test == 1)))
+            results['tn']= np.sum(np.logical_and(np.equal(all_test, all_pred_labels), (all_test == 0)))
+            results['fp']= np.sum(np.logical_and(np.logical_not(np.equal(all_test, all_pred_labels)), (all_test == 0)))
+            results['fn']= np.sum(np.logical_and(np.logical_not(np.equal(all_test, all_pred_labels)), (all_test == 1)))
+            results['p']= results['tp'] + results['fn']
+            results['n']= results['fp'] + results['tn']
+            results['acc']= (results['tp'] + results['tn'])/(results['p'] + results['n'])
+            results['sens']= results['tp']/results['p']
+            results['spec']= results['tn']/results['n']
+            results['ppv']= results['tp']/(results['tp'] + results['fp'])
+            results['npv']= results['tn']/(results['tn'] + results['fn'])
+            results['fpr']= 1.0 - results['spec']
+            results['fdr']= 1.0 - results['ppv']
+            results['fnr']= 1.0 - results['sens']
+            results['bacc']= (results['tp']/results['p'] + results['tn']/results['n'])/2.0
+            results['gacc']= np.sqrt(results['tp']/results['p']*results['tn']/results['n'])
+            results['f1']= 2*results['tp']/(2*results['tp'] + results['fp'] + results['fn'])
+            results['mcc']= (results['tp']*results['tn'] - results['fp']*results['fn'])/np.sqrt((results['tp'] + results['fp'])*(results['tp'] + results['fn'])*(results['tn'] + results['fp'])*(results['tn'] + results['fn']))
+            results['l']= (results['p'] + results['n'])*np.log(results['p'] + results['n'])
+            results['ltp']= results['tp']*np.log(results['tp']/((results['tp'] + results['fp'])*(results['tp'] + results['fn'])))
+            results['lfp']= results['fp']*np.log(results['fp']/((results['fp'] + results['tp'])*(results['fp'] + results['tn'])))
+            results['lfn']= results['fn']*np.log(results['fn']/((results['fn'] + results['tp'])*(results['fn'] + results['tn'])))
+            results['ltn']= results['tn']*np.log(results['tn']/((results['tn'] + results['fp'])*(results['tn'] + results['fn'])))
+            results['lp']= results['p']*np.log(results['p']/(results['p'] + results['n']))
+            results['ln']= results['n']*np.log(results['n']/(results['p'] + results['n']))
+            results['uc']= (results['l'] + results['ltp'] + results['lfp'] + results['lfn'] + results['ltn'])/(results['l'] + results['lp'] + results['ln'])
+            results['informedness']= results['sens'] + results['spec'] - 1.0
+            results['markedness']= results['ppv'] + results['npv'] - 1.0
+            results['log_loss']= log_loss(all_test, all_pred)
+            results['auc']= roc_auc_score(all_test, all_pred[:,minority_class_index])
+            test_labels, preds= zip(*sorted(zip(all_test, all_pred[:,minority_class_index]), key= lambda x: -x[1]))
+            test_labels= np.array(test_labels)
+            th= int(0.2*len(test_labels))
+            results['p_top20']= np.sum(test_labels[:th] == minority_class_index)/th
+            results['brier']= np.mean((all_pred[:,minority_class_index] - all_test)**2)
+        else:
+            results['tp']= 0
+            results['tn']= 0
+            results['fp']= 0
+            results['fn']= 0
+            results['p']= 0
+            results['n']= 0
+            results['acc']= 0
+            results['sens']= 0
+            results['spec']= 0
+            results['ppv']= 0
+            results['npv']= 0
+            results['fpr']= 1
+            results['fdr']= 1
+            results['fnr']= 1
+            results['bacc']= 0
+            results['gacc']= 0
+            results['f1']= 0
+            results['mcc']= np.nan
+            results['l']= np.nan
+            results['ltp']= np.nan
+            results['lfp']= np.nan
+            results['lfn']= np.nan
+            results['ltn']= np.nan
+            results['lp']= np.nan
+            results['ln']= np.nan
+            results['uc']= np.nan
+            results['informedness']= 0
+            results['markedness']= 0
+            results['log_loss']= np.nan
+            results['auc']= 0
+            results['p_top20']= 0
+            results['brier']= 1
         
         return results
     
@@ -13645,11 +13776,12 @@ class Evaluation():
         if os.path.isfile(os.path.join(self.cache_path, self.filename)):
             evaluations= pickle.load(open(os.path.join(self.cache_path, self.filename), 'rb'))
         
-        #already_evaluated= np.array([os.path.isfile(os.path.join(self.cache_path, f)) for f in self.filenames])
         already_evaluated= np.array([l in evaluations for l in self.labels])
         
         if not np.all(already_evaluated):
             samp= self.sampling.do_sampling()
+        else:
+            return list(evaluations.values())
         
         for i in range(len(self.classifiers)):
             if not already_evaluated[i]:
@@ -13657,27 +13789,29 @@ class Evaluation():
                 all_preds, all_tests= [], []
                 minority_class_label= None
                 for X_train, y_train, X_test, y_test in samp['sampling']:
-                    if minority_class_label is None:
-                        class_labels= np.unique(y_train)
-                        if np.sum(class_labels[0] == y_train) < len(y_train)/2:
-                            minority_class_label= int(class_labels[0])
-                        else:
-                            minority_class_label= int(class_labels[1])
-                    all_tests.append(y_test)
-                    if np.sum(y_train == y_train[0]) != len(y_train) and np.sum(y_train == y_train[0]) != 0:
+                    class_labels= np.unique(y_train)
+                    min_class_size= np.min([np.sum(y_train == c) for c in class_labels])
+                    if min_class_size > 5 and len(y_train) > 10 and len(class_labels) > 1:
+                        all_tests.append(y_test)
+                        if minority_class_label is None:
+                            class_labels= np.unique(y_train)
+                            if np.sum(class_labels[0] == y_train) < len(y_train)/2:
+                                minority_class_label= int(class_labels[0])
+                            else:
+                                minority_class_label= int(class_labels[1])
                         ss= StandardScaler()
                         X_train_trans= ss.fit_transform(X_train)
                         self.classifiers[i].fit(X_train_trans, y_train)
                         all_preds.append(self.classifiers[i].predict_proba(ss.transform(X_test)))
-                    elif y_train[0] == 0:
-                        all_preds.append(np.vstack([[1.0, 0.0]]*len(y_test)))
-                    elif y_train[0] == 1:
-                        all_preds.append(np.vstack([[0.0, 1.0]]*len(y_test)))
                 
-                all_preds= np.vstack(all_preds)
-                all_tests= np.hstack(all_tests)
-                
-                evaluations[self.labels[i]]= self.calculate_metrics(all_preds, all_tests, minority_class_label)
+                if len(all_tests) > 0:
+                    all_preds= np.vstack(all_preds)
+                    all_tests= np.hstack(all_tests)
+                    
+                    evaluations[self.labels[i]]= self.calculate_metrics(all_preds, all_tests, minority_class_label)
+                else:
+                    evaluations[self.labels[i]]= self.calculate_metrics(None, None, minority_class_label)
+                    
                 evaluations[self.labels[i]]['runtime']= samp['runtime']
                 evaluations[self.labels[i]]['sampler']= self.sampling.sampler.__name__
                 evaluations[self.labels[i]]['classifier']= self.classifiers[i].__class__.__name__
@@ -13688,17 +13822,30 @@ class Evaluation():
                 evaluations[self.labels[i]]['db_size']= samp['db_size']
                 evaluations[self.labels[i]]['db_n_attr']= samp['db_n_attr']
                 evaluations[self.labels[i]]['imbalanced_ratio']= samp['imbalanced_ratio']
-            
-        logging.info(self.__class__.__name__ + (" dumping to file %s" % self.filename))
-        pickle.dump(evaluations, open(os.path.join(self.cache_path, self.filename), "wb"))
-        
+
+        if not np.all(already_evaluated):
+            logging.info(self.__class__.__name__ + (" dumping to file %s" % self.filename))
+            pickle.dump(evaluations, open(os.path.join(self.cache_path, self.filename), "wb"))
+
         return list(evaluations.values())
+
+def first_sample(X):
+    return X.iloc[0]
 
 class CacheAndValidate():
     """
     Class managing the evaluation of samplers and classifiers on datasets
     """
-    def __init__(self, samplers, classifiers, datasets, cache_path, validator= RepeatedStratifiedKFold(n_splits= 5, n_repeats= 3), remove_sampling_cache= True):
+    def __init__(self, 
+                 samplers, 
+                 classifiers, 
+                 datasets, 
+                 cache_path, 
+                 validator= RepeatedStratifiedKFold(n_splits= 5, n_repeats= 3), 
+                 remove_sampling_cache= False, 
+                 max_n_sampler_par_comb= 35,
+                 n_jobs= 1,
+                 aggregations= {}):
         """
         Constructor of the Evaluation object
         Args:
@@ -13707,6 +13854,10 @@ class CacheAndValidate():
             datasets (list): list of dicts (with 'data', 'target' and 'DESCR' fields) or dataset loader functions
             cache_path (str/None): directory path used for caching
             validator (obj): validator object
+            remove_sampling_cache (bool): whether removing the sampling files or not
+            max_n_sampler_par_comb (int): maximum number of sampler parameter combinations
+            n_jobs (int): number of joblib jobs
+            aggregations (dict): the way to aggregate the results
         """
         self.samplers= samplers
         self.classifiers= classifiers
@@ -13714,6 +13865,9 @@ class CacheAndValidate():
         self.cache_path= cache_path
         self.validator= validator
         self.remove_sampling_cache= remove_sampling_cache
+        self.max_n_sampler_par_comb= max_n_sampler_par_comb
+        self.n_jobs= n_jobs
+        self.aggregations= aggregations
         
         self.runtime_proxies= dict([('SMOTE', 0.20995807647705078), ('SMOTE_TomekLinks', 0.9413125514984131), ('SMOTE_ENN', 0.4389991760253906),
                                ('Borderline_SMOTE1', 0.2068939208984375), ('Borderline_SMOTE2', 0.14755773544311523), ('ADASYN', 0.3462491035461426),
@@ -13742,6 +13896,20 @@ class CacheAndValidate():
                                ('AND_SMOTE', 0.8058390617370605), ('NRAS', 0.380873441696167), ('AMSCO', 1060.4097530841827),
                                ('SSO', 264.3451817035675), ('NDO_sampling', 0.2468242645263672), ('DSRBF', 364.9397201538086),
                                ('Gaussian_SMOTE', 0.18278789520263672), ('kmeans_SMOTE', 2.027872323989868), ('Supervised_SMOTE', 1141.9092671871185)])
+        
+        if len(self.aggregations) == 0:
+            self.aggregations['groupby']= ['db_name', 'classifier', 'sampler']
+            self.aggregations['measures']= {'brier': ['min'],
+                                             'acc': ['max'],
+                                             'f1': ['max'],
+                                             'auc': ['max'],
+                                             'p_top20': ['max'],
+                                             'gacc': ['max'],
+                                             'runtime': ['mean'],
+                                             'db_size': [first_sample],
+                                             'db_n_attr': [first_sample],
+                                             'imbalanced_ratio': [first_sample],
+                                             'sampler_categories': [first_sample]}
     
     def clone_classifiers(self):
         results= []
@@ -13752,85 +13920,116 @@ class CacheAndValidate():
                 results.append(clone(c))
         return results
     
-    def read_evaluation_cache(self):
-        results= []
-        for d in self.datasets:
-            if not d is dict:
-                d= d()
+    def cache_samplings(self, folding):
+        logging.info(self.__class__.__name__ + ": " + "create sampling objects")
+        sampling_objs= []
+        for s in self.samplers:
+            np.random.seed(2)
+        
+            sampling_par_comb= s.parameter_combinations()
+            sampling_par_comb= np.random.choice(sampling_par_comb, min([len(sampling_par_comb), self.max_n_sampler_par_comb]), replace= False)
             
-            cache_path_db= os.path.join(self.cache_path, d['DESCR'])
-            
-            evaluation_files= glob.glob(os.path.join(cache_path_db, 'eval*'))
-            for f in evaluation_files:
-                eval_results= pickle.load(open(f, 'rb'))
-                results.extend(eval_results)
+            for spc in sampling_par_comb:
+                sampling_objs.append(Sampling(folding, s, spc))
                 
+        # sorting sampling objects
+        def key(x):
+            if 'proportion' in x.sampler_parameters:
+                return x.sampler_parameters['proportion']
+            elif OverSampling.cat_memetic in x.sampler.categories:
+                return 20
+            else:
+                return 10
+        
+        sampling_objs= list(reversed(sorted(sampling_objs, key= key)))
+        
+        # executing sampling in parallel
+        logging.info(self.__class__.__name__ + ": " + "executing %d sampling in parallel" % len(sampling_objs))
+        Parallel(n_jobs= self.n_jobs, batch_size= 1)(delayed(s.cache_sampling)() for s in sampling_objs)
+        
+        return sampling_objs
+            
+    def cache_evaluations(self, sampling_objs):
+        # create evaluation objects
+        logging.info(self.__class__.__name__ + ": " + "create classifier jobs")
+        evaluation_objs= []
+        
+        num_threads= None if self.n_jobs is None or self.n_jobs is 1 else 1
+        
+        for s in sampling_objs:
+            evaluation_objs.append(Evaluation(s, self.clone_classifiers(), num_threads))
+        
+        logging.info(self.__class__.__name__ + ": " +"executing %d evaluation jobs in parallel" % (len(evaluation_objs)))
+        # execute evaluation in parallel
+        evals= Parallel(n_jobs= self.n_jobs, batch_size= 1)(delayed(e.do_evaluation)() for e in evaluation_objs)
+        
+        return evals
+    
+    def read_results(self, cache_path_db):
+        results= []
+        evaluation_files= glob.glob(os.path.join(cache_path_db, 'eval*'))
+        for f in evaluation_files:
+            eval_results= pickle.load(open(f, 'rb'))
+            results.append(list(eval_results.values()))
         return results
     
-    def cache_and_validate(self, max_n_sampler_par_comb= None, n_jobs= 1):
+    def cache_and_evaluate(self):
         results= []
-        for d in self.datasets:
-            # checking if d is a loader function, if so, load the dataset
-            if not d is dict:
-                d= d()
-            
-            # creating separate cache directory for dataset
-            cache_path_db= os.path.join(self.cache_path, d['DESCR'])
+        for dataset in self.datasets:
+            if not dataset is dict:
+                dataset= dataset()
+                
+            cache_path_db= os.path.join(self.cache_path, dataset['DESCR'])
             if not os.path.isdir(cache_path_db):
                 os.mkdir(cache_path_db)
             
-            # create folding object and do folding
-            folding= Folding(d, self.validator, cache_path_db)
-            folding.do_folding()
+            samplings_available= False
+            evaluations_available= False
             
-            # create sampling objects
-            logging.info(self.__class__.__name__ + " " +"create sampling jobs for dataset %s" % d['DESCR'])
-            sampling_objs= []
-            for s in self.samplers:
-                # fixing random seed
-                np.random.seed(2)
+            samplings= glob.glob(os.path.join(cache_path_db, 'sampling*'))
+            if len(samplings) > 0:
+                samplings_available= True
                 
-                sampling_par_comb= s.parameter_combinations()
-                sampling_par_comb= np.random.choice(sampling_par_comb, min([len(sampling_par_comb), max_n_sampler_par_comb]), replace= False)
-                for spc in sampling_par_comb:
-                    sampling_objs.append(Sampling(folding, s, spc))
+            evaluations= glob.glob(os.path.join(cache_path_db, 'eval*'))
+            if len(evaluations) > 0:
+                evaluations_available= True
             
-            # sorting sampling objects
-            def key(x):
-                if 'proportion' in x.sampler_parameters:
-                    return x.sampler_parameters['proportion']
-                elif OverSampling.cat_memetic in x.sampler.categories:
-                    return 20
-                else:
-                    return 10
+            logging.info("dataset: %s, samplings_available: %s, evaluations_available: %s" % (dataset['DESCR'], str(samplings_available), str(evaluations_available)))
+            if evaluations_available == True and samplings_available == False:
+                logging.info("reading evaluation results")
+                res= self.read_results(cache_path_db)
+            else:
+                logging.info("doing the folding")
+                folding= Folding(dataset, self.validator, cache_path_db)
+                folding.do_folding()
+                
+                logging.info("do the samplings")
+                sampling_objs= self.cache_samplings(folding)
+                
+                logging.info("do the evaluations")
+                res= self.cache_evaluations(sampling_objs)
             
-            sampling_objs= list(reversed(sorted(sampling_objs, key= key)))
-            
-            # executing sampling in parallel
-            Parallel(n_jobs= n_jobs, batch_size= 1)(delayed(s.cache_sampling)() for s in sampling_objs)
-            
-            # create evaluation objects
-            logging.info(self.__class__.__name__ + " " + "create classifier jobs for dataset %s - num_samplings: %d" % (d['DESCR'], len(sampling_objs)))
-            evaluation_objs= []
-            
-            num_threads= None if n_jobs is None or n_jobs is 1 else 1
-            
-            for s in sampling_objs:
-                evaluation_objs.append(Evaluation(s, self.clone_classifiers(), num_threads))
-            
-            logging.info(self.__class__.__name__ + " " +"executing evaluation jobs in parallel for dataset %s - num evals: %d" % (d['DESCR'], len(evaluation_objs)))
-            
-            # execute evaluation in parallel
-            evals= Parallel(n_jobs= n_jobs, batch_size= 1)(delayed(e.do_evaluation)() for e in evaluation_objs)
-            
-            for e in evals:
-                for ee in e:
-                    results.append(ee)
-                    
+            # removing samplings once everything is done
             if self.remove_sampling_cache:
-                filenames= glob.glob(os.path.join(self.cache_path, 'sampling*'))
+                logging.info("removing unnecessary sampling files")
+                filenames= glob.glob(os.path.join(cache_path_db, 'sampling*'))
                 for f in filenames:
                     os.remove(f)
+            
+            db_res= []
+            for r in res:
+                df= pd.DataFrame(r)
+                agg= df.groupby(by= self.aggregations['groupby']).agg(self.aggregations['measures']).reset_index()
+                agg.columns= agg.columns.get_level_values(0)
+                db_res.append(agg)
+            
+            db_res= pd.concat(db_res).reset_index(drop= True)
+            results.append(db_res)
         
-        return results
-
+        all_results= pd.concat(results).reset_index(drop= True)
+        all_results.columns= all_results.columns.get_level_values(0)
+        
+        agg= all_results.groupby(by= self.aggregations['groupby']).agg(self.aggregations['measures']).reset_index()
+        agg.columns= agg.columns.get_level_values(0)
+        
+        return agg
