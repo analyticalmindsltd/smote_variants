@@ -3543,12 +3543,12 @@ class SVM_balance(OverSampling):
         best_C= 0.01
         for C in C_params:
             logging.info(self.__class__.__name__ + ": " +"Evaluating SVM with C=%f" % C)
-            svc= SVC(C= C, kernel= 'rbf')
+            svc= SVC(C= C, kernel= 'rbf', gamma= 'auto')
             score= np.mean(cross_val_score(svc, X_norm, y, cv= 5))
             if score > best_score:
                 best_score= score
                 best_C= C
-        svc= SVC(C= best_C, kernel= 'rbf')
+        svc= SVC(C= best_C, kernel= 'rbf', gamma= 'auto')
         svc.fit(X_norm, y)
 
         return X, svc.predict(X_norm)
@@ -7688,7 +7688,7 @@ class SMOTE_PSO(OverSampling):
             y= np.delete(y, to_remove)
         
         # fitting SVM to extract initial support vectors
-        svc= SVC(kernel= 'rbf', probability= True)
+        svc= SVC(kernel= 'rbf', probability= True, gamma= 'auto')
         svc.fit(X_scaled, y)
         
         # extracting the support vectors
@@ -8672,7 +8672,7 @@ class E_SMOTE(OverSampling):
         self.class_label_statistics(X, y)
         
         if len(X) < 800:
-            classifier= SVC()
+            classifier= SVC(gamma= 'auto')
         else:
             classifier= DecisionTreeClassifier(max_depth= 4)
         
