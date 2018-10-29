@@ -373,6 +373,20 @@ class ParameterCheckingMixin:
         """
         if not x in l:
             raise ValueError(self.__class__.__name__ + ": " + "Value for parameter %s not in list %s is not allowed: %s" % (name, str(l), str(x)))
+    
+    def check_n_jobs(self, x, name):
+        """
+        Check n_jobs parameter
+        Args:
+            x (int/None): number of jobs
+            name (str): the parameter name
+        Throws:
+            ValueError
+        """
+        if (x is None) or (not x is None and isinstance(x, int) and not x == 0):
+            pass
+        else:
+            raise ValueError(self.__class__.__name__ + ": " + "Value for parameter n_jobs is not allowed: %s" % str(x))
 
 class ParameterCombinationsMixin:
     """
@@ -436,16 +450,20 @@ class TomekLinkRemoval(NoiseFilter):
             } 
     URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
     """
-    def __init__(self, strategy= 'remove_majority'):
+    def __init__(self, strategy= 'remove_majority', n_jobs= 1):
         """
         Constructor
         Args:
             strategy (str): noise removal strategy: 'remove_majority'/'remove_both'
+            n_jobs (int): number of jobs
         """
         super().__init__()
-        self.strategy= strategy
         
-        self.check_isin(self.strategy, 'strategy', ['remove_majority', 'remove_both'])
+        self.check_isin(strategy, 'strategy', ['remove_majority', 'remove_both'])
+        self.check_n_jobs(n_jobs, 'n_jobs')
+        
+        self.strategy= strategy
+        self.n_jobs= n_jobs
     
     def remove_noise(self, X, y):
         """
@@ -460,7 +478,7 @@ class TomekLinkRemoval(NoiseFilter):
         self.class_label_statistics(X, y)
         
         # using 2 neighbors because the first neighbor is the point itself
-        nn= NearestNeighbors(n_neighbors= 2)
+        nn= NearestNeighbors(n_neighbors= 2, n_jobs= self.n_jobs)
         distances, indices= nn.fit(X).kneighbors(X)
         
         # identify links
@@ -505,11 +523,18 @@ class CondensedNearestNeighbors(NoiseFilter):
                 ISSN={0018-9448}, 
                 month={May}}
     """
-    def __init__(self):
+    def __init__(self, n_jobs= 1):
         """
         Constructor
+        
+        Args:
+            n_jobs (int): number of jobs
         """
         super().__init__()
+        
+        self.check_n_jobs(n_jobs, 'n_jobs')
+        
+        self.n_jobs= n_jobs
         
     def remove_noise(self, X, y):
         """
@@ -531,7 +556,7 @@ class CondensedNearestNeighbors(NoiseFilter):
         
         # Adding misclassified majority elements repeatedly        
         while True:
-            knn= KNeighborsClassifier(n_neighbors= 1)
+            knn= KNeighborsClassifier(n_neighbors= 1, n_jobs= self.n_jobs)
             knn.fit(X_hat, y_hat)
             pred= knn.predict(X_maj)
             if np.all(pred == self.majority_label):
@@ -568,11 +593,18 @@ class OneSidedSelection(NoiseFilter):
             } 
     URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
     """
-    def __init__(self):
+    def __init__(self, n_jobs= 1):
         """
         Constructor
+        
+        Args:
+            n_jobs (int): number of jobs
         """
         super().__init__()
+        
+        self.check_n_jobs(n_jobs, 'n_jobs')
+        
+        self.n_jobs= n_jobs
         
     def remove_noise(self, X, y):
         """
@@ -586,9 +618,9 @@ class OneSidedSelection(NoiseFilter):
         logging.info(self.__class__.__name__ + ": " +"Running noise removal via %s" % self.__class__.__name__)
         self.class_label_statistics(X, y)
         
-        t= TomekLinkRemoval()
+        t= TomekLinkRemoval(n_jobs= self.n_jobs)
         X0, y0= t.remove_noise(X, y)
-        cnn= CondensedNearestNeighbors()
+        cnn= CondensedNearestNeighbors(n_jobs= self.n_jobs)
         
         return cnn.remove_noise(X0, y0)
 
@@ -616,11 +648,18 @@ class CNNTomekLinks(NoiseFilter):
             } 
     URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
     """
-    def __init__(self):
+    def __init__(self, n_jobs= 1):
         """
         Constructor
+        
+        Args:
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
+        
+        self.check_n_jobs(n_jobs, 'n_jobs')
+        
+        self.n_jobs= n_jobs
         
     def remove_noise(self, X, y):
         """
@@ -634,9 +673,9 @@ class CNNTomekLinks(NoiseFilter):
         logging.info(self.__class__.__name__ + ": " +"Running noise removal via %s" % self.__class__.__name__)
         self.class_label_statistics(X, y)
         
-        c= CondensedNearestNeighbors()
+        c= CondensedNearestNeighbors(n_jobs= self.n_jobs)
         X0, y0= c.remove_noise(X, y)
-        t= TomekLinkRemoval()
+        t= TomekLinkRemoval(n_jobs= self.n_jobs)
         
         return t.remove_noise(X0, y0)
 
@@ -662,11 +701,18 @@ class NeighborhoodCleaningRule(NoiseFilter):
             } 
     URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
     """
-    def __init__(self):
+    def __init__(self, n_jobs= 1):
         """
         Constructor
+        
+        Args:
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
+        
+        self.check_n_jobs(n_jobs, 'n_jobs')
+        
+        self.n_jobs= n_jobs
         
     def remove_noise(self, X, y):
         """
@@ -682,7 +728,7 @@ class NeighborhoodCleaningRule(NoiseFilter):
         
         # fitting nearest neighbors with proposed parameter
         # using 4 neighbors because the first neighbor is the point itself
-        nn= NearestNeighbors(n_neighbors= 4)
+        nn= NearestNeighbors(n_neighbors= 4, n_jobs= self.n_jobs)
         nn.fit(X)
         distances, indices= nn.kneighbors(X)
         
@@ -724,24 +770,21 @@ class EditedNearestNeighbors(NoiseFilter):
             } 
     URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
     """
-    def __init__(self, remove= 'both'):
+    def __init__(self, remove= 'both', n_jobs= 1):
         """
         Constructor
         Args:
             remove (str): class to remove from 'both'/'min'/'maj'
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
-        self.remove= remove
         
-        self.check_isin(self.remove, 'remove', ['both', 'min', 'maj'])
-    
-    def check_parameters(self):
-        """
-        Checks if the parameters of the technique are valid
-        """
-        if not self.remove in ['both', 'min', 'maj']:
-            raise ValueError(self.__class__.__name__ + ": " + 'Remove mode %s not implemented' % self.remove)
-    
+        self.check_isin(remove, 'remove', ['both', 'min', 'maj'])
+        self.check_n_jobs(n_jobs, 'n_jobs')
+        
+        self.remove= remove
+        self.n_jobs= n_jobs
+
     def remove_noise(self, X, y):
         """
         Removes noise
@@ -754,7 +797,7 @@ class EditedNearestNeighbors(NoiseFilter):
         logging.info(self.__class__.__name__ + ": " +"Running noise removal via %s" % self.__class__.__name__)
         self.class_label_statistics(X, y)
         
-        nn= NearestNeighbors(n_neighbors= 4)
+        nn= NearestNeighbors(n_neighbors= 4, n_jobs= self.n_jobs)
         nn.fit(X)
         distances, indices= nn.kneighbors(X)
         
@@ -942,7 +985,7 @@ class OverSampling(StatisticsMixin, ParameterCheckingMixin, ParameterCombination
     
     def __init__(self):
         pass
-    
+
     def number_of_instances_to_sample(self, strategy, n_maj, n_min):
         """
         Determines the number of samples to generate
@@ -1112,7 +1155,7 @@ class SMOTE(OverSampling):
     categories= [OverSampling.cat_sample_ordinary,
                  OverSampling.cat_extensive]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the SMOTE object
         Args:
@@ -1120,14 +1163,17 @@ class SMOTE(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): control parameter of the nearest neighbor technique
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
+        self.n_jobs= n_jobs
     
     @classmethod
     def parameter_combinations(cls):
@@ -1154,7 +1200,7 @@ class SMOTE(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting the model
-        nn= NearestNeighbors(self.n_neighbors+1)
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1, n_jobs= self.n_jobs)
         nn.fit(X)
         dist, ind= nn.kneighbors(X_min)
         
@@ -1175,7 +1221,7 @@ class SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
 
 class SMOTE_TomekLinks(OverSampling):
     """
@@ -1204,7 +1250,7 @@ class SMOTE_TomekLinks(OverSampling):
                  OverSampling.cat_noise_removal,
                  OverSampling.cat_changes_majority]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the SMOTE object
         Args:
@@ -1212,14 +1258,17 @@ class SMOTE_TomekLinks(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): control parameter of the nearest neighbor technique
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
+        self.n_jobs= n_jobs
 
     @classmethod
     def parameter_combinations(cls):
@@ -1243,10 +1292,10 @@ class SMOTE_TomekLinks(OverSampling):
         
         self.class_label_statistics(X, y)
         
-        smote= SMOTE(self.proportion, self.n_neighbors)
+        smote= SMOTE(self.proportion, self.n_neighbors, n_jobs= self.n_jobs)
         X_new, y_new= smote.sample(X, y)
         
-        t= TomekLinkRemoval(strategy= 'remove_both')
+        t= TomekLinkRemoval(strategy= 'remove_both', n_jobs= self.n_jobs)
         
         return t.remove_noise(X_new, y_new)
     
@@ -1255,7 +1304,7 @@ class SMOTE_TomekLinks(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
     
 class SMOTE_ENN(OverSampling):
     """
@@ -1286,7 +1335,7 @@ class SMOTE_ENN(OverSampling):
                  OverSampling.cat_noise_removal,
                  OverSampling.cat_changes_majority]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the SMOTE object
         Args:
@@ -1294,14 +1343,17 @@ class SMOTE_ENN(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): control parameter of the nearest neighbor technique
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
+        self.n_jobs= n_jobs
     
     @classmethod
     def parameter_combinations(cls):
@@ -1325,10 +1377,10 @@ class SMOTE_ENN(OverSampling):
         
         self.class_label_statistics(X, y)
         
-        smote= SMOTE(self.proportion, self.n_neighbors)
+        smote= SMOTE(self.proportion, self.n_neighbors, n_jobs= self.n_jobs)
         X_new, y_new= smote.sample(X, y)
         
-        enn= EditedNearestNeighbors()
+        enn= EditedNearestNeighbors(n_jobs= self.n_jobs)
         
         return enn.remove_noise(X_new, y_new)
     
@@ -1337,7 +1389,7 @@ class SMOTE_ENN(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
 
 class Borderline_SMOTE1(OverSampling):
     """
@@ -1363,7 +1415,7 @@ class Borderline_SMOTE1(OverSampling):
                  OverSampling.cat_extensive,
                  OverSampling.cat_borderline]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, k_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, k_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -1372,15 +1424,18 @@ class Borderline_SMOTE1(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): control parameter of the nearest neighbor technique for determining the borderline
             k_neighbors (int): control parameter of the nearest neighbor technique for sampling
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
         self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
         self.check_greater_or_equal(k_neighbors, 'k_neighbors', 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.k_neighbors= k_neighbors
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -1409,7 +1464,7 @@ class Borderline_SMOTE1(OverSampling):
         
         # fitting model
         X_min= X[y == self.minority_label]
-        nn= NearestNeighbors(self.n_neighbors+1)
+        nn= NearestNeighbors(self.n_neighbors+1, n_jobs= self.n_jobs)
         nn.fit(X)
         distances, indices= nn.kneighbors(X_min)
         
@@ -1428,7 +1483,7 @@ class Borderline_SMOTE1(OverSampling):
             return X.copy(), y.copy()
         
         # fitting nearest neighbors model to minority samples
-        nn= NearestNeighbors(min([len(X_min), self.k_neighbors + 1]))
+        nn= NearestNeighbors(min([len(X_min), self.k_neighbors + 1]), n_jobs= self.n_jobs)
         nn.fit(X_min)
         # extracting neighbors of samples in danger
         distances, indices= nn.kneighbors(X_danger)
@@ -1446,7 +1501,7 @@ class Borderline_SMOTE1(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'k_neighbors': self.k_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'k_neighbors': self.k_neighbors, 'n_jobs': self.n_jobs}
     
 class Borderline_SMOTE2(OverSampling):
     """
@@ -1472,7 +1527,7 @@ class Borderline_SMOTE2(OverSampling):
                  OverSampling.cat_extensive,
                  OverSampling.cat_borderline]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, k_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, k_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -1481,16 +1536,19 @@ class Borderline_SMOTE2(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): control parameter of the nearest neighbor technique for determining the borderline
             k_neighbors (int): control parameter of the nearest neighbor technique for sampling
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         
         self.check_greater_or_equal(proportion, 'proportion', 0)
         self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
         self.check_greater_or_equal(k_neighbors, 'k_neighbors', 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.k_neighbors= k_neighbors
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -1519,7 +1577,7 @@ class Borderline_SMOTE2(OverSampling):
         
         # fitting nearest neighbors model
         X_min= X[y == self.minority_label]
-        nn= NearestNeighbors(self.n_neighbors+1)
+        nn= NearestNeighbors(self.n_neighbors+1, n_jobs= self.n_jobs)
         nn.fit(X)
         distances, indices= nn.kneighbors(X_min)
         
@@ -1538,7 +1596,7 @@ class Borderline_SMOTE2(OverSampling):
             return X.copy(), y.copy()
         
         # fitting nearest neighbors model to minority samples
-        nn= NearestNeighbors(self.k_neighbors + 1)
+        nn= NearestNeighbors(self.k_neighbors + 1, n_jobs= self.n_jobs)
         nn.fit(X)
         distances, indices= nn.kneighbors(X_danger)
         
@@ -1562,7 +1620,7 @@ class Borderline_SMOTE2(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'k_neighbors': self.k_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'k_neighbors': self.k_neighbors, 'n_jobs': self.n_jobs}
 
 class ADASYN(OverSampling):
     """
@@ -1581,23 +1639,26 @@ class ADASYN(OverSampling):
                  OverSampling.cat_borderline,
                  OverSampling.cat_density_based]
     
-    def __init__(self, n_neighbors= 5, d_th= 0.9, beta= 1.0):
+    def __init__(self, n_neighbors= 5, d_th= 0.9, beta= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
             n_neighbors (int): control parameter of the nearest neighbor component
             d_th (float): tolerated deviation level from balancedness
             beta (float): target level of balancedness, same as proportion in other techniques
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         
         self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
         self.check_greater_or_equal(d_th, 'd_th', 0)
         self.check_greater_or_equal(beta, 'beta', 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.n_neighbors= n_neighbors
         self.d_th= d_th
         self.beta= beta
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -1632,7 +1693,7 @@ class ADASYN(OverSampling):
             return X.copy(), y.copy()
         
         # fitting nearest neighbors model to all samples
-        nn= NearestNeighbors(min([len(X_min), self.n_neighbors+1]))
+        nn= NearestNeighbors(min([len(X_min), self.n_neighbors+1]), n_jobs= self.n_jobs)
         nn.fit(X)
         distances, indices= nn.kneighbors(X_min)
         
@@ -1646,7 +1707,7 @@ class ADASYN(OverSampling):
         num_to_sample= (m_maj - m_min)*self.beta
         
         # fitting nearest neighbors models to minority samples
-        nn= NearestNeighbors(min([len(X_min), self.n_neighbors + 1]))
+        nn= NearestNeighbors(min([len(X_min), self.n_neighbors + 1]), n_jobs= self.n_jobs)
         nn.fit(X_min)
         distances, indices= nn.kneighbors(X_min)
         
@@ -1664,7 +1725,7 @@ class ADASYN(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'n_neighbors': self.n_neighbors, 'd_th': self.d_th, 'beta': self.beta}
+        return {'n_neighbors': self.n_neighbors, 'd_th': self.d_th, 'beta': self.beta, 'n_jobs': self.n_jobs}
     
 class AHC(OverSampling):
     """
@@ -1689,16 +1750,19 @@ class AHC(OverSampling):
                  OverSampling.cat_uses_clustering,
                  OverSampling.cat_application]
     
-    def __init__(self, strategy= 'min'):
+    def __init__(self, strategy= 'min', n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
             strategy (str): which class to sample (min/maj/minmaj)
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_isin(strategy, 'strategy', ['min', 'maj', 'minmaj'])
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.strategy= strategy
+        self.n_jobs= n_jobs
     
     @classmethod
     def parameter_combinations(cls):
@@ -1718,7 +1782,7 @@ class AHC(OverSampling):
         Returns:
             np.ndarray: downsampled vectors
         """
-        kmeans= KMeans(n_clusters= n_clusters)
+        kmeans= KMeans(n_clusters= n_clusters, n_jobs= self.n_jobs)
         kmeans.fit(X)
         return kmeans.cluster_centers_
     
@@ -1796,7 +1860,7 @@ class AHC(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'strategy': self.strategy}
+        return {'strategy': self.strategy, 'n_jobs': self.n_jobs}
 
 class LLE_SMOTE(OverSampling):
     """
@@ -1820,7 +1884,7 @@ class LLE_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_dim_reduction]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_components= 2):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_components= 2, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -1829,15 +1893,18 @@ class LLE_SMOTE(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): control parameter of the nearest neighbor component
             n_components (int): dimensionality of the embedding space
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
         self.check_greater_or_equal(n_neighbors, 'n_neighbors', 2)
         self.check_greater_or_equal(n_components, 'n_components', 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_components= n_components
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -1868,7 +1935,7 @@ class LLE_SMOTE(OverSampling):
         X_min= X[y == self.minority_label]
         
         # do the locally linear embedding
-        lle= LocallyLinearEmbedding(self.n_neighbors, self.n_components)
+        lle= LocallyLinearEmbedding(self.n_neighbors, self.n_components, n_jobs= self.n_jobs)
         try:
             lle.fit(X_min)
         except:
@@ -1876,7 +1943,7 @@ class LLE_SMOTE(OverSampling):
         X_min_transformed= lle.transform(X_min)
         
         # fitting the nearest neighbors model for sampling
-        nn= NearestNeighbors(self.n_neighbors+1).fit(X_min_transformed)
+        nn= NearestNeighbors(self.n_neighbors+1, n_jobs= self.n_jobs).fit(X_min_transformed)
         dist, ind= nn.kneighbors(X_min_transformed)
         
         def solve_for_weights(xi, Z):
@@ -1917,7 +1984,7 @@ class LLE_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_components': self.n_components}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_components': self.n_components, 'n_jobs': self.n_jobs}
 
 class distance_SMOTE(OverSampling):
     """
@@ -1937,7 +2004,7 @@ class distance_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -1945,13 +2012,16 @@ class distance_SMOTE(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): control parameter of the nearest neighbor component
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
         self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -1979,7 +2049,7 @@ class distance_SMOTE(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting the model
-        nn= NearestNeighbors(min([len(X_min), self.n_neighbors+1])).fit(X_min)
+        nn= NearestNeighbors(min([len(X_min), self.n_neighbors+1]), n_jobs= self.n_jobs).fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
         # determine the number of samples to generate
@@ -1998,7 +2068,7 @@ class distance_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
 
 class SMMO(OverSampling):
     """
@@ -2022,7 +2092,7 @@ class SMMO(OverSampling):
                  OverSampling.cat_extensive,
                  OverSampling.cat_uses_classifier]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, ensemble= [QuadraticDiscriminantAnalysis(), DecisionTreeClassifier(), GaussianNB()], n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -2030,13 +2100,24 @@ class SMMO(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): control parameter of the nearest neighbor component
+            ensemble (list): list of classifiers, if None, default list of classifiers is used
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
         self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
+        try:
+            len_ens= len(ensemble)
+        except:
+            raise ValueError('The ensemble needs to be a list-like object')
+        if len_ens == 0:
+            raise ValueError('At least 1 classifier needs to be specified')
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
+        self.ensemble= ensemble
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -2045,7 +2126,7 @@ class SMMO(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'ensemble': [[QuadraticDiscriminantAnalysis(), DecisionTreeClassifier(), GaussianNB()]]})
     
     def sample(self, X, y):
         """
@@ -2063,29 +2144,26 @@ class SMMO(OverSampling):
         # determine the number of samples to generate
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
-        # specifying the ensemble
-        ensemble= [QuadraticDiscriminantAnalysis(), DecisionTreeClassifier(), GaussianNB()]
-        
         # training and in-sample prediction (out-of-sample by k-fold cross validation might be better)
         predictions= []
-        for e in ensemble:
+        for e in self.ensemble:
             predictions.append(e.fit(X,y).predict(X))
         
         # constructing ensemble prediction
-        pred= np.where(np.sum(np.vstack(predictions), axis= 0) > len(ensemble)/2, 1, 0)
+        pred= np.where(np.sum(np.vstack(predictions), axis= 0) > len(self.ensemble)/2, 1, 0)
         
         # create mask of minority samples to sample
         mask_to_sample= np.where(np.logical_and(np.logical_not(np.equal(pred, y)), y == self.minority_label))[0]
         if len(mask_to_sample) < 2:
             # fallback to a SMOTE-like sampling
-            logging.info(self.__class__.__name__ + ": " +"Not enough minority samples selected %d" % len(mask_to_sample))
-            mask_to_sample= np.where(y == self.minority_label)[0]
+            logging.warning(self.__class__.__name__ + ": " +"Not enough minority samples selected %d" % len(mask_to_sample))
+            return X, y
         
         X_min= X[y == self.minority_label]
         X_min_to_sample= X[mask_to_sample]
         
         # fitting nearest neighbors model for sampling
-        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]))
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]), n_jobs= self.n_jobs)
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min_to_sample)
         
@@ -2103,7 +2181,7 @@ class SMMO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'ensemble': self.ensemble, 'n_jobs': self.n_jobs}
 
 class polynom_fit_SMOTE(OverSampling):
     """
@@ -2247,17 +2325,20 @@ class Stefanowski(OverSampling):
                  OverSampling.cat_sample_copy,
                  OverSampling.cat_borderline]
     
-    def __init__(self, strategy= 'weak_amp'):
+    def __init__(self, strategy= 'weak_amp', n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
             strategy (str): 'weak_amp'/'weak_amp_relabel'/'strong_amp'
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         
         self.check_isin(strategy, 'strategy', ['weak_amp', 'weak_amp_relabel', 'strong_amp'])
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.strategy= strategy
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -2283,13 +2364,13 @@ class Stefanowski(OverSampling):
         
         # fitting the nearest neighbors model for noise filtering, 4 neighbors 
         # instead of 3 as the closest neighbor to a point is itself
-        nn= NearestNeighbors(n_neighbors= 4)
+        nn= NearestNeighbors(n_neighbors= 4, n_jobs= self.n_jobs)
         nn.fit(X)
         distance, indices= nn.kneighbors(X)
         
         # fitting the nearest neighbors model for sample generation, 6 neighbors 
         # instead of 5 for the same reason
-        nn5= NearestNeighbors(n_neighbors= 6)
+        nn5= NearestNeighbors(n_neighbors= 6, n_jobs= self.n_jobs)
         nn5.fit(X)
         distance5, indices5= nn5.kneighbors(X)
         
@@ -2347,6 +2428,7 @@ class Stefanowski(OverSampling):
         y_noise_removed= np.delete(y, to_remove, axis= 0)
         
         if len(samples) == 0:
+            logging.warning(self.__class__.__name__ + ": " + "no samples added")
             return X_noise_removed, y_noise_removed
             
         return np.vstack([X_noise_removed, np.vstack(samples)]), np.hstack([y_noise_removed, np.repeat(self.minority_label, len(samples))])
@@ -2356,7 +2438,7 @@ class Stefanowski(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'strategy': self.strategy}
+        return {'strategy': self.strategy, 'n_jobs': self.n_jobs}
 
 class ADOMS(OverSampling):
     """
@@ -2378,7 +2460,7 @@ class ADOMS(OverSampling):
     categories= [OverSampling.cat_dim_reduction,
                  OverSampling.cat_extensive]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -2386,13 +2468,16 @@ class ADOMS(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): parameter of the nearest neighbor component
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0.0)
         self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
+        self.n_jobs= n_jobs
        
     @classmethod
     def parameter_combinations(cls):
@@ -2422,7 +2507,7 @@ class ADOMS(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting nearest neighbors model
-        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors+1]))
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors+1]), n_jobs= self.n_jobs)
         nn.fit(X_min)
         distance, indices= nn.kneighbors(X_min)
         
@@ -2452,7 +2537,7 @@ class ADOMS(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
 
 class Safe_Level_SMOTE(OverSampling):
     """
@@ -2482,7 +2567,7 @@ class Safe_Level_SMOTE(OverSampling):
                  OverSampling.cat_extensive,
                  OverSampling.cat_sample_componentwise]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -2490,14 +2575,17 @@ class Safe_Level_SMOTE(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): control parameter of the nearest neighbor component
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1.0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -2525,7 +2613,7 @@ class Safe_Level_SMOTE(OverSampling):
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
         # fitting nearest neighbors model
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1)
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1, n_jobs= self.n_jobs)
         nn.fit(X)
         distance, indices= nn.kneighbors(X)
         
@@ -2581,7 +2669,7 @@ class Safe_Level_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
 
 class MSMOTE(OverSampling):
     """
@@ -2610,7 +2698,7 @@ class MSMOTE(OverSampling):
                  OverSampling.cat_noise_removal,
                  OverSampling.cat_borderline]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -2618,14 +2706,17 @@ class MSMOTE(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): control parameter of the nearest neighbor component
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         
         self.check_greater_or_equal(proportion, 'proportion', 0)
         self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
+        self.n_jobs= n_jobs
        
     @classmethod
     def parameter_combinations(cls):
@@ -2655,7 +2746,7 @@ class MSMOTE(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting the nearest neighbors model
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1)
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1, n_jobs= self.n_jobs)
         nn.fit(X)
         distance, indices= nn.kneighbors(X_min)
         
@@ -2695,7 +2786,7 @@ class MSMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
 
 class DE_oversampling(OverSampling):
     """
@@ -2717,7 +2808,7 @@ class DE_oversampling(OverSampling):
     categories= [OverSampling.cat_changes_majority,
                  OverSampling.cat_uses_clustering]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, crossover_rate= 0.5, similarity_threshold= 0.5, n_clusters= 30):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, crossover_rate= 0.5, similarity_threshold= 0.5, n_clusters= 30, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -2728,6 +2819,7 @@ class DE_oversampling(OverSampling):
             crossover_rate (float): cross over rate of evoluation
             similarity_threshold (float): similarity threshold paramter
             n_clusters (int): number of clusters for cleansing
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
@@ -2735,12 +2827,14 @@ class DE_oversampling(OverSampling):
         self.check_in_range(crossover_rate, 'crossover_rate', [0,1])
         self.check_in_range(similarity_threshold, 'similarity_threshold', [0,1])
         self.check_greater_or_equal(n_clusters, 'n_clusters', 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.crossover_rate= crossover_rate
         self.similarity_threshold= similarity_threshold
         self.n_clusters= n_clusters
+        self.n_jobs= n_jobs
 
     @classmethod
     def parameter_combinations(cls):
@@ -2775,7 +2869,7 @@ class DE_oversampling(OverSampling):
         
         X_min= X[y == self.minority_label]
         
-        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors+1]))
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors+1]), n_jobs= self.n_jobs)
         nn.fit(X_min)
         distance, indices= nn.kneighbors(X_min)
         
@@ -2807,7 +2901,7 @@ class DE_oversampling(OverSampling):
         X_min= X[y == self.minority_label]
         
         # cleansing based on clustering
-        kmeans= KMeans(n_clusters= self.n_clusters)
+        kmeans= KMeans(n_clusters= self.n_clusters, n_jobs= self.n_jobs)
         kmeans.fit(X)
         unique_labels= np.unique(kmeans.labels_)
         one_label_clusters= [l for l in unique_labels if len(np.unique(y[np.where(kmeans.labels_ == l)[0]])) == 1]
@@ -2842,7 +2936,7 @@ class DE_oversampling(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'crossover_rate': self.crossover_rate, 'similarity_threshold': self.similarity_threshold, 'n_clusters': self.n_clusters}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'crossover_rate': self.crossover_rate, 'similarity_threshold': self.similarity_threshold, 'n_clusters': self.n_clusters, 'n_jobs': self.n_jobs}
 
 # Borrowed from sklearn-dev, will be removed once the sklearn implementation
 # becomes stable
@@ -2852,7 +2946,7 @@ class OPTICS:
                  rejection_ratio=.7, similarity_threshold=0.4,
                  significant_min=.003, min_cluster_size=.005,
                  min_maxima_ratio=0.001, algorithm='ball_tree',
-                 leaf_size=30, n_jobs=4):
+                 leaf_size=30, n_jobs=1):
 
         self.max_eps = max_eps
         self.min_samples = min_samples
@@ -3012,7 +3106,7 @@ class SMOBD(OverSampling):
                  OverSampling.cat_extensive,
                  OverSampling.cat_noise_removal]
     
-    def __init__(self, proportion= 1.0, eta1= 0.5, t= 1.8, min_samples= 5, max_eps= 1.0):
+    def __init__(self, proportion= 1.0, eta1= 0.5, t= 1.8, min_samples= 5, max_eps= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -3023,6 +3117,7 @@ class SMOBD(OverSampling):
             t (float): control parameter of noise filtering
             min_samples (int): minimum samples parameter for OPTICS
             max_eps (float): maximum environment radius paramter for OPTICS
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
@@ -3030,12 +3125,14 @@ class SMOBD(OverSampling):
         self.check_greater_or_equal(t, 't', 0)
         self.check_greater_or_equal(min_samples, 'min_samples', 1)
         self.check_greater_or_equal(max_eps, 'max_eps', 0.0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.eta1= eta1
         self.t= t
         self.min_samples= min_samples
         self.max_eps= max_eps
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -3066,7 +3163,7 @@ class SMOBD(OverSampling):
         
         # running the OPTICS technique based on the sklearn implementation
         # TODO: replace to sklearn call once it is stable
-        o= OPTICS(min_samples= min([len(X_min)-1,self.min_samples]), max_eps= self.max_eps)
+        o= OPTICS(min_samples= min([len(X_min)-1,self.min_samples]), max_eps= self.max_eps, n_jobs= self.n_jobs)
         o.fit(X_min)
         cd= o.core_distances_
         rd= o.reachability_
@@ -3077,7 +3174,7 @@ class SMOBD(OverSampling):
         noise= np.logical_and(cd > cd_average*self.t, rd > rd_average*self.t)
         
         # fitting a nearest neighbor model to be able to find neighbors in radius
-        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.min_samples+1]))
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.min_samples+1]), n_jobs= self.n_jobs)
         nn.fit(X_min)
         distances, indices= nn.kneighbors(X_min)
         
@@ -3112,7 +3209,7 @@ class SMOBD(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'eta1': self.eta1, 't': self.t, 'min_samples': self.min_samples, 'max_eps': self.max_eps}
+        return {'proportion': self.proportion, 'eta1': self.eta1, 't': self.t, 'min_samples': self.min_samples, 'max_eps': self.max_eps, 'n_jobs': self.n_jobs}
 
 class SUNDO(OverSampling):
     """
@@ -3134,11 +3231,17 @@ class SUNDO(OverSampling):
     categories= [OverSampling.cat_changes_majority,
                  OverSampling.cat_application]
     
-    def __init__(self):
+    def __init__(self, n_jobs= 1):
         """
         Constructor of the sampling object
+        Args:
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
+        
+        self.check_n_jobs(n_jobs, 'n_jobs')
+        
+        self.n_jobs= n_jobs
     
     @classmethod
     def parameter_combinations(cls):
@@ -3172,7 +3275,7 @@ class SUNDO(OverSampling):
         # generating minority samples
         samples= []
         
-        nn= NearestNeighbors(n_neighbors= 1)
+        nn= NearestNeighbors(n_neighbors= 1, n_jobs= self.n_jobs)
         nn.fit(X_maj)
         
         stds= np.std(X_min, axis= 0)
@@ -3229,7 +3332,7 @@ class SUNDO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {}
+        return {'n_jobs': self.n_jobs}
 
 class MSYN(OverSampling):
     """
@@ -3254,7 +3357,7 @@ class MSYN(OverSampling):
     
     categories= [OverSampling.cat_extensive]
     
-    def __init__(self, pressure= 1.5, n_neighbors= 5):
+    def __init__(self, pressure= 1.5, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -3262,13 +3365,16 @@ class MSYN(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors in the SMOTE sampling
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(pressure, 'pressure', 0)
         self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.pressure= pressure
         self.n_neighbors= n_neighbors
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -3299,12 +3405,12 @@ class MSYN(OverSampling):
         maj_indices= np.where(y == self.majority_label)[0]
         
         # generating samples
-        smote= SMOTE(proportion= self.pressure, n_neighbors= self.n_neighbors)
+        smote= SMOTE(proportion= self.pressure, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs)
         X_res, y_res= smote.sample(X, y)
         X_new, _= X_res[len(X):], y_res[len(X):]
         
         # Compute nearest hit and miss for both classes
-        nn= NearestNeighbors(n_neighbors= len(X))
+        nn= NearestNeighbors(n_neighbors= len(X), n_jobs= self.n_jobs)
         nn.fit(X)
         dist, ind= nn.kneighbors(X)
         
@@ -3352,7 +3458,7 @@ class MSYN(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'pressure': self.pressure, 'n_neighbors': self.n_neighbors}
+        return {'pressure': self.pressure, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
 
 class SVM_balance(OverSampling):
     """
@@ -3385,7 +3491,7 @@ class SVM_balance(OverSampling):
                  OverSampling.cat_uses_classifier,
                  OverSampling.cat_changes_majority]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -3393,14 +3499,17 @@ class SVM_balance(OverSampling):
                                         e.g. 1.0 means that after sampling the number of minority
                                         samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors in the SMOTE sampling
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -3424,7 +3533,7 @@ class SVM_balance(OverSampling):
         
         self.class_label_statistics(X, y)
         
-        X, y= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors).sample(X, y)
+        X, y= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs).sample(X, y)
         
         ss= StandardScaler()
         X_norm= ss.fit_transform(X)
@@ -3449,7 +3558,7 @@ class SVM_balance(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
 
 class TRIM_SMOTE(OverSampling):
     """
@@ -3483,22 +3592,25 @@ class TRIM_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_uses_clustering]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, min_precision= 0.3):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, min_precision= 0.3, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
         self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
         self.check_in_range(min_precision, 'min_precision', [0,1])
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.min_precision= min_precision
+        self.n_jobs= n_jobs
     
     @classmethod
     def parameter_combinations(cls):
@@ -3672,15 +3784,23 @@ class TRIM_SMOTE(OverSampling):
         while len(filtered_seeds) == 0:
             filtered_seeds= [s for s in seeds if self.precision(s[1]) > self.min_precision*multiplier]
             multiplier= multiplier*0.9
+            if multiplier < 0.1:
+                logging.warning(self.__class__.__name__ + ": " + "no clusters passing the filtering")
+                return X.copy(), y.copy()
+
         seeds= filtered_seeds
         
         X_seed= np.vstack([s[0] for s in seeds])
         y_seed= np.hstack([s[1] for s in seeds])
         
-        logging.info(self.__class__.__name__ + ": " +"do the sampling process")
+        logging.info(self.__class__.__name__ + ": " +"do the sampling")
         # generating samples by SMOTE
         X_seed_min= X_seed[y_seed == self.minority_label]
-        nn= NearestNeighbors(n_neighbors= min([len(X_seed_min), self.n_neighbors+1]))
+        if len(X_seed_min) <= 1:
+            logging.warning(self.__class__.__name__ + ": " + "X_seed_min contains less than 2 samples")
+            return X.copy(), y.copy()
+        
+        nn= NearestNeighbors(n_neighbors= min([len(X_seed_min), self.n_neighbors+1]), n_jobs= self.n_jobs)
         nn.fit(X_seed_min)
         distances, indices= nn.kneighbors(X_seed_min)
         
@@ -3698,7 +3818,7 @@ class TRIM_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'min_precision': self.min_precision}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'min_precision': self.min_precision, 'n_jobs': self.n_jobs}
 
 class SMOTE_RSB(OverSampling):
     """
@@ -3735,7 +3855,7 @@ class SMOTE_RSB(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 2.0, n_neighbors= 5):
+    def __init__(self, proportion= 2.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -3743,14 +3863,17 @@ class SMOTE_RSB(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors in the SMOTE sampling
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         
         self.check_greater_or_equal(proportion, 'proportion', 0)
         self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -3778,7 +3901,7 @@ class SMOTE_RSB(OverSampling):
         X_min= X[y == self.minority_label]
         
         # Step 1: do the sampling
-        smote= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors)
+        smote= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs)
         X_samp, y_samp= smote.sample(X, y)
         X_samp, y_samp= X_samp[len(X):], y_samp[len(X):]
         
@@ -3824,7 +3947,7 @@ class SMOTE_RSB(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
 
 class ProWSyn(OverSampling):
     """
@@ -3853,7 +3976,7 @@ class ProWSyn(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, L= 5, theta= 1.0):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, L= 5, theta= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -3863,17 +3986,20 @@ class ProWSyn(OverSampling):
             n_neighbors (int): number of neighbors in nearest neighbors component
             L (int): number of levels
             theta (float): smoothing factor in weight formula
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_greater_or_equal(L, "L", 1)
         self.check_greater_or_equal(theta, "theta", 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.L= L
         self.theta= theta
+        self.n_jobs= n_jobs
     
     @classmethod
     def parameter_combinations(cls):
@@ -3912,7 +4038,7 @@ class ProWSyn(OverSampling):
             if len(P) == 0:
                 break
             # Step 3 a
-            nn= NearestNeighbors(n_neighbors= min([len(P), self.n_neighbors]))
+            nn= NearestNeighbors(n_neighbors= min([len(P), self.n_neighbors]), n_jobs= self.n_jobs)
             nn.fit(X[P])
             distances, indices= nn.kneighbors(X_maj)
             
@@ -3955,7 +4081,7 @@ class ProWSyn(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'L': self.L, 'theta': self.theta}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'L': self.L, 'theta': self.theta, 'n_jobs': self.n_jobs}
 
 class SL_graph_SMOTE(OverSampling):
     """
@@ -3975,7 +4101,7 @@ class SL_graph_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_borderline]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -3983,13 +4109,16 @@ class SL_graph_SMOTE(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors in nearest neighbors component
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -4014,7 +4143,7 @@ class SL_graph_SMOTE(OverSampling):
         self.class_label_statistics(X, y)
         
         # Fitting nearest neighbors model
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors)
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors, n_jobs= self.n_jobs)
         nn.fit(X)
         distances, indices= nn.kneighbors(X[y == self.minority_label])
         
@@ -4026,10 +4155,10 @@ class SL_graph_SMOTE(OverSampling):
         
         if skewness < 0:
             # left skewed
-            s= Safe_Level_SMOTE(self.proportion, self.n_neighbors)
+            s= Safe_Level_SMOTE(self.proportion, self.n_neighbors, n_jobs= self.n_jobs)
         else:
             # right skewed
-            s= Borderline_SMOTE1(self.proportion, self.n_neighbors)
+            s= Borderline_SMOTE1(self.proportion, self.n_neighbors, n_jobs= self.n_jobs)
         
         return s.sample(X, y)
         
@@ -4038,7 +4167,7 @@ class SL_graph_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
 
 class NRSBoundary_SMOTE(OverSampling):
     """
@@ -4058,7 +4187,7 @@ class NRSBoundary_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_borderline]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, w= 0.005):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, w= 0.005, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -4067,15 +4196,18 @@ class NRSBoundary_SMOTE(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors in nearest neighbors component
             w (float): used to set neighborhood radius
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_greater_or_equal(w, "w", 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.w= w
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -4120,7 +4252,7 @@ class NRSBoundary_SMOTE(OverSampling):
         
         # number of neighbors is not interesting here, as we use the
         # radius_neighbors function to extract the neighbors in a given radius
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1, n_jobs= self.n_jobs)
         nn.fit(X)
         for i in range(len(X)):
             indices= nn.radius_neighbors(X[i].reshape(1, -1), delta[i], return_distance= False)
@@ -4137,7 +4269,7 @@ class NRSBoundary_SMOTE(OverSampling):
         
         # step 4 and 5
         # computing the nearest neighbors of the bound set from the minoriy set
-        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]))
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]), n_jobs= self.n_jobs)
         nn.fit(X_min)
         distances, indices= nn.kneighbors(X[bound_set])
         
@@ -4167,7 +4299,7 @@ class NRSBoundary_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'w': self.w}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'w': self.w, 'n_jobs': self.n_jobs}
 
 class LVQ_SMOTE(OverSampling):
     """
@@ -4195,7 +4327,7 @@ class LVQ_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_application]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_clusters= 10):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_clusters= 10, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -4204,15 +4336,18 @@ class LVQ_SMOTE(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors in nearest neighbors component
             n_clusters (int): number of clusters in vector quantization
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_greater_or_equal(n_clusters, "n_clusters", 3)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_clusters= n_clusters
+        self.n_jobs= n_jobs
 
     @classmethod
     def parameter_combinations(cls):
@@ -4241,12 +4376,12 @@ class LVQ_SMOTE(OverSampling):
         X_min= X[y == self.minority_label]
         
         # clustering X_min to extract codebook
-        kmeans= KMeans(n_clusters= min([len(X_min), self.n_clusters]))
+        kmeans= KMeans(n_clusters= min([len(X_min), self.n_clusters]), n_jobs= self.n_jobs)
         kmeans.fit(X_min)
         codebook= kmeans.cluster_centers_
         
         # get nearest neighbors of minority samples to codebook samples
-        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors]))
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors]), n_jobs= self.n_jobs)
         nn.fit(X_min)
         distances, indices= nn.kneighbors(codebook)
         
@@ -4280,7 +4415,7 @@ class LVQ_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'strategy': self.proportion, 'n_neighbors': self.n_neighbors, 'n_clusters': self.n_clusters}
+        return {'strategy': self.proportion, 'n_neighbors': self.n_neighbors, 'n_clusters': self.n_clusters, 'n_jobs': self.n_jobs}
 
 class SOI_CJ(OverSampling):
     """
@@ -4301,7 +4436,7 @@ class SOI_CJ(OverSampling):
                  OverSampling.cat_uses_clustering,
                  OverSampling.cat_sample_componentwise]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, method= 'interpolation'):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, method= 'interpolation', n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -4310,15 +4445,18 @@ class SOI_CJ(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of nearest neighbors in the SMOTE sampling
             method (str): 'interpolation'/'jittering'
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
         self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
         self.check_isin(method, 'method', ['interpolation', 'jittering'])
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.method= method
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -4338,13 +4476,13 @@ class SOI_CJ(OverSampling):
         Returns:
             list(set): list of minority clusters
         """
-        nn_all= NearestNeighbors()
+        nn_all= NearestNeighbors(n_jobs= self.n_jobs)
         nn_all.fit(X)
         
         X_min= X[y == self.minority_label]
         
         # extract nearest neighbors of all samples from the set of minority samples
-        nn= NearestNeighbors(len(X_min))
+        nn= NearestNeighbors(len(X_min), n_jobs= self.n_jobs)
         nn.fit(X)
         distances, indices= nn.kneighbors(X_min)
         
@@ -4446,15 +4584,15 @@ class SOI_CJ(OverSampling):
             return np.vstack([X, samples]), np.hstack([y, np.array([self.minority_label]*len(samples))])
         else:
             # otherwise fall back to standard smote
-            logging.warning(self.__class__.__name__ + ": " +"No clusters with more than 2 elements, falling back to SMOTE")
-            return SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors).sample(X, y)
+            logging.warning(self.__class__.__name__ + ": " +"No clusters with more than 2 elements")
+            return X.copy(), y.copy()
         
     def get_params(self):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'method': self.method}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'method': self.method, 'n_jobs': self.n_jobs}
 
 class ROSE(OverSampling):
     """
@@ -4560,7 +4698,7 @@ class SMOTE_OUT(OverSampling):
     
     categories= [OverSampling.cat_extensive]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -4568,13 +4706,16 @@ class SMOTE_OUT(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): parameter of the NearestNeighbors component
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -4606,10 +4747,10 @@ class SMOTE_OUT(OverSampling):
         minority_indices= np.where(y == self.minority_label)[0]
         
         # nearest neighbors among minority points
-        nn_min= NearestNeighbors(min([len(X_min), self.n_neighbors + 1])).fit(X_min)
+        nn_min= NearestNeighbors(min([len(X_min), self.n_neighbors + 1]), n_jobs= self.n_jobs).fit(X_min)
         min_distances, min_indices= nn_min.kneighbors(X_min)
         # nearest neighbors among majority points
-        nn_maj= NearestNeighbors(self.n_neighbors).fit(X_maj)
+        nn_maj= NearestNeighbors(self.n_neighbors, n_jobs= self.n_jobs).fit(X_maj)
         maj_distances, maj_indices= nn_maj.kneighbors(X_min)
         
         # generate samples
@@ -4634,7 +4775,7 @@ class SMOTE_OUT(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
 
 class SMOTE_Cosine(OverSampling):
     """
@@ -4651,7 +4792,7 @@ class SMOTE_Cosine(OverSampling):
     
     categories= [OverSampling.cat_extensive]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -4659,13 +4800,16 @@ class SMOTE_Cosine(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): parameter of the NearestNeighbors component
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -4698,11 +4842,11 @@ class SMOTE_Cosine(OverSampling):
         
         # Fitting the nearest neighbors models to the minority and majority data
         # using two different metrics for the minority
-        nn_min_euc= NearestNeighbors(len(X_min)).fit(X_min)
+        nn_min_euc= NearestNeighbors(len(X_min), n_jobs= self.n_jobs).fit(X_min)
         nn_min_euc_dist, nn_min_euc_ind= nn_min_euc.kneighbors(X_min)
-        nn_min_cos= NearestNeighbors(len(X_min), metric= 'cosine').fit(X_min)
+        nn_min_cos= NearestNeighbors(len(X_min), metric= 'cosine', n_jobs= self.n_jobs).fit(X_min)
         nn_min_cos_dist, nn_min_cos_ind= nn_min_cos.kneighbors(X_min)
-        nn_maj= NearestNeighbors(self.n_neighbors).fit(X_maj)
+        nn_maj= NearestNeighbors(self.n_neighbors, n_jobs= self.n_jobs).fit(X_maj)
         nn_maj_dist, nn_maj_ind= nn_maj.kneighbors(X_min)
         
         samples= []
@@ -4734,7 +4878,7 @@ class SMOTE_Cosine(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
 
 class Selected_SMOTE(OverSampling):
     """
@@ -4755,7 +4899,7 @@ class Selected_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_componentwise]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, perc_sign_attr= 0.5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, perc_sign_attr= 0.5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -4764,15 +4908,18 @@ class Selected_SMOTE(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): parameter of the NearestNeighbors component
             perc_sign_attr (float): [0,1] - percentage of significant attributes
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
         self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
         self.check_in_range(perc_sign_attr, 'perc_sign_attr', [0, 1])
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.perc_sign_attr= perc_sign_attr
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -4803,7 +4950,7 @@ class Selected_SMOTE(OverSampling):
         
         minority_indices= np.where(y == self.minority_label)[0]
         
-        nn_min_euc= NearestNeighbors(min([len(X_min), self.n_neighbors + 1])).fit(X_min)
+        nn_min_euc= NearestNeighbors(min([len(X_min), self.n_neighbors + 1]), n_jobs= self.n_jobs).fit(X_min)
         nn_min_dist, nn_min_ind= nn_min_euc.kneighbors(X_min)
         
         # significant attribute selection was not described in the paper
@@ -4848,7 +4995,7 @@ class Selected_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'perc_sign_attr': self.perc_sign_attr}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'perc_sign_attr': self.perc_sign_attr, 'n_jobs': self.n_jobs}
 
 class LN_SMOTE(OverSampling):
     """
@@ -4871,7 +5018,7 @@ class LN_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_componentwise]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -4879,13 +5026,16 @@ class LN_SMOTE(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): parameter of the NearestNeighbors component
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0.0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -4913,7 +5063,7 @@ class LN_SMOTE(OverSampling):
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
         # nearest neighbors of each instance to each instance in the dataset
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 2)
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 2, n_jobs= self.n_jobs)
         nn.fit(X)
         distances, indices= nn.kneighbors(X)
         
@@ -5006,7 +5156,7 @@ class LN_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
 
 class MWMOTE(OverSampling):
     """
@@ -5032,7 +5182,7 @@ class MWMOTE(OverSampling):
                  OverSampling.cat_uses_clustering,
                  OverSampling.cat_borderline]
     
-    def __init__(self, proportion= 1.0, k1= 5, k2= 5, k3= 5, M= 10, cf_th= 5.0, cmax= 10.0):
+    def __init__(self, proportion= 1.0, k1= 5, k2= 5, k3= 5, M= 10, cf_th= 5.0, cmax= 10.0, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -5045,6 +5195,7 @@ class MWMOTE(OverSampling):
             M (int): number of clusters
             cf_th (float): cutoff threshold
             cmax (float): maximum closeness value
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
@@ -5054,6 +5205,7 @@ class MWMOTE(OverSampling):
         self.check_greater_or_equal(M, 'M', 1)
         self.check_greater_or_equal(cf_th, 'cf_th', 0)
         self.check_greater_or_equal(cmax, 'cmax', 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.k1= k1
@@ -5062,6 +5214,7 @@ class MWMOTE(OverSampling):
         self.M= M
         self.cf_th= cf_th
         self.cmax= cmax
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -5093,7 +5246,7 @@ class MWMOTE(OverSampling):
         minority= np.where(y == self.minority_label)[0]
         
         # Step 1
-        nn= NearestNeighbors(n_neighbors= self.k1 + 1)
+        nn= NearestNeighbors(n_neighbors= self.k1 + 1, n_jobs= self.n_jobs)
         nn.fit(X)
         dist1, ind1= nn.kneighbors(X)
         
@@ -5104,7 +5257,7 @@ class MWMOTE(OverSampling):
             return X.copy(), y.copy()
         
         # Step 3 - ind2 needs to be indexed by indices of the lengh of X_maj
-        nn_maj= NearestNeighbors(n_neighbors= self.k2)
+        nn_maj= NearestNeighbors(n_neighbors= self.k2, n_jobs= self.n_jobs)
         nn_maj.fit(X_maj)
         dist2, ind2= nn_maj.kneighbors(X[filtered_minority])
         
@@ -5112,7 +5265,7 @@ class MWMOTE(OverSampling):
         border_majority= np.unique(ind2.flatten())
         
         # Step 5 - ind3 needs to be indexed by indices of the length of X_min
-        nn_min= NearestNeighbors(n_neighbors= min([self.k3, len(X_min)]))
+        nn_min= NearestNeighbors(n_neighbors= min([self.k3, len(X_min)]), n_jobs= self.n_jobs)
         nn_min.fit(X_min)
         dist3, ind3= nn_min.kneighbors(X_maj[border_majority])
         
@@ -5158,7 +5311,7 @@ class MWMOTE(OverSampling):
         
         # Step 10
         logging.info(self.__class__.__name__ + ": " +'do clustering')
-        kmeans= KMeans(n_clusters= min([len(X_min), self.M]))
+        kmeans= KMeans(n_clusters= min([len(X_min), self.M]), n_jobs= self.n_jobs)
         kmeans.fit(X_min)
         imin_labels= kmeans.labels_[informative_minority]
         
@@ -5181,7 +5334,7 @@ class MWMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'k1': self.k1, 'k2': self.k2, 'k3': self.k3, 'M': self.M, 'cf_th': self.cf_th, 'cmax': self.cmax}
+        return {'proportion': self.proportion, 'k1': self.k1, 'k2': self.k2, 'k3': self.k3, 'M': self.M, 'cf_th': self.cf_th, 'cmax': self.cmax, 'n_jobs': self.n_jobs}
 
 class PDFOS(OverSampling):
     """
@@ -5206,18 +5359,21 @@ class PDFOS(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_density_estimation]
     
-    def __init__(self, proportion= 1.0):
+    def __init__(self, proportion= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -5357,7 +5513,7 @@ class PDFOS(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion}
+        return {'proportion': self.proportion, 'n_jobs': self.n_jobs}
 
 class IPADE_ID(OverSampling):
     """
@@ -5388,24 +5544,32 @@ class IPADE_ID(OverSampling):
                  OverSampling.cat_memetic,
                  OverSampling.cat_uses_classifier]
     
-    def __init__(self, F= 0.1, G= 0.1, OT= 20, max_it= 40):
+    def __init__(self, F= 0.1, G= 0.1, OT= 20, max_it= 40, dt_classifier= DecisionTreeClassifier(random_state= 2), base_classifier= DecisionTreeClassifier(random_state= 2), n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
             F (float): control parameter of differential evolution
+            G (float): control parameter of the evolution
             OT (int): number of optimizations
             max_it (int): maximum number of iterations for DE_optimization
+            dt_classifier (obj): decision tree classifier object
+            base_classifier (obj): classifier object
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater(F, 'F', 0)
         self.check_greater(G, 'G', 0)
         self.check_greater(OT, 'OT', 0)
         self.check_greater(max_it, 'max_it', 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.F= F
         self.G= G
         self.OT= OT
         self.max_it= max_it
+        self.dt_classifier= dt_classifier
+        self.base_classifier= base_classifier
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -5416,7 +5580,7 @@ class IPADE_ID(OverSampling):
         """
         # as the OT and max_it parameters control the discovery of the feature
         # space it is enough to try sufficiently large numbers
-        return cls.generate_parameter_combinations({'F': [0.1, 0.2], 'G': [0.1, 0.2], 'OT': [30], 'max_it': [40]})
+        return cls.generate_parameter_combinations({'F': [0.1, 0.2], 'G': [0.1, 0.2], 'OT': [30], 'max_it': [40], 'dt_classifier': [DecisionTreeClassifier(random_state= 2)], 'base_classifier': [DecisionTreeClassifier(random_state= 2)]})
     
     def sample(self, X, y):
         """
@@ -5436,10 +5600,6 @@ class IPADE_ID(OverSampling):
         
         min_indices= np.where(y == self.minority_label)[0]
         maj_indices= np.where(y == self.majority_label)[0]
-        
-        # preparing base classifier and dt classifier
-        dt_classifier= DecisionTreeClassifier(random_state= 2)
-        base_classifier= DecisionTreeClassifier(random_state= 2)
         
         def DE_optimization(GS, GS_y, X, y, min_indices, maj_indices, classifier, for_validation):
             """
@@ -5516,8 +5676,8 @@ class IPADE_ID(OverSampling):
         
         # Phase 1: Initialization
         logging.info(self.__class__.__name__ + ": " +"Initialization")
-        dt_classifier.fit(X, y)
-        leafs= dt_classifier.apply(X)
+        self.dt_classifier.fit(X, y)
+        leafs= self.dt_classifier.apply(X)
         unique_leafs= np.unique(leafs)
         used_in_GS= np.repeat(False, len(X))
         for_validation= np.where(np.logical_not(used_in_GS))[0]
@@ -5544,10 +5704,12 @@ class IPADE_ID(OverSampling):
         
         # DE optimization takes place
         logging.info(self.__class__.__name__ + ": " +"DE optimization")
-        base_classifier= DecisionTreeClassifier(random_state= 2)
+        base_classifier= self.base_classifier.__class__(**(self.base_classifier.get_params()))
+        #base_classifier= DecisionTreeClassifier(random_state= 2)
         GS= DE_optimization(GS, GS_y, X, y, min_indices, maj_indices, base_classifier, for_validation)
         # evaluate results
-        base_classifier= DecisionTreeClassifier(random_state= 2)
+        base_classifier= self.base_classifier.__class__(**(self.base_classifier.get_params()))
+        #base_classifier= DecisionTreeClassifier(random_state= 2)
         AUC= evaluate_ID(GS, GS_y, X[for_validation], y[for_validation], base_classifier)
         
         # Phase 2: Addition of new instances
@@ -5563,6 +5725,7 @@ class IPADE_ID(OverSampling):
                 # condition in line 9
                 if register_class[i] == 'optimizable':
                     class_for_validation= for_validation[y[for_validation] == i]
+                    base_classifier= self.base_classifier.__class__(**(self.base_classifier.get_params()))
                     accuracy_class[i]= evaluate_class(GS, GS_y, X[class_for_validation], y[class_for_validation], base_classifier)
                     if accuracy_class[i] < less_accuracy:
                         less_accuracy= accuracy_class[i]
@@ -5588,7 +5751,8 @@ class IPADE_ID(OverSampling):
                 GS_trial= DE_optimization(GS_trial, GS_trial_y, X, y, min_indices, maj_indices, base_classifier, for_validation)
             
             # line 23
-            base_classifier= DecisionTreeClassifier(random_state= 2)
+            base_classifier= self.base_classifier.__class__(**(self.base_classifier.get_params()))
+            #base_classifier= DecisionTreeClassifier(random_state= 2)
             AUC_trial= evaluate_ID(GS_trial, GS_trial_y, X[for_validation], y[for_validation], base_classifier)
             # conditional in line 24
             if AUC_trial > AUC:
@@ -5611,7 +5775,7 @@ class IPADE_ID(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'F': self.F, 'G': self.G, 'OT': self.OT, 'max_it': self.max_it}
+        return {'F': self.F, 'G': self.G, 'OT': self.OT, 'max_it': self.max_it, 'n_jobs': self.n_jobs, 'dt_classifier': self.dt_classifier, 'base_classifier': self.base_classifier}
 
 class RWO_sampling(OverSampling):
     """
@@ -5630,18 +5794,21 @@ class RWO_sampling(OverSampling):
     
     categories= [OverSampling.cat_extensive]
     
-    def __init__(self, proportion= 1.0):
+    def __init__(self, proportion= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -5680,7 +5847,7 @@ class RWO_sampling(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion}
+        return {'proportion': self.proportion, 'n_jobs': self.n_jobs}
 
 class NEATER(OverSampling):
     """
@@ -5709,7 +5876,7 @@ class NEATER(OverSampling):
                  OverSampling.cat_borderline,
                  OverSampling.cat_changes_majority]
     
-    def __init__(self, proportion= 1.0, smote_n_neighbors= 5, b= 5, alpha= 0.1, h= 20):
+    def __init__(self, proportion= 1.0, smote_n_neighbors= 5, b= 5, alpha= 0.1, h= 20, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -5720,6 +5887,7 @@ class NEATER(OverSampling):
             b (int): number of neighbors
             alpha (float): smoothing term
             h (int): number of iterations in evolution
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -5727,12 +5895,14 @@ class NEATER(OverSampling):
         self.check_greater_or_equal(b, "b", 1)
         self.check_greater_or_equal(alpha, "alpha", 0)
         self.check_greater_or_equal(h, "h", 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.smote_n_neighbors= smote_n_neighbors
         self.b= b
         self.alpha= alpha
         self.h= h
+        self.n_jobs= n_jobs
 
     @classmethod
     def parameter_combinations(cls):
@@ -5757,8 +5927,8 @@ class NEATER(OverSampling):
         self.class_label_statistics(X, y)
         
         # Applying SMOTE and ADASYN
-        X_0, y_0= SMOTE(proportion= self.proportion, n_neighbors= self.smote_n_neighbors).sample(X, y)
-        X_1, y_1= ADASYN(n_neighbors= self.b).sample(X, y)
+        X_0, y_0= SMOTE(proportion= self.proportion, n_neighbors= self.smote_n_neighbors, n_jobs= self.n_jobs).sample(X, y)
+        X_1, y_1= ADASYN(n_neighbors= self.b, n_jobs= self.n_jobs).sample(X, y)
         
         X_new= np.vstack([X_0, X_1[len(X):]])
         y_new= np.hstack([y_0, y_1[len(y):]])
@@ -5782,7 +5952,7 @@ class NEATER(OverSampling):
         
         # Finding nearest neighbors, +1 as X_syn is part of X_all and nearest
         # neighbors will be themselves
-        nn= NearestNeighbors(n_neighbors= self.b + 1)
+        nn= NearestNeighbors(n_neighbors= self.b + 1, n_jobs= self.n_jobs)
         nn.fit(X_all)
         distances, indices= nn.kneighbors(X_syn)
         
@@ -5845,7 +6015,7 @@ class NEATER(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'smote_n_neighbors': self.smote_n_neighbors, 'b': self.b, 'alpha': self.alpha, 'h': self.h}
+        return {'proportion': self.proportion, 'smote_n_neighbors': self.smote_n_neighbors, 'b': self.b, 'alpha': self.alpha, 'h': self.h, 'n_jobs': self.n_jobs}
 
 class DEAGO(OverSampling):
     """
@@ -5871,7 +6041,7 @@ class DEAGO(OverSampling):
                  OverSampling.cat_density_estimation,
                  OverSampling.cat_application]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, e= 100, h= 0.3, sigma= 0.1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, e= 100, h= 0.3, sigma= 0.1, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -5882,6 +6052,7 @@ class DEAGO(OverSampling):
             e (int): number of epochs
             h (float): fraction of number of hidden units
             sigma (float): training noise
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0.0)
@@ -5889,12 +6060,14 @@ class DEAGO(OverSampling):
         self.check_greater(e, "e", 1)
         self.check_greater(h, "h", 0)
         self.check_greater(sigma, "sigma", 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.e= e
         self.h= h
         self.sigma= sigma
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -5930,7 +6103,7 @@ class DEAGO(OverSampling):
             self.EarlyStopping= EarlyStopping
         
         # sampling by smote
-        X_samp, y_samp= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors).sample(X, y)
+        X_samp, y_samp= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs).sample(X, y)
         
         # samples to map to the manifold extracted by the autoencoder
         X_init= X_samp[len(X):]
@@ -5979,7 +6152,7 @@ class DEAGO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'e': self.e, 'h': self.h, 'sigma': self.sigma}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'e': self.e, 'h': self.h, 'sigma': self.sigma, 'n_jobs': self.n_jobs}
 
 class Gazzah(OverSampling):
     """
@@ -6003,7 +6176,7 @@ class Gazzah(OverSampling):
                  OverSampling.cat_dim_reduction,
                  OverSampling.cat_changes_majority]
     
-    def __init__(self, proportion= 1.0, n_components= 2):
+    def __init__(self, proportion= 1.0, n_components= 2, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -6011,13 +6184,16 @@ class Gazzah(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_components (int): number of components in PCA analysis
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_components, "n_components", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_components= n_components
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -6069,7 +6245,7 @@ class Gazzah(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_components': self.n_components}
+        return {'proportion': self.proportion, 'n_components': self.n_components, 'n_jobs': self.n_jobs}
 
 class MCT(OverSampling):
     """
@@ -6092,18 +6268,21 @@ class MCT(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_copy]
     
-    def __init__(self, proportion= 1.0):
+    def __init__(self, proportion= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -6151,7 +6330,7 @@ class MCT(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion}
+        return {'proportion': self.proportion, 'n_jobs': self.n_jobs}
 
 class ADG(OverSampling):
     """
@@ -6175,7 +6354,7 @@ class ADG(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_uses_clustering]
     
-    def __init__(self, proportion= 1.0, kernel= 'inner', lam= 1.0, mu= 1.0, k= 12, gamma= 1.0):
+    def __init__(self, proportion= 1.0, kernel= 'inner', lam= 1.0, mu= 1.0, k= 12, gamma= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -6187,6 +6366,7 @@ class ADG(OverSampling):
             mu (float): mu parameter of the method
             k (int): number of samples to generate in each iteration
             gamma (float): gamma parameter of the method
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -6202,6 +6382,7 @@ class ADG(OverSampling):
         self.check_greater(mu, 'mu', 0)
         self.check_greater_or_equal(k, 'k', 1)
         self.check_greater(gamma, 'gamma', 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.kernel= kernel
@@ -6209,6 +6390,7 @@ class ADG(OverSampling):
         self.mu= mu
         self.k= k
         self.gamma= gamma
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -6234,9 +6416,6 @@ class ADG(OverSampling):
         self.class_label_statistics(X, y)
         
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
-        
-        import mkl
-        mkl.set_num_threads(1)
         
         def bic_score(kmeans, X):
             """
@@ -6283,7 +6462,7 @@ class ADG(OverSampling):
             
             # do clustering for all n_clusters in the specified range
             for k in range(r[0], min([r[1], len(X)])):
-                kmeans= KMeans(n_clusters= k).fit(X)
+                kmeans= KMeans(n_clusters= k, n_jobs= self.n_jobs).fit(X)
                 
                 bic= bic_score(kmeans, X)
                 if bic < best_bic:
@@ -6542,7 +6721,7 @@ class ADG(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'kernel': self.kernel, 'lam': self.lam, 'mu': self.mu, 'k': self.k, 'gamma': self.gamma}
+        return {'proportion': self.proportion, 'kernel': self.kernel, 'lam': self.lam, 'mu': self.mu, 'k': self.k, 'gamma': self.gamma, 'n_jobs': self.n_jobs}
 
 class SMOTE_IPF(OverSampling):
     """
@@ -6565,7 +6744,7 @@ class SMOTE_IPF(OverSampling):
     categories= [OverSampling.cat_changes_majority,
                  OverSampling.cat_uses_classifier]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_folds= 9, k= 3, p= 0.01, voting= 'majority'):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_folds= 9, k= 3, p= 0.01, voting= 'majority', classifier= DecisionTreeClassifier(), n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -6577,6 +6756,8 @@ class SMOTE_IPF(OverSampling):
             k (int): used in stopping condition
             p (float): percentage value ([0,1]) used in stopping condition
             voting (str): 'majority'/'consensus'
+            classifier (obj): classifier object
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -6585,6 +6766,7 @@ class SMOTE_IPF(OverSampling):
         self.check_greater_or_equal(k, "k", 1)
         self.check_greater_or_equal(p, "p", 0)
         self.check_isin(voting, "voting", ['majority', 'consensus'])
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
@@ -6592,6 +6774,8 @@ class SMOTE_IPF(OverSampling):
         self.k= k
         self.p= p
         self.voting= voting
+        self.classifier= classifier
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -6600,7 +6784,7 @@ class SMOTE_IPF(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'n_folds': [9], 'k': [3], 'p': [0.01], 'voting': ['majority', 'consensus']})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'n_folds': [9], 'k': [3], 'p': [0.01], 'voting': ['majority', 'consensus'], 'classifier': [DecisionTreeClassifier()]})
     
     def sample(self, X, y):
         """
@@ -6616,17 +6800,16 @@ class SMOTE_IPF(OverSampling):
         self.class_label_statistics(X, y)
         
         # do SMOTE sampling
-        X_samp, y_samp= SMOTE(self.proportion, self.n_neighbors).sample(X, y)
-        classifier= DecisionTreeClassifier()
+        X_samp, y_samp= SMOTE(self.proportion, self.n_neighbors, n_jobs= self.n_jobs).sample(X, y)
         
         condition= 0
         while True:
             # validating the sampled dataset
-            validator= KFold(self.n_folds)
+            validator= StratifiedKFold(self.n_folds)
             predictions= []
-            for train_index, _ in validator.split(X_samp):
-                classifier.fit(X_samp[train_index], y_samp[train_index])
-                predictions.append(classifier.predict(X_samp))
+            for train_index, _ in validator.split(X_samp, y_samp):
+                self.classifier.fit(X_samp[train_index], y_samp[train_index])
+                predictions.append(self.classifier.predict(X_samp))
             
             # do decision based on one of the voting schemes
             if self.voting == 'majority':
@@ -6659,7 +6842,7 @@ class SMOTE_IPF(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_folds': self.n_folds, 'k': self.k, 'p': self.p, 'voting': self.voting}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_folds': self.n_folds, 'k': self.k, 'p': self.p, 'voting': self.voting, 'n_jobs': self.n_jobs, 'classifier': self.classifier}
 
 class KernelADASYN(OverSampling):
     """
@@ -6686,7 +6869,7 @@ class KernelADASYN(OverSampling):
                  OverSampling.cat_extensive,
                  OverSampling.cat_borderline]
     
-    def __init__(self, proportion= 1.0, k= 5, h= 1.0):
+    def __init__(self, proportion= 1.0, k= 5, h= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -6695,15 +6878,18 @@ class KernelADASYN(OverSampling):
                                     samples will be equal to the number of majority samples
             k (int): number of neighbors in the nearest neighbors component
             h (float): kernel bandwidth
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(k, 'k', 1)
         self.check_greater(h, 'h', 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.k= k
         self.h= h
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -6732,7 +6918,7 @@ class KernelADASYN(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting the nearest neighbors model
-        nn= NearestNeighbors(min([len(X_min), self.k+1]))
+        nn= NearestNeighbors(min([len(X_min), self.k+1]), n_jobs= self.n_jobs)
         nn.fit(X)
         distances, indices= nn.kneighbors(X_min)
         
@@ -6791,7 +6977,6 @@ class KernelADASYN(OverSampling):
         L= np.linalg.cholesky(covariance)
         
         while len(samples) < num_to_sample:
-            #x_new= np.random.multivariate_normal(x_old, covariance)
             x_new= x_old + np.dot(np.random.normal(size= len(x_old)), L)
             p_new= p_x(x_new)
             
@@ -6814,7 +6999,7 @@ class KernelADASYN(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'k': self.k, 'h': self.h}
+        return {'proportion': self.proportion, 'k': self.k, 'h': self.h, 'n_jobs': self.n_jobs}
 
 class MOT2LD(OverSampling):
     """
@@ -6849,7 +7034,7 @@ class MOT2LD(OverSampling):
     categories= [OverSampling.cat_uses_clustering,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 1.0, n_components= 2, k= 5, d_cut= 'auto'):
+    def __init__(self, proportion= 1.0, n_components= 2, k= 5, d_cut= 'auto', n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -6859,6 +7044,7 @@ class MOT2LD(OverSampling):
             n_components (int): number of components for stochastic neighborhood embedding
             k (int): number of neighbors in the nearest neighbor component
             d_cut (float/str): distance cut value/'auto' for automated selection
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
@@ -6869,11 +7055,13 @@ class MOT2LD(OverSampling):
                 raise ValueError(self.__class__.__name__ + ": " + 'Non-positive d_cut is not allowed')
         elif d_cut != 'auto':
             raise ValueError(self.__class__.__name__ + ": " + 'd_cut value %s not implemented' % d_cut)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_components= n_components
         self.k= k
         self.d_cut= d_cut
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -6906,7 +7094,7 @@ class MOT2LD(OverSampling):
         logging.info(self.__class__.__name__ + ": " + "TSNE finished")
         
         # fitting nearest neighbors model for all training data
-        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.k + 1]))
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.k + 1]), n_jobs= self.n_jobs)
         nn.fit(X_tsne)
         distances, indices= nn.kneighbors(X_min)
         
@@ -6916,7 +7104,7 @@ class MOT2LD(OverSampling):
             d_cut= np.max(distances[:,1])
         
         # fitting nearest neighbors model for the minority data
-        nn_min= NearestNeighbors(n_neighbors= len(X_min))
+        nn_min= NearestNeighbors(n_neighbors= len(X_min), n_jobs= self.n_jobs)
         nn_min.fit(X_min)
         distances_min, indices_min= nn_min.kneighbors(X_min)
         
@@ -6951,7 +7139,7 @@ class MOT2LD(OverSampling):
         cluster_centers= X_min[cluster_center_indices]
         
         # finding closest cluster center to minority points and deriving cluster labels
-        nn_cluster= NearestNeighbors(n_neighbors= 1)
+        nn_cluster= NearestNeighbors(n_neighbors= 1, n_jobs= self.n_jobs)
         nn_cluster.fit(cluster_centers)
         dist_cluster, ind_cluster= nn_cluster.kneighbors(X_min)
         cluster_labels= ind_cluster[:, 0]
@@ -7018,7 +7206,7 @@ class MOT2LD(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_components': self.n_components, 'k': self.k, 'd_cut': self.d_cut}
+        return {'proportion': self.proportion, 'n_components': self.n_components, 'k': self.k, 'd_cut': self.d_cut, 'n_jobs': self.n_jobs}
 
 class V_SYNTH(OverSampling):
     """
@@ -7051,7 +7239,7 @@ class V_SYNTH(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 1.0, n_components= 3):
+    def __init__(self, proportion= 1.0, n_components= 3, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -7059,13 +7247,16 @@ class V_SYNTH(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_components (int): number of components for PCA
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_components, "n_component", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_components= n_components
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -7147,7 +7338,7 @@ class V_SYNTH(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_components': self.n_components}
+        return {'proportion': self.proportion, 'n_components': self.n_components, 'n_jobs': self.n_jobs}
 
 class OUPS(OverSampling):
     """
@@ -7172,19 +7363,22 @@ class OUPS(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 1.0):
+    def __init__(self, proportion= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         
         self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -7211,7 +7405,7 @@ class OUPS(OverSampling):
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
         # extracting propensity scores
-        lr= LogisticRegression()
+        lr= LogisticRegression(n_jobs= self.n_jobs)
         lr.fit(X, y)
         propensity= lr.predict_proba(X)[:,np.where(lr.classes_ == self.minority_label)[0][0]]
         
@@ -7241,7 +7435,7 @@ class OUPS(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion}
+        return {'proportion': self.proportion, 'n_jobs': self.n_jobs}
 
 class SMOTE_D(OverSampling):
     """
@@ -7271,7 +7465,7 @@ class SMOTE_D(OverSampling):
     
     categories= [OverSampling.cat_extensive]
     
-    def __init__(self, proportion= 1.0, k= 3):
+    def __init__(self, proportion= 1.0, k= 3, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -7279,14 +7473,17 @@ class SMOTE_D(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             k (int): number of neighbors in nearest neighbors component
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(k, "k", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.k= k
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -7314,7 +7511,7 @@ class SMOTE_D(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting nearest neighbors model
-        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.k+1]))
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.k+1]), n_jobs= self.n_jobs)
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
@@ -7348,7 +7545,7 @@ class SMOTE_D(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'k': self.k}
+        return {'proportion': self.proportion, 'k': self.k, 'n_jobs': self.n_jobs}
 
 class SMOTE_PSO(OverSampling):
     """
@@ -7388,7 +7585,7 @@ class SMOTE_PSO(OverSampling):
                  OverSampling.cat_memetic,
                  OverSampling.cat_uses_classifier]
     
-    def __init__(self, k= 3, eps= 0.05, n_pop= 10, w= 1.0, c1= 2.0, c2= 2.0, num_it= 10):
+    def __init__(self, k= 3, eps= 0.05, n_pop= 10, w= 1.0, c1= 2.0, c2= 2.0, num_it= 10, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -7401,6 +7598,7 @@ class SMOTE_PSO(OverSampling):
             c1 (float): acceleration constant of local optimum
             c2 (float): acceleration constant of population optimum
             num_it (int): number of iterations
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(k, "k", 1)
@@ -7410,6 +7608,7 @@ class SMOTE_PSO(OverSampling):
         self.check_greater_or_equal(c1, "c1", 0)
         self.check_greater_or_equal(c2, "c2", 0)
         self.check_greater_or_equal(num_it, "num_it", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.k= k
         self.eps= eps
@@ -7418,6 +7617,7 @@ class SMOTE_PSO(OverSampling):
         self.c1= c1
         self.c2= c2
         self.num_it= num_it
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -7456,7 +7656,7 @@ class SMOTE_PSO(OverSampling):
         n_maj_to_remove= np.sum(y == self.majority_label) - performance_threshold
         if n_maj_to_remove > 0:
             # if majority samples are to be removed
-            nn= NearestNeighbors(n_neighbors= 1).fit(X_scaled[y == self.minority_label])
+            nn= NearestNeighbors(n_neighbors= 1, n_jobs= self.n_jobs).fit(X_scaled[y == self.minority_label])
             dist, ind= nn.kneighbors(X_scaled)
             di= sorted([(dist[i][0], i) for i in range(len(ind))], key= lambda x: x[0])
             to_remove= []
@@ -7473,7 +7673,7 @@ class SMOTE_PSO(OverSampling):
         n_min_to_remove= np.sum(y == self.minority_label) - performance_threshold
         if n_min_to_remove > 0:
             # if majority samples are to be removed
-            nn= NearestNeighbors(n_neighbors= 1).fit(X_scaled[y == self.majority_label])
+            nn= NearestNeighbors(n_neighbors= 1, n_jobs= self.n_jobs).fit(X_scaled[y == self.majority_label])
             dist, ind= nn.kneighbors(X_scaled)
             di= sorted([(dist[i][0], i) for i in range(len(ind))], key= lambda x: x[0])
             to_remove= []
@@ -7499,7 +7699,7 @@ class SMOTE_PSO(OverSampling):
         X_SV_maj= X_scaled[SV_maj]
         
         # finding nearest majority support vectors
-        nn= NearestNeighbors(n_neighbors= min([len(X_SV_maj), self.k]))
+        nn= NearestNeighbors(n_neighbors= min([len(X_SV_maj), self.k]), n_jobs= self.n_jobs)
         nn.fit(X_SV_maj)
         dist, ind= nn.kneighbors(X_SV_min)
         
@@ -7588,7 +7788,7 @@ class SMOTE_PSO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'k': self.k, 'eps': self.eps, 'n_pop': self.n_pop, 'w': self.w, 'c1': self.c1, 'c2': self.c2, 'num_it': self.num_it}
+        return {'k': self.k, 'eps': self.eps, 'n_pop': self.n_pop, 'w': self.w, 'c1': self.c1, 'c2': self.c2, 'num_it': self.num_it, 'n_jobs': self.n_jobs}
 
 class CURE_SMOTE(OverSampling):
     """
@@ -7618,7 +7818,7 @@ class CURE_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_uses_clustering]
     
-    def __init__(self, proportion= 1.0, n_clusters= 5, noise_th= 2):
+    def __init__(self, proportion= 1.0, n_clusters= 5, noise_th= 2, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -7627,15 +7827,18 @@ class CURE_SMOTE(OverSampling):
                                     samples will be equal to the number of majority samples
             n_clusters (int): number of clusters to generate
             noise_th (int): below this number of elements the cluster is considered as noise
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_clusters, "n_clusters", 1)
         self.check_greater_or_equal(noise_th, "noise_th", 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_clusters= n_clusters
         self.noise_th= noise_th
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -7739,7 +7942,7 @@ class CURE_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_clusters': self.n_clusters, 'noise_th': self.noise_th}
+        return {'proportion': self.proportion, 'n_clusters': self.n_clusters, 'noise_th': self.noise_th, 'n_jobs': self.n_jobs}
 
 class SOMO(OverSampling):
     """
@@ -7764,7 +7967,7 @@ class SOMO(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_uses_clustering]
     
-    def __init__(self, proportion= 1.0, n_grid= 10, sigma= 0.2, learning_rate= 0.5, n_iter= 100):
+    def __init__(self, proportion= 1.0, n_grid= 10, sigma= 0.2, learning_rate= 0.5, n_iter= 100, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -7775,6 +7978,7 @@ class SOMO(OverSampling):
             sigma (float): sigma of SOM
             learning_rate (float) learning rate of SOM
             n_iter (int): number of iterations
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
@@ -7782,12 +7986,14 @@ class SOMO(OverSampling):
         self.check_greater(sigma, 'sigma', 0)
         self.check_greater(learning_rate, 'learning_rate', 0)
         self.check_greater_or_equal(n_iter, 'n_iter', 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_grid= n_grid
         self.sigma= sigma
         self.learning_rate= learning_rate
         self.n_iter= n_iter
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -7913,7 +8119,7 @@ class SOMO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_grid': self.n_grid, 'sigma': self.sigma, 'learining_rate': self.learning_rate, 'n_iter': self.n_iter}
+        return {'proportion': self.proportion, 'n_grid': self.n_grid, 'sigma': self.sigma, 'learining_rate': self.learning_rate, 'n_iter': self.n_iter, 'n_jobs': self.n_jobs}
 
 class ISOMAP_Hybrid(OverSampling):
     """
@@ -7943,7 +8149,7 @@ class ISOMAP_Hybrid(OverSampling):
                  OverSampling.cat_dim_reduction,
                  OverSampling.cat_changes_majority]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_components= 3, smote_n_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_components= 3, smote_n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -7953,17 +8159,20 @@ class ISOMAP_Hybrid(OverSampling):
             n_neighbors (int): number of neighbors
             n_components (int): number of components
             smote_n_neighbors (int): number of neighbors in SMOTE sampling
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_greater_or_equal(n_components, "n_components", 1)
         self.check_greater_or_equal(smote_n_neighbors, "smote_n_neighbors", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_components= n_components
         self.smote_n_neighbors= smote_n_neighbors
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -7987,11 +8196,11 @@ class ISOMAP_Hybrid(OverSampling):
         
         self.class_label_statistics(X, y)
         
-        self.isomap= Isomap(n_neighbors= self.n_neighbors, n_components= self.n_components)
+        self.isomap= Isomap(n_neighbors= self.n_neighbors, n_components= self.n_components, n_jobs= self.n_jobs)
         X_trans= self.isomap.fit_transform(X, y)
-        X_sm, y_sm= SMOTE(proportion= self.proportion, n_neighbors= self.smote_n_neighbors).sample(X_trans, y)
+        X_sm, y_sm= SMOTE(proportion= self.proportion, n_neighbors= self.smote_n_neighbors, n_jobs= self.n_jobs).sample(X_trans, y)
         
-        return NeighborhoodCleaningRule().remove_noise(X_sm, y_sm)
+        return NeighborhoodCleaningRule(n_jobs= self.n_jobs).remove_noise(X_sm, y_sm)
     
     def transform(self, X):
         """
@@ -8008,7 +8217,7 @@ class ISOMAP_Hybrid(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_components': self.n_components, 'smote_n_neighbors': self.smote_n_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_components': self.n_components, 'smote_n_neighbors': self.smote_n_neighbors, 'n_jobs': self.n_jobs}
 
 class CE_SMOTE(OverSampling):
     """
@@ -8033,7 +8242,7 @@ class CE_SMOTE(OverSampling):
                  OverSampling.cat_uses_clustering,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 1.0, h= 10, k= 5, alpha= 0.5):
+    def __init__(self, proportion= 1.0, h= 10, k= 5, alpha= 0.5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -8043,17 +8252,20 @@ class CE_SMOTE(OverSampling):
             h (int): size of ensemble
             k (int): number of clusters/neighbors
             alpha (float): [0,1] threshold to select boundary samples
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(h, "h", 1)
         self.check_greater_or_equal(k, "k", 1)
         self.check_in_range(alpha, "alpha", [0, 1])
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.h= h
         self.k= k
         self.alpha= alpha
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -8084,7 +8296,7 @@ class CE_SMOTE(OverSampling):
         for _ in range(self.h):
             f= np.random.randint(int(d/2), d)
             features= np.random.choice(np.arange(d), f)
-            labels.append(KMeans(n_clusters= self.k).fit(X[:,features]).labels_)
+            labels.append(KMeans(n_clusters= self.k, n_jobs= self.n_jobs).fit(X[:,features]).labels_)
         
         # do the cluster matching, clustering 0 will be considered the one to match the others to
         # the problem of finding cluster matching is basically the "assignment problem"
@@ -8118,7 +8330,7 @@ class CE_SMOTE(OverSampling):
             return X.copy(), y.copy()
         
         # finding nearest neighbors of boundary samples
-        nn= NearestNeighbors(min([len(P_boundary), self.k]))
+        nn= NearestNeighbors(min([len(P_boundary), self.k]), n_jobs= self.n_jobs)
         nn.fit(P_boundary)
         dist, ind= nn.kneighbors(P_boundary)
         
@@ -8135,7 +8347,7 @@ class CE_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'h': self.h, 'k': self.k, 'alpha': self.alpha}
+        return {'proportion': self.proportion, 'h': self.h, 'k': self.k, 'alpha': self.alpha, 'n_jobs': self.n_jobs}
 
 class Edge_Det_SMOTE(OverSampling):
     """
@@ -8161,7 +8373,7 @@ class Edge_Det_SMOTE(OverSampling):
                  OverSampling.cat_borderline,
                  OverSampling.cat_extensive]
     
-    def __init__(self, proportion= 1.0, k= 5):
+    def __init__(self, proportion= 1.0, k= 5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -8169,13 +8381,16 @@ class Edge_Det_SMOTE(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             k (int): number of neighbors
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(k, "k", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.k= k
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -8217,7 +8432,7 @@ class Edge_Det_SMOTE(OverSampling):
         magnitudes= magnitudes/np.sum(magnitudes)
         
         # fitting nearest neighbors models to minority samples
-        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.k+1]))
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.k+1]), n_jobs= self.n_jobs)
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
@@ -8234,7 +8449,7 @@ class Edge_Det_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'k': self.k}
+        return {'proportion': self.proportion, 'k': self.k, 'n_jobs': self.n_jobs}
 
 class CBSO(OverSampling):
     """
@@ -8265,7 +8480,7 @@ class CBSO(OverSampling):
                  OverSampling.cat_extensive,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, C_p= 1.3):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, C_p= 1.3, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -8274,15 +8489,18 @@ class CBSO(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors
             C_p (float): used to set the threshold of clustering
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_greater(C_p, "C_p", 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.C_p= C_p
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -8310,7 +8528,7 @@ class CBSO(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting nearest neighbors model to find neighbors of minority points
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1).fit(X)
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1, n_jobs= self.n_jobs).fit(X)
         dist, ind= nn.kneighbors(X_min)
         
         # extracting the number of majority neighbors
@@ -8319,7 +8537,7 @@ class CBSO(OverSampling):
         weights= weights/np.sum(weights)
         
         # do the clustering
-        nn= NearestNeighbors(n_neighbors= 2).fit(X_min)
+        nn= NearestNeighbors(n_neighbors= 2, n_jobs= self.n_jobs).fit(X_min)
         d_avg= np.mean(nn.kneighbors(X_min)[0][:,1])
         T_h= d_avg*self.C_p
         
@@ -8382,7 +8600,7 @@ class CBSO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'C_p': self.C_p}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'C_p': self.C_p, 'n_jobs': self.n_jobs}
     
 class E_SMOTE(OverSampling):
     """
@@ -8412,7 +8630,7 @@ class E_SMOTE(OverSampling):
                  OverSampling.cat_dim_reduction,
                  OverSampling.cat_memetic]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -8420,13 +8638,16 @@ class E_SMOTE(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors in the nearest neighbors component
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -8525,7 +8746,7 @@ class E_SMOTE(OverSampling):
         
         self.mask= population[0][1]
         # resampling the population in the given dimensions
-        return SMOTE(self.proportion, self.n_neighbors).sample(X[:,population[0][1]], y)
+        return SMOTE(self.proportion, self.n_neighbors, n_jobs= self.n_jobs).sample(X[:,population[0][1]], y)
     
     def transform(self, X):
         """
@@ -8542,7 +8763,7 @@ class E_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
 
 class DBSMOTE(OverSampling):
     """
@@ -8576,7 +8797,7 @@ class DBSMOTE(OverSampling):
                  OverSampling.cat_uses_clustering,
                  OverSampling.cat_density_based]
     
-    def __init__(self, proportion= 1.0, eps= 0.8, min_samples= 3):
+    def __init__(self, proportion= 1.0, eps= 0.8, min_samples= 3, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -8585,15 +8806,18 @@ class DBSMOTE(OverSampling):
                                     samples will be equal to the number of majority samples
             eps (float): eps paramter of DBSCAN
             min_samples (int): min_samples paramter of DBSCAN
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater(eps, "eps", 0)
         self.check_greater_or_equal(min_samples, "min_samples", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.eps= eps
         self.min_samples= min_samples
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -8623,7 +8847,7 @@ class DBSMOTE(OverSampling):
         
         # doing the clustering using DBSCAN
         X_min= X_ss[y == self.minority_label]
-        db= DBSCAN(self.eps, self.min_samples).fit(X_min)
+        db= DBSCAN(self.eps, self.min_samples, n_jobs= self.n_jobs).fit(X_min)
         labels= db.labels_
         num_labels= np.max(labels)+1
         
@@ -8634,7 +8858,7 @@ class DBSMOTE(OverSampling):
                 logging.info(self.__class__.__name__ + ": " +"Number of clusters is 0, can't adjust parameters further")
                 return X, y
             else:
-                return DBSMOTE(proportion= self.proportion, eps= self.eps*1.5, min_samples= self.min_samples-1).sample(X, y)
+                return DBSMOTE(proportion= self.proportion, eps= self.eps*1.5, min_samples= self.min_samples-1, n_jobs= self.n_jobs).sample(X, y)
         
         # determining cluster size distribution
         clusters= [np.where(labels == i)[0] for i in range(num_labels)]
@@ -8703,7 +8927,7 @@ class DBSMOTE(OverSampling):
                 graph[i]= {}
             
             # fitting nearest neighbors model to the cluster elements
-            nn= NearestNeighbors(n_neighbors= len(cluster))
+            nn= NearestNeighbors(n_neighbors= len(cluster), n_jobs= self.n_jobs)
             nn.fit(cluster)
             dist, ind= nn.kneighbors(cluster)
             
@@ -8752,7 +8976,7 @@ class DBSMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'eps': self.eps, 'min_samples': self.min_samples}
+        return {'proportion': self.proportion, 'eps': self.eps, 'min_samples': self.min_samples, 'n_jobs': self.n_jobs}
 
 class ASMOBD(OverSampling):
     """
@@ -8779,7 +9003,7 @@ class ASMOBD(OverSampling):
                  OverSampling.cat_noise_removal,
                  OverSampling.cat_uses_clustering]
     
-    def __init__(self, proportion= 1.0, min_samples= 3, eps= 0.8, eta= 0.5, T_1= 1.0, T_2= 1.0, t_1= 4.0, t_2= 4.0, a= 0.05, smoothing= 'linear'):
+    def __init__(self, proportion= 1.0, min_samples= 3, eps= 0.8, eta= 0.5, T_1= 1.0, T_2= 1.0, t_1= 4.0, t_2= 4.0, a= 0.05, smoothing= 'linear', n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -8795,6 +9019,7 @@ class ASMOBD(OverSampling):
             t_2 (float): noise threshold (see paper)
             a (float): smoothing factor (see paper)
             smoothing (str): 'sigmoid'/'linear'
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -8807,6 +9032,7 @@ class ASMOBD(OverSampling):
         self.check_greater(t_2, "t_2", 0)
         self.check_greater(a, "a", 0)
         self.check_isin(smoothing, "smoothing", ['sigmoid', 'linear'])
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.min_samples= min_samples
@@ -8818,6 +9044,7 @@ class ASMOBD(OverSampling):
         self.t_2= t_2
         self.a= a
         self.smoothing= smoothing
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -8858,7 +9085,7 @@ class ASMOBD(OverSampling):
         X_min= X_ss[y == self.minority_label]
         
         # executing the optics algorithm
-        o= OPTICS(min_samples= min([len(X_min)-1, self.min_samples]), max_eps= self.eps)
+        o= OPTICS(min_samples= min([len(X_min)-1, self.min_samples]), max_eps= self.eps, n_jobs= self.n_jobs)
         o.fit(X_min)
         cd= o.core_distances_
         r= o.reachability_
@@ -8867,7 +9094,7 @@ class ASMOBD(OverSampling):
         noise= np.logical_and(cd > self.T_1, r > self.T_2)
         
         # fitting nearest neighbors models to identify the number of majority samples in local environments
-        nn= NearestNeighbors(n_neighbors= self.min_samples)
+        nn= NearestNeighbors(n_neighbors= self.min_samples, n_jobs= self.n_jobs)
         nn.fit(X_ss)
         n_majs= []
         ratio= []
@@ -8902,7 +9129,7 @@ class ASMOBD(OverSampling):
             logging.info(self.__class__.__name__ + ": " +"All minority samples found to be noise, increasing noise thresholds")
             return ASMOBD(proportion= self.proportion, min_samples= self.min_samples, eps= self.eps,
                           eta= self.eta, T_1= self.T_1*1.5, T_2= self.T_2*1.5, t_1= self.t_1*1.5, t_2= self.t_2*1.5, 
-                          a= self.a, smoothing= self.smoothing).sample(X, y)
+                          a= self.a, smoothing= self.smoothing, n_jobs= self.n_jobs).sample(X, y)
         
         # removing noise and adjusting the density factors accordingly
         X_min_not_noise= X_min[not_noise]
@@ -8916,7 +9143,7 @@ class ASMOBD(OverSampling):
         density= df/np.sum(df)
         
         # fitting nearest neighbors model to non-noise minority samples
-        nn_not_noise= NearestNeighbors(n_neighbors= min([len(X_min_not_noise), self.min_samples + 1]))
+        nn_not_noise= NearestNeighbors(n_neighbors= min([len(X_min_not_noise), self.min_samples + 1]), n_jobs= self.n_jobs)
         nn_not_noise.fit(X_min_not_noise)
         dist, ind= nn_not_noise.kneighbors(X_min_not_noise)
         
@@ -8934,7 +9161,7 @@ class ASMOBD(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'min_samples': self.min_samples, 'eps': self.eps, 'eta': self.eta, 'T_1': self.T_1, 'T_2': self.T_2, 't_1': self.t_1, 't_2': self.t_2, 'a': self.a, 'smoothing': self.smoothing}
+        return {'proportion': self.proportion, 'min_samples': self.min_samples, 'eps': self.eps, 'eta': self.eta, 'T_1': self.T_1, 'T_2': self.T_2, 't_1': self.t_1, 't_2': self.t_2, 'a': self.a, 'smoothing': self.smoothing, 'n_jobs': self.n_jobs}
 
 class Assembled_SMOTE(OverSampling):
     """
@@ -8965,7 +9192,7 @@ class Assembled_SMOTE(OverSampling):
                  OverSampling.cat_borderline,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, pop= 2, thres= 0.3):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, pop= 2, thres= 0.3, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -8975,17 +9202,20 @@ class Assembled_SMOTE(OverSampling):
             n_neighbors (int): number of neighbors in nearest neighbors component
             pop (int): lower threshold on cluster sizes
             thres (float): threshold on angles
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_greater_or_equal(pop, "pop", 1)
         self.check_in_range(thres, "thres", [0,1])
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.pop= pop
         self.thres= thres
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -9013,7 +9243,7 @@ class Assembled_SMOTE(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting nearest neighbors model
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1)
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1, n_jobs= self.n_jobs)
         nn.fit(X)
         dist, ind= nn.kneighbors(X_min)
         
@@ -9090,7 +9320,7 @@ class Assembled_SMOTE(OverSampling):
         densities= cluster_sizes/np.sum(cluster_sizes)
         
         # extracting nearest neighbors in clusters
-        nns= [NearestNeighbors(n_neighbors= min([self.n_neighbors + 1, len(vectors[i])])).fit(vectors[i]).kneighbors(vectors[i]) for i in range(len(vectors))]
+        nns= [NearestNeighbors(n_neighbors= min([self.n_neighbors + 1, len(vectors[i])]), n_jobs= self.n_jobs).fit(vectors[i]).kneighbors(vectors[i]) for i in range(len(vectors))]
         
         # do the sampling
         samples= []
@@ -9110,7 +9340,7 @@ class Assembled_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'pop': self.pop, 'thres': self.thres}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'pop': self.pop, 'thres': self.thres, 'n_jobs': self.n_jobs}
 
 class SDSMOTE(OverSampling):
     """
@@ -9134,7 +9364,7 @@ class SDSMOTE(OverSampling):
                  OverSampling.cat_sample_ordinary,
                  OverSampling.cat_borderline]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -9142,13 +9372,16 @@ class SDSMOTE(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors in nearest neighbors component
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -9177,7 +9410,7 @@ class SDSMOTE(OverSampling):
         X_maj= X[y == self.majority_label]
         
         # fitting nearest neighbors model to find closest majority points to minority samples
-        nn= NearestNeighbors(n_neighbors= len(X_maj))
+        nn= NearestNeighbors(n_neighbors= len(X_maj), n_jobs= self.n_jobs)
         nn.fit(X_maj)
         dist, ind= nn.kneighbors(X_min)
         
@@ -9192,7 +9425,7 @@ class SDSMOTE(OverSampling):
         density= k/np.sum(k)
         
         # fitting nearest neighbors model to minority samples to run SMOTE-like sampling
-        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors+1]))
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors+1]), n_jobs= self.n_jobs)
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
@@ -9210,7 +9443,7 @@ class SDSMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
 
 class DSMOTE(OverSampling):
     """
@@ -9246,7 +9479,7 @@ class DSMOTE(OverSampling):
     
     categories= [OverSampling.cat_changes_majority]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, rate= 0.1, n_step= 50):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, rate= 0.1, n_step= 50, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -9256,17 +9489,20 @@ class DSMOTE(OverSampling):
             n_neighbors (int): number of neighbors in nearest neighbors component
             rate (float): [0,1] rate of minority samples to turn into majority
             n_step (int): number of random configurations to check for new samples
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_in_range(rate, "rate", [0,1])
         self.check_greater_or_equal(n_step, "n_step", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.rate= rate
         self.n_step= n_step
+        self.n_jobs= n_jobs
     
     @classmethod
     def parameter_combinations(cls):
@@ -9290,9 +9526,6 @@ class DSMOTE(OverSampling):
         
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
-        
-        import mkl
-        mkl.set_num_threads(1)
         
         mms= MinMaxScaler()
         X= mms.fit_transform(X)
@@ -9422,7 +9655,7 @@ class DSMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'rate': self.rate, 'n_step': self.n_step}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'rate': self.rate, 'n_step': self.n_step, 'n_jobs': self.n_jobs}
 
 class G_SMOTE(OverSampling):
     """
@@ -9447,7 +9680,7 @@ class G_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_componentwise]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, method= 'linear'):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, method= 'linear', n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -9456,6 +9689,7 @@ class G_SMOTE(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors in nearest neighbors component
             method (str): 'linear'/'non-linear_2.0' - the float can be any number: standard deviation in the Gaussian-kernel
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -9466,10 +9700,12 @@ class G_SMOTE(OverSampling):
             parameter= float(method.split('_')[-1])
             if parameter <= 0:
                 raise ValueError(self.__class__.__name__ + ": " + "Non-positive non-linear parameter %f is not supported" % parameter)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.method= method
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -9497,7 +9733,7 @@ class G_SMOTE(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting nearest neighbors model
-        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors+1]))
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors+1]), n_jobs= self.n_jobs)
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
@@ -9550,7 +9786,7 @@ class G_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'method': self.method}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'method': self.method, 'n_jobs': self.n_jobs}
 
 class NT_SMOTE(OverSampling):
     """
@@ -9573,18 +9809,21 @@ class NT_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_application]
     
-    def __init__(self, proportion= 1.0):
+    def __init__(self, proportion= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
+        self.n_jobs= n_jobs
     
     @classmethod
     def parameter_combinations(cls):
@@ -9612,7 +9851,7 @@ class NT_SMOTE(OverSampling):
         X_min= X[y == self.minority_label]
         
         # find two nearest minority samples
-        nn= NearestNeighbors(n_neighbors= 3)
+        nn= NearestNeighbors(n_neighbors= 3, n_jobs= self.n_jobs)
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
                 
@@ -9634,7 +9873,7 @@ class NT_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion}
+        return {'proportion': self.proportion, 'n_jobs': self.n_jobs}
 
 class Lee(OverSampling):
     """
@@ -9663,7 +9902,7 @@ class Lee(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, rejection_level= 0.5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, rejection_level= 0.5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -9675,15 +9914,18 @@ class Lee(OverSampling):
                                         fraction of majority labels in the local environment
                                         is higher than this number, the generated point
                                         is rejected
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_in_range(rejection_level, "rejection_level", [0, 1])
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.rejection_level= rejection_level
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -9712,11 +9954,11 @@ class Lee(OverSampling):
         
         # fitting nearest neighbors models to find neighbors of minority samples inthe total data
         # and in the minority datasets
-        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]))
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]), n_jobs= self.n_jobs)
         nn.fit(X)
         dist, ind= nn.kneighbors(X_min)
         
-        nn_min= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]))
+        nn_min= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]), n_jobs= self.n_jobs)
         nn_min.fit(X_min)
         dist_min, ind_min= nn_min.kneighbors(X_min)
         
@@ -9751,7 +9993,7 @@ class Lee(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'rejection_level': self.rejection_level}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'rejection_level': self.rejection_level, 'n_jobs': self.n_jobs}
 
 class SPY(OverSampling):
     """
@@ -9773,19 +10015,22 @@ class SPY(OverSampling):
     
     categories= [OverSampling.cat_changes_majority]
     
-    def __init__(self, n_neighbors= 5, threshold= 0.5):
+    def __init__(self, n_neighbors= 5, threshold= 0.5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
             n_neighbors (int): number of neighbors in nearest neighbor component
             threshold (float): threshold*n_neighbors gives the threshold z described in the paper
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_in_range(threshold, "threshold", [0, 1])
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.n_neighbors= n_neighbors
         self.threshold= threshold
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -9812,7 +10057,7 @@ class SPY(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting nearest neighbors model
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1, n_jobs= self.n_jobs)
         nn.fit(X)
         dist, ind= nn.kneighbors(X_min)
         
@@ -9835,7 +10080,7 @@ class SPY(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'n_neighbors': self.n_neighbors, 'threshold': self.threshold}
+        return {'n_neighbors': self.n_neighbors, 'threshold': self.threshold, 'n_jobs': self.n_jobs}
 
 class SMOTE_PSOBAT(OverSampling):
     """
@@ -9865,7 +10110,7 @@ class SMOTE_PSOBAT(OverSampling):
                  OverSampling.cat_sample_ordinary,
                  OverSampling.cat_memetic]
     
-    def __init__(self, maxit= 50, c1= 0.3, c2= 0.1, c3= 0.1, alpha= 0.9, gamma= 0.9, method= 'bat'):
+    def __init__(self, maxit= 50, c1= 0.3, c2= 0.1, c3= 0.1, alpha= 0.9, gamma= 0.9, method= 'bat', n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -9873,7 +10118,10 @@ class SMOTE_PSOBAT(OverSampling):
             c1 (float): intertia weight of PSO
             c2 (float): attraction of local maximums
             c3 (float): attraction of global maximum
+            alpha (float): alpha parameter of the method
+            gamma (float): gamma parameter of the method
             method (str): optimization technique to be used
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(maxit, "maxit", 1)
@@ -9883,6 +10131,7 @@ class SMOTE_PSOBAT(OverSampling):
         self.check_greater_or_equal(alpha, "alpha", 0)
         self.check_greater_or_equal(gamma, "gamma", 0)
         self.check_isin(method, "method", ['pso', 'bat'])
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.maxit= maxit
         self.c1= c1
@@ -9891,6 +10140,7 @@ class SMOTE_PSOBAT(OverSampling):
         self.alpha= alpha
         self.gamma= gamma
         self.method= method
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -9926,7 +10176,7 @@ class SMOTE_PSOBAT(OverSampling):
             Returns:
                 float, float: kappa and accuracy scores
             """
-            X_samp, y_samp= SMOTE(proportion= proportion, n_neighbors= K).sample(X, y)
+            X_samp, y_samp= SMOTE(proportion= proportion, n_neighbors= K, n_jobs= self.n_jobs).sample(X, y)
             
             # doing k-fold cross validation
             kfold= KFold(5)
@@ -10133,14 +10383,14 @@ class SMOTE_PSOBAT(OverSampling):
         else:
             raise ValueError(self.__class__.__name__ + ": " + "Search method %s not supported yet." % self.method)
         
-        return SMOTE(proportion= best_combination[1], n_neighbors= int(best_combination[0])).sample(X, y)
+        return SMOTE(proportion= best_combination[1], n_neighbors= int(best_combination[0]), n_jobs= self.n_jobs).sample(X, y)
         
     def get_params(self):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'maxit': self.maxit, 'c1': self.c1, 'c2': self.c2, 'c3': self.c3, 'alpha': self.alpha, 'gamma': self.gamma, 'method': self.method}
+        return {'maxit': self.maxit, 'c1': self.c1, 'c2': self.c2, 'c3': self.c3, 'alpha': self.alpha, 'gamma': self.gamma, 'method': self.method, 'n_jobs': self.n_jobs}
 
 class MDO(OverSampling):
     """
@@ -10163,7 +10413,7 @@ class MDO(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_dim_reduction]
     
-    def __init__(self, proportion= 1.0, K2= 5, K1_frac= 0.5):
+    def __init__(self, proportion= 1.0, K2= 5, K1_frac= 0.5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -10172,15 +10422,18 @@ class MDO(OverSampling):
                                     samples will be equal to the number of majority samples
             K2 (int): number of neighbors
             K1_frac (float): the fraction of K2 to set K1
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(K2, "K2", 1)
         self.check_greater_or_equal(K1_frac, "K1_frac", 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.K2= K2
         self.K1_frac= K1_frac
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -10211,7 +10464,7 @@ class MDO(OverSampling):
         self.K1= int(self.K2*self.K1_frac)
         
         # Algorithm 2 - chooseSamples
-        nn= NearestNeighbors(n_neighbors= self.K2 + 1)
+        nn= NearestNeighbors(n_neighbors= self.K2 + 1, n_jobs= self.n_jobs)
         nn.fit(X)
         dist, ind= nn.kneighbors(X_min)
         
@@ -10281,7 +10534,7 @@ class MDO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'K2': self.K2, 'K1_frac': self.K1_frac}
+        return {'proportion': self.proportion, 'K2': self.K2, 'K1_frac': self.K1_frac, 'n_jobs': self.n_jobs}
 
 class Random_SMOTE(OverSampling):
     """
@@ -10306,7 +10559,7 @@ class Random_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_componentwise]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -10314,13 +10567,16 @@ class Random_SMOTE(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -10348,7 +10604,7 @@ class Random_SMOTE(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting nearest neighbors model to find closest neighbors of minority points
-        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]))
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]), n_jobs= self.n_jobs)
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
@@ -10367,7 +10623,7 @@ class Random_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
 
 class ISMOTE(OverSampling):
     """
@@ -10393,19 +10649,22 @@ class ISMOTE(OverSampling):
     
     categories= [OverSampling.cat_changes_majority]
     
-    def __init__(self, n_neighbors= 5, minority_weight= 0.5):
+    def __init__(self, n_neighbors= 5, minority_weight= 0.5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
             n_neighbors (int): number of neighbors
             minority_weight (float): weight parameter according to the paper
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_greater_or_equal(minority_weight, "minority_weight", 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.n_neighbors= n_neighbors
         self.minority_weight= minority_weight
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -10435,7 +10694,7 @@ class ISMOTE(OverSampling):
         num_to_sample= int((len(X_maj) - len(X_min))/2)
         
         # computing distances of majority samples from minority ones
-        nn= NearestNeighbors(n_neighbors= len(X_min))
+        nn= NearestNeighbors(n_neighbors= len(X_min), n_jobs= self.n_jobs)
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_maj)
         
@@ -10451,7 +10710,7 @@ class ISMOTE(OverSampling):
         X_min= X_new[y_new == self.minority_label]
         
         # fitting nearest neighbors model
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1, n_jobs= self.n_jobs)
         nn.fit(X_new)
         dist, ind= nn.kneighbors(X_min)
         
@@ -10474,7 +10733,7 @@ class ISMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'n_neighbors': self.n_neighbors, 'minority_weight': self.minority_weight}
+        return {'n_neighbors': self.n_neighbors, 'minority_weight': self.minority_weight, 'n_jobs': self.n_jobs}
 
 class VIS_RST(OverSampling):
     """
@@ -10501,7 +10760,7 @@ class VIS_RST(OverSampling):
     categories= [OverSampling.cat_changes_majority,
                  OverSampling.cat_noise_removal]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -10509,13 +10768,16 @@ class VIS_RST(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0.0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -10550,7 +10812,7 @@ class VIS_RST(OverSampling):
         X_maj= X[y == self.majority_label]
         
         # fitting nearest neighbors model to determine boundary region
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1, n_jobs= self.n_jobs)
         nn.fit(X)
         dist, ind= nn.kneighbors(X_maj)
         
@@ -10565,7 +10827,7 @@ class VIS_RST(OverSampling):
         X_maj= X[y == self.majority_label]
         
         # labeling minority samples
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1, n_jobs= self.n_jobs)
         nn.fit(X)
         dist, ind= nn.kneighbors(X_min)
         
@@ -10592,7 +10854,7 @@ class VIS_RST(OverSampling):
             mode= 'low_complexity'
         
         # fitting nearest neighbors to find the neighbors of minority elements among minority elements
-        nn_min= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]))
+        nn_min= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]), n_jobs= self.n_jobs)
         nn_min.fit(X_min)
         dist_min, ind_min= nn_min.kneighbors(X_min)
         
@@ -10626,7 +10888,7 @@ class VIS_RST(OverSampling):
         X_samp= np.vstack(samples)
         
         # final noise removal by removing those minority samples generated and not belonging to the lower approximation
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1).fit(X)
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1, n_jobs= self.n_jobs).fit(X)
         dist_check, ind_check= nn.kneighbors(X_samp)
         num_maj_mask= np.array([np.sum(y[ind_check[i][1:]] == self.majority_label) == 0 for i in range(len(samples))])
         X_samp= X_samp[num_maj_mask]
@@ -10638,7 +10900,7 @@ class VIS_RST(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
 
 class GASMOTE(OverSampling):
     """
@@ -10667,7 +10929,7 @@ class GASMOTE(OverSampling):
                  OverSampling.cat_memetic,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, n_neighbors= 5, maxn= 7, n_pop= 10, popl3= 5, pm= 0.3, pr= 0.2, Ge= 10):
+    def __init__(self, n_neighbors= 5, maxn= 7, n_pop= 10, popl3= 5, pm= 0.3, pr= 0.2, Ge= 10, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -10678,6 +10940,7 @@ class GASMOTE(OverSampling):
             pm (float): mutation probability
             pr (float): selection probability
             Ge (int): number of generations
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
@@ -10686,6 +10949,7 @@ class GASMOTE(OverSampling):
         self.check_in_range(pm, "pm", [0, 1])
         self.check_in_range(pr, "pr", [0, 1])
         self.check_greater_or_equal(Ge, "Ge", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.n_neighbors= n_neighbors
         self.maxn= maxn
@@ -10694,6 +10958,7 @@ class GASMOTE(OverSampling):
         self.pm= pm
         self.pr= pr
         self.Ge= Ge
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -10720,7 +10985,7 @@ class GASMOTE(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting nearest neighbors model to find minority neighbors of minority samples
-        nn= NearestNeighbors(n_neighbors= min([self.n_neighbors + 1, len(X_min)]))
+        nn= NearestNeighbors(n_neighbors= min([self.n_neighbors + 1, len(X_min)]), n_jobs= self.n_jobs)
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         kfold= KFold(5)
@@ -10854,7 +11119,7 @@ class GASMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'n_neighbors': self.n_neighbors, 'maxn': self.maxn, 'n_pop': self.n_pop, 'popl3': self.popl3, 'pm': self.pm, 'pr': self.pr, 'Ge': self.Ge}
+        return {'n_neighbors': self.n_neighbors, 'maxn': self.maxn, 'n_pop': self.n_pop, 'popl3': self.popl3, 'pm': self.pm, 'pr': self.pr, 'Ge': self.Ge, 'n_jobs': self.n_jobs}
 
 class A_SUWO(OverSampling):
     """
@@ -10882,7 +11147,7 @@ class A_SUWO(OverSampling):
                  OverSampling.cat_density_based,
                  OverSampling.cat_noise_removal]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_clus_maj= 7, c_thres= 0.8):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_clus_maj= 7, c_thres= 0.8, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -10892,17 +11157,20 @@ class A_SUWO(OverSampling):
             n_neighbors (int): number of neighbors
             n_clus_maj (int): number of majority clusters
             c_thres (float): threshold on distances
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_greater_or_equal(n_clus_maj, "n_clus_maj", 1)
         self.check_greater_or_equal(c_thres, "c_thres", 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_clus_maj= n_clus_maj
         self.c_thres= c_thres
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -10927,11 +11195,8 @@ class A_SUWO(OverSampling):
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
-        import mkl
-        mkl.set_num_threads(1)
-        
         # fitting nearest neighbors to find neighbors of all samples
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1, n_jobs= self.n_jobs)
         nn.fit(X)
         dist, ind= nn.kneighbors(X)
         
@@ -10970,7 +11235,7 @@ class A_SUWO(OverSampling):
                 dm_maj[i,j]= np.min(pairwise_distances(X_min[min_clusters[i]], X_maj[maj_clusters[j]]))
         
         # compute threshold
-        nn= NearestNeighbors(n_neighbors= len(X_min))
+        nn= NearestNeighbors(n_neighbors= len(X_min), n_jobs= self.n_jobs)
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         d_med= np.median(dist, axis= 1)
@@ -11044,7 +11309,7 @@ class A_SUWO(OverSampling):
         
         # synthetic instance generation - determining within cluster distribution
         # finding majority neighbor distances of minority samples
-        nn= NearestNeighbors(n_neighbors= 1)
+        nn= NearestNeighbors(n_neighbors= 1, n_jobs= self.n_jobs)
         nn.fit(X_maj)
         dist, ind= nn.kneighbors(X_min)
         dist= dist/len(X[0])
@@ -11065,7 +11330,7 @@ class A_SUWO(OverSampling):
         # extracting within cluster neighbors
         within_cluster_neighbors= []
         for c in min_clusters:
-            nn= NearestNeighbors(n_neighbors= min([len(c), self.n_neighbors]))
+            nn= NearestNeighbors(n_neighbors= min([len(c), self.n_neighbors]), n_jobs= self.n_jobs)
             nn.fit(X_min[c])
             within_cluster_neighbors.append(nn.kneighbors(X_min[c])[1])
         
@@ -11091,7 +11356,7 @@ class A_SUWO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_clus_maj': self.n_clus_maj, 'c_thres': self.c_thres}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_clus_maj': self.n_clus_maj, 'c_thres': self.c_thres, 'n_jobs': self.n_jobs}
 
 class SMOTE_FRST_2T(OverSampling):
     """
@@ -11124,22 +11389,25 @@ class SMOTE_FRST_2T(OverSampling):
                  OverSampling.cat_sample_ordinary,
                  OverSampling.cat_application]
     
-    def __init__(self, n_neighbors= 5, gamma_S= 0.7, gamma_M= 0.03):
+    def __init__(self, n_neighbors= 5, gamma_S= 0.7, gamma_M= 0.03, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
             n_neighbors (int): number of neighbors in the SMOTE sampling
             gamma_S (float): threshold of synthesized samples
             gamma_M (float): threshold of majority samples
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_greater_or_equal(gamma_S, "gamma_S", 0)
         self.check_greater_or_equal(gamma_M, "gamma_M", 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.gamma_S= gamma_S
         self.gamma_M= gamma_M
         self.n_neighbors= n_neighbors
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -11198,7 +11466,7 @@ class SMOTE_FRST_2T(OverSampling):
                 logging.info(self.__class__.__name__ + ": " +"gamma_S increased to %f" % gamma_S)
             
             # executing SMOTE to generate some minority samples
-            X_samp, y_samp= SMOTE(proportion= 0.2, n_neighbors= self.n_neighbors).sample(X, y)
+            X_samp, y_samp= SMOTE(proportion= 0.2, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs).sample(X, y)
             X_samp= X_samp[len(X):]
             
             new_synth= []
@@ -11265,7 +11533,7 @@ class SMOTE_FRST_2T(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'gamma_S': self.gamma_S, 'gamma_M': self.gamma_M}
+        return {'n_neighbors': self.n_neighbors, 'gamma_S': self.gamma_S, 'gamma_M': self.gamma_M, 'n_jobs': self.n_jobs}
 
 class AND_SMOTE(OverSampling):
     """
@@ -11294,7 +11562,7 @@ class AND_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 1.0, K= 15):
+    def __init__(self, proportion= 1.0, K= 15, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -11302,13 +11570,16 @@ class AND_SMOTE(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             K (int): maximum number of nearest neighbors
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(K, "K", 2)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.K= K
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -11336,7 +11607,7 @@ class AND_SMOTE(OverSampling):
         X_min= X[y == self.minority_label]
         
         # find K nearest neighbors of all samples
-        nn= NearestNeighbors(n_neighbors= self.K+1)
+        nn= NearestNeighbors(n_neighbors= self.K+1, n_jobs= self.n_jobs)
         nn.fit(X)
         dist, ind= nn.kneighbors(X)
         
@@ -11398,7 +11669,7 @@ class AND_SMOTE(OverSampling):
             kappa.append(k)
         
         # finding nearest minority neighbors of minority samples
-        nn= NearestNeighbors(n_neighbors= max(kappa) + 1)
+        nn= NearestNeighbors(n_neighbors= max(kappa) + 1, n_jobs= self.n_jobs)
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
@@ -11421,7 +11692,7 @@ class AND_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'K': self.K}
+        return {'proportion': self.proportion, 'K': self.K, 'n_jobs': self.n_jobs}
 
 class NRAS(OverSampling):
     """
@@ -11444,7 +11715,7 @@ class NRAS(OverSampling):
     categories= [OverSampling.cat_sample_ordinary,
                  OverSampling.cat_noise_removal]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, t= 0.5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, t= 0.5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -11453,15 +11724,18 @@ class NRAS(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors
             t (float): [0,1] fraction of n_neighbors as threshold
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_in_range(t, "t", [0, 1])
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.t= t
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -11491,7 +11765,7 @@ class NRAS(OverSampling):
         X_trans= mms.fit_transform(X)
         
         # determining propensity scores using logistic regression
-        lr= LogisticRegression()
+        lr= LogisticRegression(n_jobs= self.n_jobs)
         lr.fit(X_trans, y)
         propensity= lr.predict_proba(X_trans)[:,np.where(lr.classes_ == self.minority_label)[0][0]]
         
@@ -11502,7 +11776,7 @@ class NRAS(OverSampling):
         X_min_new= X_new[y == self.minority_label]
         
         # finding nearest neighbors of minority samples
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1)
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1, n_jobs= self.n_jobs)
         nn.fit(X_new)
         dist, ind= nn.kneighbors(X_min_new)
         
@@ -11539,7 +11813,7 @@ class NRAS(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 't': self.t}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 't': self.t, 'n_jobs': self.n_jobs}
 
 class AMSCO(OverSampling):
     """
@@ -11577,7 +11851,7 @@ class AMSCO(OverSampling):
                  OverSampling.cat_memetic,
                  OverSampling.cat_uses_classifier]
     
-    def __init__(self, n_pop= 5, n_iter= 15, omega= 0.1, r1= 0.1, r2= 0.1):
+    def __init__(self, n_pop= 5, n_iter= 15, omega= 0.1, r1= 0.1, r2= 0.1, n_jobs= 1, classifier= DecisionTreeClassifier()):
         """
         Constructor of the sampling object
         Args:
@@ -11586,6 +11860,7 @@ class AMSCO(OverSampling):
             omega (float): intertia of PSO
             r1 (float): force towards local optimum
             r2 (float): force towards global optimum
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(n_pop, "n_pop", 1)
@@ -11593,12 +11868,15 @@ class AMSCO(OverSampling):
         self.check_greater_or_equal(omega, "omega", 0)
         self.check_greater_or_equal(r1, "r1", 0)
         self.check_greater_or_equal(r2, "r2", 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.n_pop= n_pop
         self.n_iter= n_iter
         self.omega= omega
         self.r1= r1
         self.r2= r2
+        self.n_jobs= n_jobs
+        self.classifier= classifier
         
     @classmethod
     def parameter_combinations(cls):
@@ -11609,7 +11887,7 @@ class AMSCO(OverSampling):
         """
         # as the method is an overall optimization, 1 reasonable settings should
         # be enough
-        return cls.generate_parameter_combinations({'n_pop': [5], 'n_iter': [15], 'omega': [0.1], 'r1': [0.1], 'r2': [0.1]})
+        return cls.generate_parameter_combinations({'n_pop': [5], 'n_iter': [15], 'omega': [0.1], 'r1': [0.1], 'r2': [0.1], 'classifier': [DecisionTreeClassifier()]})
     
     def sample(self, X, y):
         """
@@ -11646,7 +11924,7 @@ class AMSCO(OverSampling):
             tests= []
             for train, test in kfold.split(X_ass, y_ass):
                 #preds.append(KNeighborsClassifier(n_neighbors= 1).fit(X_ass[train], y_ass[train]).predict(X))
-                preds.append(DecisionTreeClassifier().fit(X_ass[train], y_ass[train]).predict(X))
+                preds.append(self.classifier.fit(X_ass[train], y_ass[train]).predict(X))
                 tests.append(y)
             preds= np.hstack(preds)
             tests= np.hstack(tests)
@@ -11713,7 +11991,7 @@ class AMSCO(OverSampling):
                 scores= []
                 for i in range(len(particles)):
                     # apply SMOTE
-                    X_samp, y_samp= SMOTE(particles[i][0], int(np.rint(particles[i][1]))).sample(np.vstack([X_maj, X_min]), np.hstack([np.repeat(self.majority_label, len(X_maj)), np.repeat(self.minority_label, len(X_min))]))
+                    X_samp, y_samp= SMOTE(particles[i][0], int(np.rint(particles[i][1])), n_jobs= self.n_jobs).sample(np.vstack([X_maj, X_min]), np.hstack([np.repeat(self.majority_label, len(X_maj)), np.repeat(self.minority_label, len(X_min))]))
                     # evaluate
                     scores.append(fitness(X_samp[len(X_maj):], X_samp[:len(X_maj)]))
                     # update scores according to the multiobjective setting
@@ -11796,7 +12074,7 @@ class AMSCO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'n_pop': self.n_pop, 'n_iter': self.n_iter, 'omega': self.omega, 'r1': self.r1, 'r2': self.r2}
+        return {'n_pop': self.n_pop, 'n_iter': self.n_iter, 'omega': self.omega, 'r1': self.r1, 'r2': self.r2, 'n_jobs': self.n_jobs, 'classifier': self.classifier}
 
 class SSO(OverSampling):
     """
@@ -11830,7 +12108,7 @@ class SSO(OverSampling):
                  OverSampling.cat_uses_clustering,
                  OverSampling.cat_density_based]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, h= 10, n_iter= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, h= 10, n_iter= 5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -11840,17 +12118,20 @@ class SSO(OverSampling):
             n_neighbors (int): number of neighbors
             h (int): number of hidden units
             n_iter (int): optimization steps
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_greater_or_equal(h, "h", 1)
         self.check_greater_or_equal(n_iter, "n_iter", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.h= h
         self.n_iter= n_iter
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -11882,14 +12163,14 @@ class SSO(OverSampling):
             X_min= X[y == self.minority_label]
             
             # applying kmeans clustering to find the hidden neurons
-            kmeans= KMeans(n_clusters= self.h)
+            kmeans= KMeans(n_clusters= self.h, n_jobs= self.n_jobs)
             kmeans.fit(X)
             
             # extracting the hidden center elements
             u= kmeans.cluster_centers_
             
             # extracting scale parameters as the distances of closest centers
-            nn_cent= NearestNeighbors(n_neighbors= 2)
+            nn_cent= NearestNeighbors(n_neighbors= 2, n_jobs= self.n_jobs)
             nn_cent.fit(u)
             dist_cent, ind_cent= nn_cent.kneighbors(u)
             v= dist_cent[:,1]
@@ -11943,7 +12224,7 @@ class SSO(OverSampling):
                 return (np.sqrt(np.pi)/(4*Q))**len(x)*res
             
             # applying nearest neighbors to extract Q values
-            nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1)
+            nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1, n_jobs= self.n_jobs)
             nn.fit(X)
             dist, ind= nn.kneighbors(X_min)
             
@@ -11958,7 +12239,7 @@ class SSO(OverSampling):
             # calculating the sampling weights
             weights= np.abs(stsm)/np.sum(np.abs(stsm))
         
-            nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors+1]))
+            nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors+1]), n_jobs= self.n_jobs)
             nn.fit(X_min)
             dist, ind= nn.kneighbors(X_min)
         
@@ -11982,7 +12263,7 @@ class SSO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'h': self.h, 'n_iter': self.n_iter}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'h': self.h, 'n_iter': self.n_iter, 'n_jobs': self.n_jobs}
 
 class NDO_sampling(OverSampling):
     """
@@ -12006,7 +12287,7 @@ class NDO_sampling(OverSampling):
                  OverSampling.cat_sample_ordinary,
                  OverSampling.cat_application]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, T= 0.5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, T= 0.5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -12015,15 +12296,18 @@ class NDO_sampling(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors
             T (float): threshold parameter
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_greater_or_equal(T, "T", 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.T= T
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -12051,7 +12335,7 @@ class NDO_sampling(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting nearest neighbors model to find the neighbors of minority samples among all elements
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1)
+        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1, n_jobs= self.n_jobs)
         nn.fit(X)
         dist, ind= nn.kneighbors(X_min)
         
@@ -12093,7 +12377,7 @@ class NDO_sampling(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'T': self.T}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'T': self.T, 'n_jobs': self.n_jobs}
 
 class RBFNeuron:
     """
@@ -12257,7 +12541,7 @@ class RBF:
         """
         Improves the center locations by kmeans clustering
         """
-        kmeans= KMeans(n_clusters=len(self.neurons), init=np.vstack([n.c for n in self.neurons]), max_iter= 30)
+        kmeans= KMeans(n_clusters=len(self.neurons), init=np.vstack([n.c for n in self.neurons]), max_iter= 30, n_jobs= 1)
         kmeans.fit(self.X)
         for i in range(len(self.neurons)):
             self.neurons[i].c= kmeans.cluster_centers_[i]
@@ -12358,7 +12642,7 @@ class DSRBF(OverSampling):
                  OverSampling.cat_sample_ordinary,
                  OverSampling.cat_memetic]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, m_min= 4, m_max= 10, I= 2, O= 2, n_pop= 500, n_init_pop= 5000, n_iter= 40, n_sampling_epoch= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, m_min= 4, m_max= 10, I= 2, O= 2, n_pop= 500, n_init_pop= 5000, n_iter= 40, n_sampling_epoch= 5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -12386,6 +12670,7 @@ class DSRBF(OverSampling):
         self.check_greater_or_equal(n_init_pop, "n_pop", 2)
         self.check_greater_or_equal(n_iter, "n_iter", 0)
         self.check_greater_or_equal(n_sampling_epoch, "n_sampling_epoch", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
@@ -12397,6 +12682,7 @@ class DSRBF(OverSampling):
         self.n_init_pop= n_init_pop
         self.n_iter= n_iter
         self.n_sampling_epoch= n_sampling_epoch
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -12428,7 +12714,7 @@ class DSRBF(OverSampling):
         X_orig= X
         y_orig= y
         
-        X, y= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors).sample(X, y)
+        X, y= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs).sample(X, y)
         
         # generate initial connections and weights randomly
         init_conn_mask= np.random.choice(np.arange(len(X[0])), int(len(X[0])/2))
@@ -12479,7 +12765,7 @@ class DSRBF(OverSampling):
             
             # do the sampling
             if iteration % epoch_len == 0:
-                X, y= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors).sample(X_orig, y_orig)
+                X, y= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs).sample(X_orig, y_orig)
                 for i in range(self.n_pop):
                     tmp= [population[i][0].clone(), X, y, np.inf]
                     tmp[0].update_data(X)
@@ -12501,7 +12787,7 @@ class DSRBF(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'm_min': self.m_min, 'm_max': self.m_max, 'I': self.I, 'O': self.O, 'n_pop': self.n_pop, 'n_init_pop': self.n_init_pop, 'n_iter': self.n_iter, 'n_sampling_epoch': self.n_sampling_epoch}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'm_min': self.m_min, 'm_max': self.m_max, 'I': self.I, 'O': self.O, 'n_pop': self.n_pop, 'n_init_pop': self.n_init_pop, 'n_iter': self.n_iter, 'n_sampling_epoch': self.n_sampling_epoch, 'n_jobs': self.n_jobs}
 
 class Gaussian_SMOTE(OverSampling):
     """
@@ -12519,7 +12805,7 @@ class Gaussian_SMOTE(OverSampling):
     
     categories= [OverSampling.cat_extensive]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, sigma= 1.0):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, sigma= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -12528,15 +12814,18 @@ class Gaussian_SMOTE(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors
             sigma (float): variance
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_greater(sigma, "sigma", 0.0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.sigma= sigma
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -12567,7 +12856,7 @@ class Gaussian_SMOTE(OverSampling):
         
         # fitting nearest neighbors model to find the minority neighbors of minority samples
         X_min= X_ss[y == self.minority_label]
-        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]))
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]), n_jobs= self.n_jobs)
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
@@ -12586,7 +12875,7 @@ class Gaussian_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'sigma': self.sigma}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'sigma': self.sigma, 'n_jobs': self.n_jobs}
 
 class kmeans_SMOTE(OverSampling):
     """
@@ -12609,7 +12898,7 @@ class kmeans_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_uses_clustering]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_clusters= 10, irt= 2.0):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_clusters= 10, irt= 2.0, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -12619,17 +12908,20 @@ class kmeans_SMOTE(OverSampling):
             n_neighbors (int): number of neighbors
             n_clusters (int): number of clusters
             irt (float): imbalanced ratio threshold
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_greater_or_equal(n_clusters, "n_clusters", 1)
         self.check_greater_or_equal(irt, "irt", 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_clusters= n_clusters
         self.irt= irt
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -12655,7 +12947,7 @@ class kmeans_SMOTE(OverSampling):
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
         # applying kmeans clustering to all data
-        kmeans= KMeans(n_clusters= self.n_clusters)
+        kmeans= KMeans(n_clusters= self.n_clusters, n_jobs= self.n_jobs)
         kmeans.fit(X)
         
         # extracting clusters
@@ -12685,7 +12977,7 @@ class kmeans_SMOTE(OverSampling):
             # compute sparsity (Step 4)
             sparsity.append(avg_min_dist**len(X[0])/min_count)
             # extract the nearest neighbors graph
-            nearest_neighbors.append(NearestNeighbors(n_neighbors= min([len(minority_ind), self.n_neighbors + 1])).fit(X[minority_ind]).kneighbors(X[minority_ind]))
+            nearest_neighbors.append(NearestNeighbors(n_neighbors= min([len(minority_ind), self.n_neighbors + 1]), n_jobs= self.n_jobs).fit(X[minority_ind]).kneighbors(X[minority_ind]))
         
         # Step 5 - compute density of sampling
         weights= sparsity/np.sum(sparsity)
@@ -12709,7 +13001,7 @@ class kmeans_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_clusters': self.n_clusters, 'irt': self.irt}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_clusters': self.n_clusters, 'irt': self.irt, 'n_jobs': self.n_jobs}
 
 class Supervised_SMOTE(OverSampling):
     """
@@ -12736,7 +13028,7 @@ class Supervised_SMOTE(OverSampling):
                  OverSampling.cat_uses_classifier,
                  OverSampling.cat_application]
     
-    def __init__(self, proportion= 1.0, th_lower= 0.5, th_upper= 1.0):
+    def __init__(self, proportion= 1.0, th_lower= 0.5, th_upper= 1.0, classifier= RandomForestClassifier(n_estimators= 50, n_jobs= 1), n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -12745,15 +13037,20 @@ class Supervised_SMOTE(OverSampling):
                                     samples will be equal to the number of majority samples
             th_lower (float): lower bound of the confidence interval
             th_upper (float): upper bound of the confidence interval
+            classifier (obj): classifier used to estimate class memberships
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_in_range(th_lower, "th_lower", [0, 1])
         self.check_in_range(th_upper, "th_upper", [0, 1])
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.th_lower= th_lower
         self.th_upper= th_upper
+        self.classifier= classifier
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -12762,7 +13059,7 @@ class Supervised_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'th_lower': [0.3, 0.5, 0.8], 'th_upper': [1.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'th_lower': [0.3, 0.5, 0.8], 'th_upper': [1.0], 'classifier': [RandomForestClassifier(n_estimators= 50, n_jobs= 1)]})
     
     def sample(self, X, y):
         """
@@ -12779,8 +13076,7 @@ class Supervised_SMOTE(OverSampling):
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
         # training the classifier
-        classifier= RandomForestClassifier(n_estimators= 50)
-        classifier.fit(X, y)
+        self.classifier.fit(X, y)
         
         X_min= X[y == self.minority_label]
         
@@ -12795,9 +13091,9 @@ class Supervised_SMOTE(OverSampling):
             
             x0, x1= X_min[np.random.choice(np.arange(len(X_min)), 2, replace= False)]
             sample= self.sample_between_points(x0, x1)
-            probs= classifier.predict_proba(sample.reshape(1, -1))
+            probs= self.classifier.predict_proba(sample.reshape(1, -1))
             # extract probability
-            prob= probs[0][np.where(classifier.classes_ == self.minority_label)[0][0]]
+            prob= probs[0][np.where(self.classifier.classes_ == self.minority_label)[0][0]]
             if prob >= th_lower and prob <= self.th_upper:
                 samples.append(sample)
                 n_success= n_success + 1
@@ -12815,7 +13111,7 @@ class Supervised_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'th_lower': self.th_lower, 'th_upper': self.th_upper}
+        return {'proportion': self.proportion, 'th_lower': self.th_lower, 'th_upper': self.th_upper, 'n_jobs': self.n_jobs}
 
 class SN_SMOTE(OverSampling):
     """
@@ -12844,7 +13140,7 @@ class SN_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -12852,13 +13148,16 @@ class SN_SMOTE(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (float): number of neighbors
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -12887,7 +13186,7 @@ class SN_SMOTE(OverSampling):
         
         # the search for the k nearest centroid neighbors is limited for the nearest
         # 10*n_neighbors neighbors
-        nn= NearestNeighbors(n_neighbors= min([self.n_neighbors*10, len(X_min)]))
+        nn= NearestNeighbors(n_neighbors= min([self.n_neighbors*10, len(X_min)]), n_jobs= self.n_jobs)
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
@@ -12934,7 +13233,7 @@ class SN_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors}
+        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
 
 class CCR(OverSampling):
     """
@@ -12955,7 +13254,7 @@ class CCR(OverSampling):
     
     categories= [OverSampling.cat_extensive]
     
-    def __init__(self, proportion= 1.0, energy= 1.0, scaling= 0.0):
+    def __init__(self, proportion= 1.0, energy= 1.0, scaling= 0.0, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -12964,15 +13263,18 @@ class CCR(OverSampling):
                                     samples will be equal to the number of majority samples
             energy (float): energy parameter
             scaling (float): scaling factor
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(energy, "energy", 0)
         self.check_greater_or_equal(scaling, "scaling", 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.energy= energy
         self.scaling= scaling
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -13085,7 +13387,7 @@ class CCR(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'energy': self.energy, 'scaling': self.scaling}
+        return {'proportion': self.proportion, 'energy': self.energy, 'scaling': self.scaling, 'n_jobs': self.n_jobs}
 
 class ANS(OverSampling):
     """
@@ -13109,19 +13411,21 @@ class ANS(OverSampling):
                  OverSampling.cat_sample_ordinary,
                  OverSampling.cat_density_based]
     
-    def __init__(self, proportion= 1.0):
+    def __init__(self, proportion= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
-            n_neighbors (float): number of neighbors
+            n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
+        self.n_jobs= n_jobs
         
     @classmethod
     def parameter_combinations(cls):
@@ -13154,7 +13458,7 @@ class ANS(OverSampling):
         C_max= int(0.25*len(X))
         
         # finding the first minority neighbor of minority samples
-        nn= NearestNeighbors(n_neighbors= 2)
+        nn= NearestNeighbors(n_neighbors= 2, n_jobs= self.n_jobs)
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
@@ -13163,7 +13467,7 @@ class ANS(OverSampling):
         
         # fitting another nearest neighbors model to extract majority samples in
         # the neighborhoods of minority samples
-        nn= NearestNeighbors(n_neighbors= 1)
+        nn= NearestNeighbors(n_neighbors= 1, n_jobs= self.n_jobs)
         nn.fit(X)
         
         # extracting the number of majority samples in the neighborhood of minority samples
@@ -13201,7 +13505,7 @@ class ANS(OverSampling):
         
         # fitting nearest neighbors model to find nearest minority samples in
         # the neighborhoods of minority samples
-        nn= NearestNeighbors(n_neighbors= 1)
+        nn= NearestNeighbors(n_neighbors= 1, n_jobs= self.n_jobs)
         nn.fit(X_min[Pused])
         ind= nn.radius_neighbors(X_min[Pused], eps, return_distance= False)
         
@@ -13209,7 +13513,7 @@ class ANS(OverSampling):
         Np= np.array([len(i) for i in ind])
         
         if np.all(Np == 1):
-            logging.info(self.__class__.__name__ + ": " + "all samples have only 1 neighbor in the given radius")
+            logging.warning(self.__class__.__name__ + ": " + "all samples have only 1 neighbor in the given radius")
             return X, y
         
         # determining the distribution used to generate samples
@@ -13232,7 +13536,7 @@ class ANS(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion}
+        return {'proportion': self.proportion, 'n_jobs': self.n_jobs}
 
 class CGAN(OverSampling):
     """
@@ -13572,18 +13876,39 @@ class Sampling():
         Returns:
             str: standardized name
         """
+        import hashlib
+        
         db_name= (db_name or self.db_name)
         sampler= (sampler or self.sampler.__name__)
-        sampler_parameters= (sampler_parameters or str(self.sampler_parameters))
+        sampler_parameters= sampler_parameters or self.sampler_parameters
+        sampler_parameter_str= hashlib.md5(str(sampler_parameters).encode('utf-8')).hexdigest()
+        #sampler_parameter_str= ""
+        #for s in sampler_parameters:
+        #    if hasattr(sampler_parameters[s], 'get_params'):
+        #        sampler_parameter_str= sampler_parameter_str + '_' + s + "_" + str(hashlib.md5(str(sampler_parameters[s].get_params()).encode('utf-8')).hexdigest())
+        #    else:
+        #        sampler_parameter_str= sampler_parameter_str + '_' + s + "_" + str(sampler_parameters[s])
+                
+        #sampler_parameters= (sampler_parameters or str(self.sampler_parameters))
+        #sampler_parameters= ' '.join(sampler_parameters.split())
         
-        filename= '_'.join([prefix, db_name, sampler, sampler_parameters]) + '.pickle'
+        filename= '_'.join([prefix, db_name, sampler, sampler_parameter_str]) + '.pickle'
         filename= re.sub('["\\,:(){}]', '', filename)
         filename= filename.replace("'", '')
         filename= filename.replace(": ", "_")
         filename= filename.replace(" ", "_")
+        filename= filename.replace("\n", "_")
+        
         return filename
     
     def cache_sampling(self):
+        try:
+            import mkl
+            mkl.set_num_threads(1)
+            logging.info(self.__class__.__name__ + (" mkl thread number set to 1 successfully"))
+        except:
+            logging.info(self.__class__.__name__ + (" setting mkl thread number didn't succeed"))
+        
         if not os.path.isfile(os.path.join(self.cache_path, self.filename)):
             is_extensive= OverSampling.cat_extensive in self.sampler.categories
             has_proportion= 'proportion' in self.sampler_parameters
@@ -13769,8 +14094,12 @@ class Evaluation():
             dict: all metrics
         """
         if not self.n_threads is None:
-            import mkl
-            mkl.set_num_threads(self.n_threads)
+            try:
+                import mkl
+                mkl.set_num_threads(self.n_threads)
+                logging.info(self.__class__.__name__ + (" mkl thread number set to %d successfully" % self.n_threads))
+            except:
+                logging.info(self.__class__.__name__ + (" setting mkl thread number didn't succeed"))
         
         evaluations= {}
         if os.path.isfile(os.path.join(self.cache_path, self.filename)):
@@ -13801,8 +14130,12 @@ class Evaluation():
                                 minority_class_label= int(class_labels[1])
                         ss= StandardScaler()
                         X_train_trans= ss.fit_transform(X_train)
-                        self.classifiers[i].fit(X_train_trans, y_train)
-                        all_preds.append(self.classifiers[i].predict_proba(ss.transform(X_test)))
+                        nonzero_var_idx= np.where(ss.var_ > 1e-8)[0]
+                        self.classifiers[i].fit(X_train_trans[:,nonzero_var_idx], y_train)
+                        X_test_trans= ss.transform(X_test)
+                        #logging.info("test: %d %d %d %d %f %f %f %f %d" % (np.sum(np.isnan(X_test)), np.sum(np.isnan(X_test_trans)), np.sum(np.isinf(X_test)), np.sum(np.isinf(X_test_trans)), np.min(X_test), np.min(X_test_trans), np.max(X_test), np.max(X_test_trans), np.any(ss.var_ == 0)))
+                        #logging.info("train: %d %d %d %d %f %f %f %f %d" % (np.sum(np.isnan(X_train)), np.sum(np.isnan(X_train_trans)), np.sum(np.isinf(X_train)), np.sum(np.isinf(X_train_trans)), np.min(X_train), np.min(X_train_trans), np.max(X_train), np.max(X_train_trans), np.any(ss.var_ == 0)))
+                        all_preds.append(self.classifiers[i].predict_proba(X_test_trans[:,nonzero_var_idx]))
                 
                 if len(all_tests) > 0:
                     all_preds= np.vstack(all_preds)
