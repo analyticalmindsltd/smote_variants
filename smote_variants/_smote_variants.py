@@ -13915,7 +13915,7 @@ class Sampling():
                 for p in all_proportions:
                     tmp_par= self.sampler_parameters.copy()
                     tmp_par['proportion']= p
-                    tmp_filename= self.standardized_filename('sampling', self.db_name, str(self.sampler.__class__.__name__), str(tmp_par))
+                    tmp_filename= self.standardized_filename('sampling', self.db_name, str(self.sampler.__name__), str(tmp_par))
                     
                     if os.path.isfile(os.path.join(self.cache_path, tmp_filename)):
                         higher_prop_sampling_available= (p, tmp_filename)
