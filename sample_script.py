@@ -54,10 +54,17 @@ datasets= imbd.get_filtered_data_loaders(len_upper_bound= 1000,
 # instantiate the validation object
 cv= sv.CacheAndValidate(samplers= sv.get_all_oversamplers(),
                        classifiers= classifiers,
-                       datasets= datasets[:20],
+                       datasets= datasets,
                        cache_path= cache_path,
                        n_jobs= 5,
                        max_n_sampler_par_comb= 35)
+
+#cv= sv.CacheAndValidate(samplers= sv.get_all_oversamplers(),
+#                       classifiers= classifiers,
+#                       datasets= [imbd.load_ecoli4],
+#                       cache_path= cache_path,
+#                       n_jobs= 1,
+#                       max_n_sampler_par_comb= 35)
 
 #cv= sv.CacheAndValidate(samplers= sv.get_all_oversamplers(),
 #                       classifiers= classifiers,

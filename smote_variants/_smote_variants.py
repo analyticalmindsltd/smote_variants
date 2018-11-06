@@ -6925,8 +6925,8 @@ class KernelADASYN(OverSampling):
         # computing majority score
         r= np.array([np.sum(y[indices[i][1:]] == self.majority_label) for i in range(len(X_min))])
         
-        if np.all(r == 0):
-            logging.info(self.__class__.__name__ + ": " + "majority score is 0 for all minority samples")
+        if np.sum(r > 0) < 2:
+            logging.info(self.__class__.__name__ + ": " + "majority score is 0 for all or all but one minority samples")
             return X.copy(), y.copy()
         
         r= r/np.sum(r)
@@ -6957,12 +6957,12 @@ class KernelADASYN(OverSampling):
         # covariance is used to generate a random sample in the neighborhood
         covariance= np.cov(X_min[r > 0], rowvar= False)
         
-        if np.linalg.cond(covariance) > 1000:
+        if len(covariance) > 1 and np.linalg.cond(covariance) > 1000:
             logging.info(self.__class__.__name__ + ": " + "reducing dimensions due to inproperly conditioned covariance matrix")
-            if len(X[0]) == 2:
+            if len(X[0]) <= 2:
                 logging.info(self.__class__.__name__ + ": " + "matrix ill-conditioned")
                 return X.copy(), y.copy()
-            n_components= int(len(covariance)/2)
+            n_components= int(np.rint(len(covariance)/2))
             pca= PCA(n_components= n_components)
             X_trans= pca.fit_transform(X)
             ka= KernelADASYN(proportion= self.proportion, k= self.k, h= self.h)
@@ -8682,7 +8682,7 @@ class E_SMOTE(OverSampling):
         
         # creating initial mask
         mask= np.random.choice([True, False], len(X[0]), replace= True)
-        # fixing if the mask doesn't contiain any features
+        # fixing if the mask doesn't contain any features
         if np.sum(mask) == 0:
             mask[np.random.randint(len(mask))]= True
         
@@ -8738,7 +8738,8 @@ class E_SMOTE(OverSampling):
                     # mutation
                     mask= mutate(population[np.random.randint(n_population)][1])
                 # evaluation
-                score= np.sum(y == classifier.fit(X[:,np.where(mask)[0]], y).predict(X[:,np.where(mask)[0]]))/len(y)
+                logging.info(self.__class__.__name__ + ": " + "evaluating mask selection with features %d/%d" % (np.sum(mask), len(mask)))
+                score= np.sum(y == classifier.fit(X[:,mask], y).predict(X[:,mask]))/len(y)
                 # appending the result to the population
                 population.append([score, mask])
             # sorting the population in a reversed order and keeping the elements with the highest scores
@@ -8746,7 +8747,7 @@ class E_SMOTE(OverSampling):
         
         self.mask= population[0][1]
         # resampling the population in the given dimensions
-        return SMOTE(self.proportion, self.n_neighbors, n_jobs= self.n_jobs).sample(X[:,population[0][1]], y)
+        return SMOTE(self.proportion, self.n_neighbors, n_jobs= self.n_jobs).sample(X[:,self.mask], y)
     
     def transform(self, X):
         """
@@ -13354,12 +13355,11 @@ class CCR(OverSampling):
             radii[i] = r
 
             for j in range(current_majority):
-                majority_point= majority[sorted_distances[j]]
+                majority_point= majority[sorted_distances[j]].astype(float)
                 d = distances[i, sorted_distances[j]]
 
                 if d < 1e-20:
-                    majority_point+= (1e-6 * np.random.rand(len(majority_point)) + 1e-6) * \
-                                      np.random.choice([-1.0, 1.0], len(majority_point))
+                    majority_point+= (1e-6 * np.random.rand(len(majority_point)) + 1e-6) * np.random.choice([-1.0, 1.0], len(majority_point))
                     d = np.sum(np.abs(minority_point - majority_point))
 
                 translation = (r - d) / d * (majority_point - minority_point)
@@ -13879,18 +13879,10 @@ class Sampling():
         import hashlib
         
         db_name= (db_name or self.db_name)
+        
         sampler= (sampler or self.sampler.__name__)
         sampler_parameters= sampler_parameters or self.sampler_parameters
         sampler_parameter_str= hashlib.md5(str(sampler_parameters).encode('utf-8')).hexdigest()
-        #sampler_parameter_str= ""
-        #for s in sampler_parameters:
-        #    if hasattr(sampler_parameters[s], 'get_params'):
-        #        sampler_parameter_str= sampler_parameter_str + '_' + s + "_" + str(hashlib.md5(str(sampler_parameters[s].get_params()).encode('utf-8')).hexdigest())
-        #    else:
-        #        sampler_parameter_str= sampler_parameter_str + '_' + s + "_" + str(sampler_parameters[s])
-                
-        #sampler_parameters= (sampler_parameters or str(self.sampler_parameters))
-        #sampler_parameters= ' '.join(sampler_parameters.split())
         
         filename= '_'.join([prefix, db_name, sampler, sampler_parameter_str]) + '.pickle'
         filename= re.sub('["\\,:(){}]', '', filename)
@@ -14120,7 +14112,26 @@ class Evaluation():
                 for X_train, y_train, X_test, y_test in samp['sampling']:
                     class_labels= np.unique(y_train)
                     min_class_size= np.min([np.sum(y_train == c) for c in class_labels])
-                    if min_class_size > 5 and len(y_train) > 10 and len(class_labels) > 1:
+                    
+                    ss= StandardScaler()
+                    X_train_trans= ss.fit_transform(X_train)
+                    nonzero_var_idx= np.where(ss.var_ > 1e-8)[0]
+                    X_test_trans= ss.transform(X_test)
+                    
+                    enough_minority_samples= min_class_size > 5
+                    y_train_big_enough= len(y_train) > 5
+                    two_classes= len(class_labels) > 1
+                    at_least_one_feature= (len(nonzero_var_idx) > 0)
+                    
+                    if not enough_minority_samples:
+                        logging.warning(self.__class__.__name__ + (" not enough minority samples: %d" % min_class_size))
+                    elif not y_train_big_enough:
+                        logging.warning(self.__class__.__name__ + (" number of minority training samples is not enough: %d" % len(y_train)))
+                    elif not two_classes:
+                        logging.warning(self.__class__.__name__ + (" there is only 1 class in training data"))
+                    elif not at_least_one_feature:
+                        logging.warning(self.__class__.__name__ + (" no information in features"))
+                    else:
                         all_tests.append(y_test)
                         if minority_class_label is None:
                             class_labels= np.unique(y_train)
@@ -14128,13 +14139,8 @@ class Evaluation():
                                 minority_class_label= int(class_labels[0])
                             else:
                                 minority_class_label= int(class_labels[1])
-                        ss= StandardScaler()
-                        X_train_trans= ss.fit_transform(X_train)
-                        nonzero_var_idx= np.where(ss.var_ > 1e-8)[0]
+                        
                         self.classifiers[i].fit(X_train_trans[:,nonzero_var_idx], y_train)
-                        X_test_trans= ss.transform(X_test)
-                        #logging.info("test: %d %d %d %d %f %f %f %f %d" % (np.sum(np.isnan(X_test)), np.sum(np.isnan(X_test_trans)), np.sum(np.isinf(X_test)), np.sum(np.isinf(X_test_trans)), np.min(X_test), np.min(X_test_trans), np.max(X_test), np.max(X_test_trans), np.any(ss.var_ == 0)))
-                        #logging.info("train: %d %d %d %d %f %f %f %f %d" % (np.sum(np.isnan(X_train)), np.sum(np.isnan(X_train_trans)), np.sum(np.isinf(X_train)), np.sum(np.isinf(X_train_trans)), np.min(X_train), np.min(X_train_trans), np.max(X_train), np.max(X_train_trans), np.any(ss.var_ == 0)))
                         all_preds.append(self.classifiers[i].predict_proba(X_test_trans[:,nonzero_var_idx]))
                 
                 if len(all_tests) > 0:
@@ -14344,11 +14350,13 @@ class CacheAndValidate():
             
             # removing samplings once everything is done
             if self.remove_sampling_cache:
-                logging.info("removing unnecessary sampling files")
                 filenames= glob.glob(os.path.join(cache_path_db, 'sampling*'))
-                for f in filenames:
-                    os.remove(f)
+                logging.info("removing unnecessary sampling files")
+                if len(filenames) > 0:
+                    for f in filenames:
+                        os.remove(f)
             
+            logging.info("aggregate results")
             db_res= []
             for r in res:
                 df= pd.DataFrame(r)
