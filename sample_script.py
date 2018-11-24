@@ -15,7 +15,7 @@ import imbalanced_databases as imbd
 import itertools
 
 # global variables
-cache_path= '/home/gykovacs/workspaces/sampling_cache'
+cache_path= '/home/gykovacs/workspaces/sampling_cache_smote/'
 max_sampler_parameter_combinations= 35
 n_jobs= 5
 
@@ -48,16 +48,42 @@ classifiers.extend(mlp_classifiers)
 classifiers.extend(nn_classifiers)
 classifiers.extend(dt_classifiers)
 
-datasets= imbd.get_filtered_data_loaders(len_upper_bound= 1000,
+datasets= imbd.get_filtered_data_loaders(len_upper_bound= 1100,
+                                         len_lower_bound= 1,
                                          num_features_upper_bound= 50)
+
+print(len(datasets))
 
 # instantiate the validation object
 cv= sv.CacheAndValidate(samplers= sv.get_all_oversamplers(),
                        classifiers= classifiers,
                        datasets= datasets,
                        cache_path= cache_path,
-                       n_jobs= 5,
+                       n_jobs= 6,
                        max_n_sampler_par_comb= 35)
+
+cv= sv.CacheAndValidate(samplers= [sv.SMOTE,
+                                   sv.SMOTE_TomekLinks,
+                                   sv.SMOTE_ENN,
+                                   sv.MSYN,
+                                   sv.SVM_balance,
+                                   sv.SMOTE_RSB,
+                                   sv.NEATER,
+                                   sv.DEAGO,
+                                   sv.SMOTE_IPF,
+                                   sv.ISOMAP_Hybrid,
+                                   sv.E_SMOTE,
+                                   sv.SMOTE_PSOBAT,
+                                   sv.SMOTE_FRST_2T,
+                                   sv.AMSCO,
+                                   sv.NDO_sampling,
+                                   sv.DSRBF],
+                       classifiers= classifiers,
+                       datasets= datasets,
+                       cache_path= cache_path,
+                       n_jobs= 6,
+                       max_n_sampler_par_comb= 35)
+
 
 #cv= sv.CacheAndValidate(samplers= sv.get_all_oversamplers(),
 #                       classifiers= classifiers,

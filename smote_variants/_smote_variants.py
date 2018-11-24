@@ -1200,12 +1200,15 @@ class SMOTE(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting the model
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1, n_jobs= self.n_jobs)
-        nn.fit(X)
+        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors+1]), n_jobs= self.n_jobs)
+        nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
         # determining the number of samples to generate
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            return X.copy(), y.copy()
         
         # generating samples
         samples= []
@@ -1852,7 +1855,7 @@ class AHC(OverSampling):
             return np.vstack([X_min_resampled, X_min, X_maj]), np.hstack([np.repeat(self.minority_label, (len(X_min_resampled) + len(X_min))), np.repeat(self.majority_label, len(X_maj))])
         elif self.strategy == 'minmaj':
             X_min_resampled= self.sample_minority(X_min)
-            X_maj_resampled= self.sample_majority(X_maj, len(X_min_resampled) + len(X_min))
+            X_maj_resampled= self.sample_majority(X_maj, min([len(X_maj), len(X_min_resampled) + len(X_min)]))
             return np.vstack([X_min_resampled, X_min, X_maj_resampled]), np.hstack([np.repeat(self.minority_label, (len(X_min_resampled) + len(X_min))), np.repeat(self.majority_label, len(X_maj_resampled))])
     
     def get_params(self):
@@ -2155,9 +2158,8 @@ class SMMO(OverSampling):
         # create mask of minority samples to sample
         mask_to_sample= np.where(np.logical_and(np.logical_not(np.equal(pred, y)), y == self.minority_label))[0]
         if len(mask_to_sample) < 2:
-            # fallback to a SMOTE-like sampling
             logging.warning(self.__class__.__name__ + ": " +"Not enough minority samples selected %d" % len(mask_to_sample))
-            return X, y
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         X_min_to_sample= X[mask_to_sample]
@@ -2766,7 +2768,7 @@ class MSMOTE(OverSampling):
                 noise_mask[index]= True
                 if np.all(noise_mask):
                     logging.info("All minority samples are noise")
-                    return X, y
+                    return X.copy(), y.copy()
             else:
                 sample_type= 'border'
                 
@@ -4268,7 +4270,7 @@ class NRSBoundary_SMOTE(OverSampling):
             return X.copy(), y.copy()
         
         # step 4 and 5
-        # computing the nearest neighbors of the bound set from the minoriy set
+        # computing the nearest neighbors of the bound set from the minority set
         nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]), n_jobs= self.n_jobs)
         nn.fit(X_min)
         distances, indices= nn.kneighbors(X[bound_set])
@@ -5147,7 +5149,7 @@ class LN_SMOTE(OverSampling):
             trials= trials + 1
             if len(samples)/trials < 1.0/num_to_sample:
                 logging.info(self.__class__.__name__ + ": " + "no instances with slp > 0 and sln > 0 found")
-                return X, y
+                return X.copy(), y.copy()
         
         return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
@@ -5705,11 +5707,9 @@ class IPADE_ID(OverSampling):
         # DE optimization takes place
         logging.info(self.__class__.__name__ + ": " +"DE optimization")
         base_classifier= self.base_classifier.__class__(**(self.base_classifier.get_params()))
-        #base_classifier= DecisionTreeClassifier(random_state= 2)
         GS= DE_optimization(GS, GS_y, X, y, min_indices, maj_indices, base_classifier, for_validation)
         # evaluate results
         base_classifier= self.base_classifier.__class__(**(self.base_classifier.get_params()))
-        #base_classifier= DecisionTreeClassifier(random_state= 2)
         AUC= evaluate_ID(GS, GS_y, X[for_validation], y[for_validation], base_classifier)
         
         # Phase 2: Addition of new instances
@@ -5746,6 +5746,7 @@ class IPADE_ID(OverSampling):
                 for_validation_trial= for_validation.tolist()
                 if idx in for_validation:
                     for_validation_trial.remove(idx)
+                
                 for_validation_trial= np.array(for_validation_trial).astype(int)
                 # doing optimization
                 GS_trial= DE_optimization(GS_trial, GS_trial_y, X, y, min_indices, maj_indices, base_classifier, for_validation)
@@ -5760,6 +5761,15 @@ class IPADE_ID(OverSampling):
                 GS= GS_trial
                 GS_y= GS_trial_y
                 for_validation= for_validation_trial
+                
+                logging.info(self.__class__.__name__ + ": " +"Size of validation set %d" % len(for_validation))
+                if len(np.unique(y[for_validation])) == 1:
+                    logging.info(self.__class__.__name__ + ": " + "No minority samples in validation set")
+                    return X.copy(), y.copy()
+                if len(np.unique(GS_y)) == 1:
+                    logging.info(self.__class__.__name__ + ": " + "No minority samples in reduced dataset")
+                    return X.copy(), y.copy()
+                
                 number_of_optimizations[target_class]= 0
             else:
                 # conditional in line 29
@@ -6236,7 +6246,7 @@ class Gazzah(OverSampling):
         
         if len(X_min_samp) == 0:
             logging.info("no samples added")
-            return X, y
+            return X.copy(), y.copy()
         
         return np.vstack([X_maj, X_min_samp]), np.hstack([np.repeat(self.majority_label,len(X_maj)), np.repeat(self.minority_label,len(X_min_samp))])
         
@@ -6348,6 +6358,7 @@ class ADG(OverSampling):
     
     This method has a lot of parameters, it becomes fairly hard to cross-validate thoroughly.
     Fails if matrix is singular when computing alpha_star.
+    Singularity might be caused by repeating samples.
     Maintaining the kernel matrix becomes unfeasible above a couple of thousand vectors.
     """
     
@@ -6638,7 +6649,7 @@ class ADG(OverSampling):
                     if not X_samp is None:
                         return pca.inverse_transform(X_samp), y_samp
                     else:
-                        return X, y
+                        return X.copy(), y.copy()
                 else:
                     q= int(q/2)
                 continue
@@ -7103,7 +7114,7 @@ class MOT2LD(OverSampling):
         elif self.d_cut == 'auto':
             d_cut= np.max(distances[:,1])
         
-        # fitting nearest neighbors model for the minority data
+        # fitting nearest neighbors model to the minority data
         nn_min= NearestNeighbors(n_neighbors= len(X_min), n_jobs= self.n_jobs)
         nn_min.fit(X_min)
         distances_min, indices_min= nn_min.kneighbors(X_min)
@@ -7295,6 +7306,15 @@ class V_SYNTH(OverSampling):
         n_components= min([len(X[0]), self.n_components])
         pca= PCA(n_components= n_components)
         X_pca= pca.fit_transform(X_bb)
+        
+        dm= pairwise_distances(X_pca)
+        to_remove= []
+        for i in range(len(dm)):
+            for j in range(i+1, len(dm)):
+                if dm[i,j] < 0.001:
+                    to_remove.append(i)
+        X_pca= np.delete(X_pca, to_remove, axis= 0)
+        y_pca= np.delete(y, to_remove)
 
         # doing the Voronoi tessellation
         voronoi= sspatial.Voronoi(X_pca)
@@ -7303,7 +7323,7 @@ class V_SYNTH(OverSampling):
         # an edge between two cells of different class labels
         candidate_face_generators= []
         for i, r in enumerate(voronoi.ridge_points):
-            if r[0] < len(y) and r[1] < len(y) and not y[r[0]] == y[r[1]]:
+            if r[0] < len(y_pca) and r[1] < len(y_pca) and not y_pca[r[0]] == y_pca[r[1]]:
                 candidate_face_generators.append(i)
         
         # generating samples
@@ -8857,7 +8877,7 @@ class DBSMOTE(OverSampling):
             logging.info(self.__class__.__name__ + ": " +"Number of clusters is 0, trying to increase eps and decrease min_samples")
             if self.eps >= 2 or self.min_samples <= 2:
                 logging.info(self.__class__.__name__ + ": " +"Number of clusters is 0, can't adjust parameters further")
-                return X, y
+                return X.xopy(), y.copy()
             else:
                 return DBSMOTE(proportion= self.proportion, eps= self.eps*1.5, min_samples= self.min_samples-1, n_jobs= self.n_jobs).sample(X, y)
         
@@ -9953,7 +9973,7 @@ class Lee(OverSampling):
         
         X_min= X[y == self.minority_label]
         
-        # fitting nearest neighbors models to find neighbors of minority samples inthe total data
+        # fitting nearest neighbors models to find neighbors of minority samples in the total data
         # and in the minority datasets
         nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors + 1]), n_jobs= self.n_jobs)
         nn.fit(X)
@@ -10488,12 +10508,12 @@ class MDO(OverSampling):
         mu= np.mean(X_sel, axis= 0)
         Z= X_sel - mu
         # executing PCA
-        pca= PCA(n_components= len(Z[0])).fit(Z)
+        pca= PCA(n_components= min([len(Z[0]), len(Z)])).fit(Z)
         T= pca.transform(Z)
         # computing variances (step 13)
         V= np.var(T, axis= 0)
         
-        V[V < 0.0001]= 0.01
+        V[V < 0.001]= 0.001
         
         # generating samples
         samples= []
@@ -10508,6 +10528,7 @@ class MDO(OverSampling):
             # computing alphas
             alpha= np.sum(X_temp_square/V)
             alpha_V= alpha*V
+            alpha_V[alpha_V < 0.001]= 0.001
 
             # initializing a new vector
             X_new= np.zeros(len(X_temp))
@@ -10522,7 +10543,10 @@ class MDO(OverSampling):
             if s > 1:
                 last_fea_val= 0
             else:
-                last_fea_val= np.sqrt((1 - s)*alpha*V[-1])
+                tmp= (1 - s)*alpha*V[-1]
+                if tmp < 0:
+                    tmp= 0
+                last_fea_val= np.sqrt(tmp)
             # determine last component to fulfill the ellipse equation
             X_new[-1]= (2*np.random.random()-1)*last_fea_val
             # append to new samples
@@ -11214,7 +11238,7 @@ class A_SUWO(OverSampling):
         
         if len(X_min) == 0:
             logging.info("All minority samples removed as noise")
-            return X, y
+            return X.copy(), y.copy()
         
         # clustering majority samples
         ac= AgglomerativeClustering(n_clusters= self.n_clus_maj)
@@ -12257,7 +12281,7 @@ class SSO(OverSampling):
             X= np.vstack([X, samples])
             y= np.hstack([y, np.repeat(self.minority_label, len(samples))])
                     
-        return X, y
+        return X.copy(), y.copy()
 
     def get_params(self):
         """
@@ -13379,7 +13403,7 @@ class CCR(OverSampling):
         
         if len(appended) == 0:
             logging.info("No samples were added")
-            return X, y
+            return X.copy(), y.copy()
         return np.vstack([X, np.vstack(appended)]), np.hstack([y, np.repeat(self.minority_label, len(appended))])
 
     def get_params(self):
@@ -13498,7 +13522,7 @@ class ANS(OverSampling):
         # checking if there are minority samples left
         if len(Pused) == 0:
             logging.info(self.__class__.__name__ + ": " + "Pused is empty")
-            return X, y
+            return X.copy(), y.copy()
         
         # finding the maximum distances of first positive neighbors
         eps= np.max(first_pos_neighbor_distances[Pused])
@@ -13514,7 +13538,7 @@ class ANS(OverSampling):
         
         if np.all(Np == 1):
             logging.warning(self.__class__.__name__ + ": " + "all samples have only 1 neighbor in the given radius")
-            return X, y
+            return X.copy(), y.copy()
         
         # determining the distribution used to generate samples
         distribution= Np/np.sum(Np)
@@ -14275,6 +14299,12 @@ class CacheAndValidate():
         def key(x):
             if 'proportion' in x.sampler_parameters:
                 return x.sampler_parameters['proportion']
+            elif isinstance(x.sampler, ADG):
+                return 30
+            elif isinstance(x.sampler, AMSCO):
+                return 30
+            elif isinstance(x.sampler, DSRBF):
+                return 30
             elif OverSampling.cat_memetic in x.sampler.categories:
                 return 20
             else:
@@ -14360,12 +14390,17 @@ class CacheAndValidate():
             db_res= []
             for r in res:
                 df= pd.DataFrame(r)
-                agg= df.groupby(by= self.aggregations['groupby']).agg(self.aggregations['measures']).reset_index()
-                agg.columns= agg.columns.get_level_values(0)
-                db_res.append(agg)
+                #agg= df.groupby(by= self.aggregations['groupby']).agg(self.aggregations['measures']).reset_index()
+                #agg.columns= agg.columns.get_level_values(0)
+                #db_res.append(agg)
+                db_res.append(df)
             
             db_res= pd.concat(db_res).reset_index(drop= True)
-            results.append(db_res)
+            agg= db_res.groupby(by= self.aggregations['groupby']).agg(self.aggregations['measures']).reset_index()
+            agg.columns= agg.columns.get_level_values(0)
+            #db_res.append(agg)
+            #results.append(db_res)
+            results.append(agg)
         
         all_results= pd.concat(results).reset_index(drop= True)
         all_results.columns= all_results.columns.get_level_values(0)
