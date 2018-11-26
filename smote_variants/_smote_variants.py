@@ -159,7 +159,8 @@ __all__= ['get_all_oversamplers',
 'SN_SMOTE',
 'CCR',
 'ANS',
-'cluster_SMOTE']
+'cluster_SMOTE',
+'NoSMOTE']
 
 def get_all_oversamplers():
     """
@@ -1139,6 +1140,54 @@ class UnderSampling(StatisticsMixin, ParameterCheckingMixin, ParameterCombinatio
             str: JSON description of the current sampling object
         """
         return str((self.__class__.__name__, str(self.get_params())))
+
+class NoSMOTE(OverSampling):
+    """
+    @article{no_smote,
+              author={},
+              title={},
+            }
+    """
+    
+    categories= []
+    
+    def __init__(self):
+        """
+        Constructor of the SMOTE object
+        """
+        super().__init__()
+    
+    @classmethod
+    def parameter_combinations(cls):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        return cls.generate_parameter_combinations({})
+                
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the class paramters.
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
+        
+        self.class_label_statistics(X, y)
+        
+        return X.copy(), y.copy()
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {}
+
 
 class SMOTE(OverSampling):
     """
