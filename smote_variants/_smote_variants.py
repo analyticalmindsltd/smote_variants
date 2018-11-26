@@ -13851,7 +13851,7 @@ class cluster_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'n_components': [3, 5, 7, 9]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'n_clusters': [3, 5, 7, 9]})
     
     def sample(self, X, y):
         """
