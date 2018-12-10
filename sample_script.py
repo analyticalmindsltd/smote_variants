@@ -15,7 +15,7 @@ import imbalanced_databases as imbd
 import itertools
 
 # global variables
-cache_path= '/home/gykovacs/workspaces/sampling_cache_smote/'
+cache_path= '/home/gykovacs/workspaces/smote_results/'
 max_sampler_parameter_combinations= 35
 n_jobs= 5
 
@@ -48,11 +48,15 @@ classifiers.extend(mlp_classifiers)
 classifiers.extend(nn_classifiers)
 classifiers.extend(dt_classifiers)
 
-datasets= imbd.get_filtered_data_loaders(len_upper_bound= 1100,
+datasets= imbd.get_filtered_data_loaders(len_upper_bound= 5000,
                                          len_lower_bound= 1,
-                                         num_features_upper_bound= 50)
+                                         num_features_upper_bound= 100,
+                                         num_features_lower_bound= 0)
 
 print(len(datasets))
+
+#datasets= [imbd.load_pc1, imbd.load_kc1, imbd.load_hypothyroid, imbd.load_abalone_20_vs_8_9_10]
+#           imbd.load_abalone_17_vs_7_8_9_10, imbd.load_abalone_19_vs_10_11_12_13]
 
 # instantiate the validation object
 cv= sv.CacheAndValidate(samplers= sv.get_all_oversamplers(),
@@ -62,27 +66,14 @@ cv= sv.CacheAndValidate(samplers= sv.get_all_oversamplers(),
                        n_jobs= 6,
                        max_n_sampler_par_comb= 35)
 
-cv= sv.CacheAndValidate(samplers= [sv.SMOTE,
-                                   sv.SMOTE_TomekLinks,
-                                   sv.SMOTE_ENN,
-                                   sv.MSYN,
-                                   sv.SVM_balance,
-                                   sv.SMOTE_RSB,
-                                   sv.NEATER,
-                                   sv.DEAGO,
-                                   sv.SMOTE_IPF,
-                                   sv.ISOMAP_Hybrid,
-                                   sv.E_SMOTE,
-                                   sv.SMOTE_PSOBAT,
-                                   sv.SMOTE_FRST_2T,
-                                   sv.AMSCO,
-                                   sv.NDO_sampling,
-                                   sv.DSRBF],
-                       classifiers= classifiers,
-                       datasets= datasets,
-                       cache_path= cache_path,
-                       n_jobs= 6,
-                       max_n_sampler_par_comb= 35)
+#cv= sv.CacheAndValidate(samplers= [sv.RWO_sampling,
+#                                   sv.cluster_SMOTE,
+#                                   sv.NoSMOTE],
+#                       classifiers= classifiers,
+#                       datasets= datasets,
+#                       cache_path= cache_path,
+#                       n_jobs= 6,
+#                       max_n_sampler_par_comb= 35)
 
 
 #cv= sv.CacheAndValidate(samplers= sv.get_all_oversamplers(),
@@ -101,3 +92,29 @@ cv= sv.CacheAndValidate(samplers= [sv.SMOTE,
 
 # execute the validation
 results= cv.cache_and_evaluate()
+
+import pickle
+import os
+pickle.dump(results, open(os.path.join(cache_path, 'results.pickle'), 'wb'))
+
+import numpy as np
+
+results[results['classifier'] == 'CalibratedClassifierCV'].groupby(by=['sampler']).agg({'auc': np.mean}).sort_values('auc')
+results[results['classifier'] == 'DecisionTreeClassifier'].groupby(by=['sampler']).agg({'auc': np.mean}).sort_values('auc')
+results[results['classifier'] == 'KNeighborsClassifier'].groupby(by=['sampler']).agg({'auc': np.mean}).sort_values('auc')
+results[results['classifier'] == 'MLPClassifierWrapper'].groupby(by=['sampler']).agg({'auc': np.mean}).sort_values('auc')
+
+results[results['classifier'] == 'CalibratedClassifierCV'].groupby(by=['sampler']).agg({'auc': np.mean}).sort_values('auc')
+results[results['classifier'] == 'DecisionTreeClassifier'].groupby(by=['sampler']).agg({'auc': np.mean}).sort_values('auc')
+results[results['classifier'] == 'KNeighborsClassifier'].groupby(by=['sampler']).agg({'auc': np.mean}).sort_values('auc')
+results[results['classifier'] == 'MLPClassifierWrapper'].groupby(by=['sampler']).agg({'auc': np.mean}).sort_values('auc')
+
+results.groupby(by=['sampler']).agg({'auc': np.mean}).sort_values('auc')
+
+results.groupby(by=['sampler']).agg({'brier': np.mean}).sort_values('brier')
+
+results.groupby(by=['sampler']).agg({'gacc': np.mean}).sort_values('gacc')
+
+results.groupby(by=['sampler']).agg({'f1': np.mean}).sort_values('f1')
+
+results.groupby(by=['sampler']).agg({'p_top20': np.mean}).sort_values('p_top20')

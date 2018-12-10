@@ -1146,6 +1146,7 @@ class NoSMOTE(OverSampling):
     @article{no_smote,
               author={},
               title={},
+              year={1900}
             }
     """
     
@@ -2051,7 +2052,7 @@ class distance_SMOTE(OverSampling):
                     }
     URL: https://drive.google.com/open?id=1O7tGVLXdZwC8N1TxGblw0J8n70FYspDc
     
-    It is not clear what the authors mean by "weighted distnace".
+    It is not clear what the authors mean by "weighted distance".
     """ 
     
     categories= [OverSampling.cat_extensive,
@@ -3534,9 +3535,6 @@ class SVM_balance(OverSampling):
              keywords = {COIL data, Hybrid method, Preprocessor, SVM, Unbalanced data},
             } 
     URL: https://drive.google.com/open?id=1DWDPQhJfzvUFgGAeAej-Xtlz5zX7trPz
-    
-    It turns out only from the results tables that this technique is always
-    applied after some sampling method, like SMOTE.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -8858,7 +8856,7 @@ class DBSMOTE(OverSampling):
 
     URL: https://drive.google.com/open?id=1FczQWnv7ZveAuLME1flnQw9ogEAcYQ5a
     
-    Standardization is needed to use absolute ebs values.
+    Standardization is needed to use absolute eps values.
     The clustering is likely to identify all instances as noise, fixed by
     recursive call with increaseing eps.
     """
@@ -9544,7 +9542,7 @@ class DSMOTE(OverSampling):
     points. This is definitely not abnormality, I have implemented the opposite.
     Nothing ensures that the fisher statistics and the variance from the geometric mean
     remain comparable, which might skew the optimization towards one of the sub-objectives.
-    MinMax normalization doesn't work, each attribute will have a0 value, which will
+    MinMax normalization doesn't work, each attribute will have a 0 value, which will
     make the geometric mean of all attribute 0.
     """
     
@@ -14350,6 +14348,16 @@ class Evaluation():
 def first_sample(X):
     return X.iloc[0]
 
+def highest_auc(X):
+    return X.sort_values('auc')['sampler_parameters'].iloc[-1]
+
+
+def trans(X):
+    return pd.DataFrame({'auc': np.max(X['auc']), 'brier': np.min(X['brier']), 'acc': np.max(X['acc']), 'f1': np.max(X['f1']),
+                  'p_top20': np.max(X['p_top20']), 'gacc': np.max(X['gacc']), 'runtime': np.mean(X['runtime']),
+                  'db_size': X['db_size'].iloc[0], 'db_n_attr': X['db_n_attr'].iloc[0], 'imbalanced_ratio': X['imbalanced_ratio'].iloc[0],
+                  'sampler_categories': X['sampler_categories'].iloc[0], 'sampler_parameters': X.sort_values('auc')['sampler_parameters'].iloc[-1]}, index= [0])
+
 class CacheAndValidate():
     """
     Class managing the evaluation of samplers and classifiers on datasets
@@ -14427,7 +14435,8 @@ class CacheAndValidate():
                                              'db_size': [first_sample],
                                              'db_n_attr': [first_sample],
                                              'imbalanced_ratio': [first_sample],
-                                             'sampler_categories': [first_sample]}
+                                             'sampler_categories': [first_sample],
+                                             'sampler_parameters': [highest_auc]}
     
     def clone_classifiers(self):
         results= []
@@ -14491,7 +14500,7 @@ class CacheAndValidate():
     
     def read_results(self, cache_path_db):
         results= []
-        evaluation_files= glob.glob(os.path.join(cache_path_db, 'eval*'))
+        evaluation_files= glob.glob(os.path.join(cache_path_db, 'eval*.pickle'))
         for f in evaluation_files:
             eval_results= pickle.load(open(f, 'rb'))
             results.append(list(eval_results.values()))
@@ -14510,11 +14519,11 @@ class CacheAndValidate():
             samplings_available= False
             evaluations_available= False
             
-            samplings= glob.glob(os.path.join(cache_path_db, 'sampling*'))
+            samplings= glob.glob(os.path.join(cache_path_db, 'sampling*.pickle'))
             if len(samplings) > 0:
                 samplings_available= True
                 
-            evaluations= glob.glob(os.path.join(cache_path_db, 'eval*'))
+            evaluations= glob.glob(os.path.join(cache_path_db, 'eval*.pickle'))
             if len(evaluations) > 0:
                 evaluations_available= True
             
@@ -14551,16 +14560,19 @@ class CacheAndValidate():
                 db_res.append(df)
             
             db_res= pd.concat(db_res).reset_index(drop= True)
-            agg= db_res.groupby(by= self.aggregations['groupby']).agg(self.aggregations['measures']).reset_index()
-            agg.columns= agg.columns.get_level_values(0)
+            #agg= db_res.groupby(by= self.aggregations['groupby']).agg(self.aggregations['measures']).reset_index()
+            agg= db_res.groupby(by= self.aggregations['groupby']).apply(trans).reset_index()
+            #agg.columns= agg.columns.get_level_values(0)
             #db_res.append(agg)
             #results.append(db_res)
             results.append(agg)
         
         all_results= pd.concat(results).reset_index(drop= True)
-        all_results.columns= all_results.columns.get_level_values(0)
+        #all_results.columns= all_results.columns.get_level_values(0)
         
-        agg= all_results.groupby(by= self.aggregations['groupby']).agg(self.aggregations['measures']).reset_index()
+        
+        #agg= all_results.groupby(by= self.aggregations['groupby']).agg(self.aggregations['measures']).reset_index()
+        agg= all_results.groupby(by= self.aggregations['groupby']).apply(trans).reset_index()
         agg.columns= agg.columns.get_level_values(0)
         
         return agg
