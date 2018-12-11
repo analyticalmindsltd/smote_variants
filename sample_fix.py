@@ -55,25 +55,15 @@ classifiers.extend(mlp_classifiers)
 classifiers.extend(nn_classifiers)
 classifiers.extend(dt_classifiers)
 
-datasets= imbd.get_filtered_data_loaders(len_upper_bound= 300,
-                                         len_lower_bound= 1,
-                                         num_features_upper_bound= 20,
-                                         num_features_lower_bound= 0)
-
 samplers= [sv.SMOTE, sv.SMOTE_TomekLinks, sv.SMOTE_ENN, sv.MSYN, sv.SVM_balance,
            sv.SMOTE_RSB, sv.NEATER, sv.DEAGO, sv.SMOTE_IPF, sv.ISOMAP_Hybrid,
            sv.E_SMOTE, sv.SMOTE_PSOBAT, sv.SMOTE_FRST_2T, sv.AMSCO, sv.NDO_sampling,
            sv.DSRBF]
 
-# instantiate the validation object
-cv= sv.CacheAndValidate(samplers= samplers,
-                       classifiers= classifiers,
-                       datasets= datasets,
-                       cache_path= cache_path,
-                       n_jobs= n_jobs,
-                       max_n_sampler_par_comb= max_sampler_parameter_combinations)
-
-# execute the validation
-results= cv.cache_and_evaluate()
+results= sv.evaluate_oversamplers(datasets= imbd.get_data_loaders('study'),
+                                  samplers= samplers,
+                                  classifiers= classifiers,
+                                  cache_path= cache_path,
+                                  n_jobs= n_jobs)
 
 pickle.dump(results, open(os.path.join(cache_path, 'results.pickle'), 'wb'))

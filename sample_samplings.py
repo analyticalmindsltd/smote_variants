@@ -22,34 +22,8 @@ import smote_variants as sv
 # import datasets
 from sklearn import datasets
 
-# setting cache path
-cache_path= os.path.join(os.path.expanduser('~'), 'workspaces', 'smote_test')
+oversamplers= sv.get_all_oversamplers()
 
-# prepare dataset
-dataset= datasets.load_breast_cancer()
-dataset= {'data': dataset['data'], 'target': dataset['target'], 'name': 'breast_cancer'}
-
-# instantiating classifiers
-knn_classifier= KNeighborsClassifier()
-dt_classifier= DecisionTreeClassifier()
-
-# instantiate the validation object
-results= sv.evaluate_oversamplers(datasets= [dataset],
-                                  samplers= sv.get_n_quickest_oversamplers(5),
-                                  classifiers= [knn_classifier, dt_classifier],
-                                  cache_path= cache_path)
-
-# extracting the best performing classifier and oversampler parameters regarding AUC
-highest_auc_score= results['auc'].idxmax()
-cl, cl_par, samp, samp_par= results.loc[highest_auc_score][['classifier',
-                                                           'classifier_parameters_auc',
-                                                           'sampler',
-                                                           'sampler_parameters_auc']]
-
-# instantiating the best performing oversampler and classifier objects
-samp_obj= getattr(sv, samp)(**eval(samp_par))
-cl_obj= eval(cl)(**eval(cl_par))
-
-# oversampling and classifier training
-X_samp, y_samp= samp_obj.sample(dataset['data'], dataset['target'])
-cl_obj.fit(X_samp, y_samp)
+for o in oversamplers:
+    print(o.__name__)
+    sv.ballpark_sample(o(), img_file_base= 'base.png', img_file_sampled= ('%s.png' % (o.__name__)))
