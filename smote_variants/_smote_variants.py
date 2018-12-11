@@ -1223,15 +1223,23 @@ class NoSMOTE(OverSampling):
 
 class SMOTE(OverSampling):
     """
-    @article{smote,
-              author={N. V. Chawla and K. W. Bowyer and L. O. Hall and W. P. Kegelmeyer},
-              title={{SMOTE}: synthetic minority over-sampling technique},
-              journal={Journal of Artificial Intelligence Research},
-              volume={16},
-              year={2002},
-              pages={321--357}
-            }
-    URL: https://drive.google.com/open?id=1DSPXx8aaVkoNASNPue-O2_4OTu5HzZ2Z
+    Example:
+            >>> oversampler= smote_variants.SMOTE()
+            >>> X_samp, y_samp= oversampler.sample(X, y)
+
+    References:
+        * BibTex::
+            
+            @article{smote,
+                author={N. V. Chawla and K. W. Bowyer and L. O. Hall and W. P. Kegelmeyer},
+                title={{SMOTE}: synthetic minority over-sampling technique},
+                journal={Journal of Artificial Intelligence Research},
+                volume={16},
+                year={2002},
+                pages={321--357}
+              }
+        
+        * URL: https://drive.google.com/open?id=1DSPXx8aaVkoNASNPue-O2_4OTu5HzZ2Z
     """
     
     categories= [OverSampling.cat_sample_ordinary,
@@ -1240,10 +1248,9 @@ class SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the SMOTE object
+        
         Args:
-            proportion (float): proportion of the difference of n_maj and n_min to sample
-                                    e.g. 1.0 means that after sampling the number of minority
-                                    samples will be equal to the number of majority samples
+            proportion (float): proportion of the difference of n_maj and n_min to sample e.g. 1.0 means that after sampling the number of minority samples will be equal to the number of majority samples
             n_neighbors (int): control parameter of the nearest neighbor technique
             n_jobs (int): number of parallel jobs
         """
@@ -1297,7 +1304,7 @@ class SMOTE(OverSampling):
         for _ in range(num_to_sample):
             base_idx= np.random.randint(len(X_min))
             neighbor_idx= np.random.choice(ind[base_idx][1:])
-            samples.append(self.sample_between_points(X_min[base_idx], X[neighbor_idx]))
+            samples.append(self.sample_between_points(X_min[base_idx], X_min[neighbor_idx]))
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.hstack([self.minority_label]*num_to_sample)])
     
@@ -1310,25 +1317,33 @@ class SMOTE(OverSampling):
 
 class SMOTE_TomekLinks(OverSampling):
     """
-    @article{smote_tomeklinks_enn,
-             author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
-             title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
-             journal = {SIGKDD Explor. Newsl.},
-             issue_date = {June 2004},
-             volume = {6},
-             number = {1},
-             month = jun,
-             year = {2004},
-             issn = {1931-0145},
-             pages = {20--29},
-             numpages = {10},
-             url = {http://doi.acm.org/10.1145/1007730.1007735},
-             doi = {10.1145/1007730.1007735},
-             acmid = {1007735},
-             publisher = {ACM},
-             address = {New York, NY, USA},
-            } 
-    URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
+    Example:
+        >>> oversampler= smote_variants.SMOTE_TomekLinks()
+        >>> X_samp, y_samp= oversampler.sample(X, y)
+        
+    References:
+        * BibTex::
+            
+            @article{smote_tomeklinks_enn,
+                     author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
+                     title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
+                     journal = {SIGKDD Explor. Newsl.},
+                     issue_date = {June 2004},
+                     volume = {6},
+                     number = {1},
+                     month = jun,
+                     year = {2004},
+                     issn = {1931-0145},
+                     pages = {20--29},
+                     numpages = {10},
+                     url = {http://doi.acm.org/10.1145/1007730.1007735},
+                     doi = {10.1145/1007730.1007735},
+                     acmid = {1007735},
+                     publisher = {ACM},
+                     address = {New York, NY, USA},
+                    } 
+            
+        * URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
     """
     
     categories= [OverSampling.cat_sample_ordinary,
@@ -1339,9 +1354,7 @@ class SMOTE_TomekLinks(OverSampling):
         """
         Constructor of the SMOTE object
         Args:
-            proportion (float): proportion of the difference of n_maj and n_min to sample
-                                    e.g. 1.0 means that after sampling the number of minority
-                                    samples will be equal to the number of majority samples
+            proportion (float): proportion of the difference of n_maj and n_min to sample e.g. 1.0 means that after sampling the number of minority samples will be equal to the number of majority samples
             n_neighbors (int): control parameter of the nearest neighbor technique
             n_jobs (int): number of parallel jobs
         """
@@ -8729,7 +8742,7 @@ class E_SMOTE(OverSampling):
                  OverSampling.cat_dim_reduction,
                  OverSampling.cat_memetic]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, min_features= 2, n_jobs= 1):
         """
         Constructor of the sampling object
         Args:
@@ -8737,15 +8750,18 @@ class E_SMOTE(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors in the nearest neighbors component
+            min_features (int): minimum number of features
             n_jobs (int): number of parallel jobs
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_greater_or_equal(min_features, "min_features", 1)
         self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.proportion= proportion
         self.n_neighbors= n_neighbors
+        self.min_features= min_features
         self.n_jobs= n_jobs
         
     @classmethod
@@ -8755,7 +8771,7 @@ class E_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'min_features': [1, 2, 3]})
     
     def sample(self, X, y):
         """
@@ -8769,6 +8785,8 @@ class E_SMOTE(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
+        min_features= min(self.min_features, len(X[0]))
         
         if len(X) < 800:
             classifier= SVC(gamma= 'auto')
@@ -8799,10 +8817,9 @@ class E_SMOTE(OverSampling):
                 if np.random.randint(0, 2) == 0:
                     mask[i]= mask_b[i]
                     
-            if np.sum(mask) > 0:
-                return mask
-            else:
+            while np.sum(mask) < min_features:
                 mask[np.random.randint(len(mask))]= True
+            
             return mask
         
         def mutate(mask_old):
@@ -8818,10 +8835,9 @@ class E_SMOTE(OverSampling):
                 if np.random.randint(0, 2) == 0:
                     mask[i]= not mask[i]
             
-            if np.sum(mask) > 0:
-                return mask
-            else:
+            while np.sum(mask) < min_features:
                 mask[np.random.randint(len(mask))]= True
+                
             return mask
         
         # generating initial population

@@ -606,6 +606,34 @@ def runtimes():
     
     print(table)
 
+def create_documentation_page():
+    oversamplers= sv.get_all_oversamplers()
+    
+    docs= "Oversamplers\n*************\n\n"
+    
+    for o in oversamplers:
+        docs= docs + o.__name__ + "\n" + '='*len(o.__name__) + "\n"
+        docs= docs + ('.. autoclass:: smote_variants.%s' % o.__name__) + "\n"
+        docs= docs + ('    :members:') + "\n"
+        docs= docs + "\n"
+        docs= docs + ('    .. automethod:: __init__')
+        docs= docs + "\n\n"
+        docs= docs + "Example:\n"
+        docs= docs + "-"*len("Example")
+        docs= docs + "\n\n"
+        docs= docs + ("    >>> oversampler= smote_variants.%s()\n" % o.__name__)
+        docs= docs + "    >>> X_samp, y_samp= oversampler.sample(X, y))\n"
+        docs= docs + "\n\n"
+        docs= docs + ".. image:: figures/base.png" + "\n"
+        docs= docs + (".. image:: figures/%s.png" % o.__name__) + "\n\n"
+    
+    file= open("oversamplers.rst", "w")
+    file.write(docs)
+    file.close()
+    
+    return docs
+        
+
 #######################################
 # rendering the 8 tables of the study #
 #######################################
@@ -636,3 +664,4 @@ top_results_by_categories()
 
 # rendering the table of runtimes
 runtimes()
+
