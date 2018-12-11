@@ -55,8 +55,8 @@ from scipy.stats.mstats import gmean
 # self-organizing map implementation
 import minisom
 
-for handler in logging.root.handlers[:]:
-    logging.root.removeHandler(handler)
+#for handler in logging.root.handlers[:]:
+#    logging.root.removeHandler(handler)
 
 # setting the logging format
 #logging.basicConfig(filename= '/home/gykovacs/workspaces/sampling2.log', level= logging.DEBUG, format="%(asctime)s:%(levelname)s:%(message)s")
@@ -65,10 +65,13 @@ logging.basicConfig(level= logging.DEBUG, format="%(asctime)s:%(levelname)s:%(me
 # exported names
 __all__= ['get_all_oversamplers',
 'get_all_noisefilters',
+'get_n_quickest_oversamplers',
 'ballpark_sample',
+'evaluate_oversamplers',
+'read_oversampling_results',
+'model_selection',
 'MLPClassifierWrapper',
 'OverSampling',
-'CacheAndValidate',
 'TomekLinkRemoval',
 'CondensedNearestNeighbors',
 'OneSidedSelection',
@@ -169,6 +172,34 @@ def get_all_oversamplers():
         list(OverSampling): list of all oversampling classes
     """
     return [globals()[s] for s in __all__ if s in globals() and inspect.isclass(globals()[s]) and issubclass(globals()[s], OverSampling) and not globals()[s] == OverSampling]
+
+def get_n_quickest_oversamplers(n= 10):
+    runtimes= {'SPY': 0.11, 'OUPS': 0.16, 'SMOTE_D': 0.20, 'NT_SMOTE': 0.20, 'Gazzah': 0.21,
+     'ROSE': 0.25, 'NDO_sampling': 0.27, 'Borderline_SMOTE1': 0.28, 'SMOTE': 0.28,
+     'Borderline_SMOTE2': 0.29, 'ISMOTE': 0.30, 'SMMO': 0.31, 'SMOTE_OUT': 0.37,
+     'SN_SMOTE': 0.44, 'Selected_SMOTE': 0.47, 'distance_SMOTE': 0.47, 'Gaussian_SMOTE': 0.48,
+     'MCT': 0.51, 'Random_SMOTE': 0.57, 'ADASYN': 0.58, 'SL_graph_SMOTE': 0.58,
+     'CURE_SMOTE': 0.59, 'ANS': 0.63, 'MSMOTE': 0.72, 'Safe_Level_SMOTE': 0.79,
+     'SMOBD': 0.80, 'CBSO': 0.81, 'Assembled_SMOTE': 0.82, 'SDSMOTE': 0.88,
+     'SMOTE_TomekLinks': 0.91, 'Edge_Det_SMOTE': 0.94, 'ProWSyn': 1.00, 'Stefanowski': 1.04,
+     'NRAS': 1.06, 'AND_SMOTE': 1.13, 'DBSMOTE': 1.17, 'polynom_fit_SMOTE': 1.18,
+     'ASMOBD': 1.18, 'MDO': 1.18, 'SOI_CJ': 1.24, 'LN_SMOTE': 1.26, 'VIS_RST': 1.34,
+     'TRIM_SMOTE': 1.36, 'LLE_SMOTE': 1.62, 'SMOTE_ENN': 1.86, 'SMOTE_Cosine': 2.00,
+     'kmeans_SMOTE': 2.43, 'MWMOTE': 2.45, 'V_SYNTH': 2.59, 'A_SUWO': 2.81,
+     'RWO_sampling': 2.91, 'SMOTE_RSB': 3.88, 'ADOMS': 3.89, 'SMOTE_IPF': 4.10,
+     'Lee': 4.16, 'SMOTE_FRST_2T': 4.18, 'cluster_SMOTE': 4.19, 'SOMO': 4.30,
+     'DE_oversampling': 4.67, 'CCR': 4.72, 'NRSBoundary_SMOTE': 5.26, 'AHC': 5.27,
+     'ISOMAP_Hybrid': 6.11, 'LVQ_SMOTE': 6.99, 'CE_SMOTE': 7.45, 'MSYN': 11.92,
+     'PDFOS': 15.14, 'KernelADASYN': 17.87, 'G_SMOTE': 19.23, 'E_SMOTE': 19.50,
+     'SVM_balance': 24.05, 'SUNDO': 26.21, 'GASMOTE': 31.38, 'DEAGO': 33.39,
+     'NEATER': 41.39, 'SMOTE_PSO': 45.12, 'IPADE_ID': 90.01, 'DSMOTE': 146.73,
+     'MOT2LD': 149.42, 'Supervised_SMOTE': 195.74, 'SSO': 215.27, 'DSRBF': 272.11,
+     'SMOTE_PSOBAT': 324.31, 'ADG': 493.64, 'AMSCO': 1502.36}
+    
+    samplers= get_all_oversamplers()
+    samplers= sorted(samplers, key= lambda x: runtimes[x.__name__] if x.__name__ in runtimes else 1e8)
+    
+    return samplers[:n]
 
 def get_all_noisefilters():
     """
@@ -13984,7 +14015,7 @@ class Folding():
             cache_path (str): path to cache directory
         """
         self.dataset= dataset
-        self.db_name= self.dataset['DESCR']
+        self.db_name= self.dataset['name']
         self.validator= validator
         self.cache_path= cache_path
         self.filename= 'folding_' + self.db_name + '.pickle'
@@ -14071,6 +14102,7 @@ class Sampling():
         return filename
     
     def cache_sampling(self):
+        print('cache_sampling')
         try:
             import mkl
             mkl.set_num_threads(1)
@@ -14079,6 +14111,7 @@ class Sampling():
             logging.info(self.__class__.__name__ + (" setting mkl thread number didn't succeed"))
         
         if not os.path.isfile(os.path.join(self.cache_path, self.filename)):
+            # if the sampled dataset does not exist
             is_extensive= OverSampling.cat_extensive in self.sampler.categories
             has_proportion= 'proportion' in self.sampler_parameters
             higher_prop_sampling_available= None
@@ -14345,234 +14378,272 @@ class Evaluation():
 
         return list(evaluations.values())
 
-def first_sample(X):
-    return X.iloc[0]
-
-def highest_auc(X):
-    return X.sort_values('auc')['sampler_parameters'].iloc[-1]
-
-
 def trans(X):
-    return pd.DataFrame({'auc': np.max(X['auc']), 'brier': np.min(X['brier']), 'acc': np.max(X['acc']), 'f1': np.max(X['f1']),
-                  'p_top20': np.max(X['p_top20']), 'gacc': np.max(X['gacc']), 'runtime': np.mean(X['runtime']),
-                  'db_size': X['db_size'].iloc[0], 'db_n_attr': X['db_n_attr'].iloc[0], 'imbalanced_ratio': X['imbalanced_ratio'].iloc[0],
-                  'sampler_categories': X['sampler_categories'].iloc[0], 'sampler_parameters': X.sort_values('auc')['sampler_parameters'].iloc[-1]}, index= [0])
+    """
+    Transformation function used to aggregate the evaluation results.
+    Args:
+        X (pd.DataFrame): a grouping of a data frame containing evaluation results
+    """
+    return pd.DataFrame({'auc': np.max(X['auc']), 
+                         'brier': np.min(X['brier']), 
+                         'acc': np.max(X['acc']), 
+                         'f1': np.max(X['f1']),
+                         'p_top20': np.max(X['p_top20']), 
+                         'gacc': np.max(X['gacc']), 
+                         'runtime': np.mean(X['runtime']),
+                         'db_size': X['db_size'].iloc[0], 
+                         'db_n_attr': X['db_n_attr'].iloc[0], 
+                         'imbalanced_ratio': X['imbalanced_ratio'].iloc[0],
+                         'sampler_categories': X['sampler_categories'].iloc[0], 
+                         'classifier_parameters_auc': X.sort_values('auc')['classifier_parameters'].iloc[-1],
+                         'classifier_parameters_acc': X.sort_values('acc')['classifier_parameters'].iloc[-1],
+                         'classifier_parameters_gacc': X.sort_values('gacc')['classifier_parameters'].iloc[-1],
+                         'classifier_parameters_f1': X.sort_values('f1')['classifier_parameters'].iloc[-1],
+                         'classifier_parameters_p_top20': X.sort_values('p_top20')['classifier_parameters'].iloc[-1],
+                         'classifier_parameters_brier': X.sort_values('brier')['classifier_parameters'].iloc[-1],
+                         'sampler_parameters_auc': X.sort_values('auc')['sampler_parameters'].iloc[-1],
+                         'sampler_parameters_acc': X.sort_values('acc')['sampler_parameters'].iloc[-1],
+                         'sampler_parameters_gacc': X.sort_values('gacc')['sampler_parameters'].iloc[-1],
+                         'sampler_parameters_f1': X.sort_values('f1')['sampler_parameters'].iloc[-1],
+                         'sampler_parameters_p_top20': X.sort_values('p_top20')['sampler_parameters'].iloc[-1],
+                         'sampler_parameters_brier': X.sort_values('p_top20')['sampler_parameters'].iloc[0],
+                         }, index= [0])
 
-class CacheAndValidate():
+def _clone_classifiers(classifiers):
     """
-    Class managing the evaluation of samplers and classifiers on datasets
+    Clones a set of classifiers
+    Args:
+        classifiers (list): a list of classifier objects
     """
-    def __init__(self, 
-                 samplers, 
-                 classifiers, 
-                 datasets, 
-                 cache_path, 
-                 validator= RepeatedStratifiedKFold(n_splits= 5, n_repeats= 3), 
-                 remove_sampling_cache= True, 
-                 max_n_sampler_par_comb= 35,
-                 n_jobs= 1,
-                 aggregations= {}):
-        """
-        Constructor of the Evaluation object
-        Args:
-            samplers (list): list of sampler classes
-            classifier (list): list of parameterized classifiers
-            datasets (list): list of dicts (with 'data', 'target' and 'DESCR' fields) or dataset loader functions
-            cache_path (str/None): directory path used for caching
-            validator (obj): validator object
-            remove_sampling_cache (bool): whether removing the sampling files or not
-            max_n_sampler_par_comb (int): maximum number of sampler parameter combinations
-            n_jobs (int): number of joblib jobs
-            aggregations (dict): the way to aggregate the results
-        """
-        self.samplers= samplers
-        self.classifiers= classifiers
-        self.datasets= datasets
-        self.cache_path= cache_path
-        self.validator= validator
-        self.remove_sampling_cache= remove_sampling_cache
-        self.max_n_sampler_par_comb= max_n_sampler_par_comb
-        self.n_jobs= n_jobs
-        self.aggregations= aggregations
-        
-        self.runtime_proxies= dict([('SMOTE', 0.20995807647705078), ('SMOTE_TomekLinks', 0.9413125514984131), ('SMOTE_ENN', 0.4389991760253906),
-                               ('Borderline_SMOTE1', 0.2068939208984375), ('Borderline_SMOTE2', 0.14755773544311523), ('ADASYN', 0.3462491035461426),
-                               ('AHC', 0.09929108619689941), ('LLE_SMOTE', 1.0163090229034424), ('distance_SMOTE', 0.53617262840271),
-                               ('SMMO', 1.3624117374420166), ('polynom_fit_SMOTE', 2.8015024662017822), ('Stefanowski', 0.31322741508483887),
-                               ('ADOMS', 1.8053746223449707), ('Safe_Level_SMOTE', 0.2662079334259033), ('MSMOTE', 0.08792638778686523),
-                               ('DE_oversampling', 7.886674404144287), ('SMOBD', 4.187353610992432), ('SUNDO', 4.883049726486206),
-                               ('MSYN', 2.115225315093994), ('SVM_balance', 8.073760509490967), ('TRIM_SMOTE', 2.0527164936065674),
-                               ('SMOTE_RSB', 1.747218370437622), ('ProWSyn', 3.7820382118225098), ('SL_graph_SMOTE', 1.194298505783081),
-                               ('NRSBoundary_SMOTE', 2.8142294883728027), ('LVQ_SMOTE', 3.1652932167053223), ('SOI_CJ', 0.4986863136291504),
-                               ('ROSE', 0.5144903659820557), ('SMOTE_OUT', 0.9532127380371094), ('SMOTE_Cosine', 3.28910756111145),
-                               ('Selected_SMOTE', 0.5136051177978516), ('LN_SMOTE', 2.9855360984802246), ('MWMOTE', 2.7402050495147705),
-                               ('PDFOS', 8.655852794647217), ('IPADE_ID', 122.45760655403137), ('RWO_sampling', 5.751610517501831),
-                               ('NEATER', 77.10895824432373), ('DEAGO', 310.91743564605713), ('Gazzah', 1.343533992767334),
-                               ('MCT', 0.17432713508605957), ('ADG', 153.10788893699646), ('SMOTE_IPF', 3.9752678871154785),
-                               ('KernelADASYN', 264.865784406662), ('MOT2LD', 111.24062180519104), ('V_SYNTH', 1.5504348278045654),
-                               ('OUPS', 0.26288509368896484), ('SMOTE_D', 0.1537156105041504), ('SMOTE_PSO', 16.646637201309204),
-                               ('CURE_SMOTE', 0.4105057716369629), ('SOMO', 7.79251503944397), ('ISOMAP_Hybrid', 2.3145737648010254),
-                               ('CE_SMOTE', 16.332725524902344), ('Edge_Det_SMOTE', 2.3009066581726074), ('CBSO', 0.23173999786376953),
-                               ('E_SMOTE', 50.59312963485718), ('DBSMOTE', 0.1932663917541504), ('ASMOBD', 3.5665836334228516),
-                               ('Assembled_SMOTE', 0.28139400482177734), ('SDSMOTE', 0.16983819007873535), ('DSMOTE', 145.17899894714355),
-                               ('G_SMOTE', 1.4483916759490967), ('NT_SMOTE', 0.12523436546325684), ('Lee', 2.6914358139038086),
-                               ('SPY', 0.26200079917907715), ('SMOTE_PSOBAT', 150.48415231704712), ('MDO', 1.9150817394256592),
-                               ('Random_SMOTE', 0.3597598075866699), ('ISMOTE', 0.37543368339538574), ('VIS_RST', 0.22070932388305664),
-                               ('GASMOTE', 23.930033445358276), ('A_SUWO', 1.1876301765441895), ('SMOTE_FRST_2T', 12.239593744277954),
-                               ('AND_SMOTE', 0.8058390617370605), ('NRAS', 0.380873441696167), ('AMSCO', 1060.4097530841827),
-                               ('SSO', 264.3451817035675), ('NDO_sampling', 0.2468242645263672), ('DSRBF', 364.9397201538086),
-                               ('Gaussian_SMOTE', 0.18278789520263672), ('kmeans_SMOTE', 2.027872323989868), ('Supervised_SMOTE', 1141.9092671871185)])
-        
-        if len(self.aggregations) == 0:
-            self.aggregations['groupby']= ['db_name', 'classifier', 'sampler']
-            self.aggregations['measures']= {'brier': ['min'],
-                                             'acc': ['max'],
-                                             'f1': ['max'],
-                                             'auc': ['max'],
-                                             'p_top20': ['max'],
-                                             'gacc': ['max'],
-                                             'runtime': ['mean'],
-                                             'db_size': [first_sample],
-                                             'db_n_attr': [first_sample],
-                                             'imbalanced_ratio': [first_sample],
-                                             'sampler_categories': [first_sample],
-                                             'sampler_parameters': [highest_auc]}
+    results= []
+    for c in classifiers:
+        if isinstance(c, MLPClassifierWrapper):
+            results.append(c.copy())
+        else:
+            results.append(clone(c))
+    return results
     
-    def clone_classifiers(self):
-        results= []
-        for c in self.classifiers:
-            if isinstance(c, MLPClassifierWrapper):
-                results.append(c.copy())
-            else:
-                results.append(clone(c))
-        return results
+def _cache_samplings(folding, samplers, max_n_sampler_par_comb= 35, n_jobs= 1):
+    """
     
-    def cache_samplings(self, folding):
-        logging.info(self.__class__.__name__ + ": " + "create sampling objects")
-        sampling_objs= []
-        for s in self.samplers:
-            np.random.seed(2)
+    """
+    logging.info("create sampling objects")
+    sampling_objs= []
+    for s in samplers:
+        np.random.seed(2)
+    
+        sampling_par_comb= s.parameter_combinations()
+        sampling_par_comb= np.random.choice(sampling_par_comb, min([len(sampling_par_comb), max_n_sampler_par_comb]), replace= False)
         
-            sampling_par_comb= s.parameter_combinations()
-            sampling_par_comb= np.random.choice(sampling_par_comb, min([len(sampling_par_comb), self.max_n_sampler_par_comb]), replace= False)
+        for spc in sampling_par_comb:
+            sampling_objs.append(Sampling(folding, s, spc))
             
-            for spc in sampling_par_comb:
-                sampling_objs.append(Sampling(folding, s, spc))
-                
-        # sorting sampling objects
-        def key(x):
+    # sorting sampling objects to optimize execution
+    def key(x):
+        if isinstance(x.sampler, ADG) or isinstance(x.sampler, AMSCO) or isinstance(x.sampler, DSRBF):
             if 'proportion' in x.sampler_parameters:
-                return x.sampler_parameters['proportion']
-            elif isinstance(x.sampler, ADG):
-                return 30
-            elif isinstance(x.sampler, AMSCO):
-                return 30
-            elif isinstance(x.sampler, DSRBF):
-                return 30
-            elif OverSampling.cat_memetic in x.sampler.categories:
-                return 20
+                return 30 + x.sampler_parameters['proportion']
             else:
-                return 10
-        
-        sampling_objs= list(reversed(sorted(sampling_objs, key= key)))
-        
-        # executing sampling in parallel
-        logging.info(self.__class__.__name__ + ": " + "executing %d sampling in parallel" % len(sampling_objs))
-        Parallel(n_jobs= self.n_jobs, batch_size= 1)(delayed(s.cache_sampling)() for s in sampling_objs)
-        
-        return sampling_objs
-            
-    def cache_evaluations(self, sampling_objs):
-        # create evaluation objects
-        logging.info(self.__class__.__name__ + ": " + "create classifier jobs")
-        evaluation_objs= []
-        
-        num_threads= None if self.n_jobs is None or self.n_jobs is 1 else 1
-        
-        for s in sampling_objs:
-            evaluation_objs.append(Evaluation(s, self.clone_classifiers(), num_threads))
-        
-        logging.info(self.__class__.__name__ + ": " +"executing %d evaluation jobs in parallel" % (len(evaluation_objs)))
-        # execute evaluation in parallel
-        evals= Parallel(n_jobs= self.n_jobs, batch_size= 1)(delayed(e.do_evaluation)() for e in evaluation_objs)
-        
-        return evals
+                return 30
+        elif 'proportion' in x.sampler_parameters:
+            return x.sampler_parameters['proportion']
+        elif OverSampling.cat_memetic in x.sampler.categories:
+            return 20
+        else:
+            return 10
     
-    def read_results(self, cache_path_db):
-        results= []
-        evaluation_files= glob.glob(os.path.join(cache_path_db, 'eval*.pickle'))
-        for f in evaluation_files:
-            eval_results= pickle.load(open(f, 'rb'))
-            results.append(list(eval_results.values()))
-        return results
+    sampling_objs= list(reversed(sorted(sampling_objs, key= key)))
     
-    def cache_and_evaluate(self):
-        results= []
-        for dataset in self.datasets:
-            if not dataset is dict:
-                dataset= dataset()
-                
-            cache_path_db= os.path.join(self.cache_path, dataset['DESCR'])
-            if not os.path.isdir(cache_path_db):
-                os.mkdir(cache_path_db)
+    # executing sampling in parallel
+    logging.info("executing %d sampling in parallel" % len(sampling_objs))
+    Parallel(n_jobs= n_jobs, batch_size= 1)(delayed(s.cache_sampling)() for s in sampling_objs)
+    
+    return sampling_objs
             
-            samplings_available= False
-            evaluations_available= False
-            
-            samplings= glob.glob(os.path.join(cache_path_db, 'sampling*.pickle'))
-            if len(samplings) > 0:
-                samplings_available= True
-                
-            evaluations= glob.glob(os.path.join(cache_path_db, 'eval*.pickle'))
-            if len(evaluations) > 0:
-                evaluations_available= True
-            
-            logging.info("dataset: %s, samplings_available: %s, evaluations_available: %s" % (dataset['DESCR'], str(samplings_available), str(evaluations_available)))
-            if evaluations_available == True and samplings_available == False:
-                logging.info("reading evaluation results")
-                res= self.read_results(cache_path_db)
-            else:
-                logging.info("doing the folding")
-                folding= Folding(dataset, self.validator, cache_path_db)
-                folding.do_folding()
-                
-                logging.info("do the samplings")
-                sampling_objs= self.cache_samplings(folding)
-                
-                logging.info("do the evaluations")
-                res= self.cache_evaluations(sampling_objs)
-            
-            # removing samplings once everything is done
-            if self.remove_sampling_cache:
-                filenames= glob.glob(os.path.join(cache_path_db, 'sampling*'))
-                logging.info("removing unnecessary sampling files")
-                if len(filenames) > 0:
-                    for f in filenames:
-                        os.remove(f)
-            
-            logging.info("aggregate results")
-            db_res= []
-            for r in res:
-                df= pd.DataFrame(r)
-                #agg= df.groupby(by= self.aggregations['groupby']).agg(self.aggregations['measures']).reset_index()
-                #agg.columns= agg.columns.get_level_values(0)
-                #db_res.append(agg)
-                db_res.append(df)
-            
-            db_res= pd.concat(db_res).reset_index(drop= True)
-            #agg= db_res.groupby(by= self.aggregations['groupby']).agg(self.aggregations['measures']).reset_index()
-            agg= db_res.groupby(by= self.aggregations['groupby']).apply(trans).reset_index()
-            #agg.columns= agg.columns.get_level_values(0)
-            #db_res.append(agg)
-            #results.append(db_res)
-            results.append(agg)
+def _cache_evaluations(sampling_objs, classifiers, n_jobs= 1):
+    # create evaluation objects
+    logging.info("create classifier jobs")
+    evaluation_objs= []
+    
+    num_threads= None if n_jobs is None or n_jobs is 1 else 1
+    
+    for s in sampling_objs:
+        evaluation_objs.append(Evaluation(s, _clone_classifiers(classifiers), num_threads))
+    
+    logging.info("executing %d evaluation jobs in parallel" % (len(evaluation_objs)))
+    # execute evaluation in parallel
+    evals= Parallel(n_jobs= n_jobs, batch_size= 1)(delayed(e.do_evaluation)() for e in evaluation_objs)
+    
+    return evals
+
+def _read_db_results(cache_path_db):
+    results= []
+    evaluation_files= glob.glob(os.path.join(cache_path_db, 'eval*.pickle'))
+    for f in evaluation_files:
+        eval_results= pickle.load(open(f, 'rb'))
+        results.append(list(eval_results.values()))
+    return results
+
+def read_oversampling_results(datasets, cache_path= None, all_results= False):
+    """
+    Reads the results of the evaluation
+    Args:
+        datasets (list): list of datasets and/or dataset loaders - a dataset is a dict with 'data', 'target' and 'name' keys
+        cache_path (str): path to a cache directory
+        all_results (bool): True to return all results, False to return an aggregation
+    Returns:
+        pd.DataFrame: all results or the aggregated results if all_results is False
+    """
+    
+    results= []
+    for dataset_spec in datasets:
         
-        all_results= pd.concat(results).reset_index(drop= True)
-        #all_results.columns= all_results.columns.get_level_values(0)
+        # loading dataset if needed and determining dataset name
+        dataset= dataset_spec() if not isinstance(dataset_spec, dict) else dataset_spec
+        dataset_name= dataset['name'] if 'name' in dataset else dataset_spec.__name__
+        dataset['name']= dataset_name
+
+        # determining dataset specific cache path
+        cache_path_db= os.path.join(cache_path, dataset_name)
         
+        # reading the results
+        res= _read_db_results(cache_path_db)
         
-        #agg= all_results.groupby(by= self.aggregations['groupby']).agg(self.aggregations['measures']).reset_index()
-        agg= all_results.groupby(by= self.aggregations['groupby']).apply(trans).reset_index()
-        agg.columns= agg.columns.get_level_values(0)
+        # concatenating the results
+        logging.info("concatenating results")
+        db_res= [pd.DataFrame(r) for r in res]
+        db_res= pd.concat(db_res).reset_index(drop= True)
         
-        return agg
+        logging.info("aggregating the results")
+        if all_results == False:
+            db_res= db_res.groupby(by= ['db_name', 'classifier', 'sampler']).apply(trans).reset_index().drop('level_3', axis= 1)
+
+        results.append(db_res)
+    
+    return pd.concat(results).reset_index(drop= True)
+    
+def evaluate_oversamplers(datasets,
+                          samplers,
+                          classifiers,
+                          cache_path,
+                          validator= RepeatedStratifiedKFold(n_splits= 5, n_repeats= 3),
+                          all_results= False, 
+                          remove_sampling_cache= False, 
+                          max_n_sampler_parameters= 35,
+                          n_jobs= 1):
+    """
+    Evaluates oversampling techniques using various classifiers on various datasets
+    Args:
+        datasets (list): list of datasets and/or dataset loaders - a dataset is a dict with 'data', 'target' and 'name' keys
+        samplers (list): list of oversampling classes/objects
+        classifiers (list): list of classifier objects
+        cache_path (str): path to a cache directory
+        validator (obj): validator object
+        all_results (bool): True to return all results, False to return an aggregation
+        remove_sampling_cache (bool): True to remove sampling objects after evaluation
+        max_n_sampler_parameters (int): maximum number of sampler parameter combinations to be tested
+        n_jobs (int): number of parallel jobs
+    Returns:
+        pd.DataFrame: all results or the aggregated results if all_results is False
+    """
+    
+    if cache_path is None:
+        raise ValueError('cache_path is not specified')
+    
+    results= []
+    for dataset_spec in datasets:
+        # loading dataset if needed and determining dataset name
+        dataset= dataset_spec() if not isinstance(dataset_spec, dict) else dataset_spec
+        dataset_name= dataset['name'] if 'name' in dataset else dataset_spec.__name__
+        dataset['name']= dataset_name
+
+        cache_path_db= os.path.join(cache_path, dataset_name)
+        if not os.path.isdir(cache_path_db):
+            logging.info("creating cache directory")
+            os.makedirs(cache_path_db)
+        
+        # checking of samplings and evaluations are available
+        samplings_available= False
+        evaluations_available= False
+        
+        samplings= glob.glob(os.path.join(cache_path_db, 'sampling*.pickle'))
+        if len(samplings) > 0:
+            samplings_available= True
+            
+        evaluations= glob.glob(os.path.join(cache_path_db, 'eval*.pickle'))
+        if len(evaluations) > 0:
+            evaluations_available= True
+        
+        logging.info("dataset: %s, samplings_available: %s, evaluations_available: %s" % (dataset_name, str(samplings_available), str(evaluations_available)))
+
+        if remove_sampling_cache and evaluations_available and not samplings_available:
+            # remove_sampling_cache is enabled and evaluations are available, they are being read
+            logging.info("reading result from cache, sampling and evaluation is not executed")
+            res= _read_db_results(cache_path_db)
+        else:
+            logging.info("doing the folding")
+            folding= Folding(dataset, validator, cache_path_db)
+            folding.do_folding()
+            
+            logging.info("do the samplings")
+            sampling_objs= _cache_samplings(folding, samplers, max_n_sampler_parameters, n_jobs)
+            
+            logging.info("do the evaluations")
+            res= _cache_evaluations(sampling_objs, classifiers, n_jobs)
+        
+        # removing samplings once everything is done
+        if remove_sampling_cache:
+            filenames= glob.glob(os.path.join(cache_path_db, 'sampling*'))
+            logging.info("removing unnecessary sampling files")
+            if len(filenames) > 0:
+                for f in filenames:
+                    os.remove(f)
+        
+        logging.info("concatenating the results")
+        db_res= [pd.DataFrame(r) for r in res]
+        db_res= pd.concat(db_res).reset_index(drop= True)
+        
+        logging.info("aggregating the results")
+        if all_results == False:
+            db_res= db_res.groupby(by= ['db_name', 'classifier', 'sampler']).apply(trans).reset_index().drop('level_3', axis= 1)
+            
+        results.append(db_res)
+    
+    return pd.concat(results).reset_index(drop= True)
+
+def model_selection(datasets,
+                      samplers,
+                      classifiers,
+                      cache_path,
+                      score= 'auc',
+                      validator= RepeatedStratifiedKFold(n_splits= 5, n_repeats= 3),
+                      remove_sampling_cache= False, 
+                      max_n_sampler_parameters= 35,
+                      n_jobs= 1):
+    
+    if score not in ['auc', 'acc', 'gacc', 'f1', 'brier', 'p_top20']:
+        raise ValueError("score %s not supported" % score)
+    
+    results= evaluate_oversamplers(datasets= datasets,
+                                   samplers= samplers,
+                                   classifiers= classifiers,
+                                   cache_path= cache_path,
+                                   validator= validator,
+                                   remove_sampling_cache= remove_sampling_cache,
+                                   max_n_sampler_parameters= max_n_sampler_parameters,
+                                   n_jobs= n_jobs)
+    
+    # extracting the best performing classifier and oversampler parameters regarding AUC
+    highest_score= results[score].idxmax()
+    cl_par_name= 'classifier_parameters_' + score
+    samp_par_name= 'sampler_parameters_' + score
+    cl, cl_par, samp, samp_par= results.loc[highest_score][['classifier',
+                                                           cl_par_name,
+                                                           'sampler',
+                                                           samp_par_name]]
+    
+    # instantiating the best performing oversampler and classifier objects
+    samp_obj= eval(samp)(**eval(samp_par))
+    cl_obj= eval(cl)(**eval(cl_par))
+    
+    return samp_obj, cl_obj
