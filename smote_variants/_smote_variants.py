@@ -66,12 +66,15 @@ logging.basicConfig(level= logging.DEBUG, format="%(asctime)s:%(levelname)s:%(me
 __all__= ['get_all_oversamplers',
 'get_all_noisefilters',
 'get_n_quickest_oversamplers',
+'get_all_oversamplers_multiclass',
+'get_n_quickest_oversamplers_multiclass',
 'ballpark_sample',
 'evaluate_oversamplers',
 'read_oversampling_results',
 'model_selection',
 'MLPClassifierWrapper',
 'OverSampling',
+'NoiseFilter',
 'TomekLinkRemoval',
 'CondensedNearestNeighbors',
 'OneSidedSelection',
@@ -163,17 +166,42 @@ __all__= ['get_all_oversamplers',
 'CCR',
 'ANS',
 'cluster_SMOTE',
-'NoSMOTE']
+'NoSMOTE',
+'MulticlassOversampling']
 
 def get_all_oversamplers():
     """
     Returns all oversampling classes
+    
     Returns:
         list(OverSampling): list of all oversampling classes
+        
+    Example::
+        
+        import smote_variants as sv
+        
+        oversamplers= sv.get_all_oversamplers()
     """
     return [globals()[s] for s in __all__ if s in globals() and inspect.isclass(globals()[s]) and issubclass(globals()[s], OverSampling) and not globals()[s] == OverSampling]
 
 def get_n_quickest_oversamplers(n= 10):
+    """
+    Returns the n quickest oversamplers based on testing on the datasets of
+    the imbalanced_databases package.
+    
+    Args:
+        n (int): number of oversamplers to return
+    
+    Returns:
+        list(OverSampling): list of the n quickest oversampling classes
+        
+    Example::
+        
+        import smote_variants as sv
+        
+        oversamplers= sv.get_n_quickest_oversamplers(10)
+    """
+    
     runtimes= {'SPY': 0.11, 'OUPS': 0.16, 'SMOTE_D': 0.20, 'NT_SMOTE': 0.20, 'Gazzah': 0.21,
      'ROSE': 0.25, 'NDO_sampling': 0.27, 'Borderline_SMOTE1': 0.28, 'SMOTE': 0.28,
      'Borderline_SMOTE2': 0.29, 'ISMOTE': 0.30, 'SMMO': 0.31, 'SMOTE_OUT': 0.37,
@@ -201,13 +229,64 @@ def get_n_quickest_oversamplers(n= 10):
     
     return samplers[:n]
 
+def get_all_oversamplers_multiclass(strategy= "equalize"):
+    """
+    Returns all oversampling classes which can be used with the multiclass strategy specified
+    
+    Args:
+        strategy (str): the multiclass oversampling strategy
+    
+    Returns:
+        list(OverSampling): list of all oversampling classes which can be used with the multiclass strategy specified
+        
+    Example::
+        
+        import smote_variants as sv
+        
+        oversamplers= sv.get_all_oversamplers_multiclass()
+    """
+    
+    oversamplers= get_all_oversamplers()
+    
+    if strategy == 'equalize':
+        return [o for o in oversamplers if not OverSampling.cat_changes_majority in o.categories and 'proportion' in o().get_params()]
+    else:
+        raise ValueError("It is not known which oversamplers work with the strategy %s" % strategy)
+
+def get_n_quickest_oversamplers_multiclass(n, strategy= "equalize"):
+    """
+    Returns the n quickest oversamplers based on testing on the datasets of
+    the imbalanced_databases package, and suitable for using the multiclass strategy specified.
+    
+    Args:
+        n (int): number of oversamplers to return
+        strategy (str): the multiclass oversampling strategy
+    
+    Returns:
+        list(OverSampling): list of n quickest oversampling classes which can be used with the multiclass strategy specified
+        
+    Example::
+        
+        import smote_variants as sv
+        
+        oversamplers= sv.get_n_quickest_oversamplers_multiclass()
+    """
+    
+    oversamplers= get_all_oversamplers()
+    quickest_oversamplers= get_n_quickest_oversamplers(len(oversamplers))
+    
+    if strategy == 'equalize':
+        return [o for o in quickest_oversamplers if not OverSampling.cat_changes_majority in o.categories and 'proportion' in o().get_params()][:n]
+    else:
+        raise ValueError("It is not known which oversamplers work with the strategy %s" % strategy)
+
 def get_all_noisefilters():
     """
     Returns all noise filters
     Returns:
         list(NoiseFilter): list of all noise filter classes
     """
-    return [globals()[s] for s in __all__ if s in globals() and inspect.isclass(globals()[s]) and issubclass(globals()[s], NoiseFilter)]
+    return [globals()[s] for s in __all__ if s in globals() and inspect.isclass(globals()[s]) and issubclass(globals()[s], NoiseFilter) and not globals()[s] == NoiseFilter]
 
 def mode(data):
     values, counts= np.unique(data, return_counts= True)
@@ -450,7 +529,7 @@ class NoiseFilter(StatisticsMixin, ParameterCheckingMixin, ParameterCombinations
         """
         pass
         
-    def remove_noise(X, y):
+    def remove_noise(self, X, y):
         """
         Removes noise
         Args:
@@ -463,29 +542,34 @@ class TomekLinkRemoval(NoiseFilter):
     """
     Tomek link removal
     
-    @article{smoteNoise0,
-             author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
-             title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
-             journal = {SIGKDD Explor. Newsl.},
-             issue_date = {June 2004},
-             volume = {6},
-             number = {1},
-             month = jun,
-             year = {2004},
-             issn = {1931-0145},
-             pages = {20--29},
-             numpages = {10},
-             url = {http://doi.acm.org/10.1145/1007730.1007735},
-             doi = {10.1145/1007730.1007735},
-             acmid = {1007735},
-             publisher = {ACM},
-             address = {New York, NY, USA}
-            } 
-    URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
+    References:
+        * BibTex::
+            
+            @article{smoteNoise0,
+                     author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
+                     title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
+                     journal = {SIGKDD Explor. Newsl.},
+                     issue_date = {June 2004},
+                     volume = {6},
+                     number = {1},
+                     month = jun,
+                     year = {2004},
+                     issn = {1931-0145},
+                     pages = {20--29},
+                     numpages = {10},
+                     url = {http://doi.acm.org/10.1145/1007730.1007735},
+                     doi = {10.1145/1007730.1007735},
+                     acmid = {1007735},
+                     publisher = {ACM},
+                     address = {New York, NY, USA}
+                    } 
+    
+        * URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
     """
     def __init__(self, strategy= 'remove_majority', n_jobs= 1):
         """
-        Constructor
+        Constructor of the noise filter.
+        
         Args:
             strategy (str): noise removal strategy: 'remove_majority'/'remove_both'
             n_jobs (int): number of jobs
@@ -501,9 +585,11 @@ class TomekLinkRemoval(NoiseFilter):
     def remove_noise(self, X, y):
         """
         Removes noise from dataset
+        
         Args:
             X (np.matrix): features
             y (np.array): target labels
+            
         Returns:
             np.matrix, np.array: dataset after noise removal
         """
@@ -543,22 +629,25 @@ class CondensedNearestNeighbors(NoiseFilter):
     """
     Condensed nearest neighbors
     
-    @ARTICLE{condensed_nn, 
-                author={P. Hart}, 
-                journal={IEEE Transactions on Information Theory}, 
-                title={The condensed nearest neighbor rule (Corresp.)}, 
-                year={1968}, 
-                volume={14}, 
-                number={3}, 
-                pages={515-516}, 
-                keywords={Pattern classification}, 
-                doi={10.1109/TIT.1968.1054155}, 
-                ISSN={0018-9448}, 
-                month={May}}
+    References:
+        * BibTex::
+            
+            @ARTICLE{condensed_nn, 
+                        author={P. Hart}, 
+                        journal={IEEE Transactions on Information Theory}, 
+                        title={The condensed nearest neighbor rule (Corresp.)}, 
+                        year={1968}, 
+                        volume={14}, 
+                        number={3}, 
+                        pages={515-516}, 
+                        keywords={Pattern classification}, 
+                        doi={10.1109/TIT.1968.1054155}, 
+                        ISSN={0018-9448}, 
+                        month={May}}
     """
     def __init__(self, n_jobs= 1):
         """
-        Constructor
+        Constructor of the noise removing object
         
         Args:
             n_jobs (int): number of jobs
@@ -572,9 +661,11 @@ class CondensedNearestNeighbors(NoiseFilter):
     def remove_noise(self, X, y):
         """
         Removes noise from dataset
+        
         Args:
             X (np.matrix): features
             y (np.array): target labels
+            
         Returns:
             np.matrix, np.array: dataset after noise removal
         """
@@ -584,7 +675,7 @@ class CondensedNearestNeighbors(NoiseFilter):
         # Initial result set consists of all minority samples and 1 majority sample
         X_maj= X[y == self.majority_label]
         X_hat= np.vstack([X[y == self.minority_label], X_maj[0]])
-        y_hat= np.hstack([np.repeat(self.minority_label, len(X_hat)), [self.majority_label]])
+        y_hat= np.hstack([np.repeat(self.minority_label, len(X_hat)-1), [self.majority_label]])
         X_maj= X_maj[1:]
         
         # Adding misclassified majority elements repeatedly        
@@ -603,32 +694,33 @@ class CondensedNearestNeighbors(NoiseFilter):
 
 class OneSidedSelection(NoiseFilter):
     """
-    One sided selection is the implementation of the method described in the paper
-    cited below.
-    
-    @article{smoteNoise0,
-             author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
-             title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
-             journal = {SIGKDD Explor. Newsl.},
-             issue_date = {June 2004},
-             volume = {6},
-             number = {1},
-             month = jun,
-             year = {2004},
-             issn = {1931-0145},
-             pages = {20--29},
-             numpages = {10},
-             url = {http://doi.acm.org/10.1145/1007730.1007735},
-             doi = {10.1145/1007730.1007735},
-             acmid = {1007735},
-             publisher = {ACM},
-             address = {New York, NY, USA}
-            } 
-    URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
+    References:
+        * BibTex::
+            
+            @article{smoteNoise0,
+                     author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
+                     title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
+                     journal = {SIGKDD Explor. Newsl.},
+                     issue_date = {June 2004},
+                     volume = {6},
+                     number = {1},
+                     month = jun,
+                     year = {2004},
+                     issn = {1931-0145},
+                     pages = {20--29},
+                     numpages = {10},
+                     url = {http://doi.acm.org/10.1145/1007730.1007735},
+                     doi = {10.1145/1007730.1007735},
+                     acmid = {1007735},
+                     publisher = {ACM},
+                     address = {New York, NY, USA}
+                    } 
+            
+        * URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
     """
     def __init__(self, n_jobs= 1):
         """
-        Constructor
+        Constructor of the noise removal object
         
         Args:
             n_jobs (int): number of jobs
@@ -642,9 +734,11 @@ class OneSidedSelection(NoiseFilter):
     def remove_noise(self, X, y):
         """
         Removes noise
+        
         Args:
             X (np.matrix): features
             y (np.array): target labels
+            
         Returns:
             np.matrix, np.array: cleaned features and target labels
         """
@@ -659,31 +753,33 @@ class OneSidedSelection(NoiseFilter):
 
 class CNNTomekLinks(NoiseFilter):
     """
-    Condensed nearest neighbors with TomekLinks
-    
-    @article{smoteNoise0,
-             author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
-             title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
-             journal = {SIGKDD Explor. Newsl.},
-             issue_date = {June 2004},
-             volume = {6},
-             number = {1},
-             month = jun,
-             year = {2004},
-             issn = {1931-0145},
-             pages = {20--29},
-             numpages = {10},
-             url = {http://doi.acm.org/10.1145/1007730.1007735},
-             doi = {10.1145/1007730.1007735},
-             acmid = {1007735},
-             publisher = {ACM},
-             address = {New York, NY, USA}
-            } 
-    URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
+    References:
+        * BibTex::
+            
+            @article{smoteNoise0,
+                     author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
+                     title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
+                     journal = {SIGKDD Explor. Newsl.},
+                     issue_date = {June 2004},
+                     volume = {6},
+                     number = {1},
+                     month = jun,
+                     year = {2004},
+                     issn = {1931-0145},
+                     pages = {20--29},
+                     numpages = {10},
+                     url = {http://doi.acm.org/10.1145/1007730.1007735},
+                     doi = {10.1145/1007730.1007735},
+                     acmid = {1007735},
+                     publisher = {ACM},
+                     address = {New York, NY, USA}
+                    } 
+            
+        * URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
     """
     def __init__(self, n_jobs= 1):
         """
-        Constructor
+        Constructor of the noise removal object
         
         Args:
             n_jobs (int): number of parallel jobs
@@ -697,9 +793,11 @@ class CNNTomekLinks(NoiseFilter):
     def remove_noise(self, X, y):
         """
         Removes noise
+        
         Args:
             X (np.matrix): features
             y (np.array): target labels
+            
         Returns:
             np.matrix, np.array: cleaned features and target labels
         """
@@ -714,29 +812,33 @@ class CNNTomekLinks(NoiseFilter):
 
 class NeighborhoodCleaningRule(NoiseFilter):
     """
-    @article{smoteNoise0,
-             author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
-             title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
-             journal = {SIGKDD Explor. Newsl.},
-             issue_date = {June 2004},
-             volume = {6},
-             number = {1},
-             month = jun,
-             year = {2004},
-             issn = {1931-0145},
-             pages = {20--29},
-             numpages = {10},
-             url = {http://doi.acm.org/10.1145/1007730.1007735},
-             doi = {10.1145/1007730.1007735},
-             acmid = {1007735},
-             publisher = {ACM},
-             address = {New York, NY, USA}
-            } 
-    URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
+    References:
+        * BibTex::
+            
+            @article{smoteNoise0,
+                     author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
+                     title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
+                     journal = {SIGKDD Explor. Newsl.},
+                     issue_date = {June 2004},
+                     volume = {6},
+                     number = {1},
+                     month = jun,
+                     year = {2004},
+                     issn = {1931-0145},
+                     pages = {20--29},
+                     numpages = {10},
+                     url = {http://doi.acm.org/10.1145/1007730.1007735},
+                     doi = {10.1145/1007730.1007735},
+                     acmid = {1007735},
+                     publisher = {ACM},
+                     address = {New York, NY, USA}
+                    } 
+            
+        * URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
     """
     def __init__(self, n_jobs= 1):
         """
-        Constructor
+        Constructor of the noise removal object
         
         Args:
             n_jobs (int): number of parallel jobs
@@ -750,9 +852,11 @@ class NeighborhoodCleaningRule(NoiseFilter):
     def remove_noise(self, X, y):
         """
         Removes noise
+        
         Args:
             X (np.matrix): features
             y (np.array): target labels
+            
         Returns:
             np.matrix, np.array: cleaned features and target labels
         """
@@ -783,29 +887,34 @@ class NeighborhoodCleaningRule(NoiseFilter):
 
 class EditedNearestNeighbors(NoiseFilter):
     """
-    @article{smoteNoise0,
-             author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
-             title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
-             journal = {SIGKDD Explor. Newsl.},
-             issue_date = {June 2004},
-             volume = {6},
-             number = {1},
-             month = jun,
-             year = {2004},
-             issn = {1931-0145},
-             pages = {20--29},
-             numpages = {10},
-             url = {http://doi.acm.org/10.1145/1007730.1007735},
-             doi = {10.1145/1007730.1007735},
-             acmid = {1007735},
-             publisher = {ACM},
-             address = {New York, NY, USA}
-            } 
-    URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
+    References:
+        * BibTex::
+            
+            @article{smoteNoise0,
+                     author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
+                     title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
+                     journal = {SIGKDD Explor. Newsl.},
+                     issue_date = {June 2004},
+                     volume = {6},
+                     number = {1},
+                     month = jun,
+                     year = {2004},
+                     issn = {1931-0145},
+                     pages = {20--29},
+                     numpages = {10},
+                     url = {http://doi.acm.org/10.1145/1007730.1007735},
+                     doi = {10.1145/1007730.1007735},
+                     acmid = {1007735},
+                     publisher = {ACM},
+                     address = {New York, NY, USA}
+                    } 
+            
+        * URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
     """
     def __init__(self, remove= 'both', n_jobs= 1):
         """
-        Constructor
+        Constructor of the noise removal object
+        
         Args:
             remove (str): class to remove from 'both'/'min'/'maj'
             n_jobs (int): number of parallel jobs
@@ -821,9 +930,11 @@ class EditedNearestNeighbors(NoiseFilter):
     def remove_noise(self, X, y):
         """
         Removes noise
+        
         Args:
             X (np.matrix): features
             y (np.array): target labels
+            
         Returns:
             np.matrix, np.array: cleaned features and target labels
         """
@@ -842,7 +953,7 @@ class EditedNearestNeighbors(NoiseFilter):
                 
         return np.delete(X, to_remove, axis= 0), np.delete(y, to_remove)
 
-def ballpark_sample(sampler, 
+def ballpark_sample(sampler_nf, 
                     img_file_base= None,
                     img_file_sampled= None,
                     use_built_in= 1,
@@ -855,9 +966,10 @@ def ballpark_sample(sampler,
                     var_maj= np.array([np.diag([1.0, 1.0])]),
                     num_maj= np.array([60])):
         """
-        Execute ballpark example sampling with plotting
+        Execute ballpark example sampling or noise removal with plotting
+        
         Args:
-            sampler (SamplerBase): sampling object
+            sampler_nf (SamplerBase/NoiseFilter): sampling or noise filtering object
             img_file_base (str): filename to save the plot of the base data
             img_file_sampled (str): filename to save the plot of the sampled data
             use_built_in (int): id of the built in data to be used - 0/1, data
@@ -870,6 +982,12 @@ def ballpark_sample(sampler,
             center_maj (np.matrix): center of majority concept
             var_maj (np.matrix): variance of majority concept
             num_maj (int): number of samples to generate from the majority concept
+            
+        Example::
+            
+            ballpark_sample(SMOTE_ENN(), img_file_base= 'base.png', img_file_sampled= 'SMOTE_ENN.png')
+            ballpark_sample(EditedNearestNeighbors(), img_file_base= 'base.png', img_file_sampled= 'ENN.png')
+        
         """
         import matplotlib.pyplot as plt
         
@@ -970,7 +1088,13 @@ def ballpark_sample(sampler,
         X= np.vstack([data_maj, data_min])
         y= np.hstack([np.repeat(majority_label, len(data_maj)), np.repeat(minority_label, len(data_min))])
         
-        X_samp, y_samp= sampler.sample(X, y)
+        if isinstance(sampler_nf, OverSampling):
+            X_samp, y_samp= sampler_nf.sample(X, y)
+            if np.sum(y_samp == minority_label) == 0:
+                raise ValueError(sampler_nf.__class__.__name__ + ' removed all minority samples, please rerun the code, the randomized behaviour might result a better output')
+        else:
+            X_samp, y_samp= sampler_nf.remove_noise(X, y)
+
         X_samp_maj= X_samp[y_samp == majority_label]
         X_samp_min= X_samp[y_samp == minority_label]
         
@@ -985,7 +1109,11 @@ def ballpark_sample(sampler,
             for i in range(len(samples_by_counts)):
                 if len(samples_by_counts[i]) > 0:
                     plt.scatter(samples_by_counts[i][:,0], samples_by_counts[i][:,1], c='r', marker='o', s= 70 + 30*(i-1), label=('minority %d' % i))
-        plt.title('%s: %s' % (sampler.__class__.__name__, ", ".join([c for c in sampler.categories])))
+        
+        if isinstance(sampler_nf, OverSampling):
+            plt.title('%s: %s' % (sampler_nf.__class__.__name__, ", ".join([c for c in sampler_nf.categories])))
+        else:
+            plt.title('%s' % (sampler_nf.__class__.__name__))
         plt.xlabel('feature 0')
         plt.ylabel('feature 1')
         plt.legend()
@@ -993,7 +1121,7 @@ def ballpark_sample(sampler,
         if not img_file_sampled is None:
             plt.savefig(img_file_sampled)
         plt.plot()
-    
+            
 class OverSampling(StatisticsMixin, ParameterCheckingMixin, ParameterCombinationsMixin):
     """
     Base class of oversampling methods
@@ -1174,18 +1302,16 @@ class UnderSampling(StatisticsMixin, ParameterCheckingMixin, ParameterCombinatio
 
 class NoSMOTE(OverSampling):
     """
-    @article{no_smote,
-              author={},
-              title={},
-              year={1900}
-            }
+    The goal of this class is to provide a functionality to send data through
+    on any model selection/evaluation pipeline with no oversampling carried
+    out. It can be used to get baseline estimates on preformance.
     """
     
     categories= []
     
     def __init__(self):
         """
-        Constructor of the SMOTE object
+        Constructor of the NoSMOTE object.
         """
         super().__init__()
     
@@ -1201,9 +1327,11 @@ class NoSMOTE(OverSampling):
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -1223,10 +1351,6 @@ class NoSMOTE(OverSampling):
 
 class SMOTE(OverSampling):
     """
-    Example:
-            >>> oversampler= smote_variants.SMOTE()
-            >>> X_samp, y_samp= oversampler.sample(X, y)
-
     References:
         * BibTex::
             
@@ -1250,7 +1374,9 @@ class SMOTE(OverSampling):
         Constructor of the SMOTE object
         
         Args:
-            proportion (float): proportion of the difference of n_maj and n_min to sample e.g. 1.0 means that after sampling the number of minority samples will be equal to the number of majority samples
+            proportion (float): proportion of the difference of n_maj and n_min to sample e.g. 1.0 \
+            means that after sampling the number of minority samples will be equal to the number of \
+            majority samples
             n_neighbors (int): control parameter of the nearest neighbor technique
             n_jobs (int): number of parallel jobs
         """
@@ -1268,17 +1394,21 @@ class SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7]})
                 
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -1313,14 +1443,12 @@ class SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_jobs': self.n_jobs}
 
 class SMOTE_TomekLinks(OverSampling):
     """
-    Example:
-        >>> oversampler= smote_variants.SMOTE_TomekLinks()
-        >>> X_samp, y_samp= oversampler.sample(X, y)
-        
     References:
         * BibTex::
             
@@ -1353,8 +1481,11 @@ class SMOTE_TomekLinks(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the SMOTE object
+        
         Args:
-            proportion (float): proportion of the difference of n_maj and n_min to sample e.g. 1.0 means that after sampling the number of minority samples will be equal to the number of majority samples
+            proportion (float): proportion of the difference of n_maj and n_min to \
+            sample e.g. 1.0 means that after sampling the number of minority samples \
+            will be equal to the number of majority samples
             n_neighbors (int): control parameter of the nearest neighbor technique
             n_jobs (int): number of parallel jobs
         """
@@ -1372,6 +1503,7 @@ class SMOTE_TomekLinks(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
@@ -1380,9 +1512,11 @@ class SMOTE_TomekLinks(OverSampling):
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -1402,31 +1536,37 @@ class SMOTE_TomekLinks(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_jobs': self.n_jobs}
     
 class SMOTE_ENN(OverSampling):
     """
-    @article{smote_tomeklinks_enn,
-             author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
-             title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
-             journal = {SIGKDD Explor. Newsl.},
-             issue_date = {June 2004},
-             volume = {6},
-             number = {1},
-             month = jun,
-             year = {2004},
-             issn = {1931-0145},
-             pages = {20--29},
-             numpages = {10},
-             url = {http://doi.acm.org/10.1145/1007730.1007735},
-             doi = {10.1145/1007730.1007735},
-             acmid = {1007735},
-             publisher = {ACM},
-             address = {New York, NY, USA},
-            } 
-    URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
-    
-    Can remove too many of minority samples.
+    References:
+        * BibTex::
+            
+            @article{smote_tomeklinks_enn,
+                     author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
+                     title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
+                     journal = {SIGKDD Explor. Newsl.},
+                     issue_date = {June 2004},
+                     volume = {6},
+                     number = {1},
+                     month = jun,
+                     year = {2004},
+                     issn = {1931-0145},
+                     pages = {20--29},
+                     numpages = {10},
+                     url = {http://doi.acm.org/10.1145/1007730.1007735},
+                     doi = {10.1145/1007730.1007735},
+                     acmid = {1007735},
+                     publisher = {ACM},
+                     address = {New York, NY, USA},
+                    } 
+            
+        * URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
+    Notes:
+        * Can remove too many of minority samples.
     """
     
     categories= [OverSampling.cat_sample_ordinary,
@@ -1436,6 +1576,7 @@ class SMOTE_ENN(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the SMOTE object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -1457,6 +1598,7 @@ class SMOTE_ENN(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
@@ -1465,9 +1607,11 @@ class SMOTE_ENN(OverSampling):
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -1487,26 +1631,32 @@ class SMOTE_ENN(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_jobs': self.n_jobs}
 
 class Borderline_SMOTE1(OverSampling):
     """
-    @InProceedings{borderline_SMOTE,
-                    author="Han, Hui
-                    and Wang, Wen-Yuan
-                    and Mao, Bing-Huan",
-                    editor="Huang, De-Shuang
-                    and Zhang, Xiao-Ping
-                    and Huang, Guang-Bin",
-                    title="Borderline-SMOTE: A New Over-Sampling Method in Imbalanced Data Sets Learning",
-                    booktitle="Advances in Intelligent Computing",
-                    year="2005",
-                    publisher="Springer Berlin Heidelberg",
-                    address="Berlin, Heidelberg",
-                    pages="878--887",
-                    isbn="978-3-540-31902-3"
-                    }
-    URL: https://drive.google.com/open?id=1dlG3wtxMIuiWgmd08nP9KN-Wq7dXTReb
+    References:
+        * BibTex::
+            
+            @InProceedings{borderline_SMOTE,
+                            author="Han, Hui
+                            and Wang, Wen-Yuan
+                            and Mao, Bing-Huan",
+                            editor="Huang, De-Shuang
+                            and Zhang, Xiao-Ping
+                            and Huang, Guang-Bin",
+                            title="Borderline-SMOTE: A New Over-Sampling Method in Imbalanced Data Sets Learning",
+                            booktitle="Advances in Intelligent Computing",
+                            year="2005",
+                            publisher="Springer Berlin Heidelberg",
+                            address="Berlin, Heidelberg",
+                            pages="878--887",
+                            isbn="978-3-540-31902-3"
+                            }
+            
+        * URL: https://drive.google.com/open?id=1dlG3wtxMIuiWgmd08nP9KN-Wq7dXTReb
     """
     
     categories= [OverSampling.cat_sample_ordinary,
@@ -1516,6 +1666,7 @@ class Borderline_SMOTE1(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, k_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -1539,17 +1690,22 @@ class Borderline_SMOTE1(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'k_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'k_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -1599,26 +1755,33 @@ class Borderline_SMOTE1(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'k_neighbors': self.k_neighbors, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'k_neighbors': self.k_neighbors, 
+                'n_jobs': self.n_jobs}
     
 class Borderline_SMOTE2(OverSampling):
     """
-    @InProceedings{borderline_SMOTE,
-                    author="Han, Hui
-                    and Wang, Wen-Yuan
-                    and Mao, Bing-Huan",
-                    editor="Huang, De-Shuang
-                    and Zhang, Xiao-Ping
-                    and Huang, Guang-Bin",
-                    title="Borderline-SMOTE: A New Over-Sampling Method in Imbalanced Data Sets Learning",
-                    booktitle="Advances in Intelligent Computing",
-                    year="2005",
-                    publisher="Springer Berlin Heidelberg",
-                    address="Berlin, Heidelberg",
-                    pages="878--887",
-                    isbn="978-3-540-31902-3"
-                    }
-    URL: https://drive.google.com/open?id=1dlG3wtxMIuiWgmd08nP9KN-Wq7dXTReb
+    References:
+        * BibTex::
+            
+            @InProceedings{borderline_SMOTE,
+                            author="Han, Hui
+                            and Wang, Wen-Yuan
+                            and Mao, Bing-Huan",
+                            editor="Huang, De-Shuang
+                            and Zhang, Xiao-Ping
+                            and Huang, Guang-Bin",
+                            title="Borderline-SMOTE: A New Over-Sampling Method in Imbalanced Data Sets Learning",
+                            booktitle="Advances in Intelligent Computing",
+                            year="2005",
+                            publisher="Springer Berlin Heidelberg",
+                            address="Berlin, Heidelberg",
+                            pages="878--887",
+                            isbn="978-3-540-31902-3"
+                            }
+            
+        * URL: https://drive.google.com/open?id=1dlG3wtxMIuiWgmd08nP9KN-Wq7dXTReb
     """
     
     categories= [OverSampling.cat_sample_ordinary,
@@ -1628,6 +1791,7 @@ class Borderline_SMOTE2(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, k_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -1652,17 +1816,22 @@ class Borderline_SMOTE2(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'k_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'k_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -1718,18 +1887,25 @@ class Borderline_SMOTE2(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'k_neighbors': self.k_neighbors, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'k_neighbors': self.k_neighbors, 
+                'n_jobs': self.n_jobs}
 
 class ADASYN(OverSampling):
     """
-    @inproceedings{adasyn,
-                  author={H. He and Y. Bai and E. A. Garcia and S. Li},
-                  title={{ADASYN}: adaptive synthetic sampling approach for imbalanced learning},
-                  booktitle={Proceedings of IJCNN},
-                  year={2008},
-                  pages={1322--1328}
-                }
-    URL: https://drive.google.com/open?id=1CiybjtmNVe4wo3t36VG82lB10IBmjv17
+    References:
+        * BibTex::
+            
+            @inproceedings{adasyn,
+                          author={H. He and Y. Bai and E. A. Garcia and S. Li},
+                          title={{ADASYN}: adaptive synthetic sampling approach for imbalanced learning},
+                          booktitle={Proceedings of IJCNN},
+                          year={2008},
+                          pages={1322--1328}
+                        }
+        
+        * URL: https://drive.google.com/open?id=1CiybjtmNVe4wo3t36VG82lB10IBmjv17
     """
     
     categories= [OverSampling.cat_sample_ordinary,
@@ -1740,6 +1916,7 @@ class ADASYN(OverSampling):
     def __init__(self, n_neighbors= 5, d_th= 0.9, beta= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             n_neighbors (int): control parameter of the nearest neighbor component
             d_th (float): tolerated deviation level from balancedness
@@ -1762,17 +1939,22 @@ class ADASYN(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'n_neighbors': [3, 5, 7, 9], 'd_th': [0.9], 'beta': [1.0, 0.75, 0.5, 0.25]})
+        return cls.generate_parameter_combinations({'n_neighbors': [3, 5, 7, 9], 
+                                                    'd_th': [0.9], 
+                                                    'beta': [1.0, 0.75, 0.5, 0.25]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -1823,25 +2005,32 @@ class ADASYN(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'n_neighbors': self.n_neighbors, 'd_th': self.d_th, 'beta': self.beta, 'n_jobs': self.n_jobs}
+        return {'n_neighbors': self.n_neighbors, 
+                'd_th': self.d_th, 
+                'beta': self.beta, 
+                'n_jobs': self.n_jobs}
     
 class AHC(OverSampling):
     """
-    @article{AHC,
-            title = "Learning from imbalanced data in surveillance of nosocomial infection",
-            journal = "Artificial Intelligence in Medicine",
-            volume = "37",
-            number = "1",
-            pages = "7 - 18",
-            year = "2006",
-            note = "Intelligent Data Analysis in Medicine",
-            issn = "0933-3657",
-            doi = "https://doi.org/10.1016/j.artmed.2005.03.002",
-            url = "http://www.sciencedirect.com/science/article/pii/S0933365705000850",
-            author = "Gilles Cohen and Mélanie Hilario and Hugo Sax and Stéphane Hugonnet and Antoine Geissbuhler",
-            keywords = "Nosocomial infection, Machine learning, Support vector machines, Data imbalance"
-            }
-    URL: https://drive.google.com/open?id=1APnBwng3-AZofx3FxMaKnR-Su-6ItDUM
+    References:
+        * BibTex::
+            
+            @article{AHC,
+                    title = "Learning from imbalanced data in surveillance of nosocomial infection",
+                    journal = "Artificial Intelligence in Medicine",
+                    volume = "37",
+                    number = "1",
+                    pages = "7 - 18",
+                    year = "2006",
+                    note = "Intelligent Data Analysis in Medicine",
+                    issn = "0933-3657",
+                    doi = "https://doi.org/10.1016/j.artmed.2005.03.002",
+                    url = "http://www.sciencedirect.com/science/article/pii/S0933365705000850",
+                    author = "Gilles Cohen and Mélanie Hilario and Hugo Sax and Stéphane Hugonnet and Antoine Geissbuhler",
+                    keywords = "Nosocomial infection, Machine learning, Support vector machines, Data imbalance"
+                    }
+    
+        * URL: https://drive.google.com/open?id=1APnBwng3-AZofx3FxMaKnR-Su-6ItDUM
     """
     
     categories= [OverSampling.cat_changes_majority,
@@ -1851,6 +2040,7 @@ class AHC(OverSampling):
     def __init__(self, strategy= 'min', n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             strategy (str): which class to sample (min/maj/minmaj)
             n_jobs (int): number of parallel jobs
@@ -1866,6 +2056,7 @@ class AHC(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
@@ -1874,9 +2065,11 @@ class AHC(OverSampling):
     def sample_majority(self, X, n_clusters):
         """
         Sample the majority class
+        
         Args:
             X (np.ndarray): majority samples
             n_clusters (int): number of clusters to find
+            
         Returns:
             np.ndarray: downsampled vectors
         """
@@ -1887,8 +2080,10 @@ class AHC(OverSampling):
     def sample_minority(self, X):
         """
         Sampling the minority class
+        
         Args:
             X (np.ndarray): minority samples
+            
         Returns:
             np.ndarray: the oversampled set of vectors
         """
@@ -1902,11 +2097,13 @@ class AHC(OverSampling):
         def cluster_centers(children, i, cc, weights):
             """
             Extract cluster centers
+            
             Args:
                 children (np.array): indices of children
                 i (int): index to process
                 cc (np.array): cluster centers
                 weights (np.array): cluster weights
+                
             Returns:
                 int, float: new cluster center, new weight
             """
@@ -1928,9 +2125,11 @@ class AHC(OverSampling):
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -1958,25 +2157,31 @@ class AHC(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'strategy': self.strategy, 'n_jobs': self.n_jobs}
+        return {'strategy': self.strategy, 
+                'n_jobs': self.n_jobs}
 
 class LLE_SMOTE(OverSampling):
     """
-    @INPROCEEDINGS{lle_smote, 
-                    author={J. Wang and M. Xu and H. Wang and J. Zhang}, 
-                    booktitle={2006 8th international Conference on Signal Processing}, 
-                    title={Classification of Imbalanced Data by Using the SMOTE Algorithm and Locally Linear Embedding}, 
-                    year={2006}, 
-                    volume={3}, 
-                    number={}, 
-                    pages={}, 
-                    keywords={artificial intelligence;biomedical imaging;medical computing;imbalanced data classification;SMOTE algorithm;locally linear embedding;medical imaging intelligence;synthetic minority oversampling technique;high-dimensional data;low-dimensional space;Biomedical imaging;Back;Training data;Data mining;Biomedical engineering;Research and development;Electronic mail;Pattern recognition;Performance analysis;Classification algorithms}, 
-                    doi={10.1109/ICOSP.2006.345752}, 
-                    ISSN={2164-5221}, 
-                    month={Nov},}
-    URL: https://drive.google.com/open?id=1gCPLdTq_5mhF5cKGSmJdkPzhw2GY2SWs
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{lle_smote, 
+                            author={J. Wang and M. Xu and H. Wang and J. Zhang}, 
+                            booktitle={2006 8th international Conference on Signal Processing}, 
+                            title={Classification of Imbalanced Data by Using the SMOTE Algorithm and Locally Linear Embedding}, 
+                            year={2006}, 
+                            volume={3}, 
+                            number={}, 
+                            pages={}, 
+                            keywords={artificial intelligence;biomedical imaging;medical computing;imbalanced data classification;SMOTE algorithm;locally linear embedding;medical imaging intelligence;synthetic minority oversampling technique;high-dimensional data;low-dimensional space;Biomedical imaging;Back;Training data;Data mining;Biomedical engineering;Research and development;Electronic mail;Pattern recognition;Performance analysis;Classification algorithms}, 
+                            doi={10.1109/ICOSP.2006.345752}, 
+                            ISSN={2164-5221}, 
+                            month={Nov}}
+            
+        * URL: https://drive.google.com/open?id=1gCPLdTq_5mhF5cKGSmJdkPzhw2GY2SWs
     
-    There might be numerical issues if the nearest neighbors contain some element multiple times.
+    Notes:
+        * There might be numerical issues if the nearest neighbors contain some element multiple times.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -1985,6 +2190,7 @@ class LLE_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_components= 2, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -2008,17 +2214,22 @@ class LLE_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'n_components': [2, 3, 5]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'n_components': [2, 3, 5]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -2047,9 +2258,11 @@ class LLE_SMOTE(OverSampling):
         def solve_for_weights(xi, Z):
             """
             Solve for locally linear embedding weights
+            
             Args:
                 xi (np.array): vector
                 Z (np.matrix): matrix of neighbors in rows
+                
             Returns:
                 np.array: reconstruction weights
                 
@@ -2082,21 +2295,29 @@ class LLE_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_components': self.n_components, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_components': self.n_components, 
+                'n_jobs': self.n_jobs}
 
 class distance_SMOTE(OverSampling):
     """
-    @INPROCEEDINGS{distance_smote, 
-                    author={de la Calleja, J. and Fuentes, O.}, 
-                    booktitle={Proceedings of the Twentieth International Florida Artificial Intelligence}, 
-                    title={A distance-based over-sampling method for learning from imbalanced data sets}, 
-                    year={2007}, 
-                    volume={3}, 
-                    pages={634--635}
-                    }
-    URL: https://drive.google.com/open?id=1O7tGVLXdZwC8N1TxGblw0J8n70FYspDc
-    
-    It is not clear what the authors mean by "weighted distance".
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{distance_smote, 
+                            author={de la Calleja, J. and Fuentes, O.}, 
+                            booktitle={Proceedings of the Twentieth International Florida Artificial Intelligence}, 
+                            title={A distance-based over-sampling method for learning from imbalanced data sets}, 
+                            year={2007}, 
+                            volume={3}, 
+                            pages={634--635}
+                            }
+            
+        * URL: https://drive.google.com/open?id=1O7tGVLXdZwC8N1TxGblw0J8n70FYspDc
+        
+    Notes:
+        * It is not clear what the authors mean by "weighted distance".
     """ 
     
     categories= [OverSampling.cat_extensive,
@@ -2105,6 +2326,7 @@ class distance_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -2125,17 +2347,21 @@ class distance_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -2166,24 +2392,30 @@ class distance_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_jobs': self.n_jobs}
 
 class SMMO(OverSampling):
     """
-    @unknown{smmo,
-            author = {de la Calleja, Jorge and Fuentes, Olac and González, Jesús},
-            booktitle= {Proceedings of the Twenty-First International Florida Artificial Intelligence Research Society Conference},
-            year = {2008},
-            month = {01},
-            pages = {276-281},
-            title = {Selecting Minority Examples from Misclassified Data for Over-Sampling.}
-            }
-    URL: https://drive.google.com/open?id=1hPEez2lVZ9wVV4dZjZQgK0lcl_jNt59g
+    References:
+        * BibTex::
+            
+            @InProceedings{smmo,
+                            author = {de la Calleja, Jorge and Fuentes, Olac and González, Jesús},
+                            booktitle= {Proceedings of the Twenty-First International Florida Artificial Intelligence Research Society Conference},
+                            year = {2008},
+                            month = {01},
+                            pages = {276-281},
+                            title = {Selecting Minority Examples from Misclassified Data for Over-Sampling.}
+                            }
+            
+        * URL: https://drive.google.com/open?id=1hPEez2lVZ9wVV4dZjZQgK0lcl_jNt59g
     
-    In this implementation the ensemble is not specified. I have selected some
-    very fast, basic classifiers.
-    Also, it is not clear what the authors mean by "weighted distance".
-    Not prepared for the case when no minority samples are classified correctly be the ensemble.
+    Notes:
+        * In this implementation the ensemble is not specified. I have selected some very fast, basic classifiers.
+        * Also, it is not clear what the authors mean by "weighted distance".
+        * The original technique is not prepared for the case when no minority samples are classified correctly be the ensemble.
     """
     
     categories= [OverSampling.cat_borderline,
@@ -2193,6 +2425,7 @@ class SMMO(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, ensemble= [QuadraticDiscriminantAnalysis(), DecisionTreeClassifier(), GaussianNB()], n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -2221,17 +2454,22 @@ class SMMO(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'ensemble': [[QuadraticDiscriminantAnalysis(), DecisionTreeClassifier(), GaussianNB()]]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'ensemble': [[QuadraticDiscriminantAnalysis(), DecisionTreeClassifier(), GaussianNB()]]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -2278,23 +2516,30 @@ class SMMO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'ensemble': self.ensemble, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'ensemble': self.ensemble, 
+                'n_jobs': self.n_jobs}
 
 class polynom_fit_SMOTE(OverSampling):
     """
-    @INPROCEEDINGS{polynomial_fit_smote, 
-                    author={S. Gazzah and N. E. B. Amara}, 
-                    booktitle={2008 The Eighth IAPR International Workshop on Document Analysis Systems}, 
-                    title={New Oversampling Approaches Based on Polynomial Fitting for Imbalanced Data Sets}, 
-                    year={2008}, 
-                    volume={}, 
-                    number={}, 
-                    pages={677-684}, 
-                    keywords={curve fitting;learning (artificial intelligence);mesh generation;pattern classification;polynomials;sampling methods;support vector machines;oversampling approach;polynomial fitting function;imbalanced data set;pattern classification task;class-modular strategy;support vector machine;true negative rate;true positive rate;star topology;bus topology;polynomial curve topology;mesh topology;Polynomials;Topology;Support vector machines;Support vector machine classification;Pattern classification;Performance evaluation;Training data;Text analysis;Data engineering;Convergence;writer identification system;majority class;minority class;imbalanced data sets;polynomial fitting functions;class-modular strategy}, 
-                    doi={10.1109/DAS.2008.74}, 
-                    ISSN={}, 
-                    month={Sept},}
-    URL: https://drive.google.com/open?id=1WkGbFBqCV8vnUh7yM97kO6EPlEgkC51P
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{polynomial_fit_smote, 
+                            author={S. Gazzah and N. E. B. Amara}, 
+                            booktitle={2008 The Eighth IAPR International Workshop on Document Analysis Systems}, 
+                            title={New Oversampling Approaches Based on Polynomial Fitting for Imbalanced Data Sets}, 
+                            year={2008}, 
+                            volume={}, 
+                            number={}, 
+                            pages={677-684}, 
+                            keywords={curve fitting;learning (artificial intelligence);mesh generation;pattern classification;polynomials;sampling methods;support vector machines;oversampling approach;polynomial fitting function;imbalanced data set;pattern classification task;class-modular strategy;support vector machine;true negative rate;true positive rate;star topology;bus topology;polynomial curve topology;mesh topology;Polynomials;Topology;Support vector machines;Support vector machine classification;Pattern classification;Performance evaluation;Training data;Text analysis;Data engineering;Convergence;writer identification system;majority class;minority class;imbalanced data sets;polynomial fitting functions;class-modular strategy}, 
+                            doi={10.1109/DAS.2008.74}, 
+                            ISSN={}, 
+                            month={Sept},}
+            
+        * URL: https://drive.google.com/open?id=1WkGbFBqCV8vnUh7yM97kO6EPlEgkC51P
     """
     
     categories= [OverSampling.cat_extensive]
@@ -2302,6 +2547,7 @@ class polynom_fit_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, topology= 'star'):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -2322,17 +2568,21 @@ class polynom_fit_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'topology': ['star', 'bus', 'mesh', 'poly_1', 'poly_2', 'poly_3']})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'topology': ['star', 'bus', 'mesh', 'poly_1', 'poly_2', 'poly_3']})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -2393,28 +2643,32 @@ class polynom_fit_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'topology': self.topology}
+        return {'proportion': self.proportion, 
+                'topology': self.topology}
     
 class Stefanowski(OverSampling):
     """
-    @inproceedings{stefanowski,
-         author = {Stefanowski, Jerzy and Wilk, Szymon},
-         title = {Selective Pre-processing of Imbalanced Data for Improving Classification Performance},
-         booktitle = {Proceedings of the 10th International Conference on Data Warehousing and Knowledge Discovery},
-         series = {DaWaK '08},
-         year = {2008},
-         isbn = {978-3-540-85835-5},
-         location = {Turin, Italy},
-         pages = {283--292},
-         numpages = {10},
-         url = {http://dx.doi.org/10.1007/978-3-540-85836-2_27},
-         doi = {10.1007/978-3-540-85836-2_27},
-         acmid = {1430591},
-         publisher = {Springer-Verlag},
-         address = {Berlin, Heidelberg},
-        } 
+    References:
+        * BibTex::
+            
+            @inproceedings{stefanowski,
+                 author = {Stefanowski, Jerzy and Wilk, Szymon},
+                 title = {Selective Pre-processing of Imbalanced Data for Improving Classification Performance},
+                 booktitle = {Proceedings of the 10th International Conference on Data Warehousing and Knowledge Discovery},
+                 series = {DaWaK '08},
+                 year = {2008},
+                 isbn = {978-3-540-85835-5},
+                 location = {Turin, Italy},
+                 pages = {283--292},
+                 numpages = {10},
+                 url = {http://dx.doi.org/10.1007/978-3-540-85836-2_27},
+                 doi = {10.1007/978-3-540-85836-2_27},
+                 acmid = {1430591},
+                 publisher = {Springer-Verlag},
+                 address = {Berlin, Heidelberg},
+                } 
 
-    URL: https://drive.google.com/open?id=1MMrk-QnEfr0SUgptQkRl7Abbmh9ZncpD
+        * URL: https://drive.google.com/open?id=1MMrk-QnEfr0SUgptQkRl7Abbmh9ZncpD
     """
     
     categories= [OverSampling.cat_changes_majority,
@@ -2425,6 +2679,7 @@ class Stefanowski(OverSampling):
     def __init__(self, strategy= 'weak_amp', n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             strategy (str): 'weak_amp'/'weak_amp_relabel'/'strong_amp'
             n_jobs (int): number of parallel jobs
@@ -2441,6 +2696,7 @@ class Stefanowski(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
@@ -2449,9 +2705,11 @@ class Stefanowski(OverSampling):
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+        
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -2535,23 +2793,28 @@ class Stefanowski(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'strategy': self.strategy, 'n_jobs': self.n_jobs}
+        return {'strategy': self.strategy, 
+                'n_jobs': self.n_jobs}
 
 class ADOMS(OverSampling):
     """
-    @INPROCEEDINGS{adoms, 
-                    author={S. Tang and S. Chen}, 
-                    booktitle={2008 International Conference on Information Technology and Applications in Biomedicine}, 
-                    title={The generation mechanism of synthetic minority class examples}, 
-                    year={2008}, 
-                    volume={}, 
-                    number={}, 
-                    pages={444-447}, 
-                    keywords={medical image processing;generation mechanism;synthetic minority class examples;class imbalance problem;medical image analysis;oversampling algorithm;Principal component analysis;Biomedical imaging;Medical diagnostic imaging;Information technology;Biomedical engineering;Noise generators;Concrete;Nearest neighbor searches;Data analysis;Image analysis}, 
-                    doi={10.1109/ITAB.2008.4570642}, 
-                    ISSN={2168-2194}, 
-                    month={May}}
-    URL: https://drive.google.com/open?id=1NHrfqf9tPYwdOMTd7gQAl49Z8Mppwv_n
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{adoms, 
+                            author={S. Tang and S. Chen}, 
+                            booktitle={2008 International Conference on Information Technology and Applications in Biomedicine}, 
+                            title={The generation mechanism of synthetic minority class examples}, 
+                            year={2008}, 
+                            volume={}, 
+                            number={}, 
+                            pages={444-447}, 
+                            keywords={medical image processing;generation mechanism;synthetic minority class examples;class imbalance problem;medical image analysis;oversampling algorithm;Principal component analysis;Biomedical imaging;Medical diagnostic imaging;Information technology;Biomedical engineering;Noise generators;Concrete;Nearest neighbor searches;Data analysis;Image analysis}, 
+                            doi={10.1109/ITAB.2008.4570642}, 
+                            ISSN={2168-2194}, 
+                            month={May}}
+    
+        * URL: https://drive.google.com/open?id=1NHrfqf9tPYwdOMTd7gQAl49Z8Mppwv_n
     """
     
     categories= [OverSampling.cat_dim_reduction,
@@ -2560,6 +2823,7 @@ class ADOMS(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -2580,17 +2844,21 @@ class ADOMS(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -2634,30 +2902,37 @@ class ADOMS(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_jobs': self.n_jobs}
 
 class Safe_Level_SMOTE(OverSampling):
     """
-    @inproceedings{safe_level_smote,
-                 author = {Bunkhumpornpat, Chumphol and Sinapiromsaran, Krung and Lursinsap, Chidchanok},
-                 title = {Safe-Level-SMOTE: Safe-Level-Synthetic Minority Over-Sampling TEchnique for Handling the Class Imbalanced Problem},
-                 booktitle = {Proceedings of the 13th Pacific-Asia Conference on Advances in Knowledge Discovery and Data Mining},
-                 series = {PAKDD '09},
-                 year = {2009},
-                 isbn = {978-3-642-01306-5},
-                 location = {Bangkok, Thailand},
-                 pages = {475--482},
-                 numpages = {8},
-                 url = {http://dx.doi.org/10.1007/978-3-642-01307-2_43},
-                 doi = {10.1007/978-3-642-01307-2_43},
-                 acmid = {1533904},
-                 publisher = {Springer-Verlag},
-                 address = {Berlin, Heidelberg},
-                 keywords = {Class Imbalanced Problem, Over-sampling, SMOTE, Safe Level},
-                } 
-    URL: https://drive.google.com/open?id=18XNDTxIYeQ9GMocEXU_-zyj3W_5ovplR
-    
-    Not prepared for the case when no minority sample has minority neighbors.
+    References:
+        * BibTex::
+            
+            @inproceedings{safe_level_smote,
+                         author = {Bunkhumpornpat, Chumphol and Sinapiromsaran, Krung and Lursinsap, Chidchanok},
+                         title = {Safe-Level-SMOTE: Safe-Level-Synthetic Minority Over-Sampling TEchnique for Handling the Class Imbalanced Problem},
+                         booktitle = {Proceedings of the 13th Pacific-Asia Conference on Advances in Knowledge Discovery and Data Mining},
+                         series = {PAKDD '09},
+                         year = {2009},
+                         isbn = {978-3-642-01306-5},
+                         location = {Bangkok, Thailand},
+                         pages = {475--482},
+                         numpages = {8},
+                         url = {http://dx.doi.org/10.1007/978-3-642-01307-2_43},
+                         doi = {10.1007/978-3-642-01307-2_43},
+                         acmid = {1533904},
+                         publisher = {Springer-Verlag},
+                         address = {Berlin, Heidelberg},
+                         keywords = {Class Imbalanced Problem, Over-sampling, SMOTE, Safe Level},
+                        } 
+            
+        * URL: https://drive.google.com/open?id=18XNDTxIYeQ9GMocEXU_-zyj3W_5ovplR
+        
+    Notes:
+        * The original method was not prepared for the case when no minority sample has minority neighbors.
     """
     
     categories= [OverSampling.cat_borderline,
@@ -2667,6 +2942,7 @@ class Safe_Level_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -2688,17 +2964,21 @@ class Safe_Level_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7]})
         
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -2766,29 +3046,36 @@ class Safe_Level_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_jobs': self.n_jobs}
 
 class MSMOTE(OverSampling):
     """
-    @inproceedings{msmote,
-                     author = {Hu, Shengguo and Liang, Yanfeng and Ma, Lintao and He, Ying},
-                     title = {MSMOTE: Improving Classification Performance When Training Data is Imbalanced},
-                     booktitle = {Proceedings of the 2009 Second International Workshop on Computer Science and Engineering - Volume 02},
-                     series = {IWCSE '09},
-                     year = {2009},
-                     isbn = {978-0-7695-3881-5},
-                     pages = {13--17},
-                     numpages = {5},
-                     url = {https://doi.org/10.1109/WCSE.2009.756},
-                     doi = {10.1109/WCSE.2009.756},
-                     acmid = {1682710},
-                     publisher = {IEEE Computer Society},
-                     address = {Washington, DC, USA},
-                     keywords = {imbalanced data, over-sampling, SMOTE, AdaBoost, samples groups, SMOTEBoost},
-                    } 
-    URL: https://drive.google.com/open?id=1tFtNJWUSIYDKnhBAdb6QqIhYqy-khIxa
+    References:
+        * BibTex::
+            
+            @inproceedings{msmote,
+                             author = {Hu, Shengguo and Liang, Yanfeng and Ma, Lintao and He, Ying},
+                             title = {MSMOTE: Improving Classification Performance When Training Data is Imbalanced},
+                             booktitle = {Proceedings of the 2009 Second International Workshop on Computer Science and Engineering - Volume 02},
+                             series = {IWCSE '09},
+                             year = {2009},
+                             isbn = {978-0-7695-3881-5},
+                             pages = {13--17},
+                             numpages = {5},
+                             url = {https://doi.org/10.1109/WCSE.2009.756},
+                             doi = {10.1109/WCSE.2009.756},
+                             acmid = {1682710},
+                             publisher = {IEEE Computer Society},
+                             address = {Washington, DC, USA},
+                             keywords = {imbalanced data, over-sampling, SMOTE, AdaBoost, samples groups, SMOTEBoost},
+                            } 
     
-    Not prepared for the case when all minority samples are noise.
+        * URL: https://drive.google.com/open?id=1tFtNJWUSIYDKnhBAdb6QqIhYqy-khIxa
+    
+    Notes:
+        * The original method was not prepared for the case when all minority samples are noise.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -2798,6 +3085,7 @@ class MSMOTE(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -2819,17 +3107,21 @@ class MSMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7]})
         
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -2883,23 +3175,29 @@ class MSMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_jobs': self.n_jobs}
 
 class DE_oversampling(OverSampling):
     """
-    @INPROCEEDINGS{de_oversampling, 
-                    author={L. Chen and Z. Cai and L. Chen and Q. Gu}, 
-                    booktitle={2010 Third International Conference on Knowledge Discovery and Data Mining}, 
-                    title={A Novel Differential Evolution-Clustering Hybrid Resampling Algorithm on Imbalanced Datasets}, 
-                    year={2010}, 
-                    volume={}, 
-                    number={}, 
-                    pages={81-85}, 
-                    keywords={pattern clustering;sampling methods;support vector machines;differential evolution;clustering algorithm;hybrid resampling algorithm;imbalanced datasets;support vector machine;minority class;mutation operators;crossover operators;data cleaning method;F-measure criterion;ROC area criterion;Support vector machines;Intrusion detection;Support vector machine classification;Cleaning;Electronic mail;Clustering algorithms;Signal to noise ratio;Learning systems;Data mining;Geology;imbalanced datasets;hybrid resampling;clustering;differential evolution;support vector machine}, 
-                    doi={10.1109/WKDD.2010.48}, 
-                    ISSN={}, 
-                    month={Jan},}
-    URL: https://drive.google.com/open?id=1LyfMvSdFqscupz4AADXV4GW-K8T3olwK
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{de_oversampling, 
+                            author={L. Chen and Z. Cai and L. Chen and Q. Gu}, 
+                            booktitle={2010 Third International Conference on Knowledge Discovery and Data Mining}, 
+                            title={A Novel Differential Evolution-Clustering Hybrid Resampling Algorithm on Imbalanced Datasets}, 
+                            year={2010}, 
+                            volume={}, 
+                            number={}, 
+                            pages={81-85}, 
+                            keywords={pattern clustering;sampling methods;support vector machines;differential evolution;clustering algorithm;hybrid resampling algorithm;imbalanced datasets;support vector machine;minority class;mutation operators;crossover operators;data cleaning method;F-measure criterion;ROC area criterion;Support vector machines;Intrusion detection;Support vector machine classification;Cleaning;Electronic mail;Clustering algorithms;Signal to noise ratio;Learning systems;Data mining;Geology;imbalanced datasets;hybrid resampling;clustering;differential evolution;support vector machine}, 
+                            doi={10.1109/WKDD.2010.48}, 
+                            ISSN={}, 
+                            month={Jan},}
+    
+        * URL: https://drive.google.com/open?id=1LyfMvSdFqscupz4AADXV4GW-K8T3olwK
     """
     
     categories= [OverSampling.cat_changes_majority,
@@ -2908,6 +3206,7 @@ class DE_oversampling(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, crossover_rate= 0.5, similarity_threshold= 0.5, n_clusters= 30, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -2937,6 +3236,7 @@ class DE_oversampling(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
@@ -2949,9 +3249,11 @@ class DE_oversampling(OverSampling):
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -3033,7 +3335,11 @@ class DE_oversampling(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'crossover_rate': self.crossover_rate, 'similarity_threshold': self.similarity_threshold, 'n_clusters': self.n_clusters, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'crossover_rate': self.crossover_rate, 
+                'similarity_threshold': self.similarity_threshold, 
+                'n_clusters': self.n_clusters, 'n_jobs': self.n_jobs}
 
 # Borrowed from sklearn-dev, will be removed once the sklearn implementation
 # becomes stable
@@ -3183,19 +3489,23 @@ class OPTICS:
 
 class SMOBD(OverSampling):
     """
-    @INPROCEEDINGS{smobd, 
-                    author={Q. Cao and S. Wang}, 
-                    booktitle={2011 International Conference on Information Management, Innovation Management and Industrial Engineering}, 
-                    title={Applying Over-sampling Technique Based on Data Density and Cost-sensitive SVM to Imbalanced Learning}, 
-                    year={2011}, 
-                    volume={2}, 
-                    number={}, 
-                    pages={543-548}, 
-                    keywords={data handling;learning (artificial intelligence);support vector machines;oversampling technique application;data density;cost sensitive SVM;imbalanced learning;SMOTE algorithm;data distribution;density information;Support vector machines;Classification algorithms;Noise measurement;Arrays;Noise;Algorithm design and analysis;Training;imbalanced learning;cost-sensitive SVM;SMOTE;data density;SMOBD}, 
-                    doi={10.1109/ICIII.2011.276}, 
-                    ISSN={2155-1456}, 
-                    month={Nov},}
-    URL: https://drive.google.com/open?id=1jQGTZli3D2RB3y2oe50hwFzo0q6y73FI
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{smobd, 
+                            author={Q. Cao and S. Wang}, 
+                            booktitle={2011 International Conference on Information Management, Innovation Management and Industrial Engineering}, 
+                            title={Applying Over-sampling Technique Based on Data Density and Cost-sensitive SVM to Imbalanced Learning}, 
+                            year={2011}, 
+                            volume={2}, 
+                            number={}, 
+                            pages={543-548}, 
+                            keywords={data handling;learning (artificial intelligence);support vector machines;oversampling technique application;data density;cost sensitive SVM;imbalanced learning;SMOTE algorithm;data distribution;density information;Support vector machines;Classification algorithms;Noise measurement;Arrays;Noise;Algorithm design and analysis;Training;imbalanced learning;cost-sensitive SVM;SMOTE;data density;SMOBD}, 
+                            doi={10.1109/ICIII.2011.276}, 
+                            ISSN={2155-1456}, 
+                            month={Nov},}
+    
+        * URL: https://drive.google.com/open?id=1jQGTZli3D2RB3y2oe50hwFzo0q6y73FI
     """
     
     categories= [OverSampling.cat_uses_clustering,
@@ -3206,6 +3516,7 @@ class SMOBD(OverSampling):
     def __init__(self, proportion= 1.0, eta1= 0.5, t= 1.8, min_samples= 5, max_eps= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -3235,17 +3546,24 @@ class SMOBD(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'eta1': [0.1, 0.5, 0.9], 't': [1.5, 2.5], 'min_samples': [5], 'max_eps': [0.1, 0.5, 1.0, 2.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'eta1': [0.1, 0.5, 0.9], 
+                                                    't': [1.5, 2.5], 
+                                                    'min_samples': [5], 
+                                                    'max_eps': [0.1, 0.5, 1.0, 2.0]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -3306,23 +3624,32 @@ class SMOBD(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'eta1': self.eta1, 't': self.t, 'min_samples': self.min_samples, 'max_eps': self.max_eps, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'eta1': self.eta1, 
+                't': self.t, 
+                'min_samples': self.min_samples, 
+                'max_eps': self.max_eps, 
+                'n_jobs': self.n_jobs}
 
 class SUNDO(OverSampling):
     """
-    @INPROCEEDINGS{sundo, 
-                    author={S. Cateni and V. Colla and M. Vannucci}, 
-                    booktitle={2011 11th International Conference on Intelligent Systems Design and Applications}, 
-                    title={Novel resampling method for the classification of imbalanced datasets for industrial and other real-world problems}, 
-                    year={2011}, 
-                    volume={}, 
-                    number={}, 
-                    pages={402-407}, 
-                    keywords={decision trees;pattern classification;sampling methods;support vector machines;resampling method;imbalanced dataset classification;industrial problem;real world problem;oversampling technique;undersampling technique;support vector machine;decision tree;binary classification;synthetic dataset;public dataset;industrial dataset;Support vector machines;Training;Accuracy;Databases;Intelligent systems;Breast cancer;Decision trees;oversampling;undersampling;imbalanced dataset}, 
-                    doi={10.1109/ISDA.2011.6121689}, 
-                    ISSN={2164-7151}, 
-                    month={Nov}}
-    URL: https://drive.google.com/open?id=1lVwDDE-wTx3bsA7HbwyQ2ifRX5BmO8rq
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{sundo, 
+                            author={S. Cateni and V. Colla and M. Vannucci}, 
+                            booktitle={2011 11th International Conference on Intelligent Systems Design and Applications}, 
+                            title={Novel resampling method for the classification of imbalanced datasets for industrial and other real-world problems}, 
+                            year={2011}, 
+                            volume={}, 
+                            number={}, 
+                            pages={402-407}, 
+                            keywords={decision trees;pattern classification;sampling methods;support vector machines;resampling method;imbalanced dataset classification;industrial problem;real world problem;oversampling technique;undersampling technique;support vector machine;decision tree;binary classification;synthetic dataset;public dataset;industrial dataset;Support vector machines;Training;Accuracy;Databases;Intelligent systems;Breast cancer;Decision trees;oversampling;undersampling;imbalanced dataset}, 
+                            doi={10.1109/ISDA.2011.6121689}, 
+                            ISSN={2164-7151}, 
+                            month={Nov}}
+            
+        * URL: https://drive.google.com/open?id=1lVwDDE-wTx3bsA7HbwyQ2ifRX5BmO8rq
     """
     
     categories= [OverSampling.cat_changes_majority,
@@ -3331,6 +3658,7 @@ class SUNDO(OverSampling):
     def __init__(self, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             n_jobs (int): number of parallel jobs
         """
@@ -3344,6 +3672,7 @@ class SUNDO(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
@@ -3352,9 +3681,11 @@ class SUNDO(OverSampling):
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -3433,23 +3764,27 @@ class SUNDO(OverSampling):
 
 class MSYN(OverSampling):
     """
-    @InProceedings{msyn,
-                    author="Fan, Xiannian
-                    and Tang, Ke
-                    and Weise, Thomas",
-                    editor="Huang, Joshua Zhexue
-                    and Cao, Longbing
-                    and Srivastava, Jaideep",
-                    title="Margin-Based Over-Sampling Method for Learning from Imbalanced Datasets",
-                    booktitle="Advances in Knowledge Discovery and Data Mining",
-                    year="2011",
-                    publisher="Springer Berlin Heidelberg",
-                    address="Berlin, Heidelberg",
-                    pages="309--320",
-                    abstract="Learning from imbalanced datasets has drawn more and more attentions from both theoretical and practical aspects. Over- sampling is a popular and simple method for imbalanced learning. In this paper, we show that there is an inherently potential risk associated with the over-sampling algorithms in terms of the large margin principle. Then we propose a new synthetic over sampling method, named Margin-guided Synthetic Over-sampling (MSYN), to reduce this risk. The MSYN improves learning with respect to the data distributions guided by the margin-based rule. Empirical study verities the efficacy of MSYN.",
-                    isbn="978-3-642-20847-8"
-                    }
-    URL: https://drive.google.com/open?id=1i1ah7i4JfSoD8j5AJiP9Lx3-DIniKeYN
+    References:
+        * BibTex::
+            
+            @InProceedings{msyn,
+                            author="Fan, Xiannian
+                            and Tang, Ke
+                            and Weise, Thomas",
+                            editor="Huang, Joshua Zhexue
+                            and Cao, Longbing
+                            and Srivastava, Jaideep",
+                            title="Margin-Based Over-Sampling Method for Learning from Imbalanced Datasets",
+                            booktitle="Advances in Knowledge Discovery and Data Mining",
+                            year="2011",
+                            publisher="Springer Berlin Heidelberg",
+                            address="Berlin, Heidelberg",
+                            pages="309--320",
+                            abstract="Learning from imbalanced datasets has drawn more and more attentions from both theoretical and practical aspects. Over- sampling is a popular and simple method for imbalanced learning. In this paper, we show that there is an inherently potential risk associated with the over-sampling algorithms in terms of the large margin principle. Then we propose a new synthetic over sampling method, named Margin-guided Synthetic Over-sampling (MSYN), to reduce this risk. The MSYN improves learning with respect to the data distributions guided by the margin-based rule. Empirical study verities the efficacy of MSYN.",
+                            isbn="978-3-642-20847-8"
+                            }
+            
+        * URL: https://drive.google.com/open?id=1i1ah7i4JfSoD8j5AJiP9Lx3-DIniKeYN
     """
     
     categories= [OverSampling.cat_extensive]
@@ -3457,6 +3792,7 @@ class MSYN(OverSampling):
     def __init__(self, pressure= 1.5, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             pressure (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -3477,14 +3813,17 @@ class MSYN(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'pressure': [2.5, 2.0, 1.5], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'pressure': [2.5, 2.0, 1.5], 
+                                                    'n_neighbors': [3, 5, 7]})
 
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
@@ -3555,30 +3894,36 @@ class MSYN(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'pressure': self.pressure, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
+        return {'pressure': self.pressure, 
+                'n_neighbors': self.n_neighbors, 
+                'n_jobs': self.n_jobs}
 
 class SVM_balance(OverSampling):
     """
-    @article{SVM_balance,
-             author = {Farquad, M.A.H. and Bose, Indranil},
-             title = {Preprocessing Unbalanced Data Using Support Vector Machine},
-             journal = {Decis. Support Syst.},
-             issue_date = {April, 2012},
-             volume = {53},
-             number = {1},
-             month = apr,
-             year = {2012},
-             issn = {0167-9236},
-             pages = {226--233},
-             numpages = {8},
-             url = {http://dx.doi.org/10.1016/j.dss.2012.01.016},
-             doi = {10.1016/j.dss.2012.01.016},
-             acmid = {2181554},
-             publisher = {Elsevier Science Publishers B. V.},
-             address = {Amsterdam, The Netherlands, The Netherlands},
-             keywords = {COIL data, Hybrid method, Preprocessor, SVM, Unbalanced data},
-            } 
-    URL: https://drive.google.com/open?id=1DWDPQhJfzvUFgGAeAej-Xtlz5zX7trPz
+    References:
+        * BibTex::
+            
+            @article{SVM_balance,
+                     author = {Farquad, M.A.H. and Bose, Indranil},
+                     title = {Preprocessing Unbalanced Data Using Support Vector Machine},
+                     journal = {Decis. Support Syst.},
+                     issue_date = {April, 2012},
+                     volume = {53},
+                     number = {1},
+                     month = apr,
+                     year = {2012},
+                     issn = {0167-9236},
+                     pages = {226--233},
+                     numpages = {8},
+                     url = {http://dx.doi.org/10.1016/j.dss.2012.01.016},
+                     doi = {10.1016/j.dss.2012.01.016},
+                     acmid = {2181554},
+                     publisher = {Elsevier Science Publishers B. V.},
+                     address = {Amsterdam, The Netherlands, The Netherlands},
+                     keywords = {COIL data, Hybrid method, Preprocessor, SVM, Unbalanced data},
+                    } 
+    
+        * URL: https://drive.google.com/open?id=1DWDPQhJfzvUFgGAeAej-Xtlz5zX7trPz
     """
     
     categories= [OverSampling.cat_extensive,
@@ -3588,6 +3933,7 @@ class SVM_balance(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                         e.g. 1.0 means that after sampling the number of minority
@@ -3609,17 +3955,21 @@ class SVM_balance(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -3652,35 +4002,36 @@ class SVM_balance(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_jobs': self.n_jobs}
 
 class TRIM_SMOTE(OverSampling):
     """
-    @InProceedings{trim_smote,
-                    author="Puntumapon, Kamthorn
-                    and Waiyamai, Kitsana",
-                    editor="Tan, Pang-Ning
-                    and Chawla, Sanjay
-                    and Ho, Chin Kuan
-                    and Bailey, James",
-                    title="A Pruning-Based Approach for Searching Precise and Generalized Region for Synthetic Minority Over-Sampling",
-                    booktitle="Advances in Knowledge Discovery and Data Mining",
-                    year="2012",
-                    publisher="Springer Berlin Heidelberg",
-                    address="Berlin, Heidelberg",
-                    pages="371--382",
-                    abstract="One solution to deal with class imbalance is to modify its class distribution. Synthetic over-sampling is a well-known method to modify class distribution by generating new synthetic minority data. Synthetic Minority Over-sampling TEchnique (SMOTE) is a state-of-the-art synthetic over-sampling algorithm that generates new synthetic data along the line between the minority data and their selected nearest neighbors. Advantages of SMOTE is to have decision regions larger and less specific to original data. However, its drawback is the over-generalization problem where synthetic data is generated into majority class region. Over-generalization leads to misclassify non-minority class region into minority class. To overcome the over-generalization problem, we propose an algorithm, called TRIM, to search for precise minority region while maintaining its generalization. TRIM iteratively filters out irrelevant majority data from the precise minority region. Output of the algorithm is the multiple set of seed minority data, and each individual set will be used for generating new synthetic data. Compared with state-of-the-art over-sampling algorithms, experimental results show significant performance improvement in terms of F-measure and AUC. This suggests over-generalization has a significant impact on the performance of the synthetic over-sampling method.",
-                    isbn="978-3-642-30220-6"
-                    }
+    References:
+        * BibTex::
+            
+            @InProceedings{trim_smote,
+                            author="Puntumapon, Kamthorn
+                            and Waiyamai, Kitsana",
+                            editor="Tan, Pang-Ning
+                            and Chawla, Sanjay
+                            and Ho, Chin Kuan
+                            and Bailey, James",
+                            title="A Pruning-Based Approach for Searching Precise and Generalized Region for Synthetic Minority Over-Sampling",
+                            booktitle="Advances in Knowledge Discovery and Data Mining",
+                            year="2012",
+                            publisher="Springer Berlin Heidelberg",
+                            address="Berlin, Heidelberg",
+                            pages="371--382",
+                            abstract="One solution to deal with class imbalance is to modify its class distribution. Synthetic over-sampling is a well-known method to modify class distribution by generating new synthetic minority data. Synthetic Minority Over-sampling TEchnique (SMOTE) is a state-of-the-art synthetic over-sampling algorithm that generates new synthetic data along the line between the minority data and their selected nearest neighbors. Advantages of SMOTE is to have decision regions larger and less specific to original data. However, its drawback is the over-generalization problem where synthetic data is generated into majority class region. Over-generalization leads to misclassify non-minority class region into minority class. To overcome the over-generalization problem, we propose an algorithm, called TRIM, to search for precise minority region while maintaining its generalization. TRIM iteratively filters out irrelevant majority data from the precise minority region. Output of the algorithm is the multiple set of seed minority data, and each individual set will be used for generating new synthetic data. Compared with state-of-the-art over-sampling algorithms, experimental results show significant performance improvement in terms of F-measure and AUC. This suggests over-generalization has a significant impact on the performance of the synthetic over-sampling method.",
+                            isbn="978-3-642-30220-6"
+                            }
 
-    URL: https://drive.google.com/open?id=1VIUmLYe29YeJeXHDAyD5zHf7Ban8RTZf
+        * URL: https://drive.google.com/open?id=1VIUmLYe29YeJeXHDAyD5zHf7Ban8RTZf
     
-    It is not described precisely how the filtered data is used for sample generation.
-    The method is proposed to be a preprocessing step, and it states that it applies
-    sample generation to each group extracted. The method is tested using SMOTE, so
-    we apply the SMOTE sampling technique to the groups to generate samples, but not
-    SMOTE itself, as in the groups generated by the algorithm the original minority samples
-    are majority ones and SMOTE would amplify the original majority samples.
+    Notes:
+        * It is not described precisely how the filtered data is used for sample generation. The method is proposed to be a preprocessing step, and it states that it applies sample generation to each group extracted. 
     """
     
     categories= [OverSampling.cat_extensive,
@@ -3689,6 +4040,7 @@ class TRIM_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, min_precision= 0.3, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -3710,16 +4062,21 @@ class TRIM_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'min_precision': [0.3]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'min_precision': [0.3]})
     
     def trim(self, y):
         """
         Determines the trim value.
+        
         Args:
             y (np.array): array of target labels
+            
         Returns:
             float: the trim value
         """
@@ -3728,8 +4085,10 @@ class TRIM_SMOTE(OverSampling):
     def precision(self, y):
         """
         Determines the precision value.
+        
         Args:
             y (np.array): array of target labels
+            
         Returns:
             float: the precision value
         """
@@ -3738,10 +4097,12 @@ class TRIM_SMOTE(OverSampling):
     def determine_splitting_point(self, X, y, split_on_border= False):
         """
         Determines the splitting point.
+        
         Args:
             X (np.matrix): a subset of the training data
             y (np.array): an array of target labels
             split_on_border (bool): wether splitting on class borders is considered
+            
         Returns:
             tuple(int, float), bool: (splitting feature, splitting value), make the split
         """
@@ -3786,9 +4147,11 @@ class TRIM_SMOTE(OverSampling):
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -3912,38 +4275,39 @@ class TRIM_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'min_precision': self.min_precision, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'min_precision': self.min_precision, 
+                'n_jobs': self.n_jobs}
 
 class SMOTE_RSB(OverSampling):
     """
-        @Article{smote_rsb,
-                author="Ramentol, Enislay
-                and Caballero, Yail{\'e}
-                and Bello, Rafael
-                and Herrera, Francisco",
-                title="SMOTE-RSB*: a hybrid preprocessing approach based on oversampling and undersampling for high imbalanced data-sets using SMOTE and rough sets theory",
-                journal="Knowledge and Information Systems",
-                year="2012",
-                month="Nov",
-                day="01",
-                volume="33",
-                number="2",
-                pages="245--265",
-                abstract="Imbalanced data is a common problem in classification. This phenomenon is growing in importance since it appears in most real domains. It has special relevance to highly imbalanced data-sets (when the ratio between classes is high). Many techniques have been developed to tackle the problem of imbalanced training sets in supervised learning. Such techniques have been divided into two large groups: those at the algorithm level and those at the data level. Data level groups that have been emphasized are those that try to balance the training sets by reducing the larger class through the elimination of samples or increasing the smaller one by constructing new samples, known as undersampling and oversampling, respectively. This paper proposes a new hybrid method for preprocessing imbalanced data-sets through the construction of new samples, using the Synthetic Minority Oversampling Technique together with the application of an editing technique based on the Rough Set Theory and the lower approximation of a subset. The proposed method has been validated by an experimental study showing good results using C4.5 as the learning algorithm.",
-                issn="0219-3116",
-                doi="10.1007/s10115-011-0465-6",
-                url="https://doi.org/10.1007/s10115-011-0465-6"
-                }
+    References:
+        * BibTex::
+            
+            @Article{smote_rsb,
+                    author="Ramentol, Enislay
+                    and Caballero, Yail{\'e}
+                    and Bello, Rafael
+                    and Herrera, Francisco",
+                    title="SMOTE-RSB*: a hybrid preprocessing approach based on oversampling and undersampling for high imbalanced data-sets using SMOTE and rough sets theory",
+                    journal="Knowledge and Information Systems",
+                    year="2012",
+                    month="Nov",
+                    day="01",
+                    volume="33",
+                    number="2",
+                    pages="245--265",
+                    abstract="Imbalanced data is a common problem in classification. This phenomenon is growing in importance since it appears in most real domains. It has special relevance to highly imbalanced data-sets (when the ratio between classes is high). Many techniques have been developed to tackle the problem of imbalanced training sets in supervised learning. Such techniques have been divided into two large groups: those at the algorithm level and those at the data level. Data level groups that have been emphasized are those that try to balance the training sets by reducing the larger class through the elimination of samples or increasing the smaller one by constructing new samples, known as undersampling and oversampling, respectively. This paper proposes a new hybrid method for preprocessing imbalanced data-sets through the construction of new samples, using the Synthetic Minority Oversampling Technique together with the application of an editing technique based on the Rough Set Theory and the lower approximation of a subset. The proposed method has been validated by an experimental study showing good results using C4.5 as the learning algorithm.",
+                    issn="0219-3116",
+                    doi="10.1007/s10115-011-0465-6",
+                    url="https://doi.org/10.1007/s10115-011-0465-6"
+                    }
         
-    URL: https://drive.google.com/open?id=1erSr3NWqBNXO1dCK1h2DMfEzdtaHDTJB
+        * URL: https://drive.google.com/open?id=1erSr3NWqBNXO1dCK1h2DMfEzdtaHDTJB
     
-    I think the description of the algorithm in Fig 5 of the paper is not correct.
-    The set "resultSet" is initialized with the original instances, and then
-    the While loop in the Algorithm run until resultSet is empty, which never
-    holds. Also, the resultSet is only extended in the loop. Our implementation
-    is changed in the following way: we generate twice as many instances are
-    required to balance the dataset, and repeat the loop until the number of
-    new samples added to the training set is enough to balance the dataset.
+    Notes:
+        * I think the description of the algorithm in Fig 5 of the paper is not correct. The set "resultSet" is initialized with the original instances, and then the While loop in the Algorithm run until resultSet is empty, which never holds. Also, the resultSet is only extended in the loop. Our implementation is changed in the following way: we generate twice as many instances are required to balance the dataset, and repeat the loop until the number of new samples added to the training set is enough to balance the dataset.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -3952,6 +4316,7 @@ class SMOTE_RSB(OverSampling):
     def __init__(self, proportion= 2.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -3973,17 +4338,21 @@ class SMOTE_RSB(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -4041,30 +4410,35 @@ class SMOTE_RSB(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_jobs': self.n_jobs}
 
 class ProWSyn(OverSampling):
     """
-        @InProceedings{prowsyn,
-                    author="Barua, Sukarna
-                    and Islam, Md. Monirul
-                    and Murase, Kazuyuki",
-                    editor="Pei, Jian
-                    and Tseng, Vincent S.
-                    and Cao, Longbing
-                    and Motoda, Hiroshi
-                    and Xu, Guandong",
-                    title="ProWSyn: Proximity Weighted Synthetic Oversampling Technique for Imbalanced Data Set Learning",
-                    booktitle="Advances in Knowledge Discovery and Data Mining",
-                    year="2013",
-                    publisher="Springer Berlin Heidelberg",
-                    address="Berlin, Heidelberg",
-                    pages="317--328",
-                    abstract="An imbalanced data set creates severe problems for the classifier as number of samples of one class (majority) is much higher than the other class (minority). Synthetic oversampling methods address this problem by generating new synthetic minority class samples. To distribute the synthetic samples effectively, recent approaches create weight values for original minority samples based on their importance and distribute synthetic samples according to weight values. However, most of the existing algorithms create inappropriate weights and in many cases, they cannot generate the required weight values for the minority samples. This results in a poor distribution of generated synthetic samples. In this respect, this paper presents a new synthetic oversampling algorithm, Proximity Weighted Synthetic Oversampling Technique (ProWSyn). Our proposed algorithm generate effective weight values for the minority data samples based on sample's proximity information, i.e., distance from boundary which results in a proper distribution of generated synthetic samples across the minority data set. Simulation results on some real world datasets shows the effectiveness of the proposed method showing improvements in various assessment metrics such as AUC, F-measure, and G-mean.",
-                    isbn="978-3-642-37456-2"
-                    }
+    References:
+        * BibTex::
+            
+            @InProceedings{prowsyn,
+                        author="Barua, Sukarna
+                        and Islam, Md. Monirul
+                        and Murase, Kazuyuki",
+                        editor="Pei, Jian
+                        and Tseng, Vincent S.
+                        and Cao, Longbing
+                        and Motoda, Hiroshi
+                        and Xu, Guandong",
+                        title="ProWSyn: Proximity Weighted Synthetic Oversampling Technique for Imbalanced Data Set Learning",
+                        booktitle="Advances in Knowledge Discovery and Data Mining",
+                        year="2013",
+                        publisher="Springer Berlin Heidelberg",
+                        address="Berlin, Heidelberg",
+                        pages="317--328",
+                        abstract="An imbalanced data set creates severe problems for the classifier as number of samples of one class (majority) is much higher than the other class (minority). Synthetic oversampling methods address this problem by generating new synthetic minority class samples. To distribute the synthetic samples effectively, recent approaches create weight values for original minority samples based on their importance and distribute synthetic samples according to weight values. However, most of the existing algorithms create inappropriate weights and in many cases, they cannot generate the required weight values for the minority samples. This results in a poor distribution of generated synthetic samples. In this respect, this paper presents a new synthetic oversampling algorithm, Proximity Weighted Synthetic Oversampling Technique (ProWSyn). Our proposed algorithm generate effective weight values for the minority data samples based on sample's proximity information, i.e., distance from boundary which results in a proper distribution of generated synthetic samples across the minority data set. Simulation results on some real world datasets shows the effectiveness of the proposed method showing improvements in various assessment metrics such as AUC, F-measure, and G-mean.",
+                        isbn="978-3-642-37456-2"
+                        }
         
-    URL: https://drive.google.com/open?id=12yiLJc0XOT6tjVN7yIPBKJa-eIC229s3
+        * URL: https://drive.google.com/open?id=12yiLJc0XOT6tjVN7yIPBKJa-eIC229s3
     """
     
     categories= [OverSampling.cat_extensive,
@@ -4073,6 +4447,7 @@ class ProWSyn(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, L= 5, theta= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -4099,17 +4474,23 @@ class ProWSyn(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'L': [3, 5, 7], 'theta': [0.1, 1.0, 2.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'L': [3, 5, 7], 
+                                                    'theta': [0.1, 1.0, 2.0]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -4175,21 +4556,28 @@ class ProWSyn(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'L': self.L, 'theta': self.theta, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'L': self.L, 
+                'theta': self.theta, 
+                'n_jobs': self.n_jobs}
 
 class SL_graph_SMOTE(OverSampling):
     """
-        @inproceedings{sl_graph_smote,
-                author = {Bunkhumpornpat, Chumpol and Subpaiboonkit, Sitthichoke},
-                booktitle= {13th International Symposium on Communications and Information Technologies},
-                year = {2013},
-                month = {09},
-                pages = {570-575},
-                title = {Safe level graph for synthetic minority over-sampling techniques},
-                isbn = {978-1-4673-5578-0}
-                }
+    References:
+        * BibTex::
+            
+            @inproceedings{sl_graph_smote,
+                    author = {Bunkhumpornpat, Chumpol and Subpaiboonkit, Sitthichoke},
+                    booktitle= {13th International Symposium on Communications and Information Technologies},
+                    year = {2013},
+                    month = {09},
+                    pages = {570-575},
+                    title = {Safe level graph for synthetic minority over-sampling techniques},
+                    isbn = {978-1-4673-5578-0}
+                    }
         
-    URL: https://drive.google.com/open?id=1UxPfhGjM9KA7eXA4yhPvfYBjbPp8fZeT
+        * URL: https://drive.google.com/open?id=1UxPfhGjM9KA7eXA4yhPvfYBjbPp8fZeT
     """
     
     categories= [OverSampling.cat_extensive,
@@ -4198,6 +4586,7 @@ class SL_graph_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -4218,17 +4607,21 @@ class SL_graph_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -4261,21 +4654,26 @@ class SL_graph_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_jobs': self.n_jobs}
 
 class NRSBoundary_SMOTE(OverSampling):
     """
-        @Article{nrsboundary_smote,
-                author= {Feng, Hu and Hang, Li},
-                title= {A Novel Boundary Oversampling Algorithm Based on Neighborhood Rough Set Model: NRSBoundary-SMOTE},
-                journal= {Mathematical Problems in Engineering},
-                year= {2013},
-                pages= {10},
-                doi= {10.1155/2013/694809},
-                url= {http://dx.doi.org/10.1155/694809}
-                }
+    References:
+        * BibTex::
+            
+            @Article{nrsboundary_smote,
+                    author= {Feng, Hu and Hang, Li},
+                    title= {A Novel Boundary Oversampling Algorithm Based on Neighborhood Rough Set Model: NRSBoundary-SMOTE},
+                    journal= {Mathematical Problems in Engineering},
+                    year= {2013},
+                    pages= {10},
+                    doi= {10.1155/2013/694809},
+                    url= {http://dx.doi.org/10.1155/694809}
+                    }
         
-    URL: https://drive.google.com/open?id=1CdBzRHdcKmvGB6bkRSv6_ZviMeuwCZDT
+        * URL: https://drive.google.com/open?id=1CdBzRHdcKmvGB6bkRSv6_ZviMeuwCZDT
     """
     
     categories= [OverSampling.cat_extensive,
@@ -4284,6 +4682,7 @@ class NRSBoundary_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, w= 0.005, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -4307,17 +4706,22 @@ class NRSBoundary_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'w': [0.005, 0.01, 0.05]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'w': [0.005, 0.01, 0.05]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -4393,29 +4797,27 @@ class NRSBoundary_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'w': self.w, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'w': self.w, 
+                'n_jobs': self.n_jobs}
 
 class LVQ_SMOTE(OverSampling):
     """
-        @inproceedings{lvq_smote,
-                          title={LVQ-SMOTE – Learning Vector Quantization based Synthetic Minority Over–sampling Technique for biomedical data},
-                          author={Munehiro Nakamura and Yusuke Kajiwara and Atsushi Otsuka and Haruhiko Kimura},
-                          booktitle={BioData Mining},
-                          year={2013}
-                        }
+    References:
+        * BibTex::
+            
+            @inproceedings{lvq_smote,
+                              title={LVQ-SMOTE – Learning Vector Quantization based Synthetic Minority Over–sampling Technique for biomedical data},
+                              author={Munehiro Nakamura and Yusuke Kajiwara and Atsushi Otsuka and Haruhiko Kimura},
+                              booktitle={BioData Mining},
+                              year={2013}
+                            }
         
-    URL: https://drive.google.com/open?id=18ecI_0tYQG-1nRm8GhFRXZxFVPw7CzfD
+        * URL: https://drive.google.com/open?id=18ecI_0tYQG-1nRm8GhFRXZxFVPw7CzfD
     
-    This implementation is only a rough estimation of the method described in the
-    paper. The main problem is that the paper uses many datasets to find similar patterns
-    in the codebooks and replicate patterns appearing in other datasets to the imbalanced datasets
-    based on their relative position compared to the codebook elements.
-    
-    What we do is clustering the minority class to extract a codebook as kmeans
-    cluster means, then, find pairs of codebook elements which have the most similar
-    relative position to a randomly selected pair of codebook elements, and translate
-    nearby minority samples from the neighborhood one pair of codebook elements
-    to the neighborood of another pair of codebook elements.
+    Notes:
+        * This implementation is only a rough estimation of the method described in the paper. The main problem is that the paper uses many datasets to find similar patterns in the codebooks and replicate patterns appearing in other datasets to the imbalanced datasets based on their relative position compared to the codebook elements. What we do is clustering the minority class to extract a codebook as kmeans cluster means, then, find pairs of codebook elements which have the most similar relative position to a randomly selected pair of codebook elements, and translate nearby minority samples from the neighborhood one pair of codebook elements to the neighborood of another pair of codebook elements.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -4424,6 +4826,7 @@ class LVQ_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_clusters= 10, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -4447,17 +4850,22 @@ class LVQ_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'n_clusters': [4, 8, 12]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'n_clusters': [4, 8, 12]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -4509,21 +4917,27 @@ class LVQ_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'strategy': self.proportion, 'n_neighbors': self.n_neighbors, 'n_clusters': self.n_clusters, 'n_jobs': self.n_jobs}
+        return {'strategy': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_clusters': self.n_clusters, 
+                'n_jobs': self.n_jobs}
 
 class SOI_CJ(OverSampling):
     """
-        @article{soi_cj,
-                author = {I. Sánchez, Atlántida and Morales, Eduardo and Gonzalez, Jesus},
-                year = {2013},
-                month = {01},
-                pages = {},
-                title = {Synthetic Oversampling of Instances Using Clustering},
-                volume = {22},
-                booktitle = {International Journal of Artificial Intelligence Tools}
-                }
+    References:
+        * BibTex::
+            
+            @article{soi_cj,
+                    author = {I. Sánchez, Atlántida and Morales, Eduardo and Gonzalez, Jesus},
+                    year = {2013},
+                    month = {01},
+                    pages = {},
+                    title = {Synthetic Oversampling of Instances Using Clustering},
+                    volume = {22},
+                    booktitle = {International Journal of Artificial Intelligence Tools}
+                    }
         
-    URL: https://drive.google.com/open?id=13GzuVxVZtelG6VNW_Ic8hlxge3XhCYKq
+        * URL: https://drive.google.com/open?id=13GzuVxVZtelG6VNW_Ic8hlxge3XhCYKq
     """
     
     categories= [OverSampling.cat_extensive,
@@ -4533,6 +4947,7 @@ class SOI_CJ(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, method= 'interpolation', n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -4556,17 +4971,22 @@ class SOI_CJ(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'method': ['interpolation', 'jittering']})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'method': ['interpolation', 'jittering']})
     
     def clustering(self, X, y):
         """
         Implementation of the clustering technique described in the paper.
+        
         Args:
             X (np.matrix): array of training instances
             y (np.array): target labels
+            
         Returns:
             list(set): list of minority clusters
         """
@@ -4634,9 +5054,11 @@ class SOI_CJ(OverSampling):
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -4686,32 +5108,39 @@ class SOI_CJ(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'method': self.method, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'method': self.method, 
+                'n_jobs': self.n_jobs}
 
 class ROSE(OverSampling):
     """
-    @Article{rose,
-            author="Menardi, Giovanna
-            and Torelli, Nicola",
-            title="Training and assessing classification rules with imbalanced data",
-            journal="Data Mining and Knowledge Discovery",
-            year="2014",
-            month="Jan",
-            day="01",
-            volume="28",
-            number="1",
-            pages="92--122",
-            abstract="The problem of modeling binary responses by using cross-sectional data has been addressed with a number of satisfying solutions that draw on both parametric and nonparametric methods. However, there exist many real situations where one of the two responses (usually the most interesting for the analysis) is rare. It has been largely reported that this class imbalance heavily compromises the process of learning, because the model tends to focus on the prevalent class and to ignore the rare events. However, not only the estimation of the classification model is affected by a skewed distribution of the classes, but also the evaluation of its accuracy is jeopardized, because the scarcity of data leads to poor estimates of the model's accuracy. In this work, the effects of class imbalance on model training and model assessing are discussed. Moreover, a unified and systematic framework for dealing with the problem of imbalanced classification is proposed, based on a smoothed bootstrap re-sampling technique. The proposed technique is founded on a sound theoretical basis and an extensive empirical study shows that it outperforms the main other remedies to face imbalanced learning problems.",
-            issn="1573-756X",
-            doi="10.1007/s10618-012-0295-5",
-            url="https://doi.org/10.1007/s10618-012-0295-5"
-            }
+    References:
+        * BibTex::
+            
+            @Article{rose,
+                    author="Menardi, Giovanna
+                    and Torelli, Nicola",
+                    title="Training and assessing classification rules with imbalanced data",
+                    journal="Data Mining and Knowledge Discovery",
+                    year="2014",
+                    month="Jan",
+                    day="01",
+                    volume="28",
+                    number="1",
+                    pages="92--122",
+                    abstract="The problem of modeling binary responses by using cross-sectional data has been addressed with a number of satisfying solutions that draw on both parametric and nonparametric methods. However, there exist many real situations where one of the two responses (usually the most interesting for the analysis) is rare. It has been largely reported that this class imbalance heavily compromises the process of learning, because the model tends to focus on the prevalent class and to ignore the rare events. However, not only the estimation of the classification model is affected by a skewed distribution of the classes, but also the evaluation of its accuracy is jeopardized, because the scarcity of data leads to poor estimates of the model's accuracy. In this work, the effects of class imbalance on model training and model assessing are discussed. Moreover, a unified and systematic framework for dealing with the problem of imbalanced classification is proposed, based on a smoothed bootstrap re-sampling technique. The proposed technique is founded on a sound theoretical basis and an extensive empirical study shows that it outperforms the main other remedies to face imbalanced learning problems.",
+                    issn="1573-756X",
+                    doi="10.1007/s10618-012-0295-5",
+                    url="https://doi.org/10.1007/s10618-012-0295-5"
+                    }
 
-    URL: https://drive.google.com/open?id=1eLOTCWtXCcqti9NpgXujw7BNY38ToyTc
+        * URL: https://drive.google.com/open?id=1eLOTCWtXCcqti9NpgXujw7BNY38ToyTc
     
-    It is not entirely clear if the authors propose kernel density estimation
-    or the fitting of simple multivariate Gaussians on the minority samples.
-    The latter seems to be more likely, I implement that approach.
+    Notes:
+        * It is not entirely clear if the authors propose kernel density estimation \
+        or the fitting of simple multivariate Gaussians on the minority samples. \
+        The latter seems to be more likely, I implement that approach.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -4720,6 +5149,7 @@ class ROSE(OverSampling):
     def __init__(self, proportion= 1.0):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -4734,6 +5164,7 @@ class ROSE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
@@ -4742,9 +5173,11 @@ class ROSE(OverSampling):
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -4779,15 +5212,18 @@ class ROSE(OverSampling):
 
 class SMOTE_OUT(OverSampling):
     """
-    @article{smote_out_smote_cosine_selected_smote,
-              title={SMOTE-Out, SMOTE-Cosine, and Selected-SMOTE: An enhancement strategy to handle imbalance in data level},
-              author={Fajri Koto},
-              journal={2014 International Conference on Advanced Computer Science and Information System},
-              year={2014},
-              pages={280-284}
-            }
+    References:
+        * BibTex::
+            
+            @article{smote_out_smote_cosine_selected_smote,
+                      title={SMOTE-Out, SMOTE-Cosine, and Selected-SMOTE: An enhancement strategy to handle imbalance in data level},
+                      author={Fajri Koto},
+                      journal={2014 International Conference on Advanced Computer Science and Information System},
+                      year={2014},
+                      pages={280-284}
+                    }
 
-    URL: https://drive.google.com/open?id=1XyyaphBLWJU_nQFppy1f1v5MYkSDqrJ2
+        * URL: https://drive.google.com/open?id=1XyyaphBLWJU_nQFppy1f1v5MYkSDqrJ2
     """
     
     categories= [OverSampling.cat_extensive]
@@ -4795,6 +5231,7 @@ class SMOTE_OUT(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -4815,17 +5252,21 @@ class SMOTE_OUT(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -4869,19 +5310,24 @@ class SMOTE_OUT(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_jobs': self.n_jobs}
 
 class SMOTE_Cosine(OverSampling):
     """
-    @article{smote_out_smote_cosine_selected_smote,
-              title={SMOTE-Out, SMOTE-Cosine, and Selected-SMOTE: An enhancement strategy to handle imbalance in data level},
-              author={Fajri Koto},
-              journal={2014 International Conference on Advanced Computer Science and Information System},
-              year={2014},
-              pages={280-284}
-            }
+    References:
+        * BibTex::
+            
+            @article{smote_out_smote_cosine_selected_smote,
+                      title={SMOTE-Out, SMOTE-Cosine, and Selected-SMOTE: An enhancement strategy to handle imbalance in data level},
+                      author={Fajri Koto},
+                      journal={2014 International Conference on Advanced Computer Science and Information System},
+                      year={2014},
+                      pages={280-284}
+                    }
 
-    URL: https://drive.google.com/open?id=1XyyaphBLWJU_nQFppy1f1v5MYkSDqrJ2
+        * URL: https://drive.google.com/open?id=1XyyaphBLWJU_nQFppy1f1v5MYkSDqrJ2
     """
     
     categories= [OverSampling.cat_extensive]
@@ -4889,6 +5335,7 @@ class SMOTE_Cosine(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -4909,17 +5356,21 @@ class SMOTE_Cosine(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -4972,22 +5423,27 @@ class SMOTE_Cosine(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_jobs': self.n_jobs}
 
 class Selected_SMOTE(OverSampling):
     """
-    @article{smote_out_smote_cosine_selected_smote,
-              title={SMOTE-Out, SMOTE-Cosine, and Selected-SMOTE: An enhancement strategy to handle imbalance in data level},
-              author={Fajri Koto},
-              journal={2014 International Conference on Advanced Computer Science and Information System},
-              year={2014},
-              pages={280-284}
-            }
+    References:
+        * BibTex::
+            
+        @article{smote_out_smote_cosine_selected_smote,
+                  title={SMOTE-Out, SMOTE-Cosine, and Selected-SMOTE: An enhancement strategy to handle imbalance in data level},
+                  author={Fajri Koto},
+                  journal={2014 International Conference on Advanced Computer Science and Information System},
+                  year={2014},
+                  pages={280-284}
+                }
 
-    URL: https://drive.google.com/open?id=1XyyaphBLWJU_nQFppy1f1v5MYkSDqrJ2
+        * URL: https://drive.google.com/open?id=1XyyaphBLWJU_nQFppy1f1v5MYkSDqrJ2
     
-    Significant attribute selection was not described in the paper, therefore
-    we have implemented something meaningful.
+    Notes:
+        * Significant attribute selection was not described in the paper, therefore we have implemented something meaningful.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -4996,6 +5452,7 @@ class Selected_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, perc_sign_attr= 0.5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             strategy (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -5019,17 +5476,22 @@ class Selected_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'perc_sign_attr': [0.3, 0.5, 0.8]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'perc_sign_attr': [0.3, 0.5, 0.8]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -5089,24 +5551,30 @@ class Selected_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'perc_sign_attr': self.perc_sign_attr, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'perc_sign_attr': self.perc_sign_attr, 
+                'n_jobs': self.n_jobs}
 
 class LN_SMOTE(OverSampling):
     """
-    @INPROCEEDINGS{ln_smote, 
-                    author={T. Maciejewski and J. Stefanowski}, 
-                    booktitle={2011 IEEE Symposium on Computational Intelligence and Data Mining (CIDM)}, 
-                    title={Local neighbourhood extension of SMOTE for mining imbalanced data}, 
-                    year={2011}, 
-                    volume={}, 
-                    number={}, 
-                    pages={104-111}, 
-                    keywords={Bayes methods;data mining;pattern classification;local neighbourhood extension;imbalanced data mining;focused resampling technique;SMOTE over-sampling method;naive Bayes classifiers;Noise measurement;Noise;Decision trees;Breast cancer;Sensitivity;Data mining;Training}, 
-                    doi={10.1109/CIDM.2011.5949434}, 
-                    ISSN={}, 
-                    month={April}}
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{ln_smote, 
+                            author={T. Maciejewski and J. Stefanowski}, 
+                            booktitle={2011 IEEE Symposium on Computational Intelligence and Data Mining (CIDM)}, 
+                            title={Local neighbourhood extension of SMOTE for mining imbalanced data}, 
+                            year={2011}, 
+                            volume={}, 
+                            number={}, 
+                            pages={104-111}, 
+                            keywords={Bayes methods;data mining;pattern classification;local neighbourhood extension;imbalanced data mining;focused resampling technique;SMOTE over-sampling method;naive Bayes classifiers;Noise measurement;Noise;Decision trees;Breast cancer;Sensitivity;Data mining;Training}, 
+                            doi={10.1109/CIDM.2011.5949434}, 
+                            ISSN={}, 
+                            month={April}}
 
-    URL: https://drive.google.com/open?id=1VXfwlXcfFrrL_DYa6lpgTLn-bCxxTKAM
+        * URL: https://drive.google.com/open?id=1VXfwlXcfFrrL_DYa6lpgTLn-bCxxTKAM
     """
     
     categories= [OverSampling.cat_extensive,
@@ -5115,6 +5583,7 @@ class LN_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -5135,17 +5604,21 @@ class LN_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -5169,9 +5642,11 @@ class LN_SMOTE(OverSampling):
         def safe_level(p_idx, n_idx= None):
             """
             computing the safe level of samples
+            
             Args:
                 p_idx (int): index of positive sample
                 n_idx (int): index of other sample
+                
             Returns:
                 int: safe level
             """
@@ -5192,10 +5667,12 @@ class LN_SMOTE(OverSampling):
         def random_gap(slp, sln, n_label):
             """
             determining random gap
+            
             Args:
                 slp (int): safe level of p
                 sln (int): safe level of n
                 n_label (int): label of n
+                
             Returns:
                 float: gap
             """
@@ -5250,26 +5727,32 @@ class LN_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_jobs': self.n_jobs}
 
 class MWMOTE(OverSampling):
     """
-    @ARTICLE{mwmote, 
-                author={S. Barua and M. M. Islam and X. Yao and K. Murase}, 
-                journal={IEEE Transactions on Knowledge and Data Engineering}, 
-                title={MWMOTE--Majority Weighted Minority Oversampling Technique for Imbalanced Data Set Learning}, 
-                year={2014}, 
-                volume={26}, 
-                number={2}, 
-                pages={405-425}, 
-                keywords={learning (artificial intelligence);pattern clustering;sampling methods;AUC;area under curve;ROC;receiver operating curve;G-mean;geometric mean;minority class cluster;clustering approach;weighted informative minority class samples;Euclidean distance;hard-to-learn informative minority class samples;majority class;synthetic minority class samples;synthetic oversampling methods;imbalanced learning problems;imbalanced data set learning;MWMOTE-majority weighted minority oversampling technique;Sampling methods;Noise measurement;Boosting;Simulation;Complexity theory;Interpolation;Abstracts;Imbalanced learning;undersampling;oversampling;synthetic sample generation;clustering}, 
-                doi={10.1109/TKDE.2012.232}, 
-                ISSN={1041-4347}, 
-                month={Feb}}
+    References:
+        * BibTex::
+            
+            @ARTICLE{mwmote, 
+                        author={S. Barua and M. M. Islam and X. Yao and K. Murase}, 
+                        journal={IEEE Transactions on Knowledge and Data Engineering}, 
+                        title={MWMOTE--Majority Weighted Minority Oversampling Technique for Imbalanced Data Set Learning}, 
+                        year={2014}, 
+                        volume={26}, 
+                        number={2}, 
+                        pages={405-425}, 
+                        keywords={learning (artificial intelligence);pattern clustering;sampling methods;AUC;area under curve;ROC;receiver operating curve;G-mean;geometric mean;minority class cluster;clustering approach;weighted informative minority class samples;Euclidean distance;hard-to-learn informative minority class samples;majority class;synthetic minority class samples;synthetic oversampling methods;imbalanced learning problems;imbalanced data set learning;MWMOTE-majority weighted minority oversampling technique;Sampling methods;Noise measurement;Boosting;Simulation;Complexity theory;Interpolation;Abstracts;Imbalanced learning;undersampling;oversampling;synthetic sample generation;clustering}, 
+                        doi={10.1109/TKDE.2012.232}, 
+                        ISSN={1041-4347}, 
+                        month={Feb}}
 
-    URL: https://drive.google.com/open?id=1PiOSHhJJMZZniuiYvMPyD2BWmR9Q9L1q
+        * URL: https://drive.google.com/open?id=1PiOSHhJJMZZniuiYvMPyD2BWmR9Q9L1q
     
-    Not prepared for the case of having clusters of 1 elements.
+    Notes:
+        * The original method was not prepared for the case of having clusters of 1 elements.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -5279,6 +5762,7 @@ class MWMOTE(OverSampling):
     def __init__(self, proportion= 1.0, k1= 5, k2= 5, k3= 5, M= 10, cf_th= 5.0, cmax= 10.0, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -5314,17 +5798,26 @@ class MWMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'k1': [5, 9], 'k2': [5, 9], 'k3': [5, 9], 'M': [4, 10], 'cf_th': [5.0], 'cmax': [10.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'k1': [5, 9], 
+                                                    'k2': [5, 9], 
+                                                    'k3': [5, 9], 
+                                                    'M': [4, 10], 
+                                                    'cf_th': [5.0], 
+                                                    'cmax': [10.0]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -5369,11 +5862,13 @@ class MWMOTE(OverSampling):
         def closeness_factor(y, x, cf_th= self.cf_th, cmax= self.cmax):
             """
             Closeness factor according to the Eq (6)
+            
             Args:
                 y (np.array): training instance (border_majority)
                 x (np.array): training instance (informative_minority)
                 cf_th (float): cutoff threshold
                 cmax (float): maximum values
+                
             Returns:
                 float: closeness factor
             """
@@ -5428,26 +5923,37 @@ class MWMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'k1': self.k1, 'k2': self.k2, 'k3': self.k3, 'M': self.M, 'cf_th': self.cf_th, 'cmax': self.cmax, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'k1': self.k1, 
+                'k2': self.k2, 
+                'k3': self.k3, 
+                'M': self.M, 
+                'cf_th': self.cf_th, 
+                'cmax': self.cmax, 
+                'n_jobs': self.n_jobs}
 
 class PDFOS(OverSampling):
     """
-    @article{pdfos,
-            title = "PDFOS: PDF estimation based over-sampling for imbalanced two-class problems",
-            journal = "Neurocomputing",
-            volume = "138",
-            pages = "248 - 259",
-            year = "2014",
-            issn = "0925-2312",
-            doi = "https://doi.org/10.1016/j.neucom.2014.02.006",
-            url = "http://www.sciencedirect.com/science/article/pii/S0925231214002501",
-            author = "Ming Gao and Xia Hong and Sheng Chen and Chris J. Harris and Emad Khalaf",
-            keywords = "Imbalanced classification, Probability density function based over-sampling, Radial basis function classifier, Orthogonal forward selection, Particle swarm optimisation"
-            }
+    References:
+        * BibTex::
+            
+            @article{pdfos,
+                    title = "PDFOS: PDF estimation based over-sampling for imbalanced two-class problems",
+                    journal = "Neurocomputing",
+                    volume = "138",
+                    pages = "248 - 259",
+                    year = "2014",
+                    issn = "0925-2312",
+                    doi = "https://doi.org/10.1016/j.neucom.2014.02.006",
+                    url = "http://www.sciencedirect.com/science/article/pii/S0925231214002501",
+                    author = "Ming Gao and Xia Hong and Sheng Chen and Chris J. Harris and Emad Khalaf",
+                    keywords = "Imbalanced classification, Probability density function based over-sampling, Radial basis function classifier, Orthogonal forward selection, Particle swarm optimisation"
+                    }
 
-    URL: https://drive.google.com/open?id=1sBz9pFeHoGJ0XBwNwQ24r-gQA6-KhLSw
+        * URL: https://drive.google.com/open?id=1sBz9pFeHoGJ0XBwNwQ24r-gQA6-KhLSw
     
-    Not prepared for low-rank data.
+    Notes:
+        * Not prepared for low-rank data.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -5456,6 +5962,7 @@ class PDFOS(OverSampling):
     def __init__(self, proportion= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -5473,6 +5980,7 @@ class PDFOS(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
@@ -5481,6 +5989,7 @@ class PDFOS(OverSampling):
     def _sample_by_kernel_density_estimation(self, X, num_to_sample, n_optimize= 100):
         """
         Sample num_to_sample instances by kernel density estimation
+        
         Args:
             X_min (np.array): minority data
             num_to_sample (int): number of instances to sample
@@ -5579,9 +6088,11 @@ class PDFOS(OverSampling):
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -5607,31 +6118,34 @@ class PDFOS(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_jobs': self.n_jobs}
 
 class IPADE_ID(OverSampling):
     """
-    @article{ipade_id,
-            title = "Addressing imbalanced classification with instance generation techniques: IPADE-ID",
-            journal = "Neurocomputing",
-            volume = "126",
-            pages = "15 - 28",
-            year = "2014",
-            note = "Recent trends in Intelligent Data Analysis Online Data Processing",
-            issn = "0925-2312",
-            doi = "https://doi.org/10.1016/j.neucom.2013.01.050",
-            url = "http://www.sciencedirect.com/science/article/pii/S0925231213006887",
-            author = "Victoria López and Isaac Triguero and Cristóbal J. Carmona and Salvador García and Francisco Herrera",
-            keywords = "Differential evolution, Instance generation, Nearest neighbor, Decision tree, Imbalanced datasets"
-            }
+    References:
+        * BibTex::
+            
+            @article{ipade_id,
+                    title = "Addressing imbalanced classification with instance generation techniques: IPADE-ID",
+                    journal = "Neurocomputing",
+                    volume = "126",
+                    pages = "15 - 28",
+                    year = "2014",
+                    note = "Recent trends in Intelligent Data Analysis Online Data Processing",
+                    issn = "0925-2312",
+                    doi = "https://doi.org/10.1016/j.neucom.2013.01.050",
+                    url = "http://www.sciencedirect.com/science/article/pii/S0925231213006887",
+                    author = "Victoria López and Isaac Triguero and Cristóbal J. Carmona and Salvador García and Francisco Herrera",
+                    keywords = "Differential evolution, Instance generation, Nearest neighbor, Decision tree, Imbalanced datasets"
+                    }
 
-    URL: https://drive.google.com/open?id=1G6MS_K0uBgIWlwWMyTciR8_6O7fwPTTg
+        * URL: https://drive.google.com/open?id=1G6MS_K0uBgIWlwWMyTciR8_6O7fwPTTg
     
-    According to the algorithm, if the addition of a majority sample doesn't improve the AUC during the
-    DE optimization process, the addition of no further majority points is tried.
-    In the differential evolution the multiplication by a random number seems have a deteriorating effect,
-    new scaling parameter added to fix this.
-    It is not specified how to do the evaluation.
+    Notes:
+        * According to the algorithm, if the addition of a majority sample doesn't improve the AUC during the DE optimization process, the addition of no further majority points is tried.
+        * In the differential evolution the multiplication by a random number seems have a deteriorating effect, new scaling parameter added to fix this.
+        * It is not specified how to do the evaluation.
     """
     
     categories= [OverSampling.cat_changes_majority,
@@ -5641,6 +6155,7 @@ class IPADE_ID(OverSampling):
     def __init__(self, F= 0.1, G= 0.1, OT= 20, max_it= 40, dt_classifier= DecisionTreeClassifier(random_state= 2), base_classifier= DecisionTreeClassifier(random_state= 2), n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             F (float): control parameter of differential evolution
             G (float): control parameter of the evolution
@@ -5669,19 +6184,27 @@ class IPADE_ID(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
         # as the OT and max_it parameters control the discovery of the feature
         # space it is enough to try sufficiently large numbers
-        return cls.generate_parameter_combinations({'F': [0.1, 0.2], 'G': [0.1, 0.2], 'OT': [30], 'max_it': [40], 'dt_classifier': [DecisionTreeClassifier(random_state= 2)], 'base_classifier': [DecisionTreeClassifier(random_state= 2)]})
+        return cls.generate_parameter_combinations({'F': [0.1, 0.2], 
+                                                    'G': [0.1, 0.2], 
+                                                    'OT': [30], 
+                                                    'max_it': [40], 
+                                                    'dt_classifier': [DecisionTreeClassifier(random_state= 2)], 
+                                                    'base_classifier': [DecisionTreeClassifier(random_state= 2)]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -5698,6 +6221,7 @@ class IPADE_ID(OverSampling):
         def DE_optimization(GS, GS_y, X, y, min_indices, maj_indices, classifier, for_validation):
             """
             Implements the DE_optimization method of the paper.
+            
             Args:
                 GS (np.matrix): actual best training set
                 GS_y (np.array): corresponding class labels
@@ -5707,6 +6231,7 @@ class IPADE_ID(OverSampling):
                 maj_indices (np.array): array of majority class labels in y
                 classifier (object): base classifier
                 for_validation (np.array): array of indices for X used for validation
+                
             Returns:
                 np.matrix: optimized training set
             """
@@ -5737,12 +6262,14 @@ class IPADE_ID(OverSampling):
         def evaluate_ID(GS, GS_y, TR, TR_y, base_classifier):
             """
             Implements the evaluate_ID function of the paper.
+            
             Args:
                 GS (np.matrix): actual training set
                 GS_y (np.array): list of corresponding class labels
                 TR (np.matrix): complete training set
                 TR_y (np.array): all class labels
                 base_classifier (object): classifier to be used
+                
             Returns:
                 float: ROC AUC score
             """
@@ -5755,12 +6282,14 @@ class IPADE_ID(OverSampling):
         def evaluate_class(GS, GS_y, TR, TR_y, base_classifier):
             """
             Implements the evaluate_ID function of the paper.
+            
             Args:
                 GS (np.matrix): actual training set
                 GS_y (np.array): list of corresponding class labels
                 TR (np.matrix): complete training set
                 TR_y (np.array): all class labels
                 base_classifier (object): classifier to be used
+                
             Returns:
                 float: accuracy score
             """
@@ -5877,21 +6406,30 @@ class IPADE_ID(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'F': self.F, 'G': self.G, 'OT': self.OT, 'max_it': self.max_it, 'n_jobs': self.n_jobs, 'dt_classifier': self.dt_classifier, 'base_classifier': self.base_classifier}
+        return {'F': self.F, 
+                'G': self.G, 
+                'OT': self.OT, 
+                'max_it': self.max_it, 
+                'n_jobs': self.n_jobs, 
+                'dt_classifier': self.dt_classifier, 
+                'base_classifier': self.base_classifier}
 
 class RWO_sampling(OverSampling):
     """
-    @article{rwo_sampling,
-            author = {Zhang, Huaxzhang and Li, Mingfang},
-            year = {2014},
-            month = {11},
-            pages = {},
-            title = {RWO-Sampling: A Random Walk Over-Sampling Approach to Imbalanced Data Classification},
-            volume = {20},
-            booktitle = {Information Fusion}
-            }
+    References:
+        * BibTex::
+            
+            @article{rwo_sampling,
+                    author = {Zhang, Huaxzhang and Li, Mingfang},
+                    year = {2014},
+                    month = {11},
+                    pages = {},
+                    title = {RWO-Sampling: A Random Walk Over-Sampling Approach to Imbalanced Data Classification},
+                    volume = {20},
+                    booktitle = {Information Fusion}
+                    }
 
-    URL: https://drive.google.com/open?id=1zewg606Wpm1yDyuTOagmAiFwmwFyTzQv
+        * URL: https://drive.google.com/open?id=1zewg606Wpm1yDyuTOagmAiFwmwFyTzQv
     """
     
     categories= [OverSampling.cat_extensive]
@@ -5899,6 +6437,7 @@ class RWO_sampling(OverSampling):
     def __init__(self, proportion= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -5916,6 +6455,7 @@ class RWO_sampling(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
@@ -5924,9 +6464,11 @@ class RWO_sampling(OverSampling):
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -5949,29 +6491,32 @@ class RWO_sampling(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_jobs': self.n_jobs}
 
 class NEATER(OverSampling):
     """
-    @INPROCEEDINGS{neater, 
-                    author={B. A. Almogahed and I. A. Kakadiaris}, 
-                    booktitle={2014 22nd International Conference on Pattern Recognition}, 
-                    title={NEATER: Filtering of Over-sampled Data Using Non-cooperative Game Theory}, 
-                    year={2014}, 
-                    volume={}, 
-                    number={}, 
-                    pages={1371-1376}, 
-                    keywords={data handling;game theory;information filtering;NEATER;imbalanced data problem;synthetic data;filtering of over-sampled data using non-cooperative game theory;Games;Game theory;Vectors;Sociology;Statistics;Silicon;Mathematical model}, 
-                    doi={10.1109/ICPR.2014.245}, 
-                    ISSN={1051-4651}, 
-                    month={Aug}}
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{neater, 
+                            author={B. A. Almogahed and I. A. Kakadiaris}, 
+                            booktitle={2014 22nd International Conference on Pattern Recognition}, 
+                            title={NEATER: Filtering of Over-sampled Data Using Non-cooperative Game Theory}, 
+                            year={2014}, 
+                            volume={}, 
+                            number={}, 
+                            pages={1371-1376}, 
+                            keywords={data handling;game theory;information filtering;NEATER;imbalanced data problem;synthetic data;filtering of over-sampled data using non-cooperative game theory;Games;Game theory;Vectors;Sociology;Statistics;Silicon;Mathematical model}, 
+                            doi={10.1109/ICPR.2014.245}, 
+                            ISSN={1051-4651}, 
+                            month={Aug}}
 
-    URL: https://drive.google.com/open?id=1GfMmurmyG-B5jfEVhyFrQAx8lA1JxbXl
+        * URL: https://drive.google.com/open?id=1GfMmurmyG-B5jfEVhyFrQAx8lA1JxbXl
     
-    Evolving both majority and minority probabilities as nothing ensures that the probabilities remain in
-    the range [0,1], and they need to be normalized.
-    The inversely weighted function needs to be cut at some value (like the alpha level), otherwise
-    it will overemphasize the utility of having differing neighbors next to each other.
+    Notes:
+        * Evolving both majority and minority probabilities as nothing ensures that the probabilities remain in the range [0,1], and they need to be normalized.
+        * The inversely weighted function needs to be cut at some value (like the alpha level), otherwise it will overemphasize the utility of having differing neighbors next to each other.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -5981,6 +6526,7 @@ class NEATER(OverSampling):
     def __init__(self, proportion= 1.0, smote_n_neighbors= 5, b= 5, alpha= 0.1, h= 20, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -6010,17 +6556,24 @@ class NEATER(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'smote_n_neighbors': [3, 5, 7], 'b': [3, 5, 7], 'alpha': [0.1], 'h': [20]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'smote_n_neighbors': [3, 5, 7], 
+                                                    'b': [3, 5, 7], 
+                                                    'alpha': [0.1], 
+                                                    'h': [20]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -6066,8 +6619,10 @@ class NEATER(OverSampling):
         def utilities(prob):
             """
             Computes the utilit function
+            
             Args:
                 prob (np.matrix): strategy probabilities
+                
             Returns:
                 np.array, np.array, np.array: utility values, minority utilities, majority utilities
             """
@@ -6085,10 +6640,12 @@ class NEATER(OverSampling):
         def evolution(prob, synthetic, alpha= self.alpha):
             """
             Executing one step of the probabilistic evolution
+            
             Args:
                 prob (np.matrix): strategy probabilities
                 synthetic (np.array): flags of synthetic examples
                 alpha (float): smoothing function
+                
             Returns:
                 np.matrix: updated probabilities
             """
@@ -6117,26 +6674,35 @@ class NEATER(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'smote_n_neighbors': self.smote_n_neighbors, 'b': self.b, 'alpha': self.alpha, 'h': self.h, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'smote_n_neighbors': self.smote_n_neighbors, 
+                'b': self.b, 
+                'alpha': self.alpha, 
+                'h': self.h, 
+                'n_jobs': self.n_jobs}
 
 class DEAGO(OverSampling):
     """
-    @INPROCEEDINGS{deago, 
-                    author={C. Bellinger and N. Japkowicz and C. Drummond}, 
-                    booktitle={2015 IEEE 14th International Conference on Machine Learning and Applications (ICMLA)}, 
-                    title={Synthetic Oversampling for Advanced Radioactive Threat Detection}, 
-                    year={2015}, 
-                    volume={}, 
-                    number={}, 
-                    pages={948-953}, 
-                    keywords={radioactive waste;advanced radioactive threat detection;gamma-ray spectral classification;industrial nuclear facilities;Health Canadas national monitoring networks;Vancouver 2010;Isotopes;Training;Monitoring;Gamma-rays;Machine learning algorithms;Security;Neural networks;machine learning;classification;class imbalance;synthetic oversampling;artificial neural networks;autoencoders;gamma-ray spectra}, 
-                    doi={10.1109/ICMLA.2015.58}, 
-                    ISSN={}, 
-                    month={Dec}}
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{deago, 
+                            author={C. Bellinger and N. Japkowicz and C. Drummond}, 
+                            booktitle={2015 IEEE 14th International Conference on Machine Learning and Applications (ICMLA)}, 
+                            title={Synthetic Oversampling for Advanced Radioactive Threat Detection}, 
+                            year={2015}, 
+                            volume={}, 
+                            number={}, 
+                            pages={948-953}, 
+                            keywords={radioactive waste;advanced radioactive threat detection;gamma-ray spectral classification;industrial nuclear facilities;Health Canadas national monitoring networks;Vancouver 2010;Isotopes;Training;Monitoring;Gamma-rays;Machine learning algorithms;Security;Neural networks;machine learning;classification;class imbalance;synthetic oversampling;artificial neural networks;autoencoders;gamma-ray spectra}, 
+                            doi={10.1109/ICMLA.2015.58}, 
+                            ISSN={}, 
+                            month={Dec}}
 
-    URL: https://drive.google.com/open?id=1cnCltSny-X_Dl8s3BqcNCbqVn_eDPWlB
+        * URL: https://drive.google.com/open?id=1cnCltSny-X_Dl8s3BqcNCbqVn_eDPWlB
     
-    There is no hint on the activation functions and amounts of noise.
+    Notes:
+        * There is no hint on the activation functions and amounts of noise.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -6146,6 +6712,7 @@ class DEAGO(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, e= 100, h= 0.3, sigma= 0.1, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -6175,17 +6742,24 @@ class DEAGO(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'e': [40], 'h': [0.1, 0.2, 0.3, 0.4, 0.5], 'sigma': [0.05, 0.1, 0.2]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'e': [40], 
+                                                    'h': [0.1, 0.2, 0.3, 0.4, 0.5], 
+                                                    'sigma': [0.05, 0.1, 0.2]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -6254,24 +6828,32 @@ class DEAGO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'e': self.e, 'h': self.h, 'sigma': self.sigma, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'e': self.e, 
+                'h': self.h, 
+                'sigma': self.sigma, 
+                'n_jobs': self.n_jobs}
 
 class Gazzah(OverSampling):
     """
-    @INPROCEEDINGS{gazzah, 
-                    author={S. Gazzah and A. Hechkel and N. Essoukri Ben Amara}, 
-                    booktitle={2015 IEEE 12th International Multi-Conference on Systems, Signals Devices (SSD15)}, 
-                    title={A hybrid sampling method for imbalanced data}, 
-                    year={2015}, 
-                    volume={}, 
-                    number={}, 
-                    pages={1-6}, 
-                    keywords={computer vision;image classification;learning (artificial intelligence);sampling methods;hybrid sampling method;imbalanced data;diversification;computer vision domain;classical machine learning systems;intraclass variations;system performances;classification accuracy;imbalanced training data;training data set;over-sampling;minority class;SMOTE star topology;feature vector deletion;intra-class variations;distribution criterion;biometric data;true positive rate;Training data;Principal component analysis;Databases;Support vector machines;Training;Feature extraction;Correlation;Imbalanced data sets;Intra-class variations;Data analysis;Principal component analysis;One-against-all SVM}, 
-                    doi={10.1109/SSD.2015.7348093}, 
-                    ISSN={}, 
-                    month={March}}
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{gazzah, 
+                            author={S. Gazzah and A. Hechkel and N. Essoukri Ben Amara}, 
+                            booktitle={2015 IEEE 12th International Multi-Conference on Systems, Signals Devices (SSD15)}, 
+                            title={A hybrid sampling method for imbalanced data}, 
+                            year={2015}, 
+                            volume={}, 
+                            number={}, 
+                            pages={1-6}, 
+                            keywords={computer vision;image classification;learning (artificial intelligence);sampling methods;hybrid sampling method;imbalanced data;diversification;computer vision domain;classical machine learning systems;intraclass variations;system performances;classification accuracy;imbalanced training data;training data set;over-sampling;minority class;SMOTE star topology;feature vector deletion;intra-class variations;distribution criterion;biometric data;true positive rate;Training data;Principal component analysis;Databases;Support vector machines;Training;Feature extraction;Correlation;Imbalanced data sets;Intra-class variations;Data analysis;Principal component analysis;One-against-all SVM}, 
+                            doi={10.1109/SSD.2015.7348093}, 
+                            ISSN={}, 
+                            month={March}}
 
-    URL: https://drive.google.com/open?id=1oh_FRi1e0NElX3wzWxTg0ecfqe1VWshN
+        * URL: https://drive.google.com/open?id=1oh_FRi1e0NElX3wzWxTg0ecfqe1VWshN
     """
     
     categories= [OverSampling.cat_extensive,
@@ -6281,6 +6863,7 @@ class Gazzah(OverSampling):
     def __init__(self, proportion= 1.0, n_components= 2, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -6301,17 +6884,21 @@ class Gazzah(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_components': [2, 3, 4, 5]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_components': [2, 3, 4, 5]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -6347,24 +6934,29 @@ class Gazzah(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_components': self.n_components, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_components': self.n_components, 
+                'n_jobs': self.n_jobs}
 
 class MCT(OverSampling):
     """
-    @article{mct,
-            author = {Jiang, Liangxiao and Qiu, Chen and Li, Chaoqun},
-            year = {2015},
-            month = {03},
-            pages = {1551004},
-            title = {A Novel Minority Cloning Technique for Cost-Sensitive Learning},
-            volume = {29},
-            booktitle = {International Journal of Pattern Recognition and Artificial Intelligence}
-            }
+    References:
+        * BibTex::
+            
+            @article{mct,
+                    author = {Jiang, Liangxiao and Qiu, Chen and Li, Chaoqun},
+                    year = {2015},
+                    month = {03},
+                    pages = {1551004},
+                    title = {A Novel Minority Cloning Technique for Cost-Sensitive Learning},
+                    volume = {29},
+                    booktitle = {International Journal of Pattern Recognition and Artificial Intelligence}
+                    }
 
-    URL: https://drive.google.com/open?id=1yyy-DmCFGWEPa8mdOpzHOx4l8xVVlCgA
+        * URL: https://drive.google.com/open?id=1yyy-DmCFGWEPa8mdOpzHOx4l8xVVlCgA
     
-    Mode is changed to median, distance is changed to Euclidean to support continuous features,
-    and normalized.
+    Notes:
+        * Mode is changed to median, distance is changed to Euclidean to support continuous features, and normalized.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -6373,6 +6965,7 @@ class MCT(OverSampling):
     def __init__(self, proportion= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -6390,6 +6983,7 @@ class MCT(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
@@ -6398,9 +6992,11 @@ class MCT(OverSampling):
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -6432,26 +7028,31 @@ class MCT(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_jobs': self.n_jobs}
 
 class ADG(OverSampling):
     """
-    @article{adg,
-            author = {Pourhabib, A. and Mallick, Bani K. and Ding, Yu},
-            year = {2015},
-            month = {16},
-            pages = {2695--2724},
-            title = {A Novel Minority Cloning Technique for Cost-Sensitive Learning},
-            volume = {16},
-            journal = {Journal of Machine Learning Research}
-            }
+    References:
+        * BibTex::
+            
+            @article{adg,
+                    author = {Pourhabib, A. and Mallick, Bani K. and Ding, Yu},
+                    year = {2015},
+                    month = {16},
+                    pages = {2695--2724},
+                    title = {A Novel Minority Cloning Technique for Cost-Sensitive Learning},
+                    volume = {16},
+                    journal = {Journal of Machine Learning Research}
+                    }
 
-    URL: https://drive.google.com/open?id=16QNZOJA77rS-AEmNlj-xH2uogAAhp3b3
+        * URL: https://drive.google.com/open?id=16QNZOJA77rS-AEmNlj-xH2uogAAhp3b3
     
-    This method has a lot of parameters, it becomes fairly hard to cross-validate thoroughly.
-    Fails if matrix is singular when computing alpha_star.
-    Singularity might be caused by repeating samples.
-    Maintaining the kernel matrix becomes unfeasible above a couple of thousand vectors.
+    Notes:
+        * This method has a lot of parameters, it becomes fairly hard to cross-validate thoroughly.
+        * Fails if matrix is singular when computing alpha_star, fixed by PCA.
+        * Singularity might be caused by repeating samples.
+        * Maintaining the kernel matrix becomes unfeasible above a couple of thousand vectors.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -6460,6 +7061,7 @@ class ADG(OverSampling):
     def __init__(self, proportion= 1.0, kernel= 'inner', lam= 1.0, mu= 1.0, k= 12, gamma= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -6499,18 +7101,25 @@ class ADG(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'kernel': ['inner', 'rbf_0.5', 'rbf_1.0', 'rbf_2.0'], 
-                                                   'lam': [1.0, 2.0], 'mu': [1.0, 2.0], 'k': [12], 'gamma': [1.0, 2.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'kernel': ['inner', 'rbf_0.5', 'rbf_1.0', 'rbf_2.0'], 
+                                                   'lam': [1.0, 2.0], 
+                                                   'mu': [1.0, 2.0], 
+                                                   'k': [12], 
+                                                   'gamma': [1.0, 2.0]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -6523,9 +7132,11 @@ class ADG(OverSampling):
         def bic_score(kmeans, X):
             """
             Compute BIC score for clustering
+            
             Args:
                 kmeans (sklearn.KMeans): kmeans object
                 X (np.matrix):  clustered data
+                
             Returns:
                 float: bic value
             
@@ -6554,9 +7165,11 @@ class ADG(OverSampling):
         def xmeans(X, r= (1, 10)):
             """
             Clustering with BIC based n_cluster selection
+            
             Args:
                 X (np.matrix): data to cluster
                 r (tuple): lower and upper bound on the number of clusters
+                
             Returns:
                 sklearn.KMeans: clustering with lowest BIC score
             """
@@ -6577,9 +7190,11 @@ class ADG(OverSampling):
         def xgmeans(X, r= (1, 10)):
             """
             Gaussian mixture with BIC to select the optimal number of components
+            
             Args:
                 X (np.matrix): data to cluster
                 r (tuple): lower and upper bound on the number of components
+                
             Returns:
                 sklearn.GaussianMixture: Gaussian mixture model with the lowest BIC score
             """
@@ -6599,10 +7214,12 @@ class ADG(OverSampling):
         def evaluate_matrices(X, y, kernel= np.inner):
             """
             The function evaluates the matrices specified in the method.
+            
             Args:
                 X (np.matrix): features
                 y (np.array): target labels
                 kernel (function): the kernel function to be used
+                
             Returns:
                 np.matrix, np.matrix, int, int, np.matrix, np.array, np.matrix, np.matrix, np.matrix
                 np.array, np.matrix, np.matrix, np.matrix, np.matrix:
@@ -6633,10 +7250,12 @@ class ADG(OverSampling):
         def K_test(X, x, kernel= np.inner):
             """
             Computes the kernel row for a new input
+            
             Args:
                 X (np.matrix): all data
                 x (np.array): new data sample
                 kernel (function): the kernel function to be used
+                
             Returns:
                 np.array: the kernel matrix row
             """
@@ -6645,6 +7264,7 @@ class ADG(OverSampling):
         def K_extend(K, K_minus, K_plus, X, X_new, l_minus, kernel= np.inner):
             """
             Extends the kernel matrices with new rows and columns.
+            
             Args:
                 K (np.matrix): the kernel matrix
                 K_minus (np.matrix): the negative part of the kernel matrix
@@ -6653,6 +7273,7 @@ class ADG(OverSampling):
                 X_new (np.matrix): the new data
                 l_minus (int): number of negative samples
                 kernel (function): the kernel function to be used
+                
             Returns:
                 np.matrix, np.matrix, np.matrix: the extended K, K_minus and K_plus matrices
             """
@@ -6824,24 +7445,33 @@ class ADG(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'kernel': self.kernel, 'lam': self.lam, 'mu': self.mu, 'k': self.k, 'gamma': self.gamma, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'kernel': self.kernel, 
+                'lam': self.lam, 
+                'mu': self.mu, 
+                'k': self.k, 
+                'gamma': self.gamma, 
+                'n_jobs': self.n_jobs}
 
 class SMOTE_IPF(OverSampling):
     """
-    @article{smote_ipf,
-                title = "SMOTE–IPF: Addressing the noisy and borderline examples problem in imbalanced classification by a re-sampling method with filtering",
-                journal = "Information Sciences",
-                volume = "291",
-                pages = "184 - 203",
-                year = "2015",
-                issn = "0020-0255",
-                doi = "https://doi.org/10.1016/j.ins.2014.08.051",
-                url = "http://www.sciencedirect.com/science/article/pii/S0020025514008561",
-                author = "José A. Sáez and Julián Luengo and Jerzy Stefanowski and Francisco Herrera",
-                keywords = "Imbalanced classification, Borderline examples, Noisy data, Noise filters, SMOTE"
-                }
+    References:
+        * BibTex::
+            
+            @article{smote_ipf,
+                        title = "SMOTE–IPF: Addressing the noisy and borderline examples problem in imbalanced classification by a re-sampling method with filtering",
+                        journal = "Information Sciences",
+                        volume = "291",
+                        pages = "184 - 203",
+                        year = "2015",
+                        issn = "0020-0255",
+                        doi = "https://doi.org/10.1016/j.ins.2014.08.051",
+                        url = "http://www.sciencedirect.com/science/article/pii/S0020025514008561",
+                        author = "José A. Sáez and Julián Luengo and Jerzy Stefanowski and Francisco Herrera",
+                        keywords = "Imbalanced classification, Borderline examples, Noisy data, Noise filters, SMOTE"
+                        }
 
-    URL: https://drive.google.com/open?id=1j2SKWvovYczOkg2MaMBep2i8XaZ0r_rS
+        * URL: https://drive.google.com/open?id=1j2SKWvovYczOkg2MaMBep2i8XaZ0r_rS
     """
     
     categories= [OverSampling.cat_changes_majority,
@@ -6850,6 +7480,7 @@ class SMOTE_IPF(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_folds= 9, k= 3, p= 0.01, voting= 'majority', classifier= DecisionTreeClassifier(), n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -6884,17 +7515,26 @@ class SMOTE_IPF(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'n_folds': [9], 'k': [3], 'p': [0.01], 'voting': ['majority', 'consensus'], 'classifier': [DecisionTreeClassifier()]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'n_folds': [9], 
+                                                    'k': [3], 
+                                                    'p': [0.01], 
+                                                    'voting': ['majority', 'consensus'], 
+                                                    'classifier': [DecisionTreeClassifier()]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -6945,27 +7585,38 @@ class SMOTE_IPF(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_folds': self.n_folds, 'k': self.k, 'p': self.p, 'voting': self.voting, 'n_jobs': self.n_jobs, 'classifier': self.classifier}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_folds': self.n_folds, 
+                'k': self.k, 
+                'p': self.p, 
+                'voting': self.voting, 
+                'n_jobs': self.n_jobs, 
+                'classifier': self.classifier}
 
 class KernelADASYN(OverSampling):
     """
-    @INPROCEEDINGS{kernel_adasyn, 
-                    author={B. Tang and H. He}, 
-                    booktitle={2015 IEEE Congress on Evolutionary Computation (CEC)}, 
-                    title={KernelADASYN: Kernel based adaptive synthetic data generation for imbalanced learning}, 
-                    year={2015}, 
-                    volume={}, 
-                    number={}, 
-                    pages={664-671}, 
-                    keywords={learning (artificial intelligence);pattern classification;sampling methods;KernelADASYN;kernel based adaptive synthetic data generation;imbalanced learning;standard classification algorithms;data distribution;minority class decision rule;expensive minority class data misclassification;kernel based adaptive synthetic over-sampling approach;imbalanced data classification problems;kernel density estimation methods;Kernel;Estimation;Accuracy;Measurement;Standards;Training data;Sampling methods;Imbalanced learning;adaptive over-sampling;kernel density estimation;pattern recognition;medical and healthcare data learning}, 
-                    doi={10.1109/CEC.2015.7256954}, 
-                    ISSN={1089-778X}, 
-                    month={May}}
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{kernel_adasyn, 
+                            author={B. Tang and H. He}, 
+                            booktitle={2015 IEEE Congress on Evolutionary Computation (CEC)}, 
+                            title={KernelADASYN: Kernel based adaptive synthetic data generation for imbalanced learning}, 
+                            year={2015}, 
+                            volume={}, 
+                            number={}, 
+                            pages={664-671}, 
+                            keywords={learning (artificial intelligence);pattern classification;sampling methods;KernelADASYN;kernel based adaptive synthetic data generation;imbalanced learning;standard classification algorithms;data distribution;minority class decision rule;expensive minority class data misclassification;kernel based adaptive synthetic over-sampling approach;imbalanced data classification problems;kernel density estimation methods;Kernel;Estimation;Accuracy;Measurement;Standards;Training data;Sampling methods;Imbalanced learning;adaptive over-sampling;kernel density estimation;pattern recognition;medical and healthcare data learning}, 
+                            doi={10.1109/CEC.2015.7256954}, 
+                            ISSN={1089-778X}, 
+                            month={May}}
 
-    URL: https://drive.google.com/open?id=1RXURKKH7BLOzC0N7J-btZBhBK9OCyB4K
+        * URL: https://drive.google.com/open?id=1RXURKKH7BLOzC0N7J-btZBhBK9OCyB4K
     
-    The method of sampling was not specified, Markov Chain Monte Carlo has been implemented.
-    Not prepared for improperly conditioned covariance matrix.
+    Notes:
+        * The method of sampling was not specified, Markov Chain Monte Carlo has been implemented.
+        * Not prepared for improperly conditioned covariance matrix.
     """
     
     categories= [OverSampling.cat_density_estimation,
@@ -6975,6 +7626,7 @@ class KernelADASYN(OverSampling):
     def __init__(self, proportion= 1.0, k= 5, h= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -6998,17 +7650,22 @@ class KernelADASYN(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'k': [5, 7, 9], 'h': [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 10.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'k': [5, 7, 9], 
+                                                    'h': [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 10.0]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -7038,8 +7695,10 @@ class KernelADASYN(OverSampling):
         def p_x(x):
             """
             Returns minority density value at x
+            
             Args:
                 x (np.array): feature vector
+                
             Returns:
                 float: density value
             """
@@ -7060,7 +7719,7 @@ class KernelADASYN(OverSampling):
         # covariance is used to generate a random sample in the neighborhood
         covariance= np.cov(X_min[r > 0], rowvar= False)
         
-        if len(covariance) > 1 and np.linalg.cond(covariance) > 1000:
+        if len(covariance) > 1 and np.linalg.cond(covariance) > 10000:
             logging.info(self.__class__.__name__ + ": " + "reducing dimensions due to inproperly conditioned covariance matrix")
             if len(X[0]) <= 2:
                 logging.info(self.__class__.__name__ + ": " + "matrix ill-conditioned")
@@ -7102,36 +7761,42 @@ class KernelADASYN(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'k': self.k, 'h': self.h, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'k': self.k, 
+                'h': self.h, 
+                'n_jobs': self.n_jobs}
 
 class MOT2LD(OverSampling):
     """
-    @InProceedings{mot2ld,
-                    author="Xie, Zhipeng
-                    and Jiang, Liyang
-                    and Ye, Tengju
-                    and Li, Xiaoli",
-                    editor="Renz, Matthias
-                    and Shahabi, Cyrus
-                    and Zhou, Xiaofang
-                    and Cheema, Muhammad Aamir",
-                    title="A Synthetic Minority Oversampling Method Based on Local Densities in Low-Dimensional Space for Imbalanced Learning",
-                    booktitle="Database Systems for Advanced Applications",
-                    year="2015",
-                    publisher="Springer International Publishing",
-                    address="Cham",
-                    pages="3--18",
-                    abstract="Imbalanced class distribution is a challenging problem in many real-life classification problems. Existing synthetic oversampling do suffer from the curse of dimensionality because they rely heavily on Euclidean distance. This paper proposed a new method, called Minority Oversampling Technique based on Local Densities in Low-Dimensional Space (or MOT2LD in short). MOT2LD first maps each training sample into a low-dimensional space, and makes clustering of their low-dimensional representations. It then assigns weight to each minority sample as the product of two quantities: local minority density and local majority count, indicating its importance of sampling. The synthetic minority class samples are generated inside some minority cluster. MOT2LD has been evaluated on 15 real-world data sets. The experimental results have shown that our method outperforms some other existing methods including SMOTE, Borderline-SMOTE, ADASYN, and MWMOTE, in terms of G-mean and F-measure.",
-                    isbn="978-3-319-18123-3"
-                    }
+    References:
+        * BibTex::
+            
+            @InProceedings{mot2ld,
+                            author="Xie, Zhipeng
+                            and Jiang, Liyang
+                            and Ye, Tengju
+                            and Li, Xiaoli",
+                            editor="Renz, Matthias
+                            and Shahabi, Cyrus
+                            and Zhou, Xiaofang
+                            and Cheema, Muhammad Aamir",
+                            title="A Synthetic Minority Oversampling Method Based on Local Densities in Low-Dimensional Space for Imbalanced Learning",
+                            booktitle="Database Systems for Advanced Applications",
+                            year="2015",
+                            publisher="Springer International Publishing",
+                            address="Cham",
+                            pages="3--18",
+                            abstract="Imbalanced class distribution is a challenging problem in many real-life classification problems. Existing synthetic oversampling do suffer from the curse of dimensionality because they rely heavily on Euclidean distance. This paper proposed a new method, called Minority Oversampling Technique based on Local Densities in Low-Dimensional Space (or MOT2LD in short). MOT2LD first maps each training sample into a low-dimensional space, and makes clustering of their low-dimensional representations. It then assigns weight to each minority sample as the product of two quantities: local minority density and local majority count, indicating its importance of sampling. The synthetic minority class samples are generated inside some minority cluster. MOT2LD has been evaluated on 15 real-world data sets. The experimental results have shown that our method outperforms some other existing methods including SMOTE, Borderline-SMOTE, ADASYN, and MWMOTE, in terms of G-mean and F-measure.",
+                            isbn="978-3-319-18123-3"
+                            }
 
-
-    URL: https://drive.google.com/open?id=191-gIFEmY1EmOT7iq0mK8fNr3btKovQ6
+        * URL: https://drive.google.com/open?id=191-gIFEmY1EmOT7iq0mK8fNr3btKovQ6
     
-    Clusters might contain 1 elements, and all points can be filtered as noise.
-    Clusters might contain 0 elements as well, if all points are filtered as noise.
-    The entire clustering can become empty.
-    TSNE is very slow when the number of instances is over a couple of 1000
+    Notes:
+        * Clusters might contain 1 elements, and all points can be filtered as noise.
+        * Clusters might contain 0 elements as well, if all points are filtered as noise.
+        * The entire clustering can become empty.
+        * TSNE is very slow when the number of instances is over a couple of 1000
     """
     
     categories= [OverSampling.cat_uses_clustering,
@@ -7140,6 +7805,7 @@ class MOT2LD(OverSampling):
     def __init__(self, proportion= 1.0, n_components= 2, k= 5, d_cut= 'auto', n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -7170,17 +7836,23 @@ class MOT2LD(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_components': [2], 'k': [3, 5, 7], 'd_cut': ['auto']})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_components': [2], 
+                                                    'k': [3, 5, 7], 
+                                                    'd_cut': ['auto']})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -7309,34 +7981,42 @@ class MOT2LD(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_components': self.n_components, 'k': self.k, 'd_cut': self.d_cut, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_components': self.n_components, 
+                'k': self.k, 
+                'd_cut': self.d_cut, 
+                'n_jobs': self.n_jobs}
 
 class V_SYNTH(OverSampling):
     """
-    @article{v_synth,
-             author = {Young,Ii, William A. and Nykl, Scott L. and Weckman, Gary R. and Chelberg, David M.},
-             title = {Using Voronoi Diagrams to Improve Classification Performances when Modeling Imbalanced Datasets},
-             journal = {Neural Comput. Appl.},
-             issue_date = {July      2015},
-             volume = {26},
-             number = {5},
-             month = jul,
-             year = {2015},
-             issn = {0941-0643},
-             pages = {1041--1054},
-             numpages = {14},
-             url = {http://dx.doi.org/10.1007/s00521-014-1780-0},
-             doi = {10.1007/s00521-014-1780-0},
-             acmid = {2790665},
-             publisher = {Springer-Verlag},
-             address = {London, UK, UK},
-             keywords = {Data engineering, Data mining, Imbalanced datasets, Knowledge extraction, Numerical algorithms, Synthetic over-sampling},
-            } 
+    References:
+        * BibTex::
+            
+            @article{v_synth,
+                     author = {Young,Ii, William A. and Nykl, Scott L. and Weckman, Gary R. and Chelberg, David M.},
+                     title = {Using Voronoi Diagrams to Improve Classification Performances when Modeling Imbalanced Datasets},
+                     journal = {Neural Comput. Appl.},
+                     issue_date = {July      2015},
+                     volume = {26},
+                     number = {5},
+                     month = jul,
+                     year = {2015},
+                     issn = {0941-0643},
+                     pages = {1041--1054},
+                     numpages = {14},
+                     url = {http://dx.doi.org/10.1007/s00521-014-1780-0},
+                     doi = {10.1007/s00521-014-1780-0},
+                     acmid = {2790665},
+                     publisher = {Springer-Verlag},
+                     address = {London, UK, UK},
+                     keywords = {Data engineering, Data mining, Imbalanced datasets, Knowledge extraction, Numerical algorithms, Synthetic over-sampling},
+                    }
 
-    URL: https://drive.google.com/open?id=1mbp816SazOpTOL22eMHfDkmJEKRaUKez
+        * URL: https://drive.google.com/open?id=1mbp816SazOpTOL22eMHfDkmJEKRaUKez
     
-    The proposed encompassing bounding box generation is incorrect.
-    Voronoi diagram generation in high dimensional spaces is instable
+    Notes:
+        * The proposed encompassing bounding box generation is incorrect.
+        * Voronoi diagram generation in high dimensional spaces is instable
     """
     
     categories= [OverSampling.cat_extensive,
@@ -7345,6 +8025,7 @@ class V_SYNTH(OverSampling):
     def __init__(self, proportion= 1.0, n_components= 3, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -7365,17 +8046,21 @@ class V_SYNTH(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_components': [3]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_components': [3]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -7388,8 +8073,8 @@ class V_SYNTH(OverSampling):
         # creating the bounding box
         mins= np.min(X, axis= 0)
         maxs= np.max(X, axis= 0)
-        mins= mins - np.abs(mins)
-        maxs= maxs + np.abs(maxs)
+        mins= mins - 0.1*np.abs(mins)
+        maxs= maxs + 0.1*np.abs(maxs)
         
         bounding_box= [np.where(np.random.randint(0, 1, size=len(X[0])) == 0, mins, maxs) for i in range(min([100, len(X[0])]))]
         X_bb= np.vstack([X, bounding_box])
@@ -7398,6 +8083,7 @@ class V_SYNTH(OverSampling):
         n_components= min([len(X[0]), self.n_components])
         pca= PCA(n_components= n_components)
         X_pca= pca.fit_transform(X_bb)
+        y_pca= np.hstack([y, np.repeat(-1, len(bounding_box))])
         
         dm= pairwise_distances(X_pca)
         to_remove= []
@@ -7406,7 +8092,7 @@ class V_SYNTH(OverSampling):
                 if dm[i,j] < 0.001:
                     to_remove.append(i)
         X_pca= np.delete(X_pca, to_remove, axis= 0)
-        y_pca= np.delete(y, to_remove)
+        y_pca= np.delete(y_pca, to_remove)
 
         # doing the Voronoi tessellation
         voronoi= sspatial.Voronoi(X_pca)
@@ -7415,7 +8101,7 @@ class V_SYNTH(OverSampling):
         # an edge between two cells of different class labels
         candidate_face_generators= []
         for i, r in enumerate(voronoi.ridge_points):
-            if r[0] < len(y_pca) and r[1] < len(y_pca) and not y_pca[r[0]] == y_pca[r[1]]:
+            if r[0] < len(y) and r[1] < len(y) and not y[r[0]] == y[r[1]]:
                 candidate_face_generators.append(i)
         
         # generating samples
@@ -7450,26 +8136,32 @@ class V_SYNTH(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_components': self.n_components, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_components': self.n_components, 
+                'n_jobs': self.n_jobs}
 
 class OUPS(OverSampling):
     """
-    @article{oups,
-                title = "A priori synthetic over-sampling methods for increasing classification sensitivity in imbalanced data sets",
-                journal = "Expert Systems with Applications",
-                volume = "66",
-                pages = "124 - 135",
-                year = "2016",
-                issn = "0957-4174",
-                doi = "https://doi.org/10.1016/j.eswa.2016.09.010",
-                url = "http://www.sciencedirect.com/science/article/pii/S0957417416304882",
-                author = "William A. Rivera and Petros Xanthopoulos",
-                keywords = "SMOTE, OUPS, Class imbalance, Classification"
-                }
+    References:
+        * BibTex::
+            
+            @article{oups,
+                        title = "A priori synthetic over-sampling methods for increasing classification sensitivity in imbalanced data sets",
+                        journal = "Expert Systems with Applications",
+                        volume = "66",
+                        pages = "124 - 135",
+                        year = "2016",
+                        issn = "0957-4174",
+                        doi = "https://doi.org/10.1016/j.eswa.2016.09.010",
+                        url = "http://www.sciencedirect.com/science/article/pii/S0957417416304882",
+                        author = "William A. Rivera and Petros Xanthopoulos",
+                        keywords = "SMOTE, OUPS, Class imbalance, Classification"
+                        }
 
-    URL: https://drive.google.com/open?id=1Q9X9Ye7F3igLrIV9GRqrAoyNmp592TGn
+        * URL: https://drive.google.com/open?id=1Q9X9Ye7F3igLrIV9GRqrAoyNmp592TGn
     
-    In the description of the algorithm a fractional number p (j) is used to index a vector.
+    Notes:
+        * In the description of the algorithm a fractional number p (j) is used to index a vector.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -7478,6 +8170,7 @@ class OUPS(OverSampling):
     def __init__(self, proportion= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -7496,6 +8189,7 @@ class OUPS(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
@@ -7504,6 +8198,7 @@ class OUPS(OverSampling):
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
@@ -7547,32 +8242,37 @@ class OUPS(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_jobs': self.n_jobs}
 
 class SMOTE_D(OverSampling):
     """
-    @InProceedings{smote_d,
-                    author="Torres, Fredy Rodr{\'i}guez
-                    and Carrasco-Ochoa, Jes{\'u}s A.
-                    and Mart{\'i}nez-Trinidad, Jos{\'e} Fco.",
-                    editor="Mart{\'i}nez-Trinidad, Jos{\'e} Francisco
-                    and Carrasco-Ochoa, Jes{\'u}s Ariel
-                    and Ayala Ramirez, Victor
-                    and Olvera-L{\'o}pez, Jos{\'e} Arturo
-                    and Jiang, Xiaoyi",
-                    title="SMOTE-D a Deterministic Version of SMOTE",
-                    booktitle="Pattern Recognition",
-                    year="2016",
-                    publisher="Springer International Publishing",
-                    address="Cham",
-                    pages="177--188",
-                    abstract="Imbalanced data is a problem of current research interest. This problem arises when the number of objects in a class is much lower than in other classes. In order to address this problem several methods for oversampling the minority class have been proposed. Oversampling methods generate synthetic objects for the minority class in order to balance the amount of objects between classes, among them, SMOTE is one of the most successful and well-known methods. In this paper, we introduce a modification of SMOTE which deterministically generates synthetic objects for the minority class. Our proposed method eliminates the random component of SMOTE and generates different amount of synthetic objects for each object of the minority class. An experimental comparison of the proposed method against SMOTE in standard imbalanced datasets is provided. The experimental results show an improvement of our proposed method regarding SMOTE, in terms of F-measure.",
-                    isbn="978-3-319-39393-3"
-                    }
+    References:
+        * BibTex::
+            
+            @InProceedings{smote_d,
+                            author="Torres, Fredy Rodr{\'i}guez
+                            and Carrasco-Ochoa, Jes{\'u}s A.
+                            and Mart{\'i}nez-Trinidad, Jos{\'e} Fco.",
+                            editor="Mart{\'i}nez-Trinidad, Jos{\'e} Francisco
+                            and Carrasco-Ochoa, Jes{\'u}s Ariel
+                            and Ayala Ramirez, Victor
+                            and Olvera-L{\'o}pez, Jos{\'e} Arturo
+                            and Jiang, Xiaoyi",
+                            title="SMOTE-D a Deterministic Version of SMOTE",
+                            booktitle="Pattern Recognition",
+                            year="2016",
+                            publisher="Springer International Publishing",
+                            address="Cham",
+                            pages="177--188",
+                            abstract="Imbalanced data is a problem of current research interest. This problem arises when the number of objects in a class is much lower than in other classes. In order to address this problem several methods for oversampling the minority class have been proposed. Oversampling methods generate synthetic objects for the minority class in order to balance the amount of objects between classes, among them, SMOTE is one of the most successful and well-known methods. In this paper, we introduce a modification of SMOTE which deterministically generates synthetic objects for the minority class. Our proposed method eliminates the random component of SMOTE and generates different amount of synthetic objects for each object of the minority class. An experimental comparison of the proposed method against SMOTE in standard imbalanced datasets is provided. The experimental results show an improvement of our proposed method regarding SMOTE, in terms of F-measure.",
+                            isbn="978-3-319-39393-3"
+                            }
 
-    URL: https://drive.google.com/open?id=1x_9IYnDvVBXeYjBcwgV9FOlL7pj-Yi2f
+        * URL: https://drive.google.com/open?id=1x_9IYnDvVBXeYjBcwgV9FOlL7pj-Yi2f
     
-    Copying happens if two points are the neighbors of each other.
+    Notes:
+        * Copying happens if two points are the neighbors of each other.
     """
     
     categories= [OverSampling.cat_extensive]
@@ -7580,6 +8280,7 @@ class SMOTE_D(OverSampling):
     def __init__(self, proportion= 1.0, k= 3, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -7601,17 +8302,21 @@ class SMOTE_D(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'k': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'k': [3, 5, 7]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -7657,40 +8362,35 @@ class SMOTE_D(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'k': self.k, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'k': self.k, 
+                'n_jobs': self.n_jobs}
 
 class SMOTE_PSO(OverSampling):
     """
-    @article{smote_pso,
-                title = "PSO-based method for SVM classification on skewed data sets",
-                journal = "Neurocomputing",
-                volume = "228",
-                pages = "187 - 197",
-                year = "2017",
-                note = "Advanced Intelligent Computing: Theory and Applications",
-                issn = "0925-2312",
-                doi = "https://doi.org/10.1016/j.neucom.2016.10.041",
-                url = "http://www.sciencedirect.com/science/article/pii/S0925231216312668",
-                author = "Jair Cervantes and Farid Garcia-Lamont and Lisbeth Rodriguez and Asdrúbal López and José Ruiz Castilla and Adrian Trueba",
-                keywords = "Skew data sets, SVM, Hybrid algorithms"
-                }
+    References:
+        * BibTex::
+            
+            @article{smote_pso,
+                        title = "PSO-based method for SVM classification on skewed data sets",
+                        journal = "Neurocomputing",
+                        volume = "228",
+                        pages = "187 - 197",
+                        year = "2017",
+                        note = "Advanced Intelligent Computing: Theory and Applications",
+                        issn = "0925-2312",
+                        doi = "https://doi.org/10.1016/j.neucom.2016.10.041",
+                        url = "http://www.sciencedirect.com/science/article/pii/S0925231216312668",
+                        author = "Jair Cervantes and Farid Garcia-Lamont and Lisbeth Rodriguez and Asdrúbal López and José Ruiz Castilla and Adrian Trueba",
+                        keywords = "Skew data sets, SVM, Hybrid algorithms"
+                        }
 
-    URL: https://drive.google.com/open?id=1rJu-2aLrosz_NGlcoRdz3qyCGlExQsvZ
+        * URL: https://drive.google.com/open?id=1rJu-2aLrosz_NGlcoRdz3qyCGlExQsvZ
     
-    Remarks:
-    1) I find the description of the technique a bit confusing, especially on
-    the bounds of the search space of velocities and positions. Equations 15 and
-    16 specify the lower and upper bounds, the lower bound is in fact a vector
-    while the upper bound is a distance. I tried to implement something meaningful.
-    2) I also find the setting of accelerating constant 2.0 strange, most of the time 
-    the velocity will be bounded due to this choice. 
-    3) Also, training and predicting probabilities with a non-linear SVM as the 
-    evaluation function becomes fairly expensive when the number of training 
-    vectors reaches a couple of thousands. To reduce computational burden,
-    minority and majority vectors far from the other class are removed to reduce
-    the size of both classes to a maximum of 500 samples. Generally, this shouldn't
-    really affect the results as the technique focuses on the samples near the
-    class boundaries.
+    Notes:
+        * I find the description of the technique a bit confusing, especially on the bounds of the search space of velocities and positions. Equations 15 and 16 specify the lower and upper bounds, the lower bound is in fact a vector while the upper bound is a distance. I tried to implement something meaningful.
+        * I also find the setting of accelerating constant 2.0 strange, most of the time the velocity will be bounded due to this choice. 
+        * Also, training and predicting probabilities with a non-linear SVM as the evaluation function becomes fairly expensive when the number of training vectors reaches a couple of thousands. To reduce computational burden, minority and majority vectors far from the other class are removed to reduce the size of both classes to a maximum of 500 samples. Generally, this shouldn't really affect the results as the technique focuses on the samples near the class boundaries.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -7700,6 +8400,7 @@ class SMOTE_PSO(OverSampling):
     def __init__(self, k= 3, eps= 0.05, n_pop= 10, w= 1.0, c1= 2.0, c2= 2.0, num_it= 10, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             k (int): number of neighbors in nearest neighbors component, this is also the
                         multiplication factor of minority support vectors
@@ -7735,17 +8436,26 @@ class SMOTE_PSO(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'k': [3, 5, 7], 'eps': [0.05], 'n_pop': [5], 'w': [0.5, 1.0], 'c1': [1.0, 2.0], 'c2': [1.0, 2.0], 'num_it': [5]})
+        return cls.generate_parameter_combinations({'k': [3, 5, 7], 
+                                                    'eps': [0.05], 
+                                                    'n_pop': [5], 
+                                                    'w': [0.5, 1.0], 
+                                                    'c1': [1.0, 2.0], 
+                                                    'c2': [1.0, 2.0], 
+                                                    'num_it': [5]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -7840,6 +8550,7 @@ class SMOTE_PSO(OverSampling):
         def evaluate(X_train, y_train, X_test, y_test):
             """
             Trains support vector classifier and evaluates it
+            
             Args:
                 X_train (np.matrix): training vectors
                 y_train (np.array): target labels
@@ -7900,31 +8611,42 @@ class SMOTE_PSO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'k': self.k, 'eps': self.eps, 'n_pop': self.n_pop, 'w': self.w, 'c1': self.c1, 'c2': self.c2, 'num_it': self.num_it, 'n_jobs': self.n_jobs}
+        return {'k': self.k, 
+                'eps': self.eps, 
+                'n_pop': self.n_pop, 
+                'w': self.w, 
+                'c1': self.c1, 
+                'c2': self.c2, 
+                'num_it': self.num_it, 
+                'n_jobs': self.n_jobs}
 
 class CURE_SMOTE(OverSampling):
     """
-    @Article{cure_smote,
-                author="Ma, Li
-                and Fan, Suohai",
-                title="CURE-SMOTE algorithm and hybrid algorithm for feature selection and parameter optimization based on random forests",
-                journal="BMC Bioinformatics",
-                year="2017",
-                month="Mar",
-                day="14",
-                volume="18",
-                number="1",
-                pages="169",
-                abstract="The random forests algorithm is a type of classifier with prominent universality, a wide application range, and robustness for avoiding overfitting. But there are still some drawbacks to random forests. Therefore, to improve the performance of random forests, this paper seeks to improve imbalanced data processing, feature selection and parameter optimization.",
-                issn="1471-2105",
-                doi="10.1186/s12859-017-1578-z",
-                url="https://doi.org/10.1186/s12859-017-1578-z"
-                }
+    References:
+        * BibTex::
+            
+            @Article{cure_smote,
+                        author="Ma, Li
+                        and Fan, Suohai",
+                        title="CURE-SMOTE algorithm and hybrid algorithm for feature selection and parameter optimization based on random forests",
+                        journal="BMC Bioinformatics",
+                        year="2017",
+                        month="Mar",
+                        day="14",
+                        volume="18",
+                        number="1",
+                        pages="169",
+                        abstract="The random forests algorithm is a type of classifier with prominent universality, a wide application range, and robustness for avoiding overfitting. But there are still some drawbacks to random forests. Therefore, to improve the performance of random forests, this paper seeks to improve imbalanced data processing, feature selection and parameter optimization.",
+                        issn="1471-2105",
+                        doi="10.1186/s12859-017-1578-z",
+                        url="https://doi.org/10.1186/s12859-017-1578-z"
+                        }
 
-    URL: https://drive.google.com/open?id=1XJua_4oAcffDxt_seCu-eQHhfG9ig1Og
+        * URL: https://drive.google.com/open?id=1XJua_4oAcffDxt_seCu-eQHhfG9ig1Og
     
-    It is not specified how to determine the cluster with the "slowest growth rate"
-    All clusters can be removed as noise.
+    Notes:
+        * It is not specified how to determine the cluster with the "slowest growth rate"
+        * All clusters can be removed as noise.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -7933,6 +8655,7 @@ class CURE_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, n_clusters= 5, noise_th= 2, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -7956,17 +8679,22 @@ class CURE_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_clusters': [5, 10, 15], 'noise_th': [1, 3]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_clusters': [5, 10, 15], 
+                                                    'noise_th': [1, 3]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -8054,26 +8782,32 @@ class CURE_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_clusters': self.n_clusters, 'noise_th': self.noise_th, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_clusters': self.n_clusters, 
+                'noise_th': self.noise_th, 
+                'n_jobs': self.n_jobs}
 
 class SOMO(OverSampling):
     """
-    @article{somo,
-                title = "Self-Organizing Map Oversampling (SOMO) for imbalanced data set learning",
-                journal = "Expert Systems with Applications",
-                volume = "82",
-                pages = "40 - 52",
-                year = "2017",
-                issn = "0957-4174",
-                doi = "https://doi.org/10.1016/j.eswa.2017.03.073",
-                url = "http://www.sciencedirect.com/science/article/pii/S0957417417302324",
-                author = "Georgios Douzas and Fernando Bacao"
-                }
+    References:
+        * BibTex::
+            
+            @article{somo,
+                        title = "Self-Organizing Map Oversampling (SOMO) for imbalanced data set learning",
+                        journal = "Expert Systems with Applications",
+                        volume = "82",
+                        pages = "40 - 52",
+                        year = "2017",
+                        issn = "0957-4174",
+                        doi = "https://doi.org/10.1016/j.eswa.2017.03.073",
+                        url = "http://www.sciencedirect.com/science/article/pii/S0957417417302324",
+                        author = "Georgios Douzas and Fernando Bacao"
+                        }
 
-    URL: https://drive.google.com/open?id=1RiPlh4KQ383YTr04-voi3Vq2iBBE-1Ij
+        * URL: https://drive.google.com/open?id=1RiPlh4KQ383YTr04-voi3Vq2iBBE-1Ij
     
-    It is not specified how to handle those cases when a cluster contains 1 minority samples,
-    the mean of within-cluster distances is set to 100 in these cases.
+    Notes:
+        * It is not specified how to handle those cases when a cluster contains 1 minority samples, the mean of within-cluster distances is set to 100 in these cases.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -8082,6 +8816,7 @@ class SOMO(OverSampling):
     def __init__(self, proportion= 1.0, n_grid= 10, sigma= 0.2, learning_rate= 0.5, n_iter= 100, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -8111,17 +8846,24 @@ class SOMO(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_grid': [5, 9, 13], 'sigma': [0.4], 'learning_rate': [0.3, 0.5], 'n_iter': [100]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_grid': [5, 9, 13], 
+                                                    'sigma': [0.4], 
+                                                    'learning_rate': [0.3, 0.5], 
+                                                    'n_iter': [100]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -8231,29 +8973,37 @@ class SOMO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_grid': self.n_grid, 'sigma': self.sigma, 'learining_rate': self.learning_rate, 'n_iter': self.n_iter, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_grid': self.n_grid, 
+                'sigma': self.sigma, 
+                'learning_rate': self.learning_rate, 
+                'n_iter': self.n_iter, 
+                'n_jobs': self.n_jobs}
 
 class ISOMAP_Hybrid(OverSampling):
     """
-    @inproceedings{isomap_hybrid,
-                     author = {Gu, Qiong and Cai, Zhihua and Zhu, Li},
-                     title = {Classification of Imbalanced Data Sets by Using the Hybrid Re-sampling Algorithm Based on Isomap},
-                     booktitle = {Proceedings of the 4th International Symposium on Advances in Computation and Intelligence},
-                     series = {ISICA '09},
-                     year = {2009},
-                     isbn = {978-3-642-04842-5},
-                     location = {Huangshi, China},
-                     pages = {287--296},
-                     numpages = {10},
-                     url = {http://dx.doi.org/10.1007/978-3-642-04843-2_31},
-                     doi = {10.1007/978-3-642-04843-2_31},
-                     acmid = {1691478},
-                     publisher = {Springer-Verlag},
-                     address = {Berlin, Heidelberg},
-                     keywords = {Imbalanced data set, Isomap, NCR, Smote, re-sampling},
-                    } 
+    References:
+        * BibTex::
+            
+            @inproceedings{isomap_hybrid,
+                             author = {Gu, Qiong and Cai, Zhihua and Zhu, Li},
+                             title = {Classification of Imbalanced Data Sets by Using the Hybrid Re-sampling Algorithm Based on Isomap},
+                             booktitle = {Proceedings of the 4th International Symposium on Advances in Computation and Intelligence},
+                             series = {ISICA '09},
+                             year = {2009},
+                             isbn = {978-3-642-04842-5},
+                             location = {Huangshi, China},
+                             pages = {287--296},
+                             numpages = {10},
+                             url = {http://dx.doi.org/10.1007/978-3-642-04843-2_31},
+                             doi = {10.1007/978-3-642-04843-2_31},
+                             acmid = {1691478},
+                             publisher = {Springer-Verlag},
+                             address = {Berlin, Heidelberg},
+                             keywords = {Imbalanced data set, Isomap, NCR, Smote, re-sampling},
+                            } 
 
-    URL: https://drive.google.com/open?id=1_j8kYoKt8mFxr8Y_ceNVPlejfTXk6-5w
+        * URL: https://drive.google.com/open?id=1_j8kYoKt8mFxr8Y_ceNVPlejfTXk6-5w
     """
     
     categories= [OverSampling.cat_extensive,
@@ -8264,6 +9014,7 @@ class ISOMAP_Hybrid(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_components= 3, smote_n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -8290,17 +9041,23 @@ class ISOMAP_Hybrid(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'n_components': [2, 3, 4], 'smote_n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'n_components': [2, 3, 4], 
+                                                    'smote_n_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -8317,8 +9074,10 @@ class ISOMAP_Hybrid(OverSampling):
     def transform(self, X):
         """
         Transforms new data by the trained isomap
+        
         Args:
             X (np.matrix): new data
+            
         Returns:
             np.matrix: the transformed data
         """
@@ -8329,24 +9088,31 @@ class ISOMAP_Hybrid(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_components': self.n_components, 'smote_n_neighbors': self.smote_n_neighbors, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_components': self.n_components, 
+                'smote_n_neighbors': self.smote_n_neighbors, 
+                'n_jobs': self.n_jobs}
 
 class CE_SMOTE(OverSampling):
     """
-    @INPROCEEDINGS{ce_smote, 
-                        author={S. Chen and G. Guo and L. Chen}, 
-                        booktitle={2010 IEEE 24th International Conference on Advanced Information Networking and Applications Workshops}, 
-                        title={A New Over-Sampling Method Based on Cluster Ensembles}, 
-                        year={2010}, 
-                        volume={}, 
-                        number={}, 
-                        pages={599-604}, 
-                        keywords={data mining;Internet;pattern classification;pattern clustering;over sampling method;cluster ensembles;classification method;imbalanced data handling;CE-SMOTE;clustering consistency index;cluster boundary minority samples;imbalanced public data set;Mathematics;Computer science;Electronic mail;Accuracy;Nearest neighbor searches;Application software;Data mining;Conferences;Web sites;Information retrieval;classification;imbalanced data sets;cluster ensembles;over-sampling}, 
-                        doi={10.1109/WAINA.2010.40}, 
-                        ISSN={}, 
-                        month={April}}
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{ce_smote, 
+                                author={S. Chen and G. Guo and L. Chen}, 
+                                booktitle={2010 IEEE 24th International Conference on Advanced Information Networking and Applications Workshops}, 
+                                title={A New Over-Sampling Method Based on Cluster Ensembles}, 
+                                year={2010}, 
+                                volume={}, 
+                                number={}, 
+                                pages={599-604}, 
+                                keywords={data mining;Internet;pattern classification;pattern clustering;over sampling method;cluster ensembles;classification method;imbalanced data handling;CE-SMOTE;clustering consistency index;cluster boundary minority samples;imbalanced public data set;Mathematics;Computer science;Electronic mail;Accuracy;Nearest neighbor searches;Application software;Data mining;Conferences;Web sites;Information retrieval;classification;imbalanced data sets;cluster ensembles;over-sampling}, 
+                                doi={10.1109/WAINA.2010.40}, 
+                                ISSN={}, 
+                                month={April}}
 
-    URL: https://drive.google.com/open?id=1erU3PsoePzxFCyv8aVwNJ2LO1hHX6dTz
+        * URL: https://drive.google.com/open?id=1erU3PsoePzxFCyv8aVwNJ2LO1hHX6dTz
     """
     
     categories= [OverSampling.cat_extensive,
@@ -8357,6 +9123,7 @@ class CE_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, h= 10, k= 5, alpha= 0.5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -8383,17 +9150,23 @@ class CE_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'h': [5, 10, 15], 'k': [3, 5, 7], 'alpha': [0.2, 0.5, 0.8]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'h': [5, 10, 15], 
+                                                    'k': [3, 5, 7], 
+                                                    'alpha': [0.2, 0.5, 0.8]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -8459,26 +9232,34 @@ class CE_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'h': self.h, 'k': self.k, 'alpha': self.alpha, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'h': self.h, 
+                'k': self.k, 
+                'alpha': self.alpha, 
+                'n_jobs': self.n_jobs}
 
 class Edge_Det_SMOTE(OverSampling):
     """
-    @INPROCEEDINGS{Edge_Det_SMOTE, 
-                    author={Y. Kang and S. Won}, 
-                    booktitle={ICCAS 2010}, 
-                    title={Weight decision algorithm for oversampling technique on class-imbalanced learning}, 
-                    year={2010}, 
-                    volume={}, 
-                    number={}, 
-                    pages={182-186}, 
-                    keywords={edge detection;learning (artificial intelligence);weight decision algorithm;oversampling technique;class-imbalanced learning;class imbalanced data problem;edge detection algorithm;spatial space representation;Classification algorithms;Image edge detection;Training;Noise measurement;Glass;Training data;Machine learning;Imbalanced learning;Classification;Weight decision;Oversampling;Edge detection}, 
-                    doi={10.1109/ICCAS.2010.5669889}, 
-                    ISSN={}, 
-                    month={Oct}}
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{Edge_Det_SMOTE, 
+                            author={Y. Kang and S. Won}, 
+                            booktitle={ICCAS 2010}, 
+                            title={Weight decision algorithm for oversampling technique on class-imbalanced learning}, 
+                            year={2010}, 
+                            volume={}, 
+                            number={}, 
+                            pages={182-186}, 
+                            keywords={edge detection;learning (artificial intelligence);weight decision algorithm;oversampling technique;class-imbalanced learning;class imbalanced data problem;edge detection algorithm;spatial space representation;Classification algorithms;Image edge detection;Training;Noise measurement;Glass;Training data;Machine learning;Imbalanced learning;Classification;Weight decision;Oversampling;Edge detection}, 
+                            doi={10.1109/ICCAS.2010.5669889}, 
+                            ISSN={}, 
+                            month={Oct}}
 
-    URL: https://drive.google.com/open?id=11eSqSkAzhVTeutlLNqWNo2g3ZYIZbEdM
+        * URL: https://drive.google.com/open?id=11eSqSkAzhVTeutlLNqWNo2g3ZYIZbEdM
     
-    This technique is very loosely specified.
+    Notes:
+        * This technique is very loosely specified.
     """
     
     categories= [OverSampling.cat_density_based,
@@ -8488,6 +9269,7 @@ class Edge_Det_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, k= 5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -8508,17 +9290,21 @@ class Edge_Det_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'k': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'k': [3, 5, 7]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -8561,30 +9347,36 @@ class Edge_Det_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'k': self.k, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'k': self.k, 
+                'n_jobs': self.n_jobs}
 
 class CBSO(OverSampling):
     """
-    @InProceedings{CBSO,
-                    author="Barua, Sukarna
-                    and Islam, Md. Monirul
-                    and Murase, Kazuyuki",
-                    editor="Lu, Bao-Liang
-                    and Zhang, Liqing
-                    and Kwok, James",
-                    title="A Novel Synthetic Minority Oversampling Technique for Imbalanced Data Set Learning",
-                    booktitle="Neural Information Processing",
-                    year="2011",
-                    publisher="Springer Berlin Heidelberg",
-                    address="Berlin, Heidelberg",
-                    pages="735--744",
-                    abstract="Imbalanced data sets contain an unequal distribution of data samples among the classes and pose a challenge to the learning algorithms as it becomes hard to learn the minority class concepts. Synthetic oversampling techniques address this problem by creating synthetic minority samples to balance the data set. However, most of these techniques may create wrong synthetic minority samples which fall inside majority regions. In this respect, this paper presents a novel Cluster Based Synthetic Oversampling (CBSO) algorithm. CBSO adopts its basic idea from existing synthetic oversampling techniques and incorporates unsupervised clustering in its synthetic data generation mechanism. CBSO ensures that synthetic samples created via this method always lie inside minority regions and thus, avoids any wrong synthetic sample creation. Simualtion analyses on some real world datasets show the effectiveness of CBSO showing improvements in various assesment metrics such as overall accuracy, F-measure, and G-mean.",
-                    isbn="978-3-642-24958-7"
-                    }
+    References:
+        * BibTex::
+            
+            @InProceedings{CBSO,
+                            author="Barua, Sukarna
+                            and Islam, Md. Monirul
+                            and Murase, Kazuyuki",
+                            editor="Lu, Bao-Liang
+                            and Zhang, Liqing
+                            and Kwok, James",
+                            title="A Novel Synthetic Minority Oversampling Technique for Imbalanced Data Set Learning",
+                            booktitle="Neural Information Processing",
+                            year="2011",
+                            publisher="Springer Berlin Heidelberg",
+                            address="Berlin, Heidelberg",
+                            pages="735--744",
+                            abstract="Imbalanced data sets contain an unequal distribution of data samples among the classes and pose a challenge to the learning algorithms as it becomes hard to learn the minority class concepts. Synthetic oversampling techniques address this problem by creating synthetic minority samples to balance the data set. However, most of these techniques may create wrong synthetic minority samples which fall inside majority regions. In this respect, this paper presents a novel Cluster Based Synthetic Oversampling (CBSO) algorithm. CBSO adopts its basic idea from existing synthetic oversampling techniques and incorporates unsupervised clustering in its synthetic data generation mechanism. CBSO ensures that synthetic samples created via this method always lie inside minority regions and thus, avoids any wrong synthetic sample creation. Simualtion analyses on some real world datasets show the effectiveness of CBSO showing improvements in various assesment metrics such as overall accuracy, F-measure, and G-mean.",
+                            isbn="978-3-642-24958-7"
+                            }
 
-    URL: https://drive.google.com/open?id=16OYKeBf5UPeHJgXCD7-WZtqdc2Am4kBQ
+        * URL: https://drive.google.com/open?id=16OYKeBf5UPeHJgXCD7-WZtqdc2Am4kBQ
     
-    Clusters containing 1 element induce cloning of samples.
+    Notes:
+        * Clusters containing 1 element induce cloning of samples.
     """
     
     categories= [OverSampling.cat_uses_clustering,
@@ -8595,6 +9387,7 @@ class CBSO(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, C_p= 1.3, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -8618,17 +9411,22 @@ class CBSO(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'C_p': [0.8, 1.0, 1.3, 1.6]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'C_p': [0.8, 1.0, 1.3, 1.6]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -8712,39 +9510,45 @@ class CBSO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'C_p': self.C_p, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'C_p': self.C_p, 
+                'n_jobs': self.n_jobs}
     
 class E_SMOTE(OverSampling):
     """
-    @INPROCEEDINGS{e_smote, 
-                    author={T. Deepa and M. Punithavalli}, 
-                    booktitle={2011 3rd International Conference on Electronics Computer Technology}, 
-                    title={An E-SMOTE technique for feature selection in High-Dimensional Imbalanced Dataset}, 
-                    year={2011}, 
-                    volume={2}, 
-                    number={}, 
-                    pages={322-324}, 
-                    keywords={bioinformatics;data mining;pattern classification;support vector machines;E-SMOTE technique;feature selection;high-dimensional imbalanced dataset;data mining;bio-informatics;dataset balancing;SVM classification;micro array dataset;Feature extraction;Genetic algorithms;Support vector machines;Data mining;Machine learning;Bioinformatics;Cancer;Imbalanced dataset;Featue Selection;E-SMOTE;Support Vector Machine[SVM]}, 
-                    doi={10.1109/ICECTECH.2011.5941710}, 
-                    ISSN={}, 
-                    month={April}}
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{e_smote, 
+                            author={T. Deepa and M. Punithavalli}, 
+                            booktitle={2011 3rd International Conference on Electronics Computer Technology}, 
+                            title={An E-SMOTE technique for feature selection in High-Dimensional Imbalanced Dataset}, 
+                            year={2011}, 
+                            volume={2}, 
+                            number={}, 
+                            pages={322-324}, 
+                            keywords={bioinformatics;data mining;pattern classification;support vector machines;E-SMOTE technique;feature selection;high-dimensional imbalanced dataset;data mining;bio-informatics;dataset balancing;SVM classification;micro array dataset;Feature extraction;Genetic algorithms;Support vector machines;Data mining;Machine learning;Bioinformatics;Cancer;Imbalanced dataset;Featue Selection;E-SMOTE;Support Vector Machine[SVM]}, 
+                            doi={10.1109/ICECTECH.2011.5941710}, 
+                            ISSN={}, 
+                            month={April}}
 
-    URL: https://drive.google.com/open?id=1P-4XvnbNuA6OzdeaYBeQEBcUnCgV1R3M
+        * URL: https://drive.google.com/open?id=1P-4XvnbNuA6OzdeaYBeQEBcUnCgV1R3M
     
-    This technique is basically unreproducible. I try to implement something
-    following the idea of applying some simple genetic algorithm for optimization.
-    In my best understanding, the technique uses evolutionary algorithms to
-    for feature selection and then applies vanilla SMOTE on the selected features
-    only.
+    Notes:
+        * This technique is basically unreproducible. I try to implement something following the idea of applying some simple genetic algorithm for optimization.
+        * In my best understanding, the technique uses evolutionary algorithms to for feature selection and then applies vanilla SMOTE on the selected features only.
     """
     
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_dim_reduction,
-                 OverSampling.cat_memetic]
+                 OverSampling.cat_memetic,
+                 OverSampling.cat_changes_majority]
     
     def __init__(self, proportion= 1.0, n_neighbors= 5, min_features= 2, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -8768,17 +9572,22 @@ class E_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'min_features': [1, 2, 3]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'min_features': [1, 2, 3]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -8806,9 +9615,11 @@ class E_SMOTE(OverSampling):
         def crossover(mask_a, mask_b):
             """
             Crossover operation for two masks
+            
             Args:
                 mask_a (np.array): binary mask 1
                 mask_b (np.array): binary mask 2
+                
             Returns:
                 np.array: the result of crossover
             """
@@ -8825,8 +9636,10 @@ class E_SMOTE(OverSampling):
         def mutate(mask_old):
             """
             Mutation operation for a mask
+            
             Args:
                 mask_old (np.array): binary mask
+                
             Returns:
                 np.array: the result of mutation
             """
@@ -8867,8 +9680,10 @@ class E_SMOTE(OverSampling):
     def transform(self, X):
         """
         Transform new data by the learnt transformation
+        
         Args:
             X (np.matrix): new data
+            
         Returns:
             np.matrix: transformed data
         """
@@ -8879,33 +9694,38 @@ class E_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_jobs': self.n_jobs}
 
 class DBSMOTE(OverSampling):
     """
-    @Article{dbsmote,
-                author="Bunkhumpornpat, Chumphol
-                and Sinapiromsaran, Krung
-                and Lursinsap, Chidchanok",
-                title="DBSMOTE: Density-Based Synthetic Minority Over-sampling TEchnique",
-                journal="Applied Intelligence",
-                year="2012",
-                month="Apr",
-                day="01",
-                volume="36",
-                number="3",
-                pages="664--684",
-                abstract="A dataset exhibits the class imbalance problem when a target class has a very small number of instances relative to other classes. A trivial classifier typically fails to detect a minority class due to its extremely low incidence rate. In this paper, a new over-sampling technique called DBSMOTE is proposed. Our technique relies on a density-based notion of clusters and is designed to over-sample an arbitrarily shaped cluster discovered by DBSCAN. DBSMOTE generates synthetic instances along a shortest path from each positive instance to a pseudo-centroid of a minority-class cluster. Consequently, these synthetic instances are dense near this centroid and are sparse far from this centroid. Our experimental results show that DBSMOTE improves precision, F-value, and AUC more effectively than SMOTE, Borderline-SMOTE, and Safe-Level-SMOTE for imbalanced datasets.",
-                issn="1573-7497",
-                doi="10.1007/s10489-011-0287-y",
-                url="https://doi.org/10.1007/s10489-011-0287-y"
-                }
+    References:
+        * BibTex::
+            
+            @Article{dbsmote,
+                        author="Bunkhumpornpat, Chumphol
+                        and Sinapiromsaran, Krung
+                        and Lursinsap, Chidchanok",
+                        title="DBSMOTE: Density-Based Synthetic Minority Over-sampling TEchnique",
+                        journal="Applied Intelligence",
+                        year="2012",
+                        month="Apr",
+                        day="01",
+                        volume="36",
+                        number="3",
+                        pages="664--684",
+                        abstract="A dataset exhibits the class imbalance problem when a target class has a very small number of instances relative to other classes. A trivial classifier typically fails to detect a minority class due to its extremely low incidence rate. In this paper, a new over-sampling technique called DBSMOTE is proposed. Our technique relies on a density-based notion of clusters and is designed to over-sample an arbitrarily shaped cluster discovered by DBSCAN. DBSMOTE generates synthetic instances along a shortest path from each positive instance to a pseudo-centroid of a minority-class cluster. Consequently, these synthetic instances are dense near this centroid and are sparse far from this centroid. Our experimental results show that DBSMOTE improves precision, F-value, and AUC more effectively than SMOTE, Borderline-SMOTE, and Safe-Level-SMOTE for imbalanced datasets.",
+                        issn="1573-7497",
+                        doi="10.1007/s10489-011-0287-y",
+                        url="https://doi.org/10.1007/s10489-011-0287-y"
+                        }
 
-    URL: https://drive.google.com/open?id=1FczQWnv7ZveAuLME1flnQw9ogEAcYQ5a
+        * URL: https://drive.google.com/open?id=1FczQWnv7ZveAuLME1flnQw9ogEAcYQ5a
     
-    Standardization is needed to use absolute eps values.
-    The clustering is likely to identify all instances as noise, fixed by
-    recursive call with increaseing eps.
+    Notes:
+        * Standardization is needed to use absolute eps values.
+        * The clustering is likely to identify all instances as noise, fixed by recursive call with increaseing eps.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -8916,6 +9736,7 @@ class DBSMOTE(OverSampling):
     def __init__(self, proportion= 1.0, eps= 0.8, min_samples= 3, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -8939,17 +9760,22 @@ class DBSMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'eps': [0.5, 0.8, 1.2], 'min_samples': [1, 3, 5]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'eps': [0.5, 0.8, 1.2], 
+                                                    'min_samples': [1, 3, 5]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -8972,7 +9798,7 @@ class DBSMOTE(OverSampling):
             logging.info(self.__class__.__name__ + ": " +"Number of clusters is 0, trying to increase eps and decrease min_samples")
             if self.eps >= 2 or self.min_samples <= 2:
                 logging.info(self.__class__.__name__ + ": " +"Number of clusters is 0, can't adjust parameters further")
-                return X.xopy(), y.copy()
+                return X.copy(), y.copy()
             else:
                 return DBSMOTE(proportion= self.proportion, eps= self.eps*1.5, min_samples= self.min_samples-1, n_jobs= self.n_jobs).sample(X, y)
         
@@ -8985,9 +9811,11 @@ class DBSMOTE(OverSampling):
         def initialize(graph, source):
             """
             Initializes shortest path algorithm.
+            
             Args:
                 graph (dict): graph in dictionary representation
                 source (key): source node
+                
             Returns:
                 dict, dict: initialized distance and path dictionaries
             """
@@ -9002,6 +9830,7 @@ class DBSMOTE(OverSampling):
         def relax(u, v, graph, d, p):
             """
             Checks if shorter path exists.
+            
             Args:
                 u (key): key of a node
                 v (key): key of another node
@@ -9016,6 +9845,7 @@ class DBSMOTE(OverSampling):
         def bellman_ford(graph, source):
             """
             Main entry point of the Bellman-Ford algorithm
+            
             Args:
                 graph (dict): a graph in dictionary representation
                 source (key): the key of the source node
@@ -9092,27 +9922,34 @@ class DBSMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'eps': self.eps, 'min_samples': self.min_samples, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'eps': self.eps, 
+                'min_samples': self.min_samples, 
+                'n_jobs': self.n_jobs}
 
 class ASMOBD(OverSampling):
     """
-    @INPROCEEDINGS{asmobd, 
-                    author={Senzhang Wang and Zhoujun Li and Wenhan Chao and Qinghua Cao}, 
-                    booktitle={The 2012 International Joint Conference on Neural Networks (IJCNN)}, 
-                    title={Applying adaptive over-sampling technique based on data density and cost-sensitive SVM to imbalanced learning}, 
-                    year={2012}, 
-                    volume={}, 
-                    number={}, 
-                    pages={1-8}, 
-                    keywords={data analysis;learning (artificial intelligence);sampling methods;smoothing methods;support vector machines;adaptive over-sampling technique;cost-sensitive SVM;imbalanced learning;resampling method;data density information;overfitting;minority sample;learning difficulty;decision region;over generalization;smoothing method;cost-sensitive learning;UCI dataset;G-mean of;receiver operation curve;Smoothing methods;Noise;Support vector machines;Classification algorithms;Interpolation;Measurement;Algorithm design and analysis;over-sampling;Cost-sensitive SVM;imbalanced learning}, 
-                    doi={10.1109/IJCNN.2012.6252696}, 
-                    ISSN={2161-4407}, 
-                    month={June}}
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{asmobd, 
+                            author={Senzhang Wang and Zhoujun Li and Wenhan Chao and Qinghua Cao}, 
+                            booktitle={The 2012 International Joint Conference on Neural Networks (IJCNN)}, 
+                            title={Applying adaptive over-sampling technique based on data density and cost-sensitive SVM to imbalanced learning}, 
+                            year={2012}, 
+                            volume={}, 
+                            number={}, 
+                            pages={1-8}, 
+                            keywords={data analysis;learning (artificial intelligence);sampling methods;smoothing methods;support vector machines;adaptive over-sampling technique;cost-sensitive SVM;imbalanced learning;resampling method;data density information;overfitting;minority sample;learning difficulty;decision region;over generalization;smoothing method;cost-sensitive learning;UCI dataset;G-mean of;receiver operation curve;Smoothing methods;Noise;Support vector machines;Classification algorithms;Interpolation;Measurement;Algorithm design and analysis;over-sampling;Cost-sensitive SVM;imbalanced learning}, 
+                            doi={10.1109/IJCNN.2012.6252696}, 
+                            ISSN={2161-4407}, 
+                            month={June}}
 
-    URL: https://drive.google.com/open?id=1rF4H2L5W4Y1myX2K3TbKYj1IuwclOWsW
+        * URL: https://drive.google.com/open?id=1rF4H2L5W4Y1myX2K3TbKYj1IuwclOWsW
     
-    In order to use absolute thresholds, the data is standardized.
-    The technique has many parameters, not easy to find the right combination.
+    Notes:
+        * In order to use absolute thresholds, the data is standardized.
+        * The technique has many parameters, not easy to find the right combination.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -9122,6 +9959,7 @@ class ASMOBD(OverSampling):
     def __init__(self, proportion= 1.0, min_samples= 3, eps= 0.8, eta= 0.5, T_1= 1.0, T_2= 1.0, t_1= 4.0, t_2= 4.0, a= 0.05, smoothing= 'linear', n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -9166,6 +10004,7 @@ class ASMOBD(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
@@ -9183,9 +10022,11 @@ class ASMOBD(OverSampling):
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -9277,30 +10118,41 @@ class ASMOBD(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'min_samples': self.min_samples, 'eps': self.eps, 'eta': self.eta, 'T_1': self.T_1, 'T_2': self.T_2, 't_1': self.t_1, 't_2': self.t_2, 'a': self.a, 'smoothing': self.smoothing, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'min_samples': self.min_samples, 
+                'eps': self.eps, 
+                'eta': self.eta, 
+                'T_1': self.T_1, 
+                'T_2': self.T_2, 
+                't_1': self.t_1, 
+                't_2': self.t_2, 
+                'a': self.a, 
+                'smoothing': self.smoothing, 
+                'n_jobs': self.n_jobs}
 
 class Assembled_SMOTE(OverSampling):
     """
-    @INPROCEEDINGS{assembled_smote, 
-                    author={B. Zhou and C. Yang and H. Guo and J. Hu}, 
-                    booktitle={The 2013 International Joint Conference on Neural Networks (IJCNN)}, 
-                    title={A quasi-linear SVM combined with assembled SMOTE for imbalanced data classification}, 
-                    year={2013}, 
-                    volume={}, 
-                    number={}, 
-                    pages={1-7}, 
-                    keywords={approximation theory;interpolation;pattern classification;sampling methods;support vector machines;trees (mathematics);quasilinear SVM;assembled SMOTE;imbalanced dataset classification problem;oversampling method;quasilinear kernel function;approximate nonlinear separation boundary;mulitlocal linear boundaries;interpolation;data distribution information;minimal spanning tree;local linear partitioning method;linear separation boundary;synthetic minority class samples;oversampled dataset classification;standard SVM;composite quasilinear kernel function;artificial data datasets;benchmark datasets;classification performance improvement;synthetic minority over-sampling technique;Support vector machines;Kernel;Merging;Standards;Sociology;Statistics;Interpolation}, 
-                    doi={10.1109/IJCNN.2013.6707035}, 
-                    ISSN={2161-4407}, 
-                    month={Aug}}
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{assembled_smote, 
+                            author={B. Zhou and C. Yang and H. Guo and J. Hu}, 
+                            booktitle={The 2013 International Joint Conference on Neural Networks (IJCNN)}, 
+                            title={A quasi-linear SVM combined with assembled SMOTE for imbalanced data classification}, 
+                            year={2013}, 
+                            volume={}, 
+                            number={}, 
+                            pages={1-7}, 
+                            keywords={approximation theory;interpolation;pattern classification;sampling methods;support vector machines;trees (mathematics);quasilinear SVM;assembled SMOTE;imbalanced dataset classification problem;oversampling method;quasilinear kernel function;approximate nonlinear separation boundary;mulitlocal linear boundaries;interpolation;data distribution information;minimal spanning tree;local linear partitioning method;linear separation boundary;synthetic minority class samples;oversampled dataset classification;standard SVM;composite quasilinear kernel function;artificial data datasets;benchmark datasets;classification performance improvement;synthetic minority over-sampling technique;Support vector machines;Kernel;Merging;Standards;Sociology;Statistics;Interpolation}, 
+                            doi={10.1109/IJCNN.2013.6707035}, 
+                            ISSN={2161-4407}, 
+                            month={Aug}}
 
-    URL: https://drive.google.com/open?id=1r3odAQ9aMPvy373wUFbdfr2r8uV0KLHO
+        * URL: https://drive.google.com/open?id=1r3odAQ9aMPvy373wUFbdfr2r8uV0KLHO
     
-    Absolute value of the angles extracted should be taken. (implemented this way)
-    The use of SMOTE is a bit misleading in the paper, needs majority samples
-    as well, here only the minority samples are used in the SMOTE, which is 
-    rather a SMOTE-like behaviour than SMOTE itself.
-    It is not specified how many samples are generated in the various clusters.
+    Notes:
+        * Absolute value of the angles extracted should be taken. (implemented this way)
+        * It is not specified how many samples are generated in the various clusters.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -9311,6 +10163,7 @@ class Assembled_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, pop= 2, thres= 0.3, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -9337,17 +10190,23 @@ class Assembled_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'pop': [2, 4, 5], 'thres': [0.1, 0.3, 0.5]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'pop': [2, 4, 5], 
+                                                    'thres': [0.1, 0.3, 0.5]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -9456,24 +10315,31 @@ class Assembled_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'pop': self.pop, 'thres': self.thres, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'pop': self.pop, 
+                'thres': self.thres, 
+                'n_jobs': self.n_jobs}
 
 class SDSMOTE(OverSampling):
     """
-    @INPROCEEDINGS{sdsmote, 
-                    author={K. Li and W. Zhang and Q. Lu and X. Fang}, 
-                    booktitle={2014 International Conference on Identification, Information and Knowledge in the Internet of Things}, 
-                    title={An Improved SMOTE Imbalanced Data Classification Method Based on Support Degree}, 
-                    year={2014}, 
-                    volume={}, 
-                    number={}, 
-                    pages={34-38}, 
-                    keywords={data mining;pattern classification;sampling methods;improved SMOTE imbalanced data classification method;support degree;data mining;class distribution;imbalanced data-set classification;over sampling method;minority class sample generation;minority class sample selection;minority class boundary sample identification;Classification algorithms;Training;Bagging;Computers;Testing;Algorithm design and analysis;Data mining;Imbalanced data-sets;Classification;Boundary sample;Support degree;SMOTE}, 
-                    doi={10.1109/IIKI.2014.14}, 
-                    ISSN={}, 
-                    month={Oct}}
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{sdsmote, 
+                            author={K. Li and W. Zhang and Q. Lu and X. Fang}, 
+                            booktitle={2014 International Conference on Identification, Information and Knowledge in the Internet of Things}, 
+                            title={An Improved SMOTE Imbalanced Data Classification Method Based on Support Degree}, 
+                            year={2014}, 
+                            volume={}, 
+                            number={}, 
+                            pages={34-38}, 
+                            keywords={data mining;pattern classification;sampling methods;improved SMOTE imbalanced data classification method;support degree;data mining;class distribution;imbalanced data-set classification;over sampling method;minority class sample generation;minority class sample selection;minority class boundary sample identification;Classification algorithms;Training;Bagging;Computers;Testing;Algorithm design and analysis;Data mining;Imbalanced data-sets;Classification;Boundary sample;Support degree;SMOTE}, 
+                            doi={10.1109/IIKI.2014.14}, 
+                            ISSN={}, 
+                            month={Oct}}
 
-    URL: https://drive.google.com/open?id=1jq20pUZJliHkkndyGYjL_A70kF3nKcNU
+        * URL: https://drive.google.com/open?id=1jq20pUZJliHkkndyGYjL_A70kF3nKcNU
     """
     
     categories= [OverSampling.cat_extensive,
@@ -9483,6 +10349,7 @@ class SDSMOTE(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -9503,17 +10370,21 @@ class SDSMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -9559,38 +10430,35 @@ class SDSMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_jobs': self.n_jobs}
 
 class DSMOTE(OverSampling):
     """
-    @INPROCEEDINGS{dsmote, 
-                    author={S. Mahmoudi and P. Moradi and F. Akhlaghian and R. Moradi}, 
-                    booktitle={2014 4th International Conference on Computer and Knowledge Engineering (ICCKE)}, 
-                    title={Diversity and separable metrics in over-sampling technique for imbalanced data classification}, 
-                    year={2014}, 
-                    volume={}, 
-                    number={}, 
-                    pages={152-158}, 
-                    keywords={learning (artificial intelligence);pattern classification;sampling methods;diversity metric;separable metric;over-sampling technique;imbalanced data classification;class distribution techniques;under-sampling technique;DSMOTE method;imbalanced learning problem;diversity measure;separable measure;Iran University of Medical Science;UCI dataset;Accuracy;Classification algorithms;Vectors;Educational institutions;Euclidean distance;Data mining;Diversity measure;Separable Measure;Over-Sampling;Imbalanced Data;Classification problems}, 
-                    doi={10.1109/ICCKE.2014.6993409}, 
-                    ISSN={}, 
-                    month={Oct}}
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{dsmote, 
+                            author={S. Mahmoudi and P. Moradi and F. Akhlaghian and R. Moradi}, 
+                            booktitle={2014 4th International Conference on Computer and Knowledge Engineering (ICCKE)}, 
+                            title={Diversity and separable metrics in over-sampling technique for imbalanced data classification}, 
+                            year={2014}, 
+                            volume={}, 
+                            number={}, 
+                            pages={152-158}, 
+                            keywords={learning (artificial intelligence);pattern classification;sampling methods;diversity metric;separable metric;over-sampling technique;imbalanced data classification;class distribution techniques;under-sampling technique;DSMOTE method;imbalanced learning problem;diversity measure;separable measure;Iran University of Medical Science;UCI dataset;Accuracy;Classification algorithms;Vectors;Educational institutions;Euclidean distance;Data mining;Diversity measure;Separable Measure;Over-Sampling;Imbalanced Data;Classification problems}, 
+                            doi={10.1109/ICCKE.2014.6993409}, 
+                            ISSN={}, 
+                            month={Oct}}
 
-    URL: https://drive.google.com/open?id=1l2rhdGRICI-ttTlMAPYDK_SGPamSR1Fo
+        * URL: https://drive.google.com/open?id=1l2rhdGRICI-ttTlMAPYDK_SGPamSR1Fo
     
-    The method is highly inefficient when the number of minority samples is high,
-    time complexity is O(n^3), with 1000 minority samples it takes about 1e9 objective
-    function evaluations to find 1 new sample points. Adding 1000 samples would take
-    about 1e12 evaluations of the objective function, which is unfeasible. We introduce
-    a new parameter, n_step, and during the search for the new sample at most n_step
-    combinations of minority samples are tried.
-    Abnormality of minority points is defined in the paper as D_maj/D_min, high abnormality
-    means that the minority point is close to other minority points and very far from majority
-    points. This is definitely not abnormality, I have implemented the opposite.
-    Nothing ensures that the fisher statistics and the variance from the geometric mean
-    remain comparable, which might skew the optimization towards one of the sub-objectives.
-    MinMax normalization doesn't work, each attribute will have a 0 value, which will
-    make the geometric mean of all attribute 0.
+    Notes:
+        * The method is highly inefficient when the number of minority samples is high, time complexity is O(n^3), with 1000 minority samples it takes about 1e9 objective function evaluations to find 1 new sample points. Adding 1000 samples would take about 1e12 evaluations of the objective function, which is unfeasible. We introduce a new parameter, n_step, and during the search for the new sample at most n_step combinations of minority samples are tried.
+        * Abnormality of minority points is defined in the paper as D_maj/D_min, high abnormality  means that the minority point is close to other minority points and very far from majority points. This is definitely not abnormality, I have implemented the opposite. 
+        * Nothing ensures that the fisher statistics and the variance from the geometric mean remain comparable, which might skew the optimization towards one of the sub-objectives.
+        * MinMax normalization doesn't work, each attribute will have a 0 value, which will make the geometric mean of all attribute 0.
     """
     
     categories= [OverSampling.cat_changes_majority]
@@ -9598,6 +10466,7 @@ class DSMOTE(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, rate= 0.1, n_step= 50, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -9624,17 +10493,23 @@ class DSMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'rate': [0.1, 0.2], 'n_step': [50]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'rate': [0.1, 0.2], 
+                                                    'n_step': [50]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -9681,8 +10556,10 @@ class DSMOTE(OverSampling):
         def objective(X):
             """
             The objective function to be maximized
+            
             Args:
                 X (np.matrix): dataset
+                
             Returns:
                 float: the value of the objective function
             """
@@ -9771,26 +10648,34 @@ class DSMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'rate': self.rate, 'n_step': self.n_step, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'rate': self.rate, 
+                'n_step': self.n_step, 
+                'n_jobs': self.n_jobs}
 
 class G_SMOTE(OverSampling):
     """
-    @INPROCEEDINGS{g_smote, 
-                    author={T. Sandhan and J. Y. Choi}, 
-                    booktitle={2014 22nd International Conference on Pattern Recognition}, 
-                    title={Handling Imbalanced Datasets by Partially Guided Hybrid Sampling for Pattern Recognition}, 
-                    year={2014}, 
-                    volume={}, 
-                    number={}, 
-                    pages={1449-1453}, 
-                    keywords={Gaussian processes;learning (artificial intelligence);pattern classification;regression analysis;sampling methods;support vector machines;imbalanced datasets;partially guided hybrid sampling;pattern recognition;real-world domains;skewed datasets;dataset rebalancing;learning algorithm;extremely low minority class samples;classification tasks;extracted hidden patterns;support vector machine;logistic regression;nearest neighbor;Gaussian process classifier;Support vector machines;Proteins;Pattern recognition;Kernel;Databases;Gaussian processes;Vectors;Imbalanced dataset;protein classification;ensemble classifier;bootstrapping;Sat-image classification;medical diagnoses}, 
-                    doi={10.1109/ICPR.2014.258}, 
-                    ISSN={1051-4651}, 
-                    month={Aug}}
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{g_smote, 
+                            author={T. Sandhan and J. Y. Choi}, 
+                            booktitle={2014 22nd International Conference on Pattern Recognition}, 
+                            title={Handling Imbalanced Datasets by Partially Guided Hybrid Sampling for Pattern Recognition}, 
+                            year={2014}, 
+                            volume={}, 
+                            number={}, 
+                            pages={1449-1453}, 
+                            keywords={Gaussian processes;learning (artificial intelligence);pattern classification;regression analysis;sampling methods;support vector machines;imbalanced datasets;partially guided hybrid sampling;pattern recognition;real-world domains;skewed datasets;dataset rebalancing;learning algorithm;extremely low minority class samples;classification tasks;extracted hidden patterns;support vector machine;logistic regression;nearest neighbor;Gaussian process classifier;Support vector machines;Proteins;Pattern recognition;Kernel;Databases;Gaussian processes;Vectors;Imbalanced dataset;protein classification;ensemble classifier;bootstrapping;Sat-image classification;medical diagnoses}, 
+                            doi={10.1109/ICPR.2014.258}, 
+                            ISSN={1051-4651}, 
+                            month={Aug}}
 
-    URL: https://drive.google.com/open?id=1GJ67qd2r0RH3MMJV5XqVhUBDVfnz4ErF
+        * URL: https://drive.google.com/open?id=1GJ67qd2r0RH3MMJV5XqVhUBDVfnz4ErF
     
-    the non-linear approach is inefficient 
+    Notes:
+        * the non-linear approach is inefficient 
     """
     
     categories= [OverSampling.cat_extensive,
@@ -9799,6 +10684,7 @@ class G_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, method= 'linear', n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -9827,17 +10713,22 @@ class G_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'method': ['linear', 'non-linear_0.1', 'non-linear_1.0', 'non-linear_2.0']})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'method': ['linear', 'non-linear_0.1', 'non-linear_1.0', 'non-linear_2.0']})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -9902,24 +10793,30 @@ class G_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'method': self.method, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'method': self.method, 
+                'n_jobs': self.n_jobs}
 
 class NT_SMOTE(OverSampling):
     """
-    @INPROCEEDINGS{nt_smote, 
-                    author={Y. H. Xu and H. Li and L. P. Le and X. Y. Tian}, 
-                    booktitle={2014 Seventh International Joint Conference on Computational Sciences and Optimization}, 
-                    title={Neighborhood Triangular Synthetic Minority Over-sampling Technique for Imbalanced Prediction on Small Samples of Chinese Tourism and Hospitality Firms}, 
-                    year={2014}, 
-                    volume={}, 
-                    number={}, 
-                    pages={534-538}, 
-                    keywords={financial management;pattern classification;risk management;sampling methods;travel industry;Chinese tourism;hospitality firms;imbalanced risk prediction;minority class samples;up-sampling approach;neighborhood triangular synthetic minority over-sampling technique;NT-SMOTE;nearest neighbor idea;triangular area sampling idea;single classifiers;data excavation principles;hospitality industry;missing financial indicators;financial data filtering;financial risk prediction;MDA;DT;LSVM;logit;probit;firm risk prediction;Joints;Optimization;imbalanced datasets;NT-SMOTE;neighborhood triangular;random sampling}, 
-                    doi={10.1109/CSO.2014.104}, 
-                    ISSN={}, 
-                    month={July}}
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{nt_smote, 
+                            author={Y. H. Xu and H. Li and L. P. Le and X. Y. Tian}, 
+                            booktitle={2014 Seventh International Joint Conference on Computational Sciences and Optimization}, 
+                            title={Neighborhood Triangular Synthetic Minority Over-sampling Technique for Imbalanced Prediction on Small Samples of Chinese Tourism and Hospitality Firms}, 
+                            year={2014}, 
+                            volume={}, 
+                            number={}, 
+                            pages={534-538}, 
+                            keywords={financial management;pattern classification;risk management;sampling methods;travel industry;Chinese tourism;hospitality firms;imbalanced risk prediction;minority class samples;up-sampling approach;neighborhood triangular synthetic minority over-sampling technique;NT-SMOTE;nearest neighbor idea;triangular area sampling idea;single classifiers;data excavation principles;hospitality industry;missing financial indicators;financial data filtering;financial risk prediction;MDA;DT;LSVM;logit;probit;firm risk prediction;Joints;Optimization;imbalanced datasets;NT-SMOTE;neighborhood triangular;random sampling}, 
+                            doi={10.1109/CSO.2014.104}, 
+                            ISSN={}, 
+                            month={July}}
 
-    URL: https://drive.google.com/open?id=1iMeem5Ax2AkvwatvMpf1ZGMfHSsI3vQi
+        * URL: https://drive.google.com/open?id=1iMeem5Ax2AkvwatvMpf1ZGMfHSsI3vQi
     """
     
     categories= [OverSampling.cat_extensive,
@@ -9928,6 +10825,7 @@ class NT_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -9945,6 +10843,7 @@ class NT_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
@@ -9953,9 +10852,11 @@ class NT_SMOTE(OverSampling):
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -9989,30 +10890,34 @@ class NT_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_jobs': self.n_jobs}
 
 class Lee(OverSampling):
     """
-    @inproceedings{lee,
-                     author = {Lee, Jaedong and Kim, Noo-ri and Lee, Jee-Hyong},
-                     title = {An Over-sampling Technique with Rejection for Imbalanced Class Learning},
-                     booktitle = {Proceedings of the 9th International Conference on Ubiquitous Information Management and Communication},
-                     series = {IMCOM '15},
-                     year = {2015},
-                     isbn = {978-1-4503-3377-1},
-                     location = {Bali, Indonesia},
-                     pages = {102:1--102:6},
-                     articleno = {102},
-                     numpages = {6},
-                     url = {http://doi.acm.org/10.1145/2701126.2701181},
-                     doi = {10.1145/2701126.2701181},
-                     acmid = {2701181},
-                     publisher = {ACM},
-                     address = {New York, NY, USA},
-                     keywords = {data distribution, data preprocessing, imbalanced problem, rejection rule, synthetic minority oversampling technique}
-                    } 
+    References:
+        * BibTex::
+            
+            @inproceedings{lee,
+                             author = {Lee, Jaedong and Kim, Noo-ri and Lee, Jee-Hyong},
+                             title = {An Over-sampling Technique with Rejection for Imbalanced Class Learning},
+                             booktitle = {Proceedings of the 9th International Conference on Ubiquitous Information Management and Communication},
+                             series = {IMCOM '15},
+                             year = {2015},
+                             isbn = {978-1-4503-3377-1},
+                             location = {Bali, Indonesia},
+                             pages = {102:1--102:6},
+                             articleno = {102},
+                             numpages = {6},
+                             url = {http://doi.acm.org/10.1145/2701126.2701181},
+                             doi = {10.1145/2701126.2701181},
+                             acmid = {2701181},
+                             publisher = {ACM},
+                             address = {New York, NY, USA},
+                             keywords = {data distribution, data preprocessing, imbalanced problem, rejection rule, synthetic minority oversampling technique}
+                            } 
 
-    URL: https://drive.google.com/open?id=1omttVQFQ8oDZHeZ87bUSa5Hr7fqt2Vwf
+        * URL: https://drive.google.com/open?id=1omttVQFQ8oDZHeZ87bUSa5Hr7fqt2Vwf
     """
     
     categories= [OverSampling.cat_extensive,
@@ -10021,6 +10926,7 @@ class Lee(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, rejection_level= 0.5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -10047,17 +10953,22 @@ class Lee(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'rejection_level': [0.3, 0.5, 0.7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'rejection_level': [0.3, 0.5, 0.7]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -10109,24 +11020,30 @@ class Lee(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'rejection_level': self.rejection_level, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'rejection_level': self.rejection_level, 
+                'n_jobs': self.n_jobs}
 
 class SPY(OverSampling):
     """
-    @INPROCEEDINGS{spy, 
-                    author={X. T. Dang and D. H. Tran and O. Hirose and K. Satou}, 
-                    booktitle={2015 Seventh International Conference on Knowledge and Systems Engineering (KSE)}, 
-                    title={SPY: A Novel Resampling Method for Improving Classification Performance in Imbalanced Data}, 
-                    year={2015}, 
-                    volume={}, 
-                    number={}, 
-                    pages={280-285}, 
-                    keywords={decision making;learning (artificial intelligence);pattern classification;sampling methods;SPY;resampling method;decision-making process;biomedical data classification;class imbalance learning method;SMOTE;oversampling method;UCI machine learning repository;G-mean value;borderline-SMOTE;safe-level-SMOTE;Support vector machines;Training;Bioinformatics;Proteins;Protein engineering;Radio frequency;Sensitivity;Imbalanced dataset;Over-sampling;Under-sampling;SMOTE;borderline-SMOTE}, 
-                    doi={10.1109/KSE.2015.24}, 
-                    ISSN={}, 
-                    month={Oct}}
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{spy, 
+                            author={X. T. Dang and D. H. Tran and O. Hirose and K. Satou}, 
+                            booktitle={2015 Seventh International Conference on Knowledge and Systems Engineering (KSE)}, 
+                            title={SPY: A Novel Resampling Method for Improving Classification Performance in Imbalanced Data}, 
+                            year={2015}, 
+                            volume={}, 
+                            number={}, 
+                            pages={280-285}, 
+                            keywords={decision making;learning (artificial intelligence);pattern classification;sampling methods;SPY;resampling method;decision-making process;biomedical data classification;class imbalance learning method;SMOTE;oversampling method;UCI machine learning repository;G-mean value;borderline-SMOTE;safe-level-SMOTE;Support vector machines;Training;Bioinformatics;Proteins;Protein engineering;Radio frequency;Sensitivity;Imbalanced dataset;Over-sampling;Under-sampling;SMOTE;borderline-SMOTE}, 
+                            doi={10.1109/KSE.2015.24}, 
+                            ISSN={}, 
+                            month={Oct}}
 
-    URL: https://drive.google.com/open?id=1B3qUj6lPdO21EjxuVKLHi8OV68gLZUUA
+        * URL: https://drive.google.com/open?id=1B3qUj6lPdO21EjxuVKLHi8OV68gLZUUA
     """
     
     categories= [OverSampling.cat_changes_majority]
@@ -10134,6 +11051,7 @@ class SPY(OverSampling):
     def __init__(self, n_neighbors= 5, threshold= 0.5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             n_neighbors (int): number of neighbors in nearest neighbor component
             threshold (float): threshold*n_neighbors gives the threshold z described in the paper
@@ -10152,17 +11070,21 @@ class SPY(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'n_neighbors': [3, 5, 7], 'threshold': [0.3, 0.5, 0.7]})
+        return cls.generate_parameter_combinations({'n_neighbors': [3, 5, 7], 
+                                                    'threshold': [0.3, 0.5, 0.7]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -10196,29 +11118,34 @@ class SPY(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'n_neighbors': self.n_neighbors, 'threshold': self.threshold, 'n_jobs': self.n_jobs}
+        return {'n_neighbors': self.n_neighbors, 
+                'threshold': self.threshold, 
+                'n_jobs': self.n_jobs}
 
 class SMOTE_PSOBAT(OverSampling):
     """
-    @INPROCEEDINGS{smote_psobat, 
-                    author={J. Li and S. Fong and Y. Zhuang}, 
-                    booktitle={2015 3rd International Symposium on Computational and Business Intelligence (ISCBI)}, 
-                    title={Optimizing SMOTE by Metaheuristics with Neural Network and Decision Tree}, 
-                    year={2015}, 
-                    volume={}, 
-                    number={}, 
-                    pages={26-32}, 
-                    keywords={data mining;particle swarm optimisation;pattern classification;data mining;classifier;metaherustics;SMOTE parameters;performance indicators;selection optimization;PSO;particle swarm optimization algorithm;BAT;bat-inspired algorithm;metaheuristic optimization algorithms;nearest neighbors;imbalanced dataset problem;synthetic minority over-sampling technique;decision tree;neural network;Classification algorithms;Neural networks;Decision trees;Training;Optimization;Particle swarm optimization;Data mining;SMOTE;Swarm Intelligence;parameter selection optimization}, 
-                    doi={10.1109/ISCBI.2015.12}, 
-                    ISSN={}, 
-                    month={Dec}}
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{smote_psobat, 
+                            author={J. Li and S. Fong and Y. Zhuang}, 
+                            booktitle={2015 3rd International Symposium on Computational and Business Intelligence (ISCBI)}, 
+                            title={Optimizing SMOTE by Metaheuristics with Neural Network and Decision Tree}, 
+                            year={2015}, 
+                            volume={}, 
+                            number={}, 
+                            pages={26-32}, 
+                            keywords={data mining;particle swarm optimisation;pattern classification;data mining;classifier;metaherustics;SMOTE parameters;performance indicators;selection optimization;PSO;particle swarm optimization algorithm;BAT;bat-inspired algorithm;metaheuristic optimization algorithms;nearest neighbors;imbalanced dataset problem;synthetic minority over-sampling technique;decision tree;neural network;Classification algorithms;Neural networks;Decision trees;Training;Optimization;Particle swarm optimization;Data mining;SMOTE;Swarm Intelligence;parameter selection optimization}, 
+                            doi={10.1109/ISCBI.2015.12}, 
+                            ISSN={}, 
+                            month={Dec}}
 
-    URL: https://drive.google.com/open?id=1PQfIJRpKkNVcwQixzJxPN-K1FKEr_oDc
+        * URL: https://drive.google.com/open?id=1PQfIJRpKkNVcwQixzJxPN-K1FKEr_oDc
     
-    The parameters of the memetic algorithms are not specified.
-    I have checked multiple paper describing the BAT algorithm, but the meaning of
-    "Generate a new solution by flying randomly" is still unclear. It is also
-    unclear if best solutions are recorded for each bat, or the entire population.
+    Notes:
+        * The parameters of the memetic algorithms are not specified.
+        * I have checked multiple paper describing the BAT algorithm, but the meaning of "Generate a new solution by flying randomly" is still unclear. 
+        * It is also unclear if best solutions are recorded for each bat, or the entire population.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -10229,11 +11156,12 @@ class SMOTE_PSOBAT(OverSampling):
     def __init__(self, maxit= 50, c1= 0.3, c2= 0.1, c3= 0.1, alpha= 0.9, gamma= 0.9, method= 'bat', n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             maxit (int): maximum number of iterations
             c1 (float): intertia weight of PSO
-            c2 (float): attraction of local maximums
-            c3 (float): attraction of global maximum
+            c2 (float): attraction of local maximums in PSO
+            c3 (float): attraction of global maximum in PSO
             alpha (float): alpha parameter of the method
             gamma (float): gamma parameter of the method
             method (str): optimization technique to be used
@@ -10262,20 +11190,30 @@ class SMOTE_PSOBAT(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        bat_pc= cls.generate_parameter_combinations({'maxit': [50], 'alpha': [0.7, 0.9], 'gamma': [0.7, 0.9], 'method': ['bat']})
-        pso_pc= cls.generate_parameter_combinations({'maxit': [50], 'c1': [0.2, 0.5], 'c2': [0.1, 0.2], 'c3': [0.1, 0.2], 'method': ['pso']})
+        bat_pc= cls.generate_parameter_combinations({'maxit': [50], 
+                                                     'alpha': [0.7, 0.9], 
+                                                     'gamma': [0.7, 0.9], 
+                                                     'method': ['bat']})
+        pso_pc= cls.generate_parameter_combinations({'maxit': [50], 
+                                                     'c1': [0.2, 0.5], 
+                                                     'c2': [0.1, 0.2], 
+                                                     'c3': [0.1, 0.2], 
+                                                     'method': ['pso']})
         bat_pc.extend(pso_pc)
         return bat_pc
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -10286,9 +11224,11 @@ class SMOTE_PSOBAT(OverSampling):
         def evaluate(K, proportion):
             """
             Evaluate given configuration
+            
             Args:
                 K (int): number of neighbors in nearest neighbors component
                 proportion (float): proportion of missing data to generate
+                
             Returns:
                 float, float: kappa and accuracy scores
             """
@@ -10319,6 +11259,7 @@ class SMOTE_PSOBAT(OverSampling):
         def PSO():
             """
             PSO optimization
+            
             Returns:
                 int, float: the best K and proportion values
             """
@@ -10393,6 +11334,7 @@ class SMOTE_PSOBAT(OverSampling):
         def BAT():
             """
             BAT optimization
+            
             Returns:
                 int, float: the best K and proportion values
             """
@@ -10506,24 +11448,34 @@ class SMOTE_PSOBAT(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'maxit': self.maxit, 'c1': self.c1, 'c2': self.c2, 'c3': self.c3, 'alpha': self.alpha, 'gamma': self.gamma, 'method': self.method, 'n_jobs': self.n_jobs}
+        return {'maxit': self.maxit, 
+                'c1': self.c1, 
+                'c2': self.c2, 
+                'c3': self.c3, 
+                'alpha': self.alpha, 
+                'gamma': self.gamma, 
+                'method': self.method, 
+                'n_jobs': self.n_jobs}
 
 class MDO(OverSampling):
     """
-    @ARTICLE{mdo, 
-                author={L. Abdi and S. Hashemi}, 
-                journal={IEEE Transactions on Knowledge and Data Engineering}, 
-                title={To Combat Multi-Class Imbalanced Problems by Means of Over-Sampling Techniques}, 
-                year={2016}, 
-                volume={28}, 
-                number={1}, 
-                pages={238-251}, 
-                keywords={covariance analysis;learning (artificial intelligence);modelling;pattern classification;sampling methods;statistical distributions;minority class instance modelling;probability contour;covariance structure;MDO;Mahalanobis distance-based oversampling technique;data-oriented technique;model-oriented solution;machine learning algorithm;data skewness;multiclass imbalanced problem;Mathematical model;Training;Accuracy;Eigenvalues and eigenfunctions;Machine learning algorithms;Algorithm design and analysis;Benchmark testing;Multi-class imbalance problems;over-sampling techniques;Mahalanobis distance;Multi-class imbalance problems;over-sampling techniques;Mahalanobis distance}, 
-                doi={10.1109/TKDE.2015.2458858}, 
-                ISSN={1041-4347}, 
-                month={Jan}}
+    References:
+        * BibTex::
+            
+            @ARTICLE{mdo, 
+                        author={L. Abdi and S. Hashemi}, 
+                        journal={IEEE Transactions on Knowledge and Data Engineering}, 
+                        title={To Combat Multi-Class Imbalanced Problems by Means of Over-Sampling Techniques}, 
+                        year={2016}, 
+                        volume={28}, 
+                        number={1}, 
+                        pages={238-251}, 
+                        keywords={covariance analysis;learning (artificial intelligence);modelling;pattern classification;sampling methods;statistical distributions;minority class instance modelling;probability contour;covariance structure;MDO;Mahalanobis distance-based oversampling technique;data-oriented technique;model-oriented solution;machine learning algorithm;data skewness;multiclass imbalanced problem;Mathematical model;Training;Accuracy;Eigenvalues and eigenfunctions;Machine learning algorithms;Algorithm design and analysis;Benchmark testing;Multi-class imbalance problems;over-sampling techniques;Mahalanobis distance;Multi-class imbalance problems;over-sampling techniques;Mahalanobis distance}, 
+                        doi={10.1109/TKDE.2015.2458858}, 
+                        ISSN={1041-4347}, 
+                        month={Jan}}
 
-    URL: https://drive.google.com/open?id=1O_X4rhJcMx5h4eION2WJGHTqLyxoGO9i
+        * URL: https://drive.google.com/open?id=1O_X4rhJcMx5h4eION2WJGHTqLyxoGO9i
     """
     
     categories= [OverSampling.cat_extensive,
@@ -10532,6 +11484,7 @@ class MDO(OverSampling):
     def __init__(self, proportion= 1.0, K2= 5, K1_frac= 0.5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -10555,17 +11508,22 @@ class MDO(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'K2': [3, 5, 7], 'K1_frac': [0.3, 0.5, 0.7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'K2': [3, 5, 7], 
+                                                    'K1_frac': [0.3, 0.5, 0.7]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -10654,26 +11612,32 @@ class MDO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'K2': self.K2, 'K1_frac': self.K1_frac, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'K2': self.K2, 
+                'K1_frac': self.K1_frac, 
+                'n_jobs': self.n_jobs}
 
 class Random_SMOTE(OverSampling):
     """
-    @InProceedings{random_smote,
-                    author="Dong, Yanjie
-                    and Wang, Xuehua",
-                    editor="Xiong, Hui
-                    and Lee, W. B.",
-                    title="A New Over-Sampling Approach: Random-SMOTE for Learning from Imbalanced Data Sets",
-                    booktitle="Knowledge Science, Engineering and Management",
-                    year="2011",
-                    publisher="Springer Berlin Heidelberg",
-                    address="Berlin, Heidelberg",
-                    pages="343--352",
-                    abstract="For imbalanced data sets, examples of minority class are sparsely distributed in sample space compared with the overwhelming amount of majority class. This presents a great challenge for learning from the minority class. Enlightened by SMOTE, a new over-sampling method, Random-SMOTE, which generates examples randomly in the sample space of minority class is proposed. According to the experiments on real data sets, Random-SMOTE is more effective compared with other random sampling approaches.",
-                    isbn="978-3-642-25975-3"
-                    }
+    References:
+        * BibTex::
+            
+            @InProceedings{random_smote,
+                            author="Dong, Yanjie
+                            and Wang, Xuehua",
+                            editor="Xiong, Hui
+                            and Lee, W. B.",
+                            title="A New Over-Sampling Approach: Random-SMOTE for Learning from Imbalanced Data Sets",
+                            booktitle="Knowledge Science, Engineering and Management",
+                            year="2011",
+                            publisher="Springer Berlin Heidelberg",
+                            address="Berlin, Heidelberg",
+                            pages="343--352",
+                            abstract="For imbalanced data sets, examples of minority class are sparsely distributed in sample space compared with the overwhelming amount of majority class. This presents a great challenge for learning from the minority class. Enlightened by SMOTE, a new over-sampling method, Random-SMOTE, which generates examples randomly in the sample space of minority class is proposed. According to the experiments on real data sets, Random-SMOTE is more effective compared with other random sampling approaches.",
+                            isbn="978-3-642-25975-3"
+                            }
 
-    URL: https://drive.google.com/open?id=1_Wd2KaqlIcSmnjvlksYBgu5PsWIhDhbY
+        * URL: https://drive.google.com/open?id=1_Wd2KaqlIcSmnjvlksYBgu5PsWIhDhbY
     """
     
     categories= [OverSampling.cat_extensive,
@@ -10682,6 +11646,7 @@ class Random_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -10702,17 +11667,21 @@ class Random_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -10743,28 +11712,33 @@ class Random_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_jobs': self.n_jobs}
 
 class ISMOTE(OverSampling):
     """
-    @InProceedings{ismote,
-                    author="Li, Hu
-                    and Zou, Peng
-                    and Wang, Xiang
-                    and Xia, Rongze",
-                    editor="Sun, Zengqi
-                    and Deng, Zhidong",
-                    title="A New Combination Sampling Method for Imbalanced Data",
-                    booktitle="Proceedings of 2013 Chinese Intelligent Automation Conference",
-                    year="2013",
-                    publisher="Springer Berlin Heidelberg",
-                    address="Berlin, Heidelberg",
-                    pages="547--554",
-                    abstract="Imbalanced data is commonly in the real world and brings a lot of challenges. In this paper, we propose a combination sampling method which resamples both minority class and majority class. Improved SMOTE (ISMOTE) is used to do over-sampling on minority class, while distance-based under-sampling (DUS) method is used to do under-sampling on majority class. We adjust the sampling times to search for the optimal results while maintain the dataset size unchanged. Experiments on UCI datasets show that the proposed method performs better than using single over-sampling or under-sampling method.",
-                    isbn="978-3-642-38466-0"
-                    }
+    References:
+        * BibTex::
+            
+            @InProceedings{ismote,
+                            author="Li, Hu
+                            and Zou, Peng
+                            and Wang, Xiang
+                            and Xia, Rongze",
+                            editor="Sun, Zengqi
+                            and Deng, Zhidong",
+                            title="A New Combination Sampling Method for Imbalanced Data",
+                            booktitle="Proceedings of 2013 Chinese Intelligent Automation Conference",
+                            year="2013",
+                            publisher="Springer Berlin Heidelberg",
+                            address="Berlin, Heidelberg",
+                            pages="547--554",
+                            abstract="Imbalanced data is commonly in the real world and brings a lot of challenges. In this paper, we propose a combination sampling method which resamples both minority class and majority class. Improved SMOTE (ISMOTE) is used to do over-sampling on minority class, while distance-based under-sampling (DUS) method is used to do under-sampling on majority class. We adjust the sampling times to search for the optimal results while maintain the dataset size unchanged. Experiments on UCI datasets show that the proposed method performs better than using single over-sampling or under-sampling method.",
+                            isbn="978-3-642-38466-0"
+                            }
 
-    URL: https://drive.google.com/open?id=1z5J2-eDZBOobFvYH4jsXmT8-b3eJ0f6W
+        * URL: https://drive.google.com/open?id=1z5J2-eDZBOobFvYH4jsXmT8-b3eJ0f6W
     """
     
     categories= [OverSampling.cat_changes_majority]
@@ -10772,6 +11746,7 @@ class ISMOTE(OverSampling):
     def __init__(self, n_neighbors= 5, minority_weight= 0.5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             n_neighbors (int): number of neighbors
             minority_weight (float): weight parameter according to the paper
@@ -10790,17 +11765,21 @@ class ISMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'n_neighbors': [3, 5, 7], 'minority_weight': [0.2, 0.5, 0.8]})
+        return cls.generate_parameter_combinations({'n_neighbors': [3, 5, 7], 
+                                                    'minority_weight': [0.2, 0.5, 0.8]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -10853,28 +11832,34 @@ class ISMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'n_neighbors': self.n_neighbors, 'minority_weight': self.minority_weight, 'n_jobs': self.n_jobs}
+        return {'n_neighbors': self.n_neighbors, 
+                'minority_weight': self.minority_weight, 
+                'n_jobs': self.n_jobs}
 
 class VIS_RST(OverSampling):
     """
-    @InProceedings{vis_rst,
-                    author="Borowska, Katarzyna
-                    and Stepaniuk, Jaros{\l}aw",
-                    editor="Saeed, Khalid
-                    and Homenda, W{\l}adys{\l}aw",
-                    title="Imbalanced Data Classification: A Novel Re-sampling Approach Combining Versatile Improved SMOTE and Rough Sets",
-                    booktitle="Computer Information Systems and Industrial Management",
-                    year="2016",
-                    publisher="Springer International Publishing",
-                    address="Cham",
-                    pages="31--42",
-                    abstract="In recent years, the problem of learning from imbalanced data has emerged as important and challenging. The fact that one of the classes is underrepresented in the data set is not the only reason of difficulties. The complex distribution of data, especially small disjuncts, noise and class overlapping, contributes to the significant depletion of classifier's performance. Hence, the numerous solutions were proposed. They are categorized into three groups: data-level techniques, algorithm-level methods and cost-sensitive approaches. This paper presents a novel data-level method combining Versatile Improved SMOTE and rough sets. The algorithm was applied to the two-class problems, data sets were characterized by the nominal attributes. We evaluated the proposed technique in comparison with other preprocessing methods. The impact of the additional cleaning phase was specifically verified.",
-                    isbn="978-3-319-45378-1"
-                    }
+    References:
+        * BibTex::
+            
+            @InProceedings{vis_rst,
+                            author="Borowska, Katarzyna
+                            and Stepaniuk, Jaros{\l}aw",
+                            editor="Saeed, Khalid
+                            and Homenda, W{\l}adys{\l}aw",
+                            title="Imbalanced Data Classification: A Novel Re-sampling Approach Combining Versatile Improved SMOTE and Rough Sets",
+                            booktitle="Computer Information Systems and Industrial Management",
+                            year="2016",
+                            publisher="Springer International Publishing",
+                            address="Cham",
+                            pages="31--42",
+                            abstract="In recent years, the problem of learning from imbalanced data has emerged as important and challenging. The fact that one of the classes is underrepresented in the data set is not the only reason of difficulties. The complex distribution of data, especially small disjuncts, noise and class overlapping, contributes to the significant depletion of classifier's performance. Hence, the numerous solutions were proposed. They are categorized into three groups: data-level techniques, algorithm-level methods and cost-sensitive approaches. This paper presents a novel data-level method combining Versatile Improved SMOTE and rough sets. The algorithm was applied to the two-class problems, data sets were characterized by the nominal attributes. We evaluated the proposed technique in comparison with other preprocessing methods. The impact of the additional cleaning phase was specifically verified.",
+                            isbn="978-3-319-45378-1"
+                            }
 
-    URL: https://drive.google.com/open?id=1mTca65RRZ39SLNOy4hxvh23qlNha8kpj
+        * URL: https://drive.google.com/open?id=1mTca65RRZ39SLNOy4hxvh23qlNha8kpj
     
-    Replication of DANGER samples will be removed by the last step of noise filtering.
+    Notes:
+        * Replication of DANGER samples will be removed by the last step of noise filtering.
     """
     
     categories= [OverSampling.cat_changes_majority,
@@ -10883,6 +11868,7 @@ class VIS_RST(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -10903,17 +11889,21 @@ class VIS_RST(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -11020,29 +12010,34 @@ class VIS_RST(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_jobs': self.n_jobs}
 
 class GASMOTE(OverSampling):
     """
-    @Article{gasmote,
-                author="Jiang, Kun
-                and Lu, Jing
-                and Xia, Kuiliang",
-                title="A Novel Algorithm for Imbalance Data Classification Based on Genetic Algorithm Improved SMOTE",
-                journal="Arabian Journal for Science and Engineering",
-                year="2016",
-                month="Aug",
-                day="01",
-                volume="41",
-                number="8",
-                pages="3255--3266",
-                abstract="The classification of imbalanced data has been recognized as a crucial problem in machine learning and data mining. In an imbalanced dataset, there are significantly fewer training instances of one class compared to another class. Hence, the minority class instances are much more likely to be misclassified. In the literature, the synthetic minority over-sampling technique (SMOTE) has been developed to deal with the classification of imbalanced datasets. It synthesizes new samples of the minority class to balance the dataset, by re-sampling the instances of the minority class. Nevertheless, the existing algorithms-based SMOTE uses the same sampling rate for all instances of the minority class. This results in sub-optimal performance. To address this issue, we propose a novel genetic algorithm-based SMOTE (GASMOTE) algorithm. The GASMOTE algorithm uses different sampling rates for different minority class instances and finds the combination of optimal sampling rates. The experimental results on ten typical imbalance datasets show that, compared with SMOTE algorithm, GASMOTE can increase 5.9{\%} on F-measure value and 1.6{\%} on G-mean value, and compared with Borderline-SMOTE algorithm, GASMOTE can increase 3.7{\%} on F-measure value and 2.3{\%} on G-mean value. GASMOTE can be used as a new over-sampling technique to deal with imbalance dataset classification problem. We have particularly applied the GASMOTE algorithm to a practical engineering application: prediction of rockburst in the VCR rockburst datasets. The experiment results indicate that the GASMOTE algorithm can accurately predict the rockburst occurrence and hence provides guidance to the design and construction of safe deep mining engineering structures.",
-                issn="2191-4281",
-                doi="10.1007/s13369-016-2179-2",
-                url="https://doi.org/10.1007/s13369-016-2179-2"
-                }
+    References:
+        * BibTex::
+            
+            @Article{gasmote,
+                        author="Jiang, Kun
+                        and Lu, Jing
+                        and Xia, Kuiliang",
+                        title="A Novel Algorithm for Imbalance Data Classification Based on Genetic Algorithm Improved SMOTE",
+                        journal="Arabian Journal for Science and Engineering",
+                        year="2016",
+                        month="Aug",
+                        day="01",
+                        volume="41",
+                        number="8",
+                        pages="3255--3266",
+                        abstract="The classification of imbalanced data has been recognized as a crucial problem in machine learning and data mining. In an imbalanced dataset, there are significantly fewer training instances of one class compared to another class. Hence, the minority class instances are much more likely to be misclassified. In the literature, the synthetic minority over-sampling technique (SMOTE) has been developed to deal with the classification of imbalanced datasets. It synthesizes new samples of the minority class to balance the dataset, by re-sampling the instances of the minority class. Nevertheless, the existing algorithms-based SMOTE uses the same sampling rate for all instances of the minority class. This results in sub-optimal performance. To address this issue, we propose a novel genetic algorithm-based SMOTE (GASMOTE) algorithm. The GASMOTE algorithm uses different sampling rates for different minority class instances and finds the combination of optimal sampling rates. The experimental results on ten typical imbalance datasets show that, compared with SMOTE algorithm, GASMOTE can increase 5.9{\%} on F-measure value and 1.6{\%} on G-mean value, and compared with Borderline-SMOTE algorithm, GASMOTE can increase 3.7{\%} on F-measure value and 2.3{\%} on G-mean value. GASMOTE can be used as a new over-sampling technique to deal with imbalance dataset classification problem. We have particularly applied the GASMOTE algorithm to a practical engineering application: prediction of rockburst in the VCR rockburst datasets. The experiment results indicate that the GASMOTE algorithm can accurately predict the rockburst occurrence and hence provides guidance to the design and construction of safe deep mining engineering structures.",
+                        issn="2191-4281",
+                        doi="10.1007/s13369-016-2179-2",
+                        url="https://doi.org/10.1007/s13369-016-2179-2"
+                        }
 
-    URL: https://drive.google.com/open?id=1VYA2Y_lKXPlMIYNEYO9p2ylymTVcnNR_
+        * URL: https://drive.google.com/open?id=1VYA2Y_lKXPlMIYNEYO9p2ylymTVcnNR_
     """
     
     categories= [OverSampling.cat_extensive,
@@ -11052,6 +12047,7 @@ class GASMOTE(OverSampling):
     def __init__(self, n_neighbors= 5, maxn= 7, n_pop= 10, popl3= 5, pm= 0.3, pr= 0.2, Ge= 10, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             n_neighbors (int): number of neighbors
             maxn (int): maximum number of samples to generate per minority instances
@@ -11084,17 +12080,26 @@ class GASMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'n_neighbors': [7], 'maxn': [2, 3, 4], 'n_pop': [10], 'popl3': [4], 'pm': [0.3], 'pr': [0.2], 'Ge': [10]})
+        return cls.generate_parameter_combinations({'n_neighbors': [7], 
+                                                    'maxn': [2, 3, 4], 
+                                                    'n_pop': [10], 
+                                                    'popl3': [4], 
+                                                    'pm': [0.3], 
+                                                    'pr': [0.2], 
+                                                    'Ge': [10]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -11113,6 +12118,7 @@ class GASMOTE(OverSampling):
         def fitness(conf):
             """
             Evluate fitness of configuration
+            
             Args:
                 conf (list(list)): configuration
             """
@@ -11153,9 +12159,11 @@ class GASMOTE(OverSampling):
         def crossover(conf_a, conf_b):
             """
             Crossover
+            
             Args:
                 conf_a (list(list)): configuration to crossover
                 conf_b (list(list)): configuration to crossover
+                
             Returns:
                 list(list), list(list): the configurations after crossover
             """
@@ -11167,6 +12175,7 @@ class GASMOTE(OverSampling):
         def mutation(conf, ge):
             """
             Mutation
+            
             Args:
                 conf (list(list)): configuration to mutate
                 ge (int): iteration number
@@ -11239,27 +12248,38 @@ class GASMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'n_neighbors': self.n_neighbors, 'maxn': self.maxn, 'n_pop': self.n_pop, 'popl3': self.popl3, 'pm': self.pm, 'pr': self.pr, 'Ge': self.Ge, 'n_jobs': self.n_jobs}
+        return {'n_neighbors': self.n_neighbors, 
+                'maxn': self.maxn, 
+                'n_pop': self.n_pop, 
+                'popl3': self.popl3, 
+                'pm': self.pm, 
+                'pr': self.pr, 
+                'Ge': self.Ge, 
+                'n_jobs': self.n_jobs}
 
 class A_SUWO(OverSampling):
     """
-    @article{a_suwo,
-                title = "Adaptive semi-unsupervised weighted oversampling (A-SUWO) for imbalanced datasets",
-                journal = "Expert Systems with Applications",
-                volume = "46",
-                pages = "405 - 416",
-                year = "2016",
-                issn = "0957-4174",
-                doi = "https://doi.org/10.1016/j.eswa.2015.10.031",
-                url = "http://www.sciencedirect.com/science/article/pii/S0957417415007356",
-                author = "Iman Nekooeimehr and Susana K. Lai-Yuen",
-                keywords = "Imbalanced dataset, Classification, Clustering, Oversampling"
-                }
+    References:
+        * BibTex::
+            
+            @article{a_suwo,
+                        title = "Adaptive semi-unsupervised weighted oversampling (A-SUWO) for imbalanced datasets",
+                        journal = "Expert Systems with Applications",
+                        volume = "46",
+                        pages = "405 - 416",
+                        year = "2016",
+                        issn = "0957-4174",
+                        doi = "https://doi.org/10.1016/j.eswa.2015.10.031",
+                        url = "http://www.sciencedirect.com/science/article/pii/S0957417415007356",
+                        author = "Iman Nekooeimehr and Susana K. Lai-Yuen",
+                        keywords = "Imbalanced dataset, Classification, Clustering, Oversampling"
+                        }
 
-    URL: https://drive.google.com/open?id=14ePxLnx4LlPITR4K_Sjm2PWW41kdczMy
+        * URL: https://drive.google.com/open?id=14ePxLnx4LlPITR4K_Sjm2PWW41kdczMy
     
-    Equation (7) misses a division by R_j.
-    It is not specified how to sample from clusters with 1 instances.
+    Notes:
+        * Equation (7) misses a division by R_j.
+        * It is not specified how to sample from clusters with 1 instances.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -11270,6 +12290,7 @@ class A_SUWO(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_clus_maj= 7, c_thres= 0.8, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -11296,17 +12317,23 @@ class A_SUWO(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'n_clus_maj': [5, 7, 9], 'c_thres': [0.5, 0.8]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'n_clus_maj': [5, 7, 9], 
+                                                    'c_thres': [0.5, 0.8]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -11476,32 +12503,36 @@ class A_SUWO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_clus_maj': self.n_clus_maj, 'c_thres': self.c_thres, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_clus_maj': self.n_clus_maj, 
+                'c_thres': self.c_thres, 
+                'n_jobs': self.n_jobs}
 
 class SMOTE_FRST_2T(OverSampling):
     """
-    @article{smote_frst_2t,
-                title = "Fuzzy-rough imbalanced learning for the diagnosis of High Voltage Circuit Breaker maintenance: The SMOTE-FRST-2T algorithm",
-                journal = "Engineering Applications of Artificial Intelligence",
-                volume = "48",
-                pages = "134 - 139",
-                year = "2016",
-                issn = "0952-1976",
-                doi = "https://doi.org/10.1016/j.engappai.2015.10.009",
-                url = "http://www.sciencedirect.com/science/article/pii/S0952197615002389",
-                author = "E. Ramentol and I. Gondres and S. Lajes and R. Bello and Y. Caballero and C. Cornelis and F. Herrera",
-                keywords = "High Voltage Circuit Breaker (HVCB), Imbalanced learning, Fuzzy rough set theory, Resampling methods"
-                }
+    References:
+        * BibTex::
+            
+            @article{smote_frst_2t,
+                        title = "Fuzzy-rough imbalanced learning for the diagnosis of High Voltage Circuit Breaker maintenance: The SMOTE-FRST-2T algorithm",
+                        journal = "Engineering Applications of Artificial Intelligence",
+                        volume = "48",
+                        pages = "134 - 139",
+                        year = "2016",
+                        issn = "0952-1976",
+                        doi = "https://doi.org/10.1016/j.engappai.2015.10.009",
+                        url = "http://www.sciencedirect.com/science/article/pii/S0952197615002389",
+                        author = "E. Ramentol and I. Gondres and S. Lajes and R. Bello and Y. Caballero and C. Cornelis and F. Herrera",
+                        keywords = "High Voltage Circuit Breaker (HVCB), Imbalanced learning, Fuzzy rough set theory, Resampling methods"
+                        }
 
-    URL: https://drive.google.com/open?id=1Zmb2MmKGszJB8Q1k7eTZLNG-8KhF4KTc
+        * URL: https://drive.google.com/open?id=1Zmb2MmKGszJB8Q1k7eTZLNG-8KhF4KTc
     
-    Unlucky setting of parameters might result 0 points added, we have fixed this
-    by increasing the gamma_S threshold if the number of samples accepted is low.
-    Similarly, unlucky setting of parameters might result all majority samples turned
-    into minority.
-    In my opinion, in the algorithm presented in the paper the relations are incorrect.
-    The authors talk about accepting samples having POS score below a threshold, and 
-    in the algorithm in both places POS >= gamma is used.
+    Notes:
+        * Unlucky setting of parameters might result 0 points added, we have fixed this by increasing the gamma_S threshold if the number of samples accepted is low.
+        * Similarly, unlucky setting of parameters might result all majority samples turned into minority.
+        * In my opinion, in the algorithm presented in the paper the relations are incorrect. The authors talk about accepting samples having POS score below a threshold, and in the algorithm in both places POS >= gamma is used.
     """
     
     categories= [OverSampling.cat_changes_majority,
@@ -11512,6 +12543,7 @@ class SMOTE_FRST_2T(OverSampling):
     def __init__(self, n_neighbors= 5, gamma_S= 0.7, gamma_M= 0.03, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             n_neighbors (int): number of neighbors in the SMOTE sampling
             gamma_S (float): threshold of synthesized samples
@@ -11533,17 +12565,22 @@ class SMOTE_FRST_2T(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'n_neighbors': [3, 5, 7], 'gamma_S': [0.8, 1.0], 'gamma_M': [0.03, 0.05, 0.1]})
+        return cls.generate_parameter_combinations({'n_neighbors': [3, 5, 7], 
+                                                    'gamma_S': [0.8, 1.0], 
+                                                    'gamma_M': [0.03, 0.05, 0.1]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -11653,30 +12690,36 @@ class SMOTE_FRST_2T(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'n_neighbors': self.n_neighbors, 'gamma_S': self.gamma_S, 'gamma_M': self.gamma_M, 'n_jobs': self.n_jobs}
+        return {'n_neighbors': self.n_neighbors, 
+                'gamma_S': self.gamma_S, 
+                'gamma_M': self.gamma_M, 
+                'n_jobs': self.n_jobs}
 
 class AND_SMOTE(OverSampling):
     """
-    @inproceedings{and_smote,
-                     author = {Yun, Jaesub and Ha, Jihyun and Lee, Jong-Seok},
-                     title = {Automatic Determination of Neighborhood Size in SMOTE},
-                     booktitle = {Proceedings of the 10th International Conference on Ubiquitous Information Management and Communication},
-                     series = {IMCOM '16},
-                     year = {2016},
-                     isbn = {978-1-4503-4142-4},
-                     location = {Danang, Viet Nam},
-                     pages = {100:1--100:8},
-                     articleno = {100},
-                     numpages = {8},
-                     url = {http://doi.acm.org/10.1145/2857546.2857648},
-                     doi = {10.1145/2857546.2857648},
-                     acmid = {2857648},
-                     publisher = {ACM},
-                     address = {New York, NY, USA},
-                     keywords = {SMOTE, imbalanced learning, synthetic data generation},
-                    } 
+    References:
+        * BibTex::
+            
+            @inproceedings{and_smote,
+                             author = {Yun, Jaesub and Ha, Jihyun and Lee, Jong-Seok},
+                             title = {Automatic Determination of Neighborhood Size in SMOTE},
+                             booktitle = {Proceedings of the 10th International Conference on Ubiquitous Information Management and Communication},
+                             series = {IMCOM '16},
+                             year = {2016},
+                             isbn = {978-1-4503-4142-4},
+                             location = {Danang, Viet Nam},
+                             pages = {100:1--100:8},
+                             articleno = {100},
+                             numpages = {8},
+                             url = {http://doi.acm.org/10.1145/2857546.2857648},
+                             doi = {10.1145/2857546.2857648},
+                             acmid = {2857648},
+                             publisher = {ACM},
+                             address = {New York, NY, USA},
+                             keywords = {SMOTE, imbalanced learning, synthetic data generation},
+                            } 
 
-    URL: https://drive.google.com/open?id=1bwj4hQiFnFgfCPDM2e8_GGloZcUd3vBG
+        * URL: https://drive.google.com/open?id=1bwj4hQiFnFgfCPDM2e8_GGloZcUd3vBG
     """
     
     categories= [OverSampling.cat_extensive,
@@ -11685,6 +12728,7 @@ class AND_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, K= 15, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -11705,17 +12749,21 @@ class AND_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'K': [9, 15, 21]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'K': [9, 15, 21]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -11812,24 +12860,29 @@ class AND_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'K': self.K, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'K': self.K, 
+                'n_jobs': self.n_jobs}
 
 class NRAS(OverSampling):
     """
-    @article{nras,
-                title = "Noise Reduction A Priori Synthetic Over-Sampling for class imbalanced data sets",
-                journal = "Information Sciences",
-                volume = "408",
-                pages = "146 - 161",
-                year = "2017",
-                issn = "0020-0255",
-                doi = "https://doi.org/10.1016/j.ins.2017.04.046",
-                url = "http://www.sciencedirect.com/science/article/pii/S0020025517307089",
-                author = "William A. Rivera",
-                keywords = "NRAS, SMOTE, OUPS, Class imbalance, Classification"
-                }
+    References:
+        * BibTex::
+            
+            @article{nras,
+                        title = "Noise Reduction A Priori Synthetic Over-Sampling for class imbalanced data sets",
+                        journal = "Information Sciences",
+                        volume = "408",
+                        pages = "146 - 161",
+                        year = "2017",
+                        issn = "0020-0255",
+                        doi = "https://doi.org/10.1016/j.ins.2017.04.046",
+                        url = "http://www.sciencedirect.com/science/article/pii/S0020025517307089",
+                        author = "William A. Rivera",
+                        keywords = "NRAS, SMOTE, OUPS, Class imbalance, Classification"
+                        }
 
-    URL: https://drive.google.com/open?id=1AZ_jRoplDczplH8g1AM3Zn_jujMxaAxA
+        * URL: https://drive.google.com/open?id=1AZ_jRoplDczplH8g1AM3Zn_jujMxaAxA
     """
     
     categories= [OverSampling.cat_sample_ordinary,
@@ -11838,6 +12891,7 @@ class NRAS(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, t= 0.5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -11861,17 +12915,22 @@ class NRAS(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [5, 7, 9], 't': [0.3, 0.5, 0.8]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [5, 7, 9], 
+                                                    't': [0.3, 0.5, 0.8]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -11920,7 +12979,7 @@ class NRAS(OverSampling):
                     return X.copy(), y.copy()
             else:
                 # otherwise do the sampling
-                samples.append(self.sample_between_points(X_min[idx], X[np.random.choice(ind[idx][1:])]))
+                samples.append(self.sample_between_points(X_min[idx], X_trans[np.random.choice(ind[idx][1:])]))
         
         # remove noisy elements
         X_maj= X_trans[y == self.majority_label]
@@ -11933,38 +12992,44 @@ class NRAS(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 't': self.t, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                't': self.t, 
+                'n_jobs': self.n_jobs}
 
 class AMSCO(OverSampling):
     """
-    @article{amsco,
-                title = "Adaptive multi-objective swarm fusion for imbalanced data classification",
-                journal = "Information Fusion",
-                volume = "39",
-                pages = "1 - 24",
-                year = "2018",
-                issn = "1566-2535",
-                doi = "https://doi.org/10.1016/j.inffus.2017.03.007",
-                url = "http://www.sciencedirect.com/science/article/pii/S1566253517302087",
-                author = "Jinyan Li and Simon Fong and Raymond K. Wong and Victor W. Chu",
-                keywords = "Swarm fusion, Swarm intelligence algorithm, Multi-objective, Crossover rebalancing, Imbalanced data classification"
-                }
+    References:
+        * BibTex::
+            
+            @article{amsco,
+                        title = "Adaptive multi-objective swarm fusion for imbalanced data classification",
+                        journal = "Information Fusion",
+                        volume = "39",
+                        pages = "1 - 24",
+                        year = "2018",
+                        issn = "1566-2535",
+                        doi = "https://doi.org/10.1016/j.inffus.2017.03.007",
+                        url = "http://www.sciencedirect.com/science/article/pii/S1566253517302087",
+                        author = "Jinyan Li and Simon Fong and Raymond K. Wong and Victor W. Chu",
+                        keywords = "Swarm fusion, Swarm intelligence algorithm, Multi-objective, Crossover rebalancing, Imbalanced data classification"
+                        }
 
-    URL: https://drive.google.com/open?id=1Y90GGJMZeFjp4I_emwk1Z430kjwnNQnt
+        * URL: https://drive.google.com/open?id=1Y90GGJMZeFjp4I_emwk1Z430kjwnNQnt
     
-    It is not clear how the kappa threshold is used, I do use the RA score to drive
-    all the evolution. Particularly:
-        "In the last phase of each iteration, the average Kappa value
-        in current non-inferior set is compare with the latest threshold
-        value, the threshold is then increase further if the average value
-        increases, and vice versa. By doing so, the non-inferior region will
-        be progressively reduced as the Kappa threshold lifts up."
-    I don't see why would the Kappa threshold lift up if the kappa thresholds
-    are decreased if the average Kappa decreases ("vice versa").
+    Notes:
+        * It is not clear how the kappa threshold is used, I do use the RA score to drive all the evolution. Particularly:
+            
+            "In the last phase of each iteration, the average Kappa value
+            in current non-inferior set is compare with the latest threshold
+            value, the threshold is then increase further if the average value
+            increases, and vice versa. By doing so, the non-inferior region will
+            be progressively reduced as the Kappa threshold lifts up."
+        
+        I don't see why would the Kappa threshold lift up if the kappa thresholds
+        are decreased if the average Kappa decreases ("vice versa").
     
-    Due to the interpretation of kappa threshold and the lack of detailed
-    description of the SIS process, the implementation is not exactly what
-    is described in the paper, but something very similar.
+        * Due to the interpretation of kappa threshold and the lack of detailed description of the SIS process, the implementation is not exactly what is described in the paper, but something very similar.
     """
     
     categories= [OverSampling.cat_changes_majority,
@@ -11974,6 +13039,7 @@ class AMSCO(OverSampling):
     def __init__(self, n_pop= 5, n_iter= 15, omega= 0.1, r1= 0.1, r2= 0.1, n_jobs= 1, classifier= DecisionTreeClassifier()):
         """
         Constructor of the sampling object
+        
         Args:
             n_pop (int): size of populations
             n_iter (int): optimization steps
@@ -12002,19 +13068,27 @@ class AMSCO(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
         # as the method is an overall optimization, 1 reasonable settings should
         # be enough
-        return cls.generate_parameter_combinations({'n_pop': [5], 'n_iter': [15], 'omega': [0.1], 'r1': [0.1], 'r2': [0.1], 'classifier': [DecisionTreeClassifier()]})
+        return cls.generate_parameter_combinations({'n_pop': [5], 
+                                                    'n_iter': [15], 
+                                                    'omega': [0.1], 
+                                                    'r1': [0.1], 
+                                                    'r2': [0.1], 
+                                                    'classifier': [DecisionTreeClassifier()]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -12028,9 +13102,11 @@ class AMSCO(OverSampling):
         def fitness(X_min, X_maj):
             """
             Calculating fitness function
+            
             Args:
                 X_min (np.matrix): minority samples
                 X_maj (np.matrix): majority samples
+                
             Returns:
                 float, float: kappa, accuracy
             """
@@ -12066,9 +13142,11 @@ class AMSCO(OverSampling):
         def OSMOTE(X_min, X_maj):
             """
             Executing OSMOTE phase
+            
             Args:
                 X_min (np.matrix): minority samples
                 X_maj (np.matrix): majority samples
+                
             Returns:
                 np.matrix, np.matrix: new minority and majority datasets
             """
@@ -12128,9 +13206,11 @@ class AMSCO(OverSampling):
         def SIS(X_min, X_maj):
             """
             SIS procedure
+            
             Args:
                 X_min (np.matrix): minority dataset
                 X_maj (np.matrix): majority dataset
+                
             Returns:
                 np.matrix, np.matrix: new minority and majority datasets
             """
@@ -12194,33 +13274,41 @@ class AMSCO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'n_pop': self.n_pop, 'n_iter': self.n_iter, 'omega': self.omega, 'r1': self.r1, 'r2': self.r2, 'n_jobs': self.n_jobs, 'classifier': self.classifier}
+        return {'n_pop': self.n_pop, 
+                'n_iter': self.n_iter, 
+                'omega': self.omega, 
+                'r1': self.r1, 
+                'r2': self.r2, 
+                'n_jobs': self.n_jobs, 
+                'classifier': self.classifier}
 
 class SSO(OverSampling):
     """
-    @InProceedings{sso,
-                    author="Rong, Tongwen
-                    and Gong, Huachang
-                    and Ng, Wing W. Y.",
-                    editor="Wang, Xizhao
-                    and Pedrycz, Witold
-                    and Chan, Patrick
-                    and He, Qiang",
-                    title="Stochastic Sensitivity Oversampling Technique for Imbalanced Data",
-                    booktitle="Machine Learning and Cybernetics",
-                    year="2014",
-                    publisher="Springer Berlin Heidelberg",
-                    address="Berlin, Heidelberg",
-                    pages="161--171",
-                    abstract="Data level technique is proved to be effective in imbalance learning. The SMOTE is a famous oversampling technique generating synthetic minority samples by linear interpolation between adjacent minorities. However, it becomes inefficiency for datasets with sparse distributions. In this paper, we propose the Stochastic Sensitivity Oversampling (SSO) which generates synthetic samples following Gaussian distributions in the Q-union of minority samples. The Q-union is the union of Q-neighborhoods (hypercubes centered at minority samples) and such that new samples are synthesized around minority samples. Experimental results show that the proposed algorithm performs well on most of datasets, especially those with a sparse distribution.",
-                    isbn="978-3-662-45652-1"
-                    }
+    References:
+        * BibTex::
+            
+            @InProceedings{sso,
+                            author="Rong, Tongwen
+                            and Gong, Huachang
+                            and Ng, Wing W. Y.",
+                            editor="Wang, Xizhao
+                            and Pedrycz, Witold
+                            and Chan, Patrick
+                            and He, Qiang",
+                            title="Stochastic Sensitivity Oversampling Technique for Imbalanced Data",
+                            booktitle="Machine Learning and Cybernetics",
+                            year="2014",
+                            publisher="Springer Berlin Heidelberg",
+                            address="Berlin, Heidelberg",
+                            pages="161--171",
+                            abstract="Data level technique is proved to be effective in imbalance learning. The SMOTE is a famous oversampling technique generating synthetic minority samples by linear interpolation between adjacent minorities. However, it becomes inefficiency for datasets with sparse distributions. In this paper, we propose the Stochastic Sensitivity Oversampling (SSO) which generates synthetic samples following Gaussian distributions in the Q-union of minority samples. The Q-union is the union of Q-neighborhoods (hypercubes centered at minority samples) and such that new samples are synthesized around minority samples. Experimental results show that the proposed algorithm performs well on most of datasets, especially those with a sparse distribution.",
+                            isbn="978-3-662-45652-1"
+                            }
 
-    URL: https://drive.google.com/open?id=1iW1g0gefhC5bjpXvd9l63N85JgSWTyAc
+        * URL: https://drive.google.com/open?id=1iW1g0gefhC5bjpXvd9l63N85JgSWTyAc
     
-    In the algorithm step 2d adds a constant to a vector. I have changed it
-    to a componentwise adjustment, and also used the normalized STSM as I don't
-    see any reason why it would be some reasonable, bounded value.
+    Notes:
+        * In the algorithm step 2d adds a constant to a vector. I have changed it to a componentwise adjustment, and also used the normalized STSM as I don't see any reason why it would be some reasonable, bounded value.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -12231,6 +13319,7 @@ class SSO(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, h= 10, n_iter= 5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -12257,17 +13346,23 @@ class SSO(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5], 'h': [2, 5, 10, 20], 'n_iter': [5]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5], 
+                                                    'h': [2, 5, 10, 20], 
+                                                    'n_iter': [5]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -12383,24 +13478,31 @@ class SSO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'h': self.h, 'n_iter': self.n_iter, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'h': self.h, 
+                'n_iter': self.n_iter, 
+                'n_jobs': self.n_jobs}
 
 class NDO_sampling(OverSampling):
     """
-    @INPROCEEDINGS{ndo_sampling, 
-                    author={L. Zhang and W. Wang}, 
-                    booktitle={2011 International Conference of Information Technology, Computer Engineering and Management Sciences}, 
-                    title={A Re-sampling Method for Class Imbalance Learning with Credit Data}, 
-                    year={2011}, 
-                    volume={1}, 
-                    number={}, 
-                    pages={393-397}, 
-                    keywords={data handling;sampling methods;resampling method;class imbalance learning;credit rating;imbalance problem;synthetic minority over-sampling technique;sample distribution;synthetic samples;credit data set;Training;Measurement;Support vector machines;Logistics;Testing;Noise;Classification algorithms;class imbalance;credit rating;SMOTE;sample distribution}, 
-                    doi={10.1109/ICM.2011.34}, 
-                    ISSN={}, 
-                    month={Sept}}
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{ndo_sampling, 
+                            author={L. Zhang and W. Wang}, 
+                            booktitle={2011 International Conference of Information Technology, Computer Engineering and Management Sciences}, 
+                            title={A Re-sampling Method for Class Imbalance Learning with Credit Data}, 
+                            year={2011}, 
+                            volume={1}, 
+                            number={}, 
+                            pages={393-397}, 
+                            keywords={data handling;sampling methods;resampling method;class imbalance learning;credit rating;imbalance problem;synthetic minority over-sampling technique;sample distribution;synthetic samples;credit data set;Training;Measurement;Support vector machines;Logistics;Testing;Noise;Classification algorithms;class imbalance;credit rating;SMOTE;sample distribution}, 
+                            doi={10.1109/ICM.2011.34}, 
+                            ISSN={}, 
+                            month={Sept}}
 
-    URL: https://drive.google.com/open?id=1vrCst6Jk97kTiu-2aJZt3oN5uGHRQA6Q
+        * URL: https://drive.google.com/open?id=1vrCst6Jk97kTiu-2aJZt3oN5uGHRQA6Q
     """
     
     categories= [OverSampling.cat_extensive,
@@ -12410,6 +13512,7 @@ class NDO_sampling(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, T= 0.5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -12433,17 +13536,22 @@ class NDO_sampling(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'T': [0.5]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'T': [0.5]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -12497,7 +13605,10 @@ class NDO_sampling(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'T': self.T, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'T': self.T, 
+                'n_jobs': self.n_jobs}
 
 class RBFNeuron:
     """
@@ -12506,6 +13617,7 @@ class RBFNeuron:
     def __init__(self, c, I, O, ranges, range_mins, init_conn_mask, init_conn_weights):
         """
         Constructor of the neuron
+        
         Args:
             c (np.array): center of the hidden unit
             I (float): upper bound on the absolute values of input weights
@@ -12531,6 +13643,7 @@ class RBFNeuron:
     def clone(self):
         """
         Clones the neuron
+        
         Returns:
             RBFNeuron: an identical neuron
         """
@@ -12544,8 +13657,10 @@ class RBFNeuron:
     def evaluate(self, X):
         """
         Evaluates the system on dataset X
+        
         Args:
             X (np.matrix): dataset to evaluate on
+            
         Returns:
             np.array: the output of the network
         """
@@ -12599,6 +13714,7 @@ class RBF:
     def __init__(self, X, m_min, m_max, I, O, init_conn_mask, init_conn_weights):
         """
         Initializes the RBF network
+        
         Args:
             X (np.matrix): dataset to work with
             m_min (int): minimum number of hidden neurons
@@ -12630,6 +13746,7 @@ class RBF:
     def clone(self):
         """
         Clones the entire network
+        
         Returns:
             RBF: the cloned network
         """
@@ -12644,6 +13761,7 @@ class RBF:
     def create_new_node(self):
         """
         Creates a new node.
+        
         Returns:
             RBFNeuron: a new hidden neuron
         """
@@ -12669,6 +13787,7 @@ class RBF:
     def evaluate(self, X, y):
         """
         Evaluates the target function
+        
         Returns:
             float: the target function value
         """
@@ -12679,6 +13798,7 @@ class RBF:
     def mutation(self):
         """
         Mutates the neurons
+        
         Returns:
             RBF: a new, mutated RBF network
         """
@@ -12690,6 +13810,7 @@ class RBF:
     def structural_mutation(self):
         """
         Applies structural mutation
+        
         Returns:
             RBF: a new, structurally mutated network
         """
@@ -12711,8 +13832,10 @@ class RBF:
     def recombine(self, rbf):
         """
         Recombines two networks
+        
         Args:
             rbf (RBF): another network
+            
         Returns:
             RBF: the result of recombination
         """
@@ -12731,30 +13854,30 @@ class RBF:
 
 class DSRBF(OverSampling):
     """
-    @article{dsrbf,
-                title = "A dynamic over-sampling procedure based on sensitivity for multi-class problems",
-                journal = "Pattern Recognition",
-                volume = "44",
-                number = "8",
-                pages = "1821 - 1833",
-                year = "2011",
-                issn = "0031-3203",
-                doi = "https://doi.org/10.1016/j.patcog.2011.02.019",
-                url = "http://www.sciencedirect.com/science/article/pii/S0031320311000823",
-                author = "Francisco Fernández-Navarro and César Hervás-Martínez and Pedro Antonio Gutiérrez",
-                keywords = "Classification, Multi-class, Sensitivity, Accuracy, Memetic algorithm, Imbalanced datasets, Over-sampling method, SMOTE"
-                }
+    References:
+        * BibTex::
+            
+            @article{dsrbf,
+                        title = "A dynamic over-sampling procedure based on sensitivity for multi-class problems",
+                        journal = "Pattern Recognition",
+                        volume = "44",
+                        number = "8",
+                        pages = "1821 - 1833",
+                        year = "2011",
+                        issn = "0031-3203",
+                        doi = "https://doi.org/10.1016/j.patcog.2011.02.019",
+                        url = "http://www.sciencedirect.com/science/article/pii/S0031320311000823",
+                        author = "Francisco Fernández-Navarro and César Hervás-Martínez and Pedro Antonio Gutiérrez",
+                        keywords = "Classification, Multi-class, Sensitivity, Accuracy, Memetic algorithm, Imbalanced datasets, Over-sampling method, SMOTE"
+                        }
 
-    URL: https://drive.google.com/open?id=1bUOgi2rFcv55ujfRWuHm_9nHzdg3Uilh
+        * URL: https://drive.google.com/open?id=1bUOgi2rFcv55ujfRWuHm_9nHzdg3Uilh
     
-    It is not entirely clear why J-1 output is supposed where J is the number
-    of classes.
-    The fitness function is changed to a balanced mean loss, as I found that
-    it just ignores classification on minority samples (class label +1) in the binary case.
-    The iRprop+ optimization is not implemented.
-    The original paper proposes using SMOTE incrementally. Instead of that, this implementation applies SMOTE
-    to generate all samples needed in the sampling epochs and the evolution of RBF networks 
-    is used to select the sampling providing the best results.
+    Notes:
+        * It is not entirely clear why J-1 output is supposed where J is the number of classes.
+        * The fitness function is changed to a balanced mean loss, as I found that it just ignores classification on minority samples (class label +1) in the binary case.
+        * The iRprop+ optimization is not implemented.
+        * The original paper proposes using SMOTE incrementally. Instead of that, this implementation applies SMOTE to generate all samples needed in the sampling epochs and the evolution of RBF networks is used to select the sampling providing the best results.
     """
     
     categories= [OverSampling.cat_extensive,
@@ -12765,6 +13888,7 @@ class DSRBF(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, m_min= 4, m_max= 10, I= 2, O= 2, n_pop= 500, n_init_pop= 5000, n_iter= 40, n_sampling_epoch= 5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -12808,19 +13932,31 @@ class DSRBF(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
         # as the technique optimizes, it is unnecessary to check various combinations
         # except one specifying a decent workspace with a large number of iterations
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'm_min': [4], 'm_max': [10], 'I': [2.0], 'O': [2.0], 'n_pop': [100], 'n_init_pop': [1000], 'n_iter': [40], 'n_sampling_epoch': [8]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'm_min': [4], 
+                                                    'm_max': [10], 
+                                                    'I': [2.0], 
+                                                    'O': [2.0], 
+                                                    'n_pop': [100], 
+                                                    'n_init_pop': [1000], 
+                                                    'n_iter': [40], 
+                                                    'n_sampling_epoch': [8]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -12907,20 +14043,33 @@ class DSRBF(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'm_min': self.m_min, 'm_max': self.m_max, 'I': self.I, 'O': self.O, 'n_pop': self.n_pop, 'n_init_pop': self.n_init_pop, 'n_iter': self.n_iter, 'n_sampling_epoch': self.n_sampling_epoch, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'm_min': self.m_min, 
+                'm_max': self.m_max, 
+                'I': self.I, 
+                'O': self.O, 
+                'n_pop': self.n_pop, 
+                'n_init_pop': self.n_init_pop, 
+                'n_iter': self.n_iter, 
+                'n_sampling_epoch': self.n_sampling_epoch, 
+                'n_jobs': self.n_jobs}
 
 class Gaussian_SMOTE(OverSampling):
     """
-    @article{gaussian_smote,
-              title={Gaussian-Based SMOTE Algorithm for Solving Skewed Class Distributions},
-              author={Hansoo Lee and Jonggeun Kim and Sungshin Kim},
-              journal={Int. J. Fuzzy Logic and Intelligent Systems},
-              year={2017},
-              volume={17},
-              pages={229-234}
-            }
+    References:
+        * BibTex::
+            
+            @article{gaussian_smote,
+                      title={Gaussian-Based SMOTE Algorithm for Solving Skewed Class Distributions},
+                      author={Hansoo Lee and Jonggeun Kim and Sungshin Kim},
+                      journal={Int. J. Fuzzy Logic and Intelligent Systems},
+                      year={2017},
+                      volume={17},
+                      pages={229-234}
+                    }
 
-    URL: https://drive.google.com/open?id=12oKlw_GRqsT5-Z4WmvJErBD-vcz5ekwN
+        * URL: https://drive.google.com/open?id=12oKlw_GRqsT5-Z4WmvJErBD-vcz5ekwN
     """
     
     categories= [OverSampling.cat_extensive]
@@ -12928,6 +14077,7 @@ class Gaussian_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, sigma= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -12951,17 +14101,22 @@ class Gaussian_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'sigma': [0.5, 1.0, 2.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'sigma': [0.5, 1.0, 2.0]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -12995,24 +14150,30 @@ class Gaussian_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'sigma': self.sigma, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'sigma': self.sigma, 
+                'n_jobs': self.n_jobs}
 
 class kmeans_SMOTE(OverSampling):
     """
-    @article{kmeans_smote,
-                title = "Improving imbalanced learning through a heuristic oversampling method based on k-means and SMOTE",
-                journal = "Information Sciences",
-                volume = "465",
-                pages = "1 - 20",
-                year = "2018",
-                issn = "0020-0255",
-                doi = "https://doi.org/10.1016/j.ins.2018.06.056",
-                url = "http://www.sciencedirect.com/science/article/pii/S0020025518304997",
-                author = "Georgios Douzas and Fernando Bacao and Felix Last",
-                keywords = "Class-imbalanced learning, Oversampling, Classification, Clustering, Supervised learning, Within-class imbalance"
-                }
+    References:
+        * BibTex::
+            
+            @article{kmeans_smote,
+                        title = "Improving imbalanced learning through a heuristic oversampling method based on k-means and SMOTE",
+                        journal = "Information Sciences",
+                        volume = "465",
+                        pages = "1 - 20",
+                        year = "2018",
+                        issn = "0020-0255",
+                        doi = "https://doi.org/10.1016/j.ins.2018.06.056",
+                        url = "http://www.sciencedirect.com/science/article/pii/S0020025518304997",
+                        author = "Georgios Douzas and Fernando Bacao and Felix Last",
+                        keywords = "Class-imbalanced learning, Oversampling, Classification, Clustering, Supervised learning, Within-class imbalance"
+                        }
 
-    URL: https://drive.google.com/open?id=1cFpaCsWBXTRYCTIS0hTSOMp_xOwGAPNK
+        * URL: https://drive.google.com/open?id=1cFpaCsWBXTRYCTIS0hTSOMp_xOwGAPNK
     """
     
     categories= [OverSampling.cat_extensive,
@@ -13021,6 +14182,7 @@ class kmeans_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_clusters= 10, irt= 2.0, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -13047,17 +14209,23 @@ class kmeans_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'n_clusters': [2, 5, 10, 20, 50], 'irt': [0.5, 0.8, 1.0, 1.5]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'n_clusters': [2, 5, 10, 20, 50], 
+                                                    'irt': [0.5, 0.8, 1.0, 1.5]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -13121,26 +14289,33 @@ class kmeans_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_clusters': self.n_clusters, 'irt': self.irt, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_clusters': self.n_clusters, 
+                'irt': self.irt, 
+                'n_jobs': self.n_jobs}
 
 class Supervised_SMOTE(OverSampling):
     """
-    @article{supervised_smote,
-                author = {Hu, Jun AND He, Xue AND Yu, Dong-Jun AND Yang, Xi-Bei AND Yang, Jing-Yu AND Shen, Hong-Bin},
-                journal = {PLOS ONE},
-                publisher = {Public Library of Science},
-                title = {A New Supervised Over-Sampling Algorithm with Application to Protein-Nucleotide Binding Residue Prediction},
-                year = {2014},
-                month = {09},
-                volume = {9},
-                url = {https://doi.org/10.1371/journal.pone.0107676},
-                pages = {1-10},
-                abstract = {Protein-nucleotide interactions are ubiquitous in a wide variety of biological processes. Accurately identifying interaction residues solely from protein sequences is useful for both protein function annotation and drug design, especially in the post-genomic era, as large volumes of protein data have not been functionally annotated. Protein-nucleotide binding residue prediction is a typical imbalanced learning problem, where binding residues are extremely fewer in number than non-binding residues. Alleviating the severity of class imbalance has been demonstrated to be a promising means of improving the prediction performance of a machine-learning-based predictor for class imbalance problems. However, little attention has been paid to the negative impact of class imbalance on protein-nucleotide binding residue prediction. In this study, we propose a new supervised over-sampling algorithm that synthesizes additional minority class samples to address class imbalance. The experimental results from protein-nucleotide interaction datasets demonstrate that the proposed supervised over-sampling algorithm can relieve the severity of class imbalance and help to improve prediction performance. Based on the proposed over-sampling algorithm, a predictor, called TargetSOS, is implemented for protein-nucleotide binding residue prediction. Cross-validation tests and independent validation tests demonstrate the effectiveness of TargetSOS. The web-server and datasets used in this study are freely available at http://www.csbio.sjtu.edu.cn/bioinf/TargetSOS/.},
-                number = {9},
-                doi = {10.1371/journal.pone.0107676}
-            }
+    References:
+        * BibTex::
+            
+            @article{supervised_smote,
+                        author = {Hu, Jun AND He, Xue AND Yu, Dong-Jun AND Yang, Xi-Bei AND Yang, Jing-Yu AND Shen, Hong-Bin},
+                        journal = {PLOS ONE},
+                        publisher = {Public Library of Science},
+                        title = {A New Supervised Over-Sampling Algorithm with Application to Protein-Nucleotide Binding Residue Prediction},
+                        year = {2014},
+                        month = {09},
+                        volume = {9},
+                        url = {https://doi.org/10.1371/journal.pone.0107676},
+                        pages = {1-10},
+                        abstract = {Protein-nucleotide interactions are ubiquitous in a wide variety of biological processes. Accurately identifying interaction residues solely from protein sequences is useful for both protein function annotation and drug design, especially in the post-genomic era, as large volumes of protein data have not been functionally annotated. Protein-nucleotide binding residue prediction is a typical imbalanced learning problem, where binding residues are extremely fewer in number than non-binding residues. Alleviating the severity of class imbalance has been demonstrated to be a promising means of improving the prediction performance of a machine-learning-based predictor for class imbalance problems. However, little attention has been paid to the negative impact of class imbalance on protein-nucleotide binding residue prediction. In this study, we propose a new supervised over-sampling algorithm that synthesizes additional minority class samples to address class imbalance. The experimental results from protein-nucleotide interaction datasets demonstrate that the proposed supervised over-sampling algorithm can relieve the severity of class imbalance and help to improve prediction performance. Based on the proposed over-sampling algorithm, a predictor, called TargetSOS, is implemented for protein-nucleotide binding residue prediction. Cross-validation tests and independent validation tests demonstrate the effectiveness of TargetSOS. The web-server and datasets used in this study are freely available at http://www.csbio.sjtu.edu.cn/bioinf/TargetSOS/.},
+                        number = {9},
+                        doi = {10.1371/journal.pone.0107676}
+                    }
 
-    URL: https://drive.google.com/open?id=1QwAVP9VUBprGFPtrqQra7y-xEBYvqO7Z
+        * URL: https://drive.google.com/open?id=1QwAVP9VUBprGFPtrqQra7y-xEBYvqO7Z
     """
     
     categories= [OverSampling.cat_extensive,
@@ -13151,6 +14326,7 @@ class Supervised_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, th_lower= 0.5, th_upper= 1.0, classifier= RandomForestClassifier(n_estimators= 50, n_jobs= 1), n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -13176,17 +14352,23 @@ class Supervised_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'th_lower': [0.3, 0.5, 0.8], 'th_upper': [1.0], 'classifier': [RandomForestClassifier(n_estimators= 50, n_jobs= 1)]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'th_lower': [0.3, 0.5, 0.8], 
+                                                    'th_upper': [1.0], 
+                                                    'classifier': [RandomForestClassifier(n_estimators= 50, n_jobs= 1)]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -13231,30 +14413,36 @@ class Supervised_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'th_lower': self.th_lower, 'th_upper': self.th_upper, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'th_lower': self.th_lower, 
+                'th_upper': self.th_upper, 
+                'n_jobs': self.n_jobs}
 
 class SN_SMOTE(OverSampling):
     """
-    @Article{sn_smote,
-                author="Garc{\'i}a, V.
-                and S{\'a}nchez, J. S.
-                and Mart{\'i}n-F{\'e}lez, R.
-                and Mollineda, R. A.",
-                title="Surrounding neighborhood-based SMOTE for learning from imbalanced data sets",
-                journal="Progress in Artificial Intelligence",
-                year="2012",
-                month="Dec",
-                day="01",
-                volume="1",
-                number="4",
-                pages="347--362",
-                abstract="Many traditional approaches to pattern classification assume that the problem classes share similar prior probabilities. However, in many real-life applications, this assumption is grossly violated. Often, the ratios of prior probabilities between classes are extremely skewed. This situation is known as the class imbalance problem. One of the strategies to tackle this problem consists of balancing the classes by resampling the original data set. The SMOTE algorithm is probably the most popular technique to increase the size of the minority class by generating synthetic instances. From the idea of the original SMOTE, we here propose the use of three approaches to surrounding neighborhood with the aim of generating artificial minority instances, but taking into account both the proximity and the spatial distribution of the examples. Experiments over a large collection of databases and using three different classifiers demonstrate that the new surrounding neighborhood-based SMOTE procedures significantly outperform other existing over-sampling algorithms.",
-                issn="2192-6360",
-                doi="10.1007/s13748-012-0027-5",
-                url="https://doi.org/10.1007/s13748-012-0027-5"
-                }
+    References:
+        * BibTex::
+            
+            @Article{sn_smote,
+                        author="Garc{\'i}a, V.
+                        and S{\'a}nchez, J. S.
+                        and Mart{\'i}n-F{\'e}lez, R.
+                        and Mollineda, R. A.",
+                        title="Surrounding neighborhood-based SMOTE for learning from imbalanced data sets",
+                        journal="Progress in Artificial Intelligence",
+                        year="2012",
+                        month="Dec",
+                        day="01",
+                        volume="1",
+                        number="4",
+                        pages="347--362",
+                        abstract="Many traditional approaches to pattern classification assume that the problem classes share similar prior probabilities. However, in many real-life applications, this assumption is grossly violated. Often, the ratios of prior probabilities between classes are extremely skewed. This situation is known as the class imbalance problem. One of the strategies to tackle this problem consists of balancing the classes by resampling the original data set. The SMOTE algorithm is probably the most popular technique to increase the size of the minority class by generating synthetic instances. From the idea of the original SMOTE, we here propose the use of three approaches to surrounding neighborhood with the aim of generating artificial minority instances, but taking into account both the proximity and the spatial distribution of the examples. Experiments over a large collection of databases and using three different classifiers demonstrate that the new surrounding neighborhood-based SMOTE procedures significantly outperform other existing over-sampling algorithms.",
+                        issn="2192-6360",
+                        doi="10.1007/s13748-012-0027-5",
+                        url="https://doi.org/10.1007/s13748-012-0027-5"
+                        }
 
-    URL: https://drive.google.com/open?id=1-cXaoG2z2hoBlI8--Gfe2bOB9lCOIURH
+        * URL: https://drive.google.com/open?id=1-cXaoG2z2hoBlI8--Gfe2bOB9lCOIURH
     """
     
     categories= [OverSampling.cat_extensive,
@@ -13263,6 +14451,7 @@ class SN_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -13283,17 +14472,21 @@ class SN_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -13353,23 +14546,29 @@ class SN_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_jobs': self.n_jobs}
 
 class CCR(OverSampling):
     """
-    @article{ccr,
-            author = {Koziarski, Michał and Wozniak, Michal},
-            year = {2017},
-            month = {12},
-            pages = {727–736},
-            title = {CCR: A combined cleaning and resampling algorithm for imbalanced data classification},
-            volume = {27},
-            journal = {International Journal of Applied Mathematics and Computer Science}
-            }
+    References:
+        * BibTex::
+            
+            @article{ccr,
+                    author = {Koziarski, Michał and Wozniak, Michal},
+                    year = {2017},
+                    month = {12},
+                    pages = {727–736},
+                    title = {CCR: A combined cleaning and resampling algorithm for imbalanced data classification},
+                    volume = {27},
+                    journal = {International Journal of Applied Mathematics and Computer Science}
+                    }
 
-    URL: https://drive.google.com/open?id=1-hkZ_pnfHvq4lHwHzC-UxDXae2SzfiuY
+        * URL: https://drive.google.com/open?id=1-hkZ_pnfHvq4lHwHzC-UxDXae2SzfiuY
     
-    Adapted from https://github.com/michalkoziarski/CCR
+    Notes:
+        * Adapted from https://github.com/michalkoziarski/CCR
     """
     
     categories= [OverSampling.cat_extensive]
@@ -13377,6 +14576,7 @@ class CCR(OverSampling):
     def __init__(self, proportion= 1.0, energy= 1.0, scaling= 0.0, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -13400,17 +14600,22 @@ class CCR(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'energy': [0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 25.0, 50.0, 100.0], 'scaling': [0.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'energy': [0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 25.0, 50.0, 100.0], 
+                                                    'scaling': [0.0]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -13506,25 +14711,31 @@ class CCR(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'energy': self.energy, 'scaling': self.scaling, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'energy': self.energy, 
+                'scaling': self.scaling, 
+                'n_jobs': self.n_jobs}
 
 class ANS(OverSampling):
     """
-    @article{ans,
-             author = {Siriseriwan, W and Sinapiromsaran, Krung},
-             year = {2017},
-             month = {09},
-             pages = {565-576},
-             title = {Adaptive neighbor synthetic minority oversampling technique under 1NN outcast handling},
-             volume = {39},
-             booktitle = {Songklanakarin Journal of Science and Technology}
-             }
+    References:
+        * BibTex::
+            
+            @article{ans,
+                     author = {Siriseriwan, W and Sinapiromsaran, Krung},
+                     year = {2017},
+                     month = {09},
+                     pages = {565-576},
+                     title = {Adaptive neighbor synthetic minority oversampling technique under 1NN outcast handling},
+                     volume = {39},
+                     booktitle = {Songklanakarin Journal of Science and Technology}
+                     }
 
-    URL: https://drive.google.com/open?id=1Oz2IloYViHhIbuEBV2GAwaPNB5pgoeNs
+        * URL: https://drive.google.com/open?id=1Oz2IloYViHhIbuEBV2GAwaPNB5pgoeNs
     
-    The method is not prepared for the case when there is no c satisfying the condition
-    in line 25 of the algorithm.
-    The method is not prepared for empty Pused sets.
+    Notes:
+        * The method is not prepared for the case when there is no c satisfying the condition in line 25 of the algorithm, fixed.
+        * The method is not prepared for empty Pused sets, fixed.
     """    
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_ordinary,
@@ -13533,6 +14744,7 @@ class ANS(OverSampling):
     def __init__(self, proportion= 1.0, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -13558,9 +14770,11 @@ class ANS(OverSampling):
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -13655,7 +14869,8 @@ class ANS(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_jobs': self.n_jobs}
 
 class CGAN(OverSampling):
     """
@@ -13712,7 +14927,11 @@ class CGAN(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'e': [40], 'h': [0.1, 0.2, 0.3, 0.4, 0.5], 'sigma': [0.05, 0.1, 0.2]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'e': [40], 
+                                                    'h': [0.1, 0.2, 0.3, 0.4, 0.5], 
+                                                    'sigma': [0.05, 0.1, 0.2]})
     
     def sample(self, X, y):
         """
@@ -13844,24 +15063,31 @@ class CGAN(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'e': self.e, 'h': self.h, 'sigma': self.sigma}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'e': self.e, 
+                'h': self.h, 
+                'sigma': self.sigma}
 
 class cluster_SMOTE(OverSampling):
     """
-    @INPROCEEDINGS{cluster_SMOTE, 
-                    author={D. A. Cieslak and N. V. Chawla and A. Striegel}, 
-                    booktitle={2006 IEEE International Conference on Granular Computing}, 
-                    title={Combating imbalance in network intrusion datasets}, 
-                    year={2006}, 
-                    volume={}, 
-                    number={}, 
-                    pages={732-737}, 
-                    keywords={Intelligent networks;Intrusion detection;Telecommunication traffic;Data mining;Computer networks;Data security;Machine learning;Counting circuits;Computer security;Humans}, 
-                    doi={10.1109/GRC.2006.1635905}, 
-                    ISSN={}, 
-                    month={May}}
+    References:
+        * BibTex::
+            
+            @INPROCEEDINGS{cluster_SMOTE, 
+                            author={D. A. Cieslak and N. V. Chawla and A. Striegel}, 
+                            booktitle={2006 IEEE International Conference on Granular Computing}, 
+                            title={Combating imbalance in network intrusion datasets}, 
+                            year={2006}, 
+                            volume={}, 
+                            number={}, 
+                            pages={732-737}, 
+                            keywords={Intelligent networks;Intrusion detection;Telecommunication traffic;Data mining;Computer networks;Data security;Machine learning;Counting circuits;Computer security;Humans}, 
+                            doi={10.1109/GRC.2006.1635905}, 
+                            ISSN={}, 
+                            month={May}}
 
-    URL: https://drive.google.com/open?id=1kDF-WdyMn13h9GNd55b2DLmXt_qtzgBM
+        * URL: https://drive.google.com/open?id=1kDF-WdyMn13h9GNd55b2DLmXt_qtzgBM
     """
     
     categories= [OverSampling.cat_extensive,
@@ -13870,6 +15096,7 @@ class cluster_SMOTE(OverSampling):
     def __init__(self, proportion= 1.0, n_neighbors= 3, n_clusters= 3, n_jobs= 1):
         """
         Constructor of the sampling object
+        
         Args:
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
@@ -13893,17 +15120,22 @@ class cluster_SMOTE(OverSampling):
     def parameter_combinations(cls):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 'n_neighbors': [3, 5, 7], 'n_clusters': [3, 5, 7, 9]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
+                                                    'n_neighbors': [3, 5, 7], 
+                                                    'n_clusters': [3, 5, 7, 9]})
     
     def sample(self, X, y):
         """
         Does the sample generation according to the class paramters.
+        
         Args:
             X (np.ndarray): training set
             y (np.array): target labels
+            
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
@@ -13949,7 +15181,137 @@ class cluster_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion, 'n_neighbors': self.n_neighbors, 'n_clusters': self.n_clusters, 'n_jobs': self.n_jobs}
+        return {'proportion': self.proportion, 
+                'n_neighbors': self.n_neighbors, 
+                'n_clusters': self.n_clusters, 
+                'n_jobs': self.n_jobs}
+
+class MulticlassOversampling(StatisticsMixin):
+    """
+    Carries out multiclass oversampling
+    
+    Example::
+        
+        import smote_variants as sv
+        import sklearn.datasets as datasets
+        
+        dataset= datasets.load_wine()
+        
+        oversampler= sv.MulticlassOversampling(sv.distance_SMOTE())
+        
+        X_samp, y_samp= oversampler.sample(dataset['data'], dataset['target'])
+    """
+    
+    def __init__(self, oversampler= SMOTE(), strategy= "equalize"):
+        """
+        Constructor of the multiclass oversampling object
+        
+        Args:
+            oversampler (obj): an oversampling object
+            strategy (str/obj): a multiclass oversampling strategy, currently 'equalize'
+        """
+        self.oversampler= oversampler
+        self.strategy= strategy
+    
+    def sample_equalize(self, X, y):
+        """
+        Does the sample generation by oversampling each minority class to the
+        cardinality of the majority class.
+        
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+            
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        
+        logging.info(self.__class__.__name__ + ": " +"Running multiclass oversampling with strategy %s" % str(self.strategy))
+        
+        if not 'proportion' in self.oversampler.get_params():
+            raise ValueError("Multiclass oversampling strategy %s cannot be used with oversampling techniques without proportion parameter" % str(self.strategy))
+        
+        # extract class label statistics
+        self.class_label_statistics(X, y)
+        
+        # sort labels by number of samples
+        class_labels= self.class_stats.keys()
+        class_labels= sorted(class_labels, key= lambda x: -self.class_stats[x])
+        
+        majority_class_label= class_labels[0]
+        
+        # determining the majority class data
+        X_maj= X[y == majority_class_label]
+        
+        # dict to store the results
+        results= {}
+        results[majority_class_label]= X_maj.copy()
+        
+        # running oversampling for all minority classes against all oversampled classes
+        for i in range(1, len(class_labels)):
+            logging.info(self.__class__.__name__ + ": " + ("Sampling minority class with label: %d" % class_labels[i]))
+            
+            # extract current minority class
+            minority_class_label= class_labels[i]
+            X_min= X[y == minority_class_label]
+            
+            # prepare data to pass to oversampling
+            X_training= np.vstack([X_maj, X_min])
+            y_training= np.hstack([np.repeat(0, len(X_maj)), np.repeat(1, len(X_min))])
+            
+            # prepare parameters by properly setting the proportion value
+            params= self.oversampler.get_params()
+            
+            num_to_generate= self.class_stats[majority_class_label] - self.class_stats[class_labels[i]]
+            num_to_gen_to_all= (i*self.class_stats[majority_class_label] - self.class_stats[class_labels[i]])
+            
+            params['proportion']= num_to_generate/num_to_gen_to_all
+            
+            # instantiating new oversampling object with the proper proportion parameter
+            oversampler= self.oversampler.__class__(**params)
+            
+            # executing the sampling
+            X_samp, y_samp= oversampler.sample(X_training, y_training)
+            
+            # adding the newly oversampled minority class to the majority data
+            X_maj= np.vstack([X_maj, X_samp[y_samp == 1]])
+            
+            # registaring the newly oversampled minority class in the output set
+            results[class_labels[i]]= X_samp[y_samp == 1]
+        
+        # constructing the output set
+        X_final= results[majority_class_label]
+        y_final= np.repeat(majority_class_label, len(X_final))
+        
+        for i in range(1, len(class_labels)):
+            X_final= np.vstack([X_final, results[class_labels[i]]])
+            y_final= np.hstack([y_final, np.repeat(class_labels[i], len(results[class_labels[i]]))])
+        
+        return X_final, y_final
+        
+    def sample(self, X, y):
+        """
+        Does the sample generation according to the oversampling strategy.
+        
+        Args:
+            X (np.ndarray): training set
+            y (np.array): target labels
+            
+        Returns:
+            (np.ndarray, np.array): the extended training set and target labels
+        """
+        
+        if self.strategy == "equalize":
+            return self.sample_equalize(X, y)
+        else:
+            raise ValueError("Multiclass oversampling startegy %s not implemented." % self.strategy)
+    
+    def get_params(self):
+        """
+        Returns:
+            dict: the parameters of the multiclass oversampling object
+        """
+        return {'oversampler': self.oversampler, 'strategy': self.strategy}
 
 class MLPClassifierWrapper():
     """
@@ -13958,6 +15320,7 @@ class MLPClassifierWrapper():
     def __init__(self, activation= 'relu', hidden_layer_fraction= 0.1, alpha= 0.0001):
         """
         Constructor of the MLPClassifier
+        
         Args:
             activation (str): name of the activation function
             hidden_layer_fraction (float): fraction of the hidden neurons of the number of input dimensions
@@ -13970,9 +15333,11 @@ class MLPClassifierWrapper():
     def fit(self, X, y):
         """
         Fit the model to the data
+        
         Args:
             X (np.ndarray): features
             y (np.array): target labels
+            
         Returns:
             obj: the MLPClassifierWrapper object
         """
@@ -13985,8 +15350,10 @@ class MLPClassifierWrapper():
     def predict(self, X):
         """
         Predicts the labels of the unseen data
+        
         Args:
             X (np.ndarray): unseen features
+            
         Returns:
             np.array: predicted labels
         """
@@ -13995,8 +15362,10 @@ class MLPClassifierWrapper():
     def predict_proba(self, X):
         """
         Predicts the class probabilities of the unseen data
+        
         Args:
             X (np.ndarray): unseen features
+            
         Returns:
             np.matrix: predicted class probabilities
         """
@@ -14005,6 +15374,7 @@ class MLPClassifierWrapper():
     def get_params(self):
         """
         Returns the parameters of the classifier.
+        
         Returns:
             dict: the parameters of the object
         """
@@ -14013,6 +15383,7 @@ class MLPClassifierWrapper():
     def copy(self):
         """
         Creates a copy of the classifier.
+        
         Returns:
             obj: a copy of the classifier
         """
@@ -14025,6 +15396,7 @@ class Folding():
     def __init__(self, dataset, validator, cache_path= None):
         """
         Constructor of Folding object
+        
         Args:
             dataset (dict): dataset dictionary with keys 'data', 'target' and 'DESCR'
             validator (obj): cross-validator object
@@ -14042,6 +15414,7 @@ class Folding():
     def do_folding(self):
         """
         Does the folding or reads it from file if already available
+        
         Returns:
             list(tuple): list of tuples of X_train, y_train, X_test, y_test objects
         """
@@ -14080,6 +15453,7 @@ class Sampling():
     def __init__(self, folding, sampler, sampler_parameters):
         """
         Constructor of the sampling object
+        
         Args:
             folding (obj): Folding object
             sampler (class): class of a sampler object
@@ -14095,8 +15469,10 @@ class Sampling():
     def standardized_filename(self, prefix, db_name= None, sampler= None, sampler_parameters= None):
         """
         standardizes the filename
+        
         Args:
             filename (str): filename
+            
         Returns:
             str: standardized name
         """
@@ -14206,6 +15582,7 @@ class Evaluation():
     def __init__(self, sampling, classifiers, n_threads= None):
         """
         Constructor of an Evaluation object
+        
         Args:
             sampling (obj): Sampling object
             classifiers (list(obj)): classifier objects
@@ -14224,9 +15601,11 @@ class Evaluation():
     def calculate_metrics(self, all_pred, all_test, minority_class_index= 1):
         """
         Calculates metrics of binary classifiction
+        
         Args:
             all_pred (np.matrix): predicted probabilities
             all_test (np.matrix): true labels
+            
         Returns:
             dict: all metrics of binary classification
         """
@@ -14308,6 +15687,7 @@ class Evaluation():
     def do_evaluation(self):
         """
         Does the evaluation or reads it from file
+        
         Returns:
             dict: all metrics
         """
@@ -14397,6 +15777,7 @@ class Evaluation():
 def trans(X):
     """
     Transformation function used to aggregate the evaluation results.
+    
     Args:
         X (pd.DataFrame): a grouping of a data frame containing evaluation results
     """
@@ -14428,6 +15809,7 @@ def trans(X):
 def _clone_classifiers(classifiers):
     """
     Clones a set of classifiers
+    
     Args:
         classifiers (list): a list of classifier objects
     """
@@ -14503,10 +15885,12 @@ def _read_db_results(cache_path_db):
 def read_oversampling_results(datasets, cache_path= None, all_results= False):
     """
     Reads the results of the evaluation
+    
     Args:
         datasets (list): list of datasets and/or dataset loaders - a dataset is a dict with 'data', 'target' and 'name' keys
         cache_path (str): path to a cache directory
         all_results (bool): True to return all results, False to return an aggregation
+        
     Returns:
         pd.DataFrame: all results or the aggregated results if all_results is False
     """
@@ -14549,6 +15933,7 @@ def evaluate_oversamplers(datasets,
                           n_jobs= 1):
     """
     Evaluates oversampling techniques using various classifiers on various datasets
+    
     Args:
         datasets (list): list of datasets and/or dataset loaders - a dataset is a dict with 'data', 'target' and 'name' keys
         samplers (list): list of oversampling classes/objects
@@ -14559,8 +15944,30 @@ def evaluate_oversamplers(datasets,
         remove_sampling_cache (bool): True to remove sampling objects after evaluation
         max_n_sampler_parameters (int): maximum number of sampler parameter combinations to be tested
         n_jobs (int): number of parallel jobs
+        
     Returns:
         pd.DataFrame: all results or the aggregated results if all_results is False
+        
+    Example::
+        
+        import smote_variants as sv
+        import imbalanced_datasets as imbd
+        
+        from sklearn.tree import DecisionTreeClassifier
+        from sklearn.neighbors import KNeighborsClassifier
+        
+        datasets= [imbd.load_glass2, imbd.load_ecoli4]
+        oversamplers= [sv.SMOTE_ENN, sv.NEATER, sv.Lee]
+        classifiers= [KNeighborsClassifier(n_neighbors= 3),
+                      KNeighborsClassifier(n_neighbors= 5),
+                      DecisionTreeClassifier()]
+        
+        cache_path= '/home/<user>/smote_validation/'
+        
+        results= evaluate_oversamplers(datasets,
+                                       oversamplers,
+                                       classifiers,
+                                       cache_path)
     """
     
     if cache_path is None:
@@ -14636,6 +16043,47 @@ def model_selection(datasets,
                       remove_sampling_cache= False, 
                       max_n_sampler_parameters= 35,
                       n_jobs= 1):
+    """
+    Evaluates oversampling techniques on various classifiers and dataset
+    and returns the oversampling and classifier objects giving the best performance
+    
+    Args:
+        datasets (list): list of datasets and/or dataset loaders - a dataset is a dict with 'data', 'target' and 'name' keys
+        samplers (list): list of oversampling classes/objects
+        classifiers (list): list of classifier objects
+        cache_path (str): path to a cache directory
+        score (str): 'auc'/'acc'/'gacc'/'f1'/'brier'/'p_top20'
+        validator (obj): validator object
+        all_results (bool): True to return all results, False to return an aggregation
+        remove_sampling_cache (bool): True to remove sampling objects after evaluation
+        max_n_sampler_parameters (int): maximum number of sampler parameter combinations to be tested
+        n_jobs (int): number of parallel jobs
+        
+    Returns:
+        obj, obj: the best performing sampler object and the best performing classifier object
+        
+    Example::
+        
+        import smote_variants as sv
+        import imbalanced_datasets as imbd
+        
+        from sklearn.tree import DecisionTreeClassifier
+        from sklearn.neighbors import KNeighborsClassifier
+        
+        datasets= [imbd.load_glass2]
+        oversamplers= [sv.SMOTE_ENN, sv.NEATER, sv.Lee]
+        classifiers= [KNeighborsClassifier(n_neighbors= 3),
+                      KNeighborsClassifier(n_neighbors= 5),
+                      DecisionTreeClassifier()]
+        
+        cache_path= '/home/<user>/smote_validation/'
+        
+        sampler, classifier= model_selection(datasets,
+                                             oversamplers,
+                                             classifiers,
+                                             cache_path,
+                                             'auc')
+    """
     
     if score not in ['auc', 'acc', 'gacc', 'f1', 'brier', 'p_top20']:
         raise ValueError("score %s not supported" % score)

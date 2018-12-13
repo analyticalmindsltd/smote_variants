@@ -5,7 +5,7 @@ def readme():
         return f.read()
 
 setup(name='smote_variants',
-      version='0.1',
+      version='0.1.0',
       description='smote_variants',
       long_description=readme(),
       classifiers=[
@@ -27,6 +27,7 @@ setup(name='smote_variants',
               'statistics',
               ],
       py_modules=['smote_variants'],
+      python_requires='>=3.5',
       zip_safe=False,
       package_dir= {'smote_variants': 'smote_variants'},
       package_data= {},

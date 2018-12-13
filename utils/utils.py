@@ -120,7 +120,8 @@ def oversampling_bib_lookup():
         dict: a lookup table for bibtex entries
     """
     oversamplers= sv.get_all_oversamplers()
-    oversamplers.remove(sv.NoSMOTE)
+    if sv.NoSMOTE in oversamplers:
+        oversamplers.remove(sv.NoSMOTE)
     
     oversampling_bibtex= {o.__name__: extract_bibtex_entry(o.__doc__) for o in oversamplers}
     
@@ -236,7 +237,7 @@ def dataset_summary_table():
     
     print(res)
 
-def top_results_score_and_classifier(score, databases= 'all', n_entries= 8):
+def top_score_and_classifier(score, databases= 'all', n_entries= 8):
     """
     Creates the table of top performers for a specific score
     Args:
@@ -433,6 +434,8 @@ def top_results_overall(databases= 'all', n_entries= 10):
     table= table.replace('))', '}')
     table= table.replace('\_', '_')
     print(table)
+    
+    return final
 
 def top_results_by_dataset_types(n_entries= 10):
     """
@@ -515,6 +518,8 @@ def top_results_by_dataset_types(n_entries= 10):
     table= table.replace('\_', '_')
     
     print(table)
+    
+    return final
 
 def top_results_by_categories(percentile= 50):
     """
@@ -606,33 +611,219 @@ def runtimes():
     
     print(table)
 
-def create_documentation_page():
+def create_documentation_page_os():
     oversamplers= sv.get_all_oversamplers()
     
-    docs= "Oversamplers\n*************\n\n"
+    docs= "Oversamplers\n"
+    docs= docs + "*"*len("Oversamplers") + "\n\n"
     
     for o in oversamplers:
-        docs= docs + o.__name__ + "\n" + '='*len(o.__name__) + "\n"
+        docs= docs + o.__name__ + "\n" + '-'*len(o.__name__) + "\n"
+        docs= docs + "\n\n"
+        docs= docs + "API\n"
+        docs= docs + "^"*len("API") + "\n\n"
         docs= docs + ('.. autoclass:: smote_variants.%s' % o.__name__) + "\n"
         docs= docs + ('    :members:') + "\n"
         docs= docs + "\n"
         docs= docs + ('    .. automethod:: __init__')
         docs= docs + "\n\n"
-        docs= docs + "Example:\n"
-        docs= docs + "-"*len("Example")
+        docs= docs + "Example\n"
+        docs= docs + "^"*len("Example")
         docs= docs + "\n\n"
         docs= docs + ("    >>> oversampler= smote_variants.%s()\n" % o.__name__)
-        docs= docs + "    >>> X_samp, y_samp= oversampler.sample(X, y))\n"
+        docs= docs + "    >>> X_samp, y_samp= oversampler.sample(X, y)\n"
         docs= docs + "\n\n"
         docs= docs + ".. image:: figures/base.png" + "\n"
         docs= docs + (".. image:: figures/%s.png" % o.__name__) + "\n\n"
+        docs= docs + o.__doc__.replace("\n    ", "\n")
     
     file= open("oversamplers.rst", "w")
     file.write(docs)
     file.close()
     
     return docs
+
+def create_documentation_page_nf():
+    noise_filters= sv.get_all_noisefilters()
+    
+    docs= "Noise filters and prototype selection\n"
+    docs= docs + "*"*len("Noise filters and prototype selection") + "\n\n"
+    
+    for o in noise_filters:
+        docs= docs + o.__name__ + "\n" + '='*len(o.__name__) + "\n"
+        docs= docs + "\n\n"
+        docs= docs + "API\n"
+        docs= docs + "^"*len("API") + "\n\n"
+        docs= docs + ('.. autoclass:: smote_variants.%s' % o.__name__) + "\n"
+        docs= docs + ('    :members:') + "\n"
+        docs= docs + "\n"
+        docs= docs + ('    .. automethod:: __init__')
+        docs= docs + "\n\n"
+        docs= docs + "Example\n"
+        docs= docs + "^"*len("Example")
+        docs= docs + "\n\n"
+        docs= docs + ("    >>> noise_filter= smote_variants.%s()\n" % o.__name__)
+        docs= docs + "    >>> X_samp, y_samp= noise_filter.remove_noise(X, y)\n"
+        docs= docs + "\n\n"
+        docs= docs + ".. image:: figures/base.png" + "\n"
+        docs= docs + (".. image:: figures/%s.png" % o.__name__) + "\n\n"
+        docs= docs + o.__doc__.replace("\n    ", "\n")
+    
+    file= open("noise_filters.rst", "w")
+    file.write(docs)
+    file.close()
+    
+    return docs
+
+def create_gallery_page():
+    oversamplers= sv.get_all_oversamplers()
+    noise_filters= sv.get_all_noisefilters()
+    
+    docs= "Gallery\n" + '*'*len('Gallery\n') + "\n\n"
+    
+    docs= docs + "In this page we demonstrate the output of various oversampling \
+                    and noise removal techniques, using default parameters.\n\n"
+    docs= docs + "For binary oversampling and noise removal, the figures can be reproduced by the ``ballpark_sample`` function using \
+                    a built-in or user definied dataset:\n\n"
+    docs= docs + ".. autofunction:: smote_variants.ballpark_sample\n\n"
+    
+    docs= docs + "For multiclass oversampling we have used the 'wine' dataset from \
+                    ``sklearn.datasets``, which has 3 classes and many features, out \
+                    which the first two coordinates have been used for visualization.\n\n"
+    
+    docs= docs + "Oversampling sample results\n"
+    docs= docs + "="*len('Oversampling sample results\n') + "\n\n"
+    
+    docs= docs + "In the captions of the images some abbreviations \
+                    referring to the operating principles are placed. Namely:\n\n"
+    docs= docs + "    * NR: noise removal is involved\n"
+    docs= docs + "    * DR: dimension reduction is applied\n"
+    docs= docs + "    * Clas: some supervised classifier is used\n"
+    docs= docs + "    * SCmp: sampling is carried out componentwise (attributewise)\n"
+    docs= docs + "    * SCpy: sampling is carried out by copying instances\n"
+    docs= docs + "    * SO: ordinary sampling (just like in SMOTE)\n"
+    docs= docs + "    * M: memetic optimization is used\n"
+    docs= docs + "    * DE: density estimation is used\n"
+    docs= docs + "    * DB: density based - the sampling is based on a density of importance assigned to the instances\n"
+    docs= docs + "    * Ex: the sampling is extensive - samples are added successively, not optimizing the holistic distribution of a given number of samples\n"
+    docs= docs + "    * CM: changes majority - even majority samples can change\n"
+    docs= docs + "    * Clus: uses some clustering technique\n"
+    docs= docs + "    * BL: identifies and samples the neighborhoods of borderline samples\n"
+    docs= docs + "    * A: developed for a specific application\n"
+    
+    docs= docs + "\n"
+    docs= docs + ".. figure:: figures/base.png" + "\n\n\n"
+    
+    i= 0
+    for o in oversamplers:
+        docs= docs + (".. image:: figures/%s.png\n" % o.__name__)
+        i= i + 1
+        if i % 4 == 0:
+            docs= docs + "\n"
+    
+    docs= docs + "Noise removal sample results\n"
+    docs= docs + "="*len('Noise removal sample results\n') + "\n\n"
+    
+    docs= docs + ".. figure:: figures/base.png" + "\n\n\n"
+    
+    i= 0
+    for n in noise_filters:
+        docs= docs + (".. image:: figures/%s.png\n" % n.__name__)
+        i= i + 1
+        if i % 4 == 0:
+            docs= docs + "\n"
+            
+    docs= docs + "Multiclass sample results\n"
+    docs= docs + "="*len('Multiclass sample results\n') + "\n\n"
+    
+    docs= docs + ".. figure:: figures/multiclass-base.png" + "\n\n\n"
+    
+    oversamplers= [o for o in oversamplers if not sv.OverSampling.cat_changes_majority in o.categories and 'proportion' in o().get_params()]
+    
+    i= 0
+    for o in oversamplers:
+        docs= docs + (".. image:: figures/multiclass-%s.png\n" % o.__name__)
+        i= i + 1
+        if i % 4 == 0:
+            docs= docs + "\n"
+            
+    file= open("gallery.rst", "w")
+    file.write(docs)
+    file.close()
+    
+    return docs
+
+def generate_figures():
+    oversamplers= sv.get_all_oversamplers()
+
+    for o in oversamplers:
+        sv.ballpark_sample(o(), img_file_base= 'figures/base.png', img_file_sampled= ('figures/%s.png' % o.__name__))
         
+    noisefilters= sv.get_all_noisefilters()
+    
+    for n in noisefilters:
+        sv.ballpark_sample(n(), img_file_base= 'figures/base.png', img_file_sampled= ('figures/%s.png' % n.__name__))
+
+def generate_multiclass_figures():
+    oversamplers= sv.get_all_oversamplers()
+    oversamplers= [o for o in oversamplers if not sv.OverSampling.cat_changes_majority in o.categories and 'proportion' in o().get_params()]
+    
+    import sklearn.datasets as datasets
+    
+    dataset= datasets.load_wine()
+    
+    X= dataset['data']
+    y= dataset['target']
+    
+    import matplotlib.pyplot as plt
+    
+    import sklearn.preprocessing as preprocessing
+    
+    ss= preprocessing.StandardScaler()
+    
+    X_ss= ss.fit_transform(X)
+    
+    def plot_and_save(X, y, filename, oversampler_name):
+        plt.figure(figsize=(4, 3))
+        plt.scatter(X[y == 0][:,0], X[y == 0][:,1], c='r', marker='o', label='class 0')
+        plt.scatter(X[y == 1][:,0], X[y == 1][:,1], c='b', marker='P', label='class 1')
+        plt.scatter(X[y == 2][:,0], X[y == 2][:,1], c='green', marker='x', label='class 2')
+        plt.xlabel('feature 0')
+        plt.ylabel('feature 1')
+        plt.title(", ".join(["wine dataset", oversampler_name]))
+        plt.savefig(filename)
+        plt.show()
+    
+    plot_and_save(X, y, 'figures/multiclass-base.png', "No Oversampling")
+    
+    for o in oversamplers:
+        print(o.__name__)
+        mcos= sv.MulticlassOversampling(o())
+        X_samp, y_samp= mcos.sample(X_ss, y)
+        plot_and_save(ss.inverse_transform(X_samp), y_samp, "figures/multiclass-%s" % o.__name__, o.__name__)
+
+def create_ranking_page():
+    final= top_results_overall()
+    
+    from tabulate import tabulate
+    
+    docs= "Ranking\n" + "*"*len("Ranking") + "\n\n"
+    docs= docs + "Based on a thorough evaluation using 104 imbalanced datasets, the following 10 techniques provide the highest performance in terms of the AUC, GAcc, F1 and P20 scores, in nearest neighbors, support vector machine, decision tree and multilayer perceptron based classification scenarios.\n"
+    docs= docs + "For more details on the evaluation methodology, see our paper on the comparative study.\n\n"
+    
+    docs= docs + tabulate(final.values, final.columns, tablefmt="rst")
+    docs= docs + "\n\n"
+
+
+def generate_all_figures():
+    generate_figures()
+    generate_multiclass_figures()
+
+def generate_doc_pages():
+    create_documentation_page_os()
+    create_documentation_page_nf()
+    create_gallery_page()
+    create_ranking_page()
 
 #######################################
 # rendering the 8 tables of the study #
@@ -645,10 +836,10 @@ oversampler_summary_table()
 dataset_summary_table()
 
 # rendering the tables summarizing the results by scores and classifiers 
-top_results_score_and_classifier('auc')
-top_results_score_and_classifier('gacc')
-top_results_score_and_classifier('p_top20')
-top_results_score_and_classifier('f1')
+top_score_and_classifier('auc')
+top_score_and_classifier('gacc')
+top_score_and_classifier('p_top20')
+top_score_and_classifier('f1')
 
 # rendering the table summarizing the top results by score
 top_results_by_scores()
