@@ -1640,7 +1640,7 @@ class Borderline_SMOTE1(OverSampling):
     References:
         * BibTex::
             
-            @InProceedings{borderline_SMOTE,
+            @InProceedings{borderlineSMOTE,
                             author="Han, Hui
                             and Wang, Wen-Yuan
                             and Mao, Bing-Huan",
@@ -1765,7 +1765,7 @@ class Borderline_SMOTE2(OverSampling):
     References:
         * BibTex::
             
-            @InProceedings{borderline_SMOTE,
+            @InProceedings{borderlineSMOTE,
                             author="Han, Hui
                             and Wang, Wen-Yuan
                             and Mao, Bing-Huan",
@@ -3903,7 +3903,7 @@ class SVM_balance(OverSampling):
     References:
         * BibTex::
             
-            @article{SVM_balance,
+            @article{svm_balance,
                      author = {Farquad, M.A.H. and Bose, Indranil},
                      title = {Preprocessing Unbalanced Data Using Support Vector Machine},
                      journal = {Decis. Support Syst.},
@@ -8104,6 +8104,9 @@ class V_SYNTH(OverSampling):
             if r[0] < len(y) and r[1] < len(y) and not y[r[0]] == y[r[1]]:
                 candidate_face_generators.append(i)
         
+        if len(candidate_face_generators) == 0:
+            return X.copy(), y.copy()
+        
         # generating samples
         samples= []
         for _ in range(num_to_sample):
@@ -9356,7 +9359,7 @@ class CBSO(OverSampling):
     References:
         * BibTex::
             
-            @InProceedings{CBSO,
+            @InProceedings{cbso,
                             author="Barua, Sukarna
                             and Islam, Md. Monirul
                             and Murase, Kazuyuki",
@@ -15877,9 +15880,11 @@ def _cache_evaluations(sampling_objs, classifiers, n_jobs= 1):
 def _read_db_results(cache_path_db):
     results= []
     evaluation_files= glob.glob(os.path.join(cache_path_db, 'eval*.pickle'))
+    
     for f in evaluation_files:
         eval_results= pickle.load(open(f, 'rb'))
         results.append(list(eval_results.values()))
+    
     return results
 
 def read_oversampling_results(datasets, cache_path= None, all_results= False):
@@ -16025,6 +16030,14 @@ def evaluate_oversamplers(datasets,
         logging.info("concatenating the results")
         db_res= [pd.DataFrame(r) for r in res]
         db_res= pd.concat(db_res).reset_index(drop= True)
+        
+        def filter_results(x):
+            if "'p'" in x and 'p' in eval(x) and eval(x)['p'] == 2:
+                return True
+            else:
+                return False
+        
+        db_res= db_res[db_res['classifier_parameters'].apply(lambda x: filter_results(x))]
         
         logging.info("aggregating the results")
         if all_results == False:
