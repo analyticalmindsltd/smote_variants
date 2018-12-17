@@ -4,12 +4,8 @@ The package implements 85 variants of the Synthetic Minority Oversampling Techni
 
 # Citation
 
-The publication and dissemination of this work and its derivatives are going on, please come back in a couple of days or weeks updates.
+The publication and dissemination of this work and its derivatives are going on, please come back in a couple of days or weeks for updates.
 
-# Installation
+# Documentation
 
-The code 
-
-# Usage
-
-# Adding a new oversampler
+For a detailed documentation see http://smote_variants.readthedocs.io.
