@@ -8,7 +8,7 @@ The publication and dissemination of this work and its derivatives are going on,
 
 # Documentation
 
-For a detailed documentation see http://smote_variants.readthedocs.io.
+For a detailed documentation see http://smote-variants.readthedocs.io.
 
 # Downloads
 
