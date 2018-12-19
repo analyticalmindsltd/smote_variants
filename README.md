@@ -9,3 +9,9 @@ The publication and dissemination of this work and its derivatives are going on,
 # Documentation
 
 For a detailed documentation see http://smote_variants.readthedocs.io.
+
+# Downloads
+
+* Database foldings: https://drive.google.com/open?id=1PKw1vETVUzaToomio1-RGzJ9_-buYjOW
+* Raw results: https://drive.google.com/open?id=12CfB3184nchLIwStaHhrjcQK7Ari18Mo
+* Aggregated results: https://drive.google.com/open?id=19JGikRYXQ6-eOxaFVrqkF64zOCiSdT-j
