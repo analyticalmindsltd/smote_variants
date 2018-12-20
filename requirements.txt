@@ -1,1 +1,8 @@
 joblib
+numpy
+pandas
+scipy
+sklearn
+minisom
+statistics
+
