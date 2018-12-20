@@ -16039,10 +16039,12 @@ def evaluate_oversamplers(datasets,
         
         db_res= db_res[db_res['classifier_parameters'].apply(lambda x: filter_results(x))]
         
+        pickle.dump(db_res, open(os.path.join(cache_path_db, 'results.pickle'), 'wb'))
+        
         logging.info("aggregating the results")
         if all_results == False:
             db_res= db_res.groupby(by= ['db_name', 'classifier', 'sampler']).apply(trans).reset_index().drop('level_3', axis= 1)
-            
+        
         results.append(db_res)
     
     return pd.concat(results).reset_index(drop= True)

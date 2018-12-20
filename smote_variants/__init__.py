@@ -1,1 +1,1 @@
-from .smote_variants import *
+from ._smote_variants import *
