@@ -46,6 +46,12 @@ Welcome to smote_variants's documentation!
    
 .. toctree::
    :maxdepth: 1
+   :caption: Downloads
+
+   downloads
+
+.. toctree::
+   :maxdepth: 1
    :caption: Additional Information
    
    contribute

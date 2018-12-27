@@ -307,7 +307,7 @@ class StatisticsMixin:
         self.class_stats= dict(zip(unique, counts))
         self.minority_label= unique[0] if counts[0] < counts[1] else unique[1]
         self.majority_label= unique[1] if counts[0] < counts[1] else unique[0]
-
+        
 class ParameterCheckingMixin:
     """
     Mixin to check if parameters come from a valid range
@@ -1416,15 +1416,23 @@ class SMOTE(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
+        # determining the number of samples to generate
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
+        
         X_min= X[y == self.minority_label]
         
         # fitting the model
         nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors+1]), n_jobs= self.n_jobs)
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
-        
-        # determining the number of samples to generate
-        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
         if num_to_sample == 0:
             return X.copy(), y.copy()
@@ -1529,7 +1537,13 @@ class SMOTE_TomekLinks(OverSampling):
         
         t= TomekLinkRemoval(strategy= 'remove_both', n_jobs= self.n_jobs)
         
-        return t.remove_noise(X_new, y_new)
+        X_samp, y_samp= t.remove_noise(X_new, y_new)
+        
+        if len(X_samp) == 0:
+            logging.info(self.__class__.__name__ + ": " + "All samples have been removed, returning original dataset.")
+            return X.copy(), y.copy()
+        
+        return X_samp, y_samp
     
     def get_params(self):
         """
@@ -1618,6 +1632,10 @@ class SMOTE_ENN(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
         
         smote= SMOTE(self.proportion, self.n_neighbors, n_jobs= self.n_jobs)
         X_new, y_new= smote.sample(X, y)
@@ -1713,11 +1731,20 @@ class Borderline_SMOTE1(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         # determining number of samples to be generated
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
+        
         # fitting model
         X_min= X[y == self.minority_label]
+        
         nn= NearestNeighbors(self.n_neighbors+1, n_jobs= self.n_jobs)
         nn.fit(X)
         distances, indices= nn.kneighbors(X_min)
@@ -1839,11 +1866,20 @@ class Borderline_SMOTE2(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         # determining number of samples to be generated
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
+        
         # fitting nearest neighbors model
         X_min= X[y == self.minority_label]
+        
         nn= NearestNeighbors(self.n_neighbors+1, n_jobs= self.n_jobs)
         nn.fit(X)
         distances, indices= nn.kneighbors(X_min)
@@ -1962,12 +1998,23 @@ class ADASYN(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         # extracting minority samples
         X_min= X[y == self.minority_label]
         
         # checking if sampling is needed
         m_min= len(X_min)
         m_maj= len(X) - m_min
+        
+        num_to_sample= (m_maj - m_min)*self.beta
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
+        
         d= float(m_min)/m_maj
         if d > self.d_th:
             return X.copy(), y.copy()
@@ -1983,8 +2030,6 @@ class ADASYN(OverSampling):
             r.append(sum(y[indices[i][1:]] == self.majority_label)/self.n_neighbors)
         r= np.array(r)
         r= r/sum(r)
-        
-        num_to_sample= (m_maj - m_min)*self.beta
         
         # fitting nearest neighbors models to minority samples
         nn= NearestNeighbors(min([len(X_min), self.n_neighbors + 1]), n_jobs= self.n_jobs)
@@ -2137,6 +2182,10 @@ class AHC(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         # extracting minority samples
         X_min= X[y == self.minority_label]
         X_maj= X[y == self.majority_label]
@@ -2239,6 +2288,10 @@ class LLE_SMOTE(OverSampling):
         
         # determine the number of samples to generate
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         # extracting minority samples
         X_min= X[y == self.minority_label]
@@ -2369,15 +2422,23 @@ class distance_SMOTE(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
+        # determine the number of samples to generate
+        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
+        
         # extracting minority samples
         X_min= X[y == self.minority_label]
         
         # fitting the model
         nn= NearestNeighbors(min([len(X_min), self.n_neighbors+1]), n_jobs= self.n_jobs).fit(X_min)
         dist, ind= nn.kneighbors(X_min)
-        
-        # determine the number of samples to generate
-        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
         samples= []
         for _ in range(num_to_sample):
@@ -2477,8 +2538,16 @@ class SMMO(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         # determine the number of samples to generate
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         # training and in-sample prediction (out-of-sample by k-fold cross validation might be better)
         predictions= []
@@ -2595,6 +2664,10 @@ class polynom_fit_SMOTE(OverSampling):
         
         # determine the number of samples to generate
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         samples= []
         if self.topology == 'star':
@@ -2717,15 +2790,19 @@ class Stefanowski(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 6:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         # fitting the nearest neighbors model for noise filtering, 4 neighbors 
         # instead of 3 as the closest neighbor to a point is itself
-        nn= NearestNeighbors(n_neighbors= 4, n_jobs= self.n_jobs)
+        nn= NearestNeighbors(n_neighbors= min(4, len(X)), n_jobs= self.n_jobs)
         nn.fit(X)
         distance, indices= nn.kneighbors(X)
         
         # fitting the nearest neighbors model for sample generation, 6 neighbors 
         # instead of 5 for the same reason
-        nn5= NearestNeighbors(n_neighbors= 6, n_jobs= self.n_jobs)
+        nn5= NearestNeighbors(n_neighbors= min(6, len(X)), n_jobs= self.n_jobs)
         nn5.fit(X)
         distance5, indices5= nn5.kneighbors(X)
         
@@ -2866,8 +2943,16 @@ class ADOMS(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         # determine the number of samples to generate
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         
@@ -2989,8 +3074,12 @@ class Safe_Level_SMOTE(OverSampling):
         # determine the number of samples to generate
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
+        
         # fitting nearest neighbors model
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1, n_jobs= self.n_jobs)
+        nn= NearestNeighbors(n_neighbors= min([self.n_neighbors+1, len(X)]), n_jobs= self.n_jobs)
         nn.fit(X)
         distance, indices= nn.kneighbors(X)
         
@@ -3132,10 +3221,14 @@ class MSMOTE(OverSampling):
         # determine the number of samples to generate
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
 
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
+
         X_min= X[y == self.minority_label]
         
         # fitting the nearest neighbors model
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1, n_jobs= self.n_jobs)
+        nn= NearestNeighbors(n_neighbors= min([len(X), self.n_neighbors+1]), n_jobs= self.n_jobs)
         nn.fit(X)
         distance, indices= nn.kneighbors(X_min)
         
@@ -3261,8 +3354,16 @@ class DE_oversampling(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 3:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         # determine the number of samples to generate
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         d= len(X[0])
         
@@ -3571,8 +3672,16 @@ class SMOBD(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         # determine the number of samples to generate
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         
@@ -3597,6 +3706,9 @@ class SMOBD(OverSampling):
         factor_1= cd
         factor_2= np.array([len(x) for x in nn.radius_neighbors(X_min, radius= self.max_eps, return_distance= False)])
         
+        if max(factor_1) == 0 or max(factor_2) == 0:
+            return X.copy(), y.copy()
+        
         factor_1= factor_1/max(factor_1)
         factor_2= factor_2/max(factor_2)
         
@@ -3606,6 +3718,9 @@ class SMOBD(OverSampling):
         for i in range(len(noise)):
             if noise[i]:
                 df[i]= 0
+        
+        if sum(df) == 0 or any(np.isnan(df)) or any(np.isinf(df)):
+            return X.copy(), y.copy()
         
         # normalizing the density
         df_dens= df/sum(df)
@@ -3698,7 +3813,10 @@ class SUNDO(OverSampling):
         
         n_1= len(X_min)
         n_0= len(X) - n_1
-        N= int(np.rint(0.5*n_0 - 0.5*n_1))
+        N= int(np.rint(0.5*n_0 - 0.5*n_1 + 0.5))
+        
+        if N == 0:
+            return X.copy(), y.copy()
         
         # generating minority samples
         samples= []
@@ -3736,7 +3854,7 @@ class SUNDO(OverSampling):
         dm= pairwise_distances(X_maj_normalized, X_maj_normalized)
         
         # len(X_maj) offsets for the diagonal 0 elements, 2N because every distances appears twice
-        threshold= sorted(dm.flatten())[len(X_maj) + 2*N]
+        threshold= sorted(dm.flatten())[min([len(X_maj) + 2*N, len(dm)*len(dm) - 1])]
         for i in range(len(dm)):
             dm[i,i]= np.inf
         
@@ -3833,6 +3951,10 @@ class MSYN(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         X_maj= X[y == self.majority_label]
@@ -3976,6 +4098,10 @@ class SVM_balance(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
         
         X, y= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs).sample(X, y)
         
@@ -4160,6 +4286,10 @@ class TRIM_SMOTE(OverSampling):
         self.class_label_statistics(X, y)
         
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         leafs= [(X, y)]
         candidates= []
@@ -4360,6 +4490,10 @@ class SMOTE_RSB(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         X_maj= X[y == self.majority_label]
         X_min= X[y == self.minority_label]
         
@@ -4501,6 +4635,10 @@ class ProWSyn(OverSampling):
         # Step 1 - a bit generalized
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
+        
         # Step 2
         P= np.where(y == self.minority_label)[0]
         X_maj= X[y == self.majority_label]
@@ -4540,6 +4678,14 @@ class ProWSyn(OverSampling):
         weights= np.array([np.exp(-self.theta*(proximity_levels[i] - 1)) for i in range(len(proximity_levels))])
         # weights is the probability distribution of sampling in the clusters identified
         weights= weights/np.sum(weights)
+        
+        suitable= False
+        for i in range(len(weights)):
+            if weights[i] > 0 and len(Ps[i]) > 1:
+                suitable= True
+                
+        if not suitable:
+            return X.copy(), y.copy()
         
         # do the sampling, from each cluster proportionally to the distribution
         samples= []
@@ -4629,8 +4775,12 @@ class SL_graph_SMOTE(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         # Fitting nearest neighbors model
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors, n_jobs= self.n_jobs)
+        nn= NearestNeighbors(n_neighbors= min([len(X), self.n_neighbors]), n_jobs= self.n_jobs)
         nn.fit(X)
         distances, indices= nn.kneighbors(X[y == self.minority_label])
         
@@ -4729,7 +4879,15 @@ class NRSBoundary_SMOTE(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         # step 1
         bound_set= []
@@ -4873,7 +5031,15 @@ class LVQ_SMOTE(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 3:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         
@@ -5068,6 +5234,10 @@ class SOI_CJ(OverSampling):
         
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
+        
         X_min= X[y == self.minority_label]
         std_min= np.std(X_min, axis= 0)
         
@@ -5187,6 +5357,10 @@ class ROSE(OverSampling):
         
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
+        
         X_min= X[y == self.minority_label]
         
         # Estimating the H matrix
@@ -5274,7 +5448,15 @@ class SMOTE_OUT(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         X_maj= X[y == self.majority_label]
@@ -5378,7 +5560,15 @@ class SMOTE_Cosine(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 3:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         X_maj= X[y == self.majority_label]
@@ -5499,7 +5689,15 @@ class Selected_SMOTE(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 3:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         X_maj= X[y == self.majority_label]
@@ -5629,8 +5827,20 @@ class LN_SMOTE(OverSampling):
         # number of samples to generate
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
+        
+        if self.n_neighbors + 2 > len(X):
+            n_neighbors= len(X) - 2
+        else:
+            n_neighbors= self.n_neighbors
+        
+        if n_neighbors < 2:
+            return X.copy(), y.copy()
+        
         # nearest neighbors of each instance to each instance in the dataset
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 2, n_jobs= self.n_jobs)
+        nn= NearestNeighbors(n_neighbors= n_neighbors + 2, n_jobs= self.n_jobs)
         nn.fit(X)
         distances, indices= nn.kneighbors(X)
         
@@ -5688,7 +5898,7 @@ class LN_SMOTE(OverSampling):
                 else:
                     delta= 1.0 - np.random.random()*sl_ratio
             if not n_label == self.minority_label:
-                delta= delta*sln/(self.n_neighbors)
+                delta= delta*sln/(n_neighbors)
             return delta
         
         # generating samples
@@ -5827,13 +6037,17 @@ class MWMOTE(OverSampling):
         
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
+        
         X_min= X[y == self.minority_label]
         X_maj= X[y == self.majority_label]
         
         minority= np.where(y == self.minority_label)[0]
         
         # Step 1
-        nn= NearestNeighbors(n_neighbors= self.k1 + 1, n_jobs= self.n_jobs)
+        nn= NearestNeighbors(n_neighbors= min([len(X), self.k1 + 1]), n_jobs= self.n_jobs)
         nn.fit(X)
         dist1, ind1= nn.kneighbors(X)
         
@@ -6011,8 +6225,10 @@ class PDFOS(OverSampling):
         if S_mrank < m:
             logging.info(self.__class__.__name__ + ": " + "The covariance matrix is singular, performing PCA to fix it")
             logging.info(self.__class__.__name__ + ": " + ("dim: %d, rank: %d, size: %d" % (m, S_mrank, len(X))))
-            n_components= S_mrank
-            pca= PCA(n_components= max([min([n_components, len(X)])-1, 2]))
+            n_components= max([min([S_mrank, len(X)])-1, 2])
+            if n_components == len(X[0]):
+                return X.copy()
+            pca= PCA(n_components= n_components)
             X_low_dim= pca.fit_transform(X)
             X_samp= self._sample_by_kernel_density_estimation(X_low_dim, num_to_sample, n_optimize)
             return pca.inverse_transform(X_samp)
@@ -6100,7 +6316,15 @@ class PDFOS(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         # scaling the data to aid numerical stability
         ss= StandardScaler()
@@ -6211,6 +6435,10 @@ class IPADE_ID(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
+        if self.class_stats[self.minority_label] < 3:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
         
         mms= MinMaxScaler()
         X= mms.fit_transform(X)
@@ -6478,6 +6706,10 @@ class RWO_sampling(OverSampling):
         
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
+        
         X_min= X[y == self.minority_label]
         
         stds= np.diag(np.std(X_min, axis= 0)/np.sqrt(len(X_min)))
@@ -6580,6 +6812,10 @@ class NEATER(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
         
         # Applying SMOTE and ADASYN
         X_0, y_0= SMOTE(proportion= self.proportion, n_neighbors= self.smote_n_neighbors, n_jobs= self.n_jobs).sample(X, y)
@@ -6767,6 +7003,10 @@ class DEAGO(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         if not hasattr(self, 'Input'):
             from keras.layers import Input, Dense, GaussianNoise
             from keras.models import Model
@@ -6910,6 +7150,9 @@ class Gazzah(OverSampling):
         X_samp, y_samp= polynom_fit_SMOTE(proportion= self.proportion).sample(X, y)
         X_min_samp= X_samp[len(X):]
         
+        if len(X_min_samp) == 0:
+            return X.copy(), y.copy()
+        
         # do the undersampling
         X_maj= X[y == self.majority_label]
         
@@ -7005,6 +7248,10 @@ class MCT(OverSampling):
         self.class_label_statistics(X, y)
         
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         
@@ -7127,7 +7374,15 @@ class ADG(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         def bic_score(kmeans, X):
             """
@@ -7542,13 +7797,19 @@ class SMOTE_IPF(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         # do SMOTE sampling
         X_samp, y_samp= SMOTE(self.proportion, self.n_neighbors, n_jobs= self.n_jobs).sample(X, y)
+        
+        n_folds= min([self.n_folds, np.sum(y == self.minority_label)])
         
         condition= 0
         while True:
             # validating the sampled dataset
-            validator= StratifiedKFold(self.n_folds)
+            validator= StratifiedKFold(n_folds)
             predictions= []
             for train_index, _ in validator.split(X_samp, y_samp):
                 self.classifier.fit(X_samp[train_index], y_samp[train_index])
@@ -7674,6 +7935,10 @@ class KernelADASYN(OverSampling):
         self.class_label_statistics(X, y)
         
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         
@@ -7860,7 +8125,15 @@ class MOT2LD(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         logging.info(self.__class__.__name__ + ": " + "starting TSNE")
         # do the stochastic embedding
@@ -7904,6 +8177,10 @@ class MOT2LD(OverSampling):
         
         r, d, idx= zip(*sorted(zip(rho, delta, np.arange(len(rho))), key= lambda x: x[0]))
         r, d, idx= np.array(r), np.array(d), np.array(idx)
+        
+        if len(d) < 3:
+            return X.copy(), y.copy()
+        
         peak_indices= np.array(ssignal.find_peaks_cwt(d, widths= np.arange(1, int(len(r)/2))))
         
         if len(peak_indices) == 0:
@@ -8070,6 +8347,10 @@ class V_SYNTH(OverSampling):
         
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
+        
         # creating the bounding box
         mins= np.min(X, axis= 0)
         maxs= np.max(X, axis= 0)
@@ -8212,7 +8493,15 @@ class OUPS(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         # extracting propensity scores
         lr= LogisticRegression(n_jobs= self.n_jobs)
@@ -8326,7 +8615,12 @@ class SMOTE_D(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         
@@ -8707,6 +9001,10 @@ class CURE_SMOTE(OverSampling):
         
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
+        
         # standardizing the data
         mms= MinMaxScaler()
         X_scaled= mms.fit_transform(X)
@@ -8875,6 +9173,10 @@ class SOMO(OverSampling):
         self.class_label_statistics(X, y)
         
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         N_inter= num_to_sample/2
         N_intra= num_to_sample/2
@@ -9068,6 +9370,10 @@ class ISOMAP_Hybrid(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         self.isomap= Isomap(n_neighbors= self.n_neighbors, n_components= self.n_components, n_jobs= self.n_jobs)
         X_trans= self.isomap.fit_transform(X, y)
         X_sm, y_sm= SMOTE(proportion= self.proportion, n_neighbors= self.smote_n_neighbors, n_jobs= self.n_jobs).sample(X_trans, y)
@@ -9176,7 +9482,12 @@ class CE_SMOTE(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         # do the clustering and labelling
         d= len(X[0])
@@ -9184,7 +9495,7 @@ class CE_SMOTE(OverSampling):
         for _ in range(self.h):
             f= np.random.randint(int(d/2), d)
             features= np.random.choice(np.arange(d), f)
-            labels.append(KMeans(n_clusters= self.k, n_jobs= self.n_jobs).fit(X[:,features]).labels_)
+            labels.append(KMeans(n_clusters= min([len(X), self.k]), n_jobs= self.n_jobs).fit(X[:,features]).labels_)
         
         # do the cluster matching, clustering 0 will be considered the one to match the others to
         # the problem of finding cluster matching is basically the "assignment problem"
@@ -9314,7 +9625,16 @@ class Edge_Det_SMOTE(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         d= len(X[0])
         X_min= X[y == self.minority_label]
@@ -9436,7 +9756,16 @@ class CBSO(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         
@@ -9785,7 +10114,12 @@ class DBSMOTE(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         ss= StandardScaler().fit(X)
         X_ss= ss.transform(X)
@@ -10036,7 +10370,16 @@ class ASMOBD(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         # standardizing the data to enable using absolute thresholds
         ss= StandardScaler().fit(X)
@@ -10216,17 +10559,23 @@ class Assembled_SMOTE(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         
         # fitting nearest neighbors model
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1, n_jobs= self.n_jobs)
+        n_neighbors= min([len(X), self.n_neighbors+1])
+        nn= NearestNeighbors(n_neighbors= n_neighbors, n_jobs= self.n_jobs)
         nn.fit(X)
         dist, ind= nn.kneighbors(X_min)
         
         # finding the set of border and non-border minority elements
-        border_mask= np.array([np.sum(y[ind[i]] == self.minority_label) != self.n_neighbors + 1 for i in range(len(ind))])
+        border_mask= np.array([np.sum(y[ind[i]] == self.minority_label) != n_neighbors for i in range(len(ind))])
         X_border= X_min[border_mask]
         X_non_border= X_min[np.logical_not(border_mask)]
         
@@ -10394,7 +10743,16 @@ class SDSMOTE(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         X_maj= X[y == self.majority_label]
@@ -10519,7 +10877,16 @@ class DSMOTE(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
+        if self.class_stats[self.minority_label] < 3:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         mms= MinMaxScaler()
         X= mms.fit_transform(X)
@@ -10738,7 +11105,16 @@ class G_SMOTE(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         
@@ -10866,7 +11242,16 @@ class NT_SMOTE(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
+        if self.class_stats[self.minority_label] < 3:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         
@@ -10978,7 +11363,16 @@ class Lee(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         
@@ -11098,12 +11492,13 @@ class SPY(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting nearest neighbors model
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1, n_jobs= self.n_jobs)
+        n_neighbors= min([len(X), self.n_neighbors + 1])
+        nn= NearestNeighbors(n_neighbors= n_neighbors, n_jobs= self.n_jobs)
         nn.fit(X)
         dist, ind= nn.kneighbors(X_min)
         
         y_new= y.copy()
-        z= self.threshold*self.n_neighbors
+        z= self.threshold*n_neighbors
         
         # checking the neighbors of each minority sample
         for i in range(len(X_min)):
@@ -11224,6 +11619,10 @@ class SMOTE_PSOBAT(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+
         def evaluate(K, proportion):
             """
             Evaluate given configuration
@@ -11342,8 +11741,11 @@ class SMOTE_PSOBAT(OverSampling):
                 int, float: the best K and proportion values
             """
             
+            if sum(y == self.minority_label) < 2:
+                return X.copy(), y.copy()
+            
             # a reasonable range of nearest neighbors to use with SMOTE
-            k_range= [2, min([np.sum(y == self.minority_label), 10])]
+            k_range= [1, min([np.sum(y == self.minority_label), 10])]
             # a reasonable range of proportions
             proportion_range= [0.1, 2.0]
             # population size
@@ -11436,7 +11838,7 @@ class SMOTE_PSOBAT(OverSampling):
                 t= t + 1
         
             return global_best[1]
-            
+        
         if self.method == 'pso':
             best_combination= PSO()
         elif self.method == 'bat':
@@ -11533,15 +11935,22 @@ class MDO(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         
         # determining K1
         self.K1= int(self.K2*self.K1_frac)
+        K1= min([self.K1, len(X)])
+        K2= min([self.K2 + 1, len(X)])
         
         # Algorithm 2 - chooseSamples
-        nn= NearestNeighbors(n_neighbors= self.K2 + 1, n_jobs= self.n_jobs)
+        nn= NearestNeighbors(n_neighbors= K2, n_jobs= self.n_jobs)
         nn.fit(X)
         dist, ind= nn.kneighbors(X_min)
         
@@ -11549,7 +11958,7 @@ class MDO(OverSampling):
         n_min= np.array([np.sum(y[ind[i][1:]] == self.minority_label) for i in range(len(X_min))])
         
         # extracting selected samples from minority ones
-        X_sel= X_min[n_min >= self.K1]
+        X_sel= X_min[n_min >= K1]
         
         # falling back to returning input data if all the input is considered noise
         if len(X_sel) == 0:
@@ -11557,7 +11966,7 @@ class MDO(OverSampling):
             return X.copy(), y.copy()
         
         # computing distribution
-        weights= n_min[n_min >= self.K1]/self.K2
+        weights= n_min[n_min >= K1]/K2
         weights= weights/np.sum(weights)
         
         # Algorithm 1 - MDO over-sampling
@@ -11691,7 +12100,16 @@ class Random_SMOTE(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         
@@ -11793,7 +12211,11 @@ class ISMOTE(OverSampling):
         X_min= X[y == self.minority_label]
         X_maj= X[y == self.majority_label]
         
-        num_to_sample= int((len(X_maj) - len(X_min))/2)
+        num_to_sample= int((len(X_maj) - len(X_min))/2 + 0.5)
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         # computing distances of majority samples from minority ones
         nn= NearestNeighbors(n_neighbors= len(X_min), n_jobs= self.n_jobs)
@@ -11812,7 +12234,7 @@ class ISMOTE(OverSampling):
         X_min= X_new[y_new == self.minority_label]
         
         # fitting nearest neighbors model
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1, n_jobs= self.n_jobs)
+        nn= NearestNeighbors(n_neighbors= min([len(X_new), self.n_neighbors + 1]), n_jobs= self.n_jobs)
         nn.fit(X_new)
         dist, ind= nn.kneighbors(X_min)
         
@@ -11915,6 +12337,10 @@ class VIS_RST(OverSampling):
         self.class_label_statistics(X, y)
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
+        
         # standardizing the data
         ss= StandardScaler()
         ss.fit(X)
@@ -11925,12 +12351,13 @@ class VIS_RST(OverSampling):
         X_maj= X[y == self.majority_label]
         
         # fitting nearest neighbors model to determine boundary region
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1, n_jobs= self.n_jobs)
+        n_neighbors= min([len(X), self.n_neighbors + 1])
+        nn= NearestNeighbors(n_neighbors= n_neighbors, n_jobs= self.n_jobs)
         nn.fit(X)
         dist, ind= nn.kneighbors(X_maj)
         
         # determining boundary region of majority samples
-        boundary= np.array([np.sum(y[ind[i]] == self.majority_label) != self.n_neighbors + 1 for i in range(len(X_maj))])
+        boundary= np.array([np.sum(y[ind[i]] == self.majority_label) != n_neighbors for i in range(len(X_maj))])
         y_maj= y[y == self.majority_label]
         y_maj[boundary]= self.minority_label
         y[y == self.majority_label]= y_maj
@@ -11940,7 +12367,7 @@ class VIS_RST(OverSampling):
         X_maj= X[y == self.majority_label]
         
         # labeling minority samples
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1, n_jobs= self.n_jobs)
+        nn= NearestNeighbors(n_neighbors= n_neighbors, n_jobs= self.n_jobs)
         nn.fit(X)
         dist, ind= nn.kneighbors(X_min)
         
@@ -11948,9 +12375,9 @@ class VIS_RST(OverSampling):
         labels= []
         for i in range(len(ind)):
             min_class_neighbors= np.sum(y[ind[i][1:]] == self.majority_label)
-            if min_class_neighbors == self.n_neighbors:
+            if min_class_neighbors == n_neighbors-1:
                 labels.append('noise')
-            elif min_class_neighbors < self.n_neighbors/2:
+            elif min_class_neighbors < n_neighbors/2:
                 labels.append('safe')
             else:
                 labels.append('danger')
@@ -12001,7 +12428,7 @@ class VIS_RST(OverSampling):
         X_samp= np.vstack(samples)
         
         # final noise removal by removing those minority samples generated and not belonging to the lower approximation
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1, n_jobs= self.n_jobs).fit(X)
+        nn= NearestNeighbors(n_neighbors= n_neighbors, n_jobs= self.n_jobs).fit(X)
         dist_check, ind_check= nn.kneighbors(X_samp)
         num_maj_mask= np.array([np.sum(y[ind_check[i][1:]] == self.majority_label) == 0 for i in range(len(samples))])
         X_samp= X_samp[num_maj_mask]
@@ -12110,13 +12537,17 @@ class GASMOTE(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         X_min= X[y == self.minority_label]
         
         # fitting nearest neighbors model to find minority neighbors of minority samples
         nn= NearestNeighbors(n_neighbors= min([self.n_neighbors + 1, len(X_min)]), n_jobs= self.n_jobs)
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
-        kfold= KFold(5)
+        kfold= KFold(min([len(X), 5]))
         
         def fitness(conf):
             """
@@ -12343,10 +12774,17 @@ class A_SUWO(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
+        
+        X_orig, y_orig= X, y
+        
         # fitting nearest neighbors to find neighbors of all samples
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1, n_jobs= self.n_jobs)
+        nn= NearestNeighbors(n_neighbors= min([len(X), self.n_neighbors + 1]), n_jobs= self.n_jobs)
         nn.fit(X)
         dist, ind= nn.kneighbors(X)
         
@@ -12363,12 +12801,17 @@ class A_SUWO(OverSampling):
         
         if len(X_min) == 0:
             logging.info("All minority samples removed as noise")
-            return X.copy(), y.copy()
+            return X_orig.copy(), y_orig.copy()
+        
+        n_clus_maj= min([len(X_maj), self.n_clus_maj])
         
         # clustering majority samples
-        ac= AgglomerativeClustering(n_clusters= self.n_clus_maj)
+        ac= AgglomerativeClustering(n_clusters= n_clus_maj)
         ac.fit(X_maj)
-        maj_clusters= [np.where(ac.labels_ == i)[0] for i in range(self.n_clus_maj)]
+        maj_clusters= [np.where(ac.labels_ == i)[0] for i in range(n_clus_maj)]
+        
+        if len(maj_clusters) == 0:
+            return X_orig.copy(), y_orig.copy()
         
         # initialize minority clusters
         min_clusters= [np.array([i]) for i in range(len(X_min))]
@@ -12591,6 +13034,10 @@ class SMOTE_FRST_2T(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         # Turning the ranges to 1 speeds up the positive membership calculations
         mmscaler= MinMaxScaler()
         X= mmscaler.fit_transform(X)
@@ -12625,8 +13072,12 @@ class SMOTE_FRST_2T(OverSampling):
                 gamma_S= gamma_S*1.1
                 logging.info(self.__class__.__name__ + ": " +"gamma_S increased to %f" % gamma_S)
             
+            # determine proportion
+            diff= (sum(y == self.majority_label) - sum(y == self.minority_label))
+            prop= max(1.1/diff, 0.2)
+            
             # executing SMOTE to generate some minority samples
-            X_samp, y_samp= SMOTE(proportion= 0.2, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs).sample(X, y)
+            X_samp, y_samp= SMOTE(proportion= prop, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs).sample(X, y)
             X_samp= X_samp[len(X):]
             
             new_synth= []
@@ -12773,12 +13224,18 @@ class AND_SMOTE(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         
+        K= min([len(X_min), self.K])
         # find K nearest neighbors of all samples
-        nn= NearestNeighbors(n_neighbors= self.K+1, n_jobs= self.n_jobs)
+        nn= NearestNeighbors(n_neighbors= K, n_jobs= self.n_jobs)
         nn.fit(X)
         dist, ind= nn.kneighbors(X)
         
@@ -12790,7 +13247,7 @@ class AND_SMOTE(OverSampling):
             regions_min= []
             regions_maj= []
             
-            for j in range(1, self.K+1):
+            for j in range(1, K):
                 # continueing if the label of the neighbors is minority
                 if y[ind[min_ind[i]][j]] != self.minority_label:
                     continue
@@ -12940,7 +13397,12 @@ class NRAS(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         # standardization is needed to make the range of the propensity scores similar to that of the features
         mms= MinMaxScaler()
@@ -12958,7 +13420,8 @@ class NRAS(OverSampling):
         X_min_new= X_new[y == self.minority_label]
         
         # finding nearest neighbors of minority samples
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1, n_jobs= self.n_jobs)
+        n_neighbors= min([len(X_new), self.n_neighbors+1])
+        nn= NearestNeighbors(n_neighbors= n_neighbors, n_jobs= self.n_jobs)
         nn.fit(X_new)
         dist, ind= nn.kneighbors(X_min_new)
         
@@ -12969,7 +13432,7 @@ class NRAS(OverSampling):
             idx= np.random.randint(len(X_min))
             # finding the number of minority neighbors
             t_hat= np.sum(y[ind[idx][1:]] == self.minority_label)
-            if t_hat < self.t*self.n_neighbors:
+            if t_hat < self.t*n_neighbors:
                 # removing the minority point if the number of minority neighbors is less then the threshold
                 # to_remove indexes X_min
                 if not idx in to_remove:
@@ -13099,8 +13562,14 @@ class AMSCO(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         X_min= X[y == self.minority_label]
         X_maj= X[y == self.majority_label]
+
+        n_cross_val= min([4, len(X_min)])
         
         def fitness(X_min, X_maj):
             """
@@ -13113,7 +13582,7 @@ class AMSCO(OverSampling):
             Returns:
                 float, float: kappa, accuracy
             """
-            kfold= StratifiedKFold(4)
+            kfold= StratifiedKFold(n_cross_val)
             
             # prepare assembled dataset
             X_ass= np.vstack([X_min, X_maj])
@@ -13373,6 +13842,10 @@ class SSO(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         # number of samples to generate in each iteration
         samp_per_iter= max([1, int(self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])/self.n_iter)])
         
@@ -13381,7 +13854,8 @@ class SSO(OverSampling):
             X_min= X[y == self.minority_label]
             
             # applying kmeans clustering to find the hidden neurons
-            kmeans= KMeans(n_clusters= self.h, n_jobs= self.n_jobs)
+            h= min([self.h, len(X_min)])
+            kmeans= KMeans(n_clusters= h, n_jobs= self.n_jobs)
             kmeans.fit(X)
             
             # extracting the hidden center elements
@@ -13408,8 +13882,8 @@ class SSO(OverSampling):
                 """
                 Equation 6 in the paper
                 """
-                tmp_sum= np.zeros(self.h)
-                for i in range(self.h):
+                tmp_sum= np.zeros(h)
+                for i in range(h):
                     a= (x - u[i] + Q)/np.sqrt(2*v[i])
                     b= (x - u[i] - Q)/np.sqrt(2*v[i])
                     tmp_prod= (sspecial.erf(a) - sspecial.erf(b))
@@ -13421,9 +13895,9 @@ class SSO(OverSampling):
                 Equation 8 in the paper
                 """
                 res= 0.0
-                for i in range(self.h):
+                for i in range(h):
                     vi2= v[i]**2
-                    for r in range(self.h):
+                    for r in range(h):
                         vr2= v[r]**2
                         a1= (np.sqrt(2*vi2*vr2*(vi2 + vr2)))
                         
@@ -13442,11 +13916,12 @@ class SSO(OverSampling):
                 return (np.sqrt(np.pi)/(4*Q))**len(x)*res
             
             # applying nearest neighbors to extract Q values
-            nn= NearestNeighbors(n_neighbors= self.n_neighbors + 1, n_jobs= self.n_jobs)
+            n_neighbors= min([self.n_neighbors + 1, len(X)])
+            nn= NearestNeighbors(n_neighbors= n_neighbors, n_jobs= self.n_jobs)
             nn.fit(X)
             dist, ind= nn.kneighbors(X_min)
             
-            Q= np.mean(dist[:,self.n_neighbors])/np.sqrt(len(X[0]))
+            Q= np.mean(dist[:,n_neighbors-1])/np.sqrt(len(X[0]))
             
             # calculating the sensitivity factors
             I_1= np.array([eq_6(Q, w, u, v, x) for x in X_min])
@@ -13561,12 +14036,17 @@ class NDO_sampling(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         
         # fitting nearest neighbors model to find the neighbors of minority samples among all elements
-        nn= NearestNeighbors(n_neighbors= self.n_neighbors+1, n_jobs= self.n_jobs)
+        nn= NearestNeighbors(n_neighbors= min([len(X), self.n_neighbors+1]), n_jobs= self.n_jobs)
         nn.fit(X)
         dist, ind= nn.kneighbors(X_min)
         
@@ -13967,6 +14447,10 @@ class DSRBF(OverSampling):
         
         self.class_label_statistics(X, y)
         
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+
         # Standardizing the data to let the network work with comparable attributes
         ss= StandardScaler()
         X= ss.fit_transform(X)
@@ -13982,8 +14466,12 @@ class DSRBF(OverSampling):
         # setting epoch lengths
         epoch_len= int(self.n_iter/self.n_sampling_epoch)
         
+        if len(X) < self.m_min + 1:
+            return X_orig.copy(), y_orig.copy()
+        m_max= min(len(X), self.m_max)
+        
         # generating initial population
-        population= [RBF(X, self.m_min, self.m_max, self.I, self.O, init_conn_mask, init_conn_weights) for _ in range(self.n_init_pop)]
+        population= [RBF(X, self.m_min, m_max, self.I, self.O, init_conn_mask, init_conn_weights) for _ in range(self.n_init_pop)]
         population= [[p, X, y, np.inf] for p in population]
         population= sorted([[p[0], p[1], p[2], p[0].evaluate(p[1], p[2])] for p in population], key= lambda x: x[3])
         population= population[:self.n_pop]
@@ -14126,7 +14614,16 @@ class Gaussian_SMOTE(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         # standardization applied to make sigma compatible with the data
         ss= StandardScaler()
@@ -14235,15 +14732,21 @@ class kmeans_SMOTE(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
         
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
+        
         # applying kmeans clustering to all data
-        kmeans= KMeans(n_clusters= self.n_clusters, n_jobs= self.n_jobs)
+        n_clusters= min([self.n_clusters, len(X)])
+        kmeans= KMeans(n_clusters= n_clusters, n_jobs= self.n_jobs)
         kmeans.fit(X)
         
         # extracting clusters
         labels= kmeans.labels_
-        clusters= [np.where(labels == l)[0] for l in range(self.n_clusters)]
+        clusters= [np.where(labels == l)[0] for l in range(n_clusters)]
         
         # cluster filtering
         filt_clusters= [c for c in clusters if (np.sum(y[c] == self.majority_label) + 1)/(np.sum(y[c] == self.minority_label) + 1) < self.irt and np.sum(y[c] == self.minority_label) > 1]
@@ -14378,7 +14881,16 @@ class Supervised_SMOTE(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         # training the classifier
         self.classifier.fit(X, y)
@@ -14496,7 +15008,16 @@ class SN_SMOTE(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         
@@ -14625,7 +15146,12 @@ class CCR(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         def taxicab_sample(n, r):
             sample = []
@@ -14784,7 +15310,16 @@ class ANS(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
+        if self.class_stats[self.minority_label] < 2:
+            logging.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         X_min= X[y == self.minority_label]
         
@@ -14948,7 +15483,12 @@ class CGAN(OverSampling):
         logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
+        
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         if not hasattr(self, 'Input'):
             from keras.layers import Input, Dense, GaussianNoise, Embedding, Concatenate, Flatten, Activation
@@ -15150,6 +15690,10 @@ class cluster_SMOTE(OverSampling):
         
         # determining the number of samples to generate
         num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
+        
+        if num_to_sample == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
         
         kmeans= KMeans(n_clusters= min([len(X_min), self.n_clusters]), n_jobs= self.n_jobs)
         kmeans.fit(X_min)
