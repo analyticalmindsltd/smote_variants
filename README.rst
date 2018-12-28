@@ -2,10 +2,10 @@
 
 |Travis|_ |Codecov|_ |ReadTheDocs|_ |PythonVersion|_ |PyPi|_ |Gitter|_
 
-.. |Travis| image:: https://travis-ci.org/smote-variants.svg?branch=master
+.. |Travis| image:: https://travis-ci.org/smote_variants.svg?branch=master
 .. _Travis: https://travis-ci.org/smote-variants
 
-.. |Codecov| image:: https://codecov.io/gh/smote-variants/branch/master/graph/badge.svg
+.. |Codecov| image:: https://codecov.io/gh/smote_variants/branch/master/graph/badge.svg
 .. _Codecov: https://codecov.io/gh/smote-variants
 
 .. |ReadTheDocs| image:: https://readthedocs.org/projects/smote-variants/badge/?version=latest
