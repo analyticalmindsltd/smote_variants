@@ -19,8 +19,8 @@ URL= 'https://github.com/gykovacs/smote-variants'
 LICENSE= 'MIT'
 DOWNLOAD_URL= 'https://github.com/gykovacs/smote-variants'
 VERSION= __version__
-CLASSIFIERS= [  'Intended Audiance :: Science/Research',
-                'Intended Audiance :: Developers',
+CLASSIFIERS= [  'Intended Audience :: Science/Research',
+                'Intended Audience :: Developers',
                 'Development Status :: 3 - Alpha',
                 'License :: OSI Approved :: MIT License',
                 'Programming Language :: Python',
