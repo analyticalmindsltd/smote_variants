@@ -1,11 +1,14 @@
 ==============
 SMOTE-variants
-**************
+==============
 
 Introduction
 ----
 
-The package implements 85 variants of the Synthetic Minority Oversampling Technique (SMOTE).                     Besides the implementations, an easy to use model selection framework is supplied to enable                     the rapid evaluation of oversampling techniques on unseen datasets.
+The package implements 85 variants of the Synthetic Minority Oversampling Technique (SMOTE).
+
+Besides the implementations, an easy to use model selection framework is supplied to enable
+the rapid evaluation of oversampling techniques on unseen datasets.
 
 Citation
 ----
