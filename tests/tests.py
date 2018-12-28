@@ -152,7 +152,11 @@ def test_normal():
                     sv.G_SMOTE(method= 'non-linear_2.0'),
                     sv.SMOTE_PSOBAT(method= 'pso'),
                     sv.AHC(strategy= 'maj'),
-                    sv.AHC(strategy= 'minmaj')]
+                    sv.AHC(strategy= 'minmaj'),
+                    sv.SOI_CJ(method= 'jittering'),
+                    sv.ADG(kernel= 'rbf_1'),
+                    sv.SMOTE_IPF(voting= 'consensus'),
+                    sv.ASMOBD(smoothing= 'sigmoid')]
     
     for s in samplers_plus:
         logging.info("testing %s" % str(s.__class__.__name__))
@@ -165,7 +169,46 @@ def test_normal():
         logging.info("testing %s" % str(n))
         X_nf, y_nf= n().remove_noise(X, y)
         assert len(X_nf) > 0
+
+def test_high_dim():
+    X= np.random.normal(size=(20, 40))
+    y= np.hstack([np.repeat(1, 7), np.repeat(0, 13)])
     
+    samplers= sv.get_all_oversamplers()
+    
+    for s in samplers:
+        logging.info("testing %s" % str(s))
+        X_samp, y_samp= s().sample(X, y)
+        assert len(X_samp) > 0
+        
+    samplers_plus= [sv.polynom_fit_SMOTE(topology= 'star'),
+                    sv.polynom_fit_SMOTE(topology= 'bus'),
+                    sv.polynom_fit_SMOTE(topology= 'mesh'),
+                    sv.polynom_fit_SMOTE(topology= 'poly_2'),
+                    sv.Stefanowski(strategy= 'weak_amp'),
+                    sv.Stefanowski(strategy= 'weak_amp_relabel'),
+                    sv.Stefanowski(strategy= 'strong_amp'),
+                    sv.G_SMOTE(method= 'non-linear_2.0'),
+                    sv.SMOTE_PSOBAT(method= 'pso'),
+                    sv.AHC(strategy= 'maj'),
+                    sv.AHC(strategy= 'minmaj'),
+                    sv.SOI_CJ(method= 'jittering'),
+                    sv.ADG(kernel= 'rbf_1'),
+                    sv.SMOTE_IPF(voting= 'consensus'),
+                    sv.ASMOBD(smoothing= 'sigmoid')]
+    
+    for s in samplers_plus:
+        logging.info("testing %s" % str(s.__class__.__name__))
+        X_samp, y_samp= s.sample(X, y)
+        assert len(X_samp) > 0
+    
+    nf= sv.get_all_noisefilters()
+    
+    for n in nf:
+        logging.info("testing %s" % str(n))
+        X_nf, y_nf= n().remove_noise(X, y)
+        assert len(X_nf) > 0
+
 def test_parameters():
     samplers= sv.get_all_oversamplers()
     

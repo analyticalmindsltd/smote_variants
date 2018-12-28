@@ -682,12 +682,15 @@ class CondensedNearestNeighbors(NoiseFilter):
             knn= KNeighborsClassifier(n_neighbors= 1, n_jobs= self.n_jobs)
             knn.fit(X_hat, y_hat)
             pred= knn.predict(X_maj)
+            
             if np.all(pred == self.majority_label):
                 break
             else:
                 X_hat= np.vstack([X_hat, X_maj[pred != self.majority_label]])
                 y_hat= np.hstack([y_hat, np.repeat(self.majority_label, len(X_hat) - len(y_hat))])
                 X_maj= np.delete(X_maj, np.where(pred != self.majority_label)[0], axis= 0)
+                if len(X_maj) == 0:
+                    break
         
         return X_hat, y_hat
 
@@ -3231,7 +3234,7 @@ class DE_oversampling(OverSampling):
         X_min= X[y == self.minority_label]
         
         # cleansing based on clustering
-        kmeans= KMeans(n_clusters= self.n_clusters, n_jobs= self.n_jobs)
+        kmeans= KMeans(n_clusters= min([len(X), self.n_clusters]), n_jobs= self.n_jobs)
         kmeans.fit(X)
         unique_labels= np.unique(kmeans.labels_)
         one_label_clusters= [l for l in unique_labels if len(np.unique(y[np.where(kmeans.labels_ == l)[0]])) == 1]
@@ -3270,7 +3273,8 @@ class DE_oversampling(OverSampling):
                 'n_neighbors': self.n_neighbors, 
                 'crossover_rate': self.crossover_rate, 
                 'similarity_threshold': self.similarity_threshold, 
-                'n_clusters': self.n_clusters, 'n_jobs': self.n_jobs}
+                'n_clusters': self.n_clusters, 
+                'n_jobs': self.n_jobs}
 
 # Borrowed from sklearn-dev, will be removed once the sklearn implementation
 # becomes stable
@@ -7350,46 +7354,6 @@ class ADG(OverSampling):
             
             return X_minus, X_plus, l_minus, l_plus, X, y, K, M_plus, M_minus, M, K_plus, K_minus
         
-        def K_test(X, x, kernel= np.inner):
-            """
-            Computes the kernel row for a new input
-            
-            Args:
-                X (np.matrix): all data
-                x (np.array): new data sample
-                kernel (function): the kernel function to be used
-                
-            Returns:
-                np.array: the kernel matrix row
-            """
-            return np.array([kernel(xx, x) for xx in X])
-        
-        def K_extend(K, K_minus, K_plus, X, X_new, l_minus, kernel= np.inner):
-            """
-            Extends the kernel matrices with new rows and columns.
-            
-            Args:
-                K (np.matrix): the kernel matrix
-                K_minus (np.matrix): the negative part of the kernel matrix
-                K_plus (np.matrix): the positive part of the kernel matrix
-                X (np.matrix): all data
-                X_new (np.matrix): the new data
-                l_minus (int): number of negative samples
-                kernel (function): the kernel function to be used
-                
-            Returns:
-                np.matrix, np.matrix, np.matrix: the extended K, K_minus and K_plus matrices
-            """
-            K_01= pairwise_distances(X, X_new, metric= kernel)
-            K_10= K_01.T
-            K_11= pairwise_distances(X_new, X_new, metric= kernel)
-            
-            K_new= np.hstack([np.vstack([K, K_10]), np.vstack([K_01, K_11])])
-            K_minus_new= K_new[:, :l_minus]
-            K_plus_new= K_new[:, l_minus:]
-            
-            return K_new, K_minus_new, K_plus_new
-        
         # Implementation of the technique, following the steps and notations of the paper
         q= num_to_sample
         
@@ -7482,7 +7446,6 @@ class ADG(OverSampling):
             mask_inner_prod= np.where(np.inner(K_10, alpha_star) > 0)[0]
             Z_hat= Z[mask_inner_prod]
             
-            #Z_hat= np.array([z for z in Z if np.inner(alpha_star, K_test(X, z, kernel= kernel_function)) > 0.0])
             if len(Z_hat) == 0:
                 q= int(q/2)
                 continue
@@ -7500,8 +7463,6 @@ class ADG(OverSampling):
             
             # step 11 - 16
             # these steps have been reorganized a bit for efficient calculations
-            # this function call does the original job, we do some equivalent things more efficiently
-            #K, K_minus, K_plus= K_extend(K, K_minus, K_plus, X, Z_hat, l_minus, kernel= kernel_function)
             
             K= np.block([[K, K_10[mask_inner_prod].T], [K_10[mask_inner_prod], pairwise_distances(Z_hat, Z_hat, metric= kernel_function)]])
 
@@ -10772,20 +10733,20 @@ class DSMOTE(OverSampling):
         # this is the original objective function, however, using this
         # is very inefficient if the number of records increases above
         # approximately 1000
-        def objective(X):
-            """
-            The objective function to be maximized
-            
-            Args:
-                X (np.matrix): dataset
-                
-            Returns:
-                float: the value of the objective function
-            """
-            gm= gmean(X, axis= 0)
-            gdiv= np.mean(np.linalg.norm(X - gm, axis= 1))
-            fisher= (np.mean(X) - mean_maj)**2/(np.mean(np.var(X, axis= 0)) + var_maj)
-            return gdiv + fisher
+        #def objective(X):
+        #    """
+        #    The objective function to be maximized
+        #    
+        #    Args:
+        #        X (np.matrix): dataset
+        #        
+        #    Returns:
+        #        float: the value of the objective function
+        #    """
+        #    gm= gmean(X, axis= 0)
+        #    gdiv= np.mean(np.linalg.norm(X - gm, axis= 1))
+        #    fisher= (np.mean(X) - mean_maj)**2/(np.mean(np.var(X, axis= 0)) + var_maj)
+        #    return gdiv + fisher
         
         # in order to make the code more efficient, we do maintain some variables
         # containing the main componentes of the objective function and apply
