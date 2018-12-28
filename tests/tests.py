@@ -248,7 +248,7 @@ def test_queries():
 def test_mlp_wrapper():
     dataset= datasets.load_wine()
     classifier= sv.MLPClassifierWrapper()
-    classifier.train(dataset['data'], dataset['target'])
+    classifier.fit(dataset['data'], dataset['target'])
     
     assert not classifier is None
     
