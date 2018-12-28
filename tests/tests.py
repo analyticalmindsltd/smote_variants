@@ -116,6 +116,12 @@ def test_normal():
         X_samp, y_samp= s().sample(X, y)
         assert len(X_samp) > 0
     
+    nf= sv.get_all_noisefilters()
+    
+    for n in nf:
+        logging.info("testing %s" % str(n))
+        X_nf, y_nf= n().remove_noise(X, y)
+        assert len(X_nf) > 0
     
 def test_parameters():
     samplers= sv.get_all_oversamplers()
@@ -126,6 +132,19 @@ def test_parameters():
         if len(par_comb) > 0:
             original_parameters= np.random.choice(par_comb)
             sampler= s(**original_parameters)
+            parameters= sampler.get_params()
+            
+            for x in original_parameters:
+                assert parameters[x] == original_parameters[x]
+    
+    nf= sv.get_all_noisefilters()
+    
+    for n in nf:
+        logging.info("testing %s" % str(n))
+        par_comb= n.parameter_combinations()
+        if len(par_comb) > 0:
+            original_parameters= np.random.choice(par_comb)
+            sampler= n(**original_parameters)
             parameters= sampler.get_params()
             
             for x in original_parameters:
