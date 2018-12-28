@@ -22,6 +22,25 @@ import smote_variants as sv
 def validation(smote, X, y):
     return smote.sample(X, y)
 
+def test_same_num():
+    X= np.array([[1.0, 1.1],
+        [1.1, 1.2],
+        [1.05, 1.1],
+        [1.1, 1.08],
+        [1.5, 1.6],
+        [1.55, 1.55],
+        [1.5, 1.62],
+        [1.55, 1.51]])
+        
+    y= np.array([0, 0, 0, 0, 1, 1, 1, 1])
+    
+    samplers= sv.get_all_oversamplers()
+    
+    for s in samplers:
+        logging.info("testing %s" % str(s))
+        X_samp, y_samp= validation(s(), X, y)
+        assert len(X_samp) > 0
+
 def test_some_min_some_maj():
     X= np.array([[1.0, 1.1],
         [1.1, 1.2],
@@ -131,7 +150,9 @@ def test_normal():
                     sv.Stefanowski(strategy= 'weak_amp_relabel'),
                     sv.Stefanowski(strategy= 'strong_amp'),
                     sv.G_SMOTE(method= 'non-linear_2.0'),
-                    sv.SMOTE_PSOBAT(method= 'pso')]
+                    sv.SMOTE_PSOBAT(method= 'pso'),
+                    sv.AHC(method= 'maj'),
+                    sv.AHC(method= 'minmaj')]
     
     for s in samplers_plus:
         logging.info("testing %s" % str(s.__class__.__name__))
