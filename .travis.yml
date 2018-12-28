@@ -18,3 +18,8 @@ deploy:
   user: gykovacs
   password:
     secure: ylE42YLqTrhf9oSGCxwmldp/pvNXyciCmlTnzdBcwIgxggliRBR5QDF52yOcWFsAJKgNhAWHE/B9PsE7WrviP/c6Wvt4Wl6QvECR3xqveCPPVLA528UxSBzEcscaPep1txrnQ1AfU7V1+YbQMq+5ULL/wp6KtLRo0Bk+re4/t4Fy5DMBz/jC+J2mZWPZNqSCT4gRWcexzKVtklHuLLYbjGipHwRZA8AjrzhAm/fE2m9Qul/UNCo6p9vDtKGRU5YDutwBbrQ0YIJAud2wvC2Fsv68T9nnf3FfRq/wXIGYao2WNLrxvb6H7Qb346cIR2I5kU8AfBkAmiapbnclXtBh1WVCPUsNLIqWRbvxZM0YaeLdvOSFzdUqEubKbqx3haYGykuLDp20yF+3pbMN58ucw95ttuLJ8bJS7h25EIACQJBjEtG1TbX6hfbcgeBUHogtCn1qWp0PhwvJsbPFYatTgrPfEKCaPA+YyN22an6a5ml0upBCgaqUA8oiNk0WkXHnTX35rS2RjMSYw9tJZ/+4flKm5yMye5/vrOMXHvV9Wh8Br7tSO48MSx/FakkmREayWB9PQRMR1fZEO+0WL3zjCs8DpyKxLR/ZhOyDCHeDkgJGoOPRMMbcSy/Rqgj2z2uEfIOY+n0KSl/msVEGGsxHEIx2vMF/BYf4NQ0eQS1VbGc=
+  skip_existing: true
+  distributions: "sdist bdist_wheel"
+  on:
+    tags: true
+
