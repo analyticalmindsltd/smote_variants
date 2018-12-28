@@ -136,15 +136,6 @@ def test_parameters():
             
             for x in original_parameters:
                 assert parameters[x] == original_parameters[x]
-    
-    nf= sv.get_all_noisefilters()
-    
-    for n in nf:
-        logging.info("testing %s" % str(n))
-        noise_filter= n()
-        o= n(**noise_filter.get_params())
-        
-        assert not o is None
 
 def test_evaluation():
     data_min= np.array([[ 5.7996138 , -0.25574582], [ 3.0637093 ,  2.11750874],
