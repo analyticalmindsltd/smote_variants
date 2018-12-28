@@ -1,3 +1,4 @@
+.. -*- mode: rst -*-
 
 
 |Travis|_ |Codecov|_ |ReadTheDocs|_ |PythonVersion|_ |PyPi|_ |Gitter|_

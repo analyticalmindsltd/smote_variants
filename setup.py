@@ -1,9 +1,10 @@
 import os
+import codecs
 
 from setuptools import setup
 
 def readme():
-    with open('README.rst') as f:
+    with codecs.open('README.rst', encoding='utf-8-sig') as f:
         return f.read()
 
 version_file= os.path.join('smote_variants', '_version.py')

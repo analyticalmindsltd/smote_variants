@@ -567,7 +567,8 @@ def create_ranking_page():
 def create_readme_page():
     bibs= oversampling_bib_lookup()
     
-    docs= """
+    docs= """.. -*- mode: rst -*-
+
 |Travis|_ |Codecov|_ |ReadTheDocs|_ |PythonVersion|_ |PyPi|_ |Gitter|_
 
 .. |Travis| image:: https://travis-ci.org/gykovacs/smote_variants.svg?branch=master
