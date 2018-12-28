@@ -5083,7 +5083,7 @@ class LVQ_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'strategy': self.proportion, 
+        return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
                 'n_clusters': self.n_clusters, 
                 'n_jobs': self.n_jobs}
@@ -10028,6 +10028,7 @@ class E_SMOTE(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
+                'min_features': self.min_features,
                 'n_jobs': self.n_jobs}
 
 class DBSMOTE(OverSampling):
@@ -14262,7 +14263,7 @@ class RBF:
         """
         Improves the center locations by kmeans clustering
         """
-        kmeans= KMeans(n_clusters=len(self.neurons), init=np.vstack([n.c for n in self.neurons]), max_iter= 30, n_jobs= 1)
+        kmeans= KMeans(n_clusters=len(self.neurons), init=np.vstack([n.c for n in self.neurons]), n_init= 1, max_iter= 30, n_jobs= 1)
         kmeans.fit(self.X)
         for i in range(len(self.neurons)):
             self.neurons[i].c= kmeans.cluster_centers_[i]
@@ -14932,7 +14933,8 @@ class Supervised_SMOTE(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'th_lower': self.th_lower, 
-                'th_upper': self.th_upper, 
+                'th_upper': self.th_upper,
+                'classifier': self.classifier,
                 'n_jobs': self.n_jobs}
 
 class SN_SMOTE(OverSampling):
@@ -15411,208 +15413,6 @@ class ANS(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'n_jobs': self.n_jobs}
-
-class CGAN(OverSampling):
-    """
-    @INPROCEEDINGS{deago, 
-                    author={C. Bellinger and N. Japkowicz and C. Drummond}, 
-                    booktitle={2015 IEEE 14th International Conference on Machine Learning and Applications (ICMLA)}, 
-                    title={Synthetic Oversampling for Advanced Radioactive Threat Detection}, 
-                    year={2015}, 
-                    volume={}, 
-                    number={}, 
-                    pages={948-953}, 
-                    keywords={radioactive waste;advanced radioactive threat detection;gamma-ray spectral classification;industrial nuclear facilities;Health Canadas national monitoring networks;Vancouver 2010;Isotopes;Training;Monitoring;Gamma-rays;Machine learning algorithms;Security;Neural networks;machine learning;classification;class imbalance;synthetic oversampling;artificial neural networks;autoencoders;gamma-ray spectra}, 
-                    doi={10.1109/ICMLA.2015.58}, 
-                    ISSN={}, 
-                    month={Dec}}
-
-    URL: https://drive.google.com/open?id=1cnCltSny-X_Dl8s3BqcNCbqVn_eDPWlB
-    
-    There is no hint on the activation functions and amounts of noise.
-    """
-    
-    categories= [OverSampling.cat_extensive,
-                 OverSampling.cat_density_estimation]
-    
-    def __init__(self, proportion= 1.0, n_neighbors= 5, e= 100, h= 0.3, sigma= 0.1):
-        """
-        Constructor of the sampling object
-        Args:
-            proportion (float): proportion of the difference of n_maj and n_min to sample
-                                    e.g. 1.0 means that after sampling the number of minority
-                                    samples will be equal to the number of majority samples
-            n_neighbors (int): number of neighbors
-            e (int): number of epochs
-            h (float): fraction of number of hidden units
-            sigma (float): training noise
-        """
-        super().__init__()
-        self.check_greater_or_equal(proportion, "proportion", 0.0)
-        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
-        self.check_greater(e, "e", 1)
-        self.check_greater(h, "h", 0)
-        self.check_greater(sigma, "sigma", 0)
-        
-        self.proportion= proportion
-        self.n_neighbors= n_neighbors
-        self.e= e
-        self.h= h
-        self.sigma= sigma
-        
-    @classmethod
-    def parameter_combinations(cls):
-        """
-        Generates reasonable paramter combinations.
-        Returns:
-            list(dict): a list of meaningful paramter combinations
-        """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
-                                                    'n_neighbors': [3, 5, 7], 
-                                                    'e': [40], 
-                                                    'h': [0.1, 0.2, 0.3, 0.4, 0.5], 
-                                                    'sigma': [0.05, 0.1, 0.2]})
-    
-    def sample(self, X, y):
-        """
-        Does the sample generation according to the class paramters.
-        Args:
-            X (np.ndarray): training set
-            y (np.array): target labels
-        Returns:
-            (np.ndarray, np.array): the extended training set and target labels
-        """
-        logging.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
-        
-        self.class_label_statistics(X, y)
-        
-        num_to_sample= self.number_of_instances_to_sample(self.proportion, self.class_stats[self.majority_label], self.class_stats[self.minority_label])
-        
-        if num_to_sample == 0:
-            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
-            return X.copy(), y.copy()
-        
-        if not hasattr(self, 'Input'):
-            from keras.layers import Input, Dense, GaussianNoise, Embedding, Concatenate, Flatten, Activation
-            from keras.models import Model, Sequential
-            from keras.callbacks import EarlyStopping
-            from keras.optimizers import SGD
-            
-            self.Input= Input
-            self.Dense= Dense
-            self.Activation= Activation
-            self.Embedding= Embedding
-            self.Concatenate= Concatenate
-            self.Flatten= Flatten
-            self.GaussianNoise= GaussianNoise
-            self.Model= Model
-            self.EarlyStopping= EarlyStopping
-            self.Sequential= Sequential
-            self.SGD= SGD
-        
-        d_Z= 2
-        G= 3
-        D= 3
-        d= len(X[0])
-        
-        # build generator
-        def build_generator():
-            noise= self.Input(shape=(d_Z,))
-            noise_emb= self.Dense(d_Z)(noise)
-            noise_emb= self.Activation('relu')(noise_emb)
-            
-            label= self.Input(shape=(1,))
-            #label= self.Input(shape=(1,), dtype='int32')
-            #label_embedding= self.Flatten()(self.Embedding(2, d_Z)(label))
-            #label_emb= self.Dense(G)(label_embedding)
-            
-            merged= self.Concatenate()([noise_emb, label])
-            combined_out= self.Dense(d)(merged)
-            #combined_out= self.Activation('relu')(combined_out)
-            
-            return self.Model([noise, label], combined_out)
-        
-        
-        # build discriminator
-        def build_discriminator():
-            #model= self.Sequential()
-            
-            data= self.Input(shape=(d,))
-            data_emb= self.Dense(D, input_dim=d)(data)
-            data_emb= self.Activation('relu')(data_emb)
-            
-            label= self.Input(shape=(1,))
-            #label= self.Input(shape=(1,), dtype='int32')
-            #label_emb= self.Flatten()(self.Embedding(2, d)(label))
-            #label_emb_d= self.Dense(1)(label_emb)
-            #label_emb_d= self.Activation('relu')(label_emb_d)
-            
-            merged_d= self.Concatenate()([data_emb, label])
-            validity= self.Dense(1)(merged_d)
-            #validity= self.Activation('relu')(combined_d)
-            
-            #validity= combined_d(merged_d)
-            
-            return self.Model([data, label], validity)
-        
-        optimizer= SGD()
-        discriminator= build_discriminator()
-        discriminator.compile(loss=['binary_crossentropy'], optimizer= optimizer, metrics=['accuracy'])
-        
-        generator= build_generator()
-        generator.compile(loss=['binary_crossentropy'], optimizer= optimizer)
-        
-        noise= Input(shape=(d_Z,))
-        label= Input(shape=(1,))
-        data= generator([noise, label])
-        
-        discriminator.trainable= False
-        
-        valid= discriminator([data, label])
-        
-        combined= Model([noise, label], valid)
-        combined.compile(loss=['binary_crossentropy'], optimizer= optimizer)
-        
-        epochs= 100
-        batch_size= int(len(X)/2)
-        for epoch in range(epochs):
-            idx= np.random.randint(0, len(X), batch_size)
-            data, labels= X[idx], y[idx]
-            
-            noise= np.random.normal(0, 1, (batch_size, d_Z))
-
-            gen_data= generator.predict([noise, labels])
-            valid= np.ones((batch_size, 1))
-            fake= np.zeros((batch_size, 1))
-
-            for _ in range(10):
-                loss_real= discriminator.train_on_batch([data, labels], valid)
-                loss_fake= discriminator.train_on_batch([gen_data, labels], fake)
-            
-            d_loss= 0.5*(np.add(loss_real, loss_fake))
-            
-            noise= np.random.normal(0, 1, (batch_size, d_Z))
-            valid= np.ones((batch_size, 1))
-            sampled_labels= np.random.randint(0, 2, batch_size).reshape(-1, 1)
-
-            g_loss= combined.train_on_batch([noise, sampled_labels], valid)
-            
-            print("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
-        
-        samples= generator.predict([np.random.normal(0, 1, (num_to_sample, d_Z)), np.repeat(self.minority_label, num_to_sample)])
-        
-        return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
-        
-    def get_params(self):
-        """
-        Returns:
-            dict: the parameters of the current sampling object
-        """
-        return {'proportion': self.proportion, 
-                'n_neighbors': self.n_neighbors, 
-                'e': self.e, 
-                'h': self.h, 
-                'sigma': self.sigma}
 
 class cluster_SMOTE(OverSampling):
     """
