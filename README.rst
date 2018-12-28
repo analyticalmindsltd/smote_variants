@@ -10,10 +10,14 @@ The package implements 85 variants of the Synthetic Minority Oversampling Techni
 Besides the implementations, an easy to use model selection framework is supplied to enable
 the rapid evaluation of oversampling techniques on unseen datasets.
 
+The implemented techniques: [SMOTE]_, [SMOTE_TomekLinks]_, [SMOTE_ENN]_, [Borderline_SMOTE1]_, [Borderline_SMOTE2]_, [ADASYN]_, [AHC]_, [LLE_SMOTE]_, [distance_SMOTE]_, [SMMO]_, [polynom_fit_SMOTE]_, [Stefanowski]_, [ADOMS]_, [Safe_Level_SMOTE]_, [MSMOTE]_, [DE_oversampling]_, [SMOBD]_, [SUNDO]_, [MSYN]_, [SVM_balance]_, [TRIM_SMOTE]_, [SMOTE_RSB]_, [ProWSyn]_, [SL_graph_SMOTE]_, [NRSBoundary_SMOTE]_, [LVQ_SMOTE]_, [SOI_CJ]_, [ROSE]_, [SMOTE_OUT]_, [SMOTE_Cosine]_, [Selected_SMOTE]_, [LN_SMOTE]_, [MWMOTE]_, [PDFOS]_, [IPADE_ID]_, [RWO_sampling]_, [NEATER]_, [DEAGO]_, [Gazzah]_, [MCT]_, [ADG]_, [SMOTE_IPF]_, [KernelADASYN]_, [MOT2LD]_, [V_SYNTH]_, [OUPS]_, [SMOTE_D]_, [SMOTE_PSO]_, [CURE_SMOTE]_, [SOMO]_, [ISOMAP_Hybrid]_, [CE_SMOTE]_, [Edge_Det_SMOTE]_, [CBSO]_, [E_SMOTE]_, [DBSMOTE]_, [ASMOBD]_, [Assembled_SMOTE]_, [SDSMOTE]_, [DSMOTE]_, [G_SMOTE]_, [NT_SMOTE]_, [Lee]_, [SPY]_, [SMOTE_PSOBAT]_, [MDO]_, [Random_SMOTE]_, [ISMOTE]_, [VIS_RST]_, [GASMOTE]_, [A_SUWO]_, [SMOTE_FRST_2T]_, [AND_SMOTE]_, [NRAS]_, [AMSCO]_, [SSO]_, [NDO_sampling]_, [DSRBF]_, [Gaussian_SMOTE]_, [kmeans_SMOTE]_, [Supervised_SMOTE]_, [SN_SMOTE]_, [CCR]_, [ANS]_, [cluster_SMOTE]_
+
 Citation
 ----
 
-The publication of this work and its derivatives is going on, please come back in a couple of days or weeks for updates.Documentation
+The publication of this work and its derivatives is going on, please come back in a couple of days or weeks for updates.
+
+Documentation
 ----
 
 For a detailed documentation see http://smote-variants.readthedocs.io.
