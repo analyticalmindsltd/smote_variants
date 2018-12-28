@@ -141,14 +141,10 @@ def test_parameters():
     
     for n in nf:
         logging.info("testing %s" % str(n))
-        par_comb= n.parameter_combinations()
-        if len(par_comb) > 0:
-            original_parameters= np.random.choice(par_comb)
-            sampler= n(**original_parameters)
-            parameters= sampler.get_params()
-            
-            for x in original_parameters:
-                assert parameters[x] == original_parameters[x]
+        noise_filter= n()
+        o= n(**noise_filter.get_params())
+        
+        assert not o is None
 
 def test_evaluation():
     data_min= np.array([[ 5.7996138 , -0.25574582], [ 3.0637093 ,  2.11750874],
