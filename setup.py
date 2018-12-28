@@ -14,6 +14,7 @@ with open(version_file) as f:
 DISTNAME= 'smote_variants'
 DESCRIPTION= 'Variants of the synthetic minority oversampling technique (SMOTE) for imbalanced learning'
 LONG_DESCRIPTION= readme()
+LONG_DESCRIPTION_CONTENT_TYPE='text/x-rst'
 MAINTAINER= 'Gyorgy Kovacs'
 MAINTAINER_EMAIL= 'gyuriofkovacs@gmail.com'
 URL= 'https://github.com/gykovacs/smote-variants'
@@ -47,6 +48,7 @@ setup(name=DISTNAME,
       version=VERSION,
       download_url=DOWNLOAD_URL,
       long_description=LONG_DESCRIPTION,
+      long_description_content_type=LONG_DESCRIPTION_CONTENT_TYPE,
       zip_safe=False,
       classifiers=CLASSIFIERS,
       install_requires=INSTALL_REQUIRES,
