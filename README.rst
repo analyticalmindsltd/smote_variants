@@ -1,3 +1,24 @@
+
+
+|Travis|_ |Codecov|_ |ReadTheDocs|_ |PythonVersion|_ |PyPi|_ |Gitter|_
+
+.. |Travis| image:: https://travis-ci.org/smote-variants.svg?branch=master
+.. _Travis: https://travis-ci.org/smote-variants
+
+.. |Codecov| image:: https://codecov.io/gh/smote-variants/branch/master/graph/badge.svg
+.. _Codecov: https://codecov.io/gh/smote-variants
+
+.. |ReadTheDocs| image:: https://readthedocs.org/projects/smote-variants/badge/?version=latest
+.. _ReadTheDocs: https://smote-variants.readthedocs.io/en/latest/?badge=latest
+
+.. |PythonVersion| image:: https://img.shields.io/pypi/pyversions/smote-variants.svg
+.. _PythonVersion: https://img.shields.io/pypi/pyversions/smote-variants.svg
+
+.. |PyPi| image:: https://badge.fury.io/py/smote-variants.svg
+.. _PyPi: https://badge.fury.io/py/smote-variants
+
+.. |Gitter| image:: https://badges.gitter.im/smote-variants.svg
+.. _Gitter: https://gitter.im/smote-variants?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 ==============
 SMOTE-variants
 ==============
@@ -6,7 +27,6 @@ Introduction
 ----
 
 The package implements 85 variants of the Synthetic Minority Oversampling Technique (SMOTE).
-
 Besides the implementations, an easy to use model selection framework is supplied to enable
 the rapid evaluation of oversampling techniques on unseen datasets.
 
