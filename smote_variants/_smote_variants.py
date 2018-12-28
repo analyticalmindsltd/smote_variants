@@ -3797,6 +3797,10 @@ class MSYN(OverSampling):
         X_res, y_res= smote.sample(X, y)
         X_new, _= X_res[len(X):], y_res[len(X):]
         
+        if len(X_new) == 0:
+            logging.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
+                
         # Compute nearest hit and miss for both classes
         nn= NearestNeighbors(n_neighbors= len(X), n_jobs= self.n_jobs)
         nn.fit(X)
@@ -3935,6 +3939,11 @@ class SVM_balance(OverSampling):
         
         X, y= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs).sample(X, y)
         
+        if sum(y == self.minority_label) < 2:
+            return X.copy(), y.copy()
+        else:
+            cv= min([5, sum(y == self.minority_label)])
+        
         ss= StandardScaler()
         X_norm= ss.fit_transform(X)
         
@@ -3944,7 +3953,7 @@ class SVM_balance(OverSampling):
         for C in C_params:
             logging.info(self.__class__.__name__ + ": " +"Evaluating SVM with C=%f" % C)
             svc= SVC(C= C, kernel= 'rbf', gamma= 'auto')
-            score= np.mean(cross_val_score(svc, X_norm, y, cv= 5))
+            score= np.mean(cross_val_score(svc, X_norm, y, cv= cv))
             if score > best_score:
                 best_score= score
                 best_C= C
@@ -4331,6 +4340,9 @@ class SMOTE_RSB(OverSampling):
         smote= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs)
         X_samp, y_samp= smote.sample(X, y)
         X_samp, y_samp= X_samp[len(X):], y_samp[len(X):]
+        
+        if len(X_samp) == 0:
+            return X.copy(), y.copy()
         
         # Step 2: (original will be added later)
         result_set= []
@@ -6656,6 +6668,9 @@ class NEATER(OverSampling):
         
         X_syn= X_new[len(X):]
         
+        if len(X_syn) == 0:
+            return X.copy(), y.copy()
+        
         X_all= X_new
         y_all= y_new
         
@@ -6853,6 +6868,9 @@ class DEAGO(OverSampling):
         
         # samples to map to the manifold extracted by the autoencoder
         X_init= X_samp[len(X):]
+        
+        if len(X_init) == 0:
+            return X.copy(), y.copy()
         
         # normalizing
         X_min= X[y == self.minority_label]
@@ -8334,7 +8352,7 @@ class OUPS(OverSampling):
             return X.copy(), y.copy()
         
         # extracting propensity scores
-        lr= LogisticRegression(n_jobs= self.n_jobs)
+        lr= LogisticRegression(solver= 'lbfgs', n_jobs= self.n_jobs)
         lr.fit(X, y)
         propensity= lr.predict_proba(X)[:,np.where(lr.classes_ == self.minority_label)[0][0]]
         
@@ -13240,7 +13258,7 @@ class NRAS(OverSampling):
         X_trans= mms.fit_transform(X)
         
         # determining propensity scores using logistic regression
-        lr= LogisticRegression(n_jobs= self.n_jobs)
+        lr= LogisticRegression(solver= 'lbfgs', n_jobs= self.n_jobs)
         lr.fit(X_trans, y)
         propensity= lr.predict_proba(X_trans)[:,np.where(lr.classes_ == self.minority_label)[0][0]]
         

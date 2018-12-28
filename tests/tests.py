@@ -151,8 +151,8 @@ def test_normal():
                     sv.Stefanowski(strategy= 'strong_amp'),
                     sv.G_SMOTE(method= 'non-linear_2.0'),
                     sv.SMOTE_PSOBAT(method= 'pso'),
-                    sv.AHC(method= 'maj'),
-                    sv.AHC(method= 'minmaj')]
+                    sv.AHC(strategy= 'maj'),
+                    sv.AHC(strategy= 'minmaj')]
     
     for s in samplers_plus:
         logging.info("testing %s" % str(s.__class__.__name__))
@@ -228,7 +228,8 @@ def test_model_selection():
     
     # setting cache path
     cache_path= os.path.join(os.path.expanduser('~'), 'smote_test')
-    os.mkdir(cache_path)
+    if not os.path.exists(cache_path):
+        os.mkdir(cache_path)
 
     # prepare dataset
     dataset= {'data': X, 'target': y, 'name': 'ballpark_data'}
