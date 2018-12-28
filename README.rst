@@ -17,8 +17,8 @@
 .. |PyPi| image:: https://badge.fury.io/py/smote-variants.svg
 .. _PyPi: https://badge.fury.io/py/smote-variants
 
-.. |Gitter| image:: https://badges.gitter.im/smote-variants.svg
-.. _Gitter: https://gitter.im/smote-variants?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
+.. |Gitter| image:: https://badges.gitter.im/smote_variants.svg
+.. _Gitter: https://gitter.im/smote_variants?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 ==============
 SMOTE-variants
 ==============
