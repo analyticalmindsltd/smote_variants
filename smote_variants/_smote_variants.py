@@ -14466,9 +14466,9 @@ class DSRBF(OverSampling):
         # setting epoch lengths
         epoch_len= int(self.n_iter/self.n_sampling_epoch)
         
-        if len(X) < self.m_min + 1:
+        if len(X_orig) < self.m_min + 1:
             return X_orig.copy(), y_orig.copy()
-        m_max= min(len(X), self.m_max)
+        m_max= min(len(X_orig), self.m_max)
         
         # generating initial population
         population= [RBF(X, self.m_min, m_max, self.I, self.O, init_conn_mask, init_conn_weights) for _ in range(self.n_init_pop)]
