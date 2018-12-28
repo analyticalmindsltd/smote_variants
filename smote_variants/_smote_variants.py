@@ -55,6 +55,12 @@ from scipy.stats.mstats import gmean
 # self-organizing map implementation
 import minisom
 
+from ._version import __version__
+
+__author__= "György Kovács"
+__license__= "MIT"
+__email__= "gyuriofkovacs@gmail.com"
+
 #for handler in logging.root.handlers[:]:
 #    logging.root.removeHandler(handler)
 
@@ -63,7 +69,11 @@ import minisom
 logging.basicConfig(level= logging.DEBUG, format="%(asctime)s:%(levelname)s:%(message)s")
 
 # exported names
-__all__= ['get_all_oversamplers',
+__all__= ['__author__',
+'__license__',
+'__version__',
+'__email__',
+'get_all_oversamplers',
 'get_all_noisefilters',
 'get_n_quickest_oversamplers',
 'get_all_oversamplers_multiclass',
