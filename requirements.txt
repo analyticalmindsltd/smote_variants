@@ -1,5 +1,5 @@
 joblib
-numpy
+numpy>=13.0.0
 pandas
 scipy
 sklearn
