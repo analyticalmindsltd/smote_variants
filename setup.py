@@ -32,10 +32,10 @@ CLASSIFIERS= [  'Intended Audience :: Science/Research',
                 'Operating System :: POSIX',
                 'Operating System :: Unix',
                 'Operating System :: MacOS']
-INSTALL_REQUIRES= ['numpy>=13.0.0', 'scipy', 'scikit-learn', 'joblib', 'minisom', 'statistics', 'tensorflow', 'keras']
+INSTALL_REQUIRES= ['numpy>=1.13.0', 'scipy', 'scikit-learn', 'joblib', 'minisom', 'statistics', 'tensorflow', 'keras']
 EXTRAS_REQUIRE= {'tests': ['nose'],
                  'docs': ['sphinx', 'sphinx-gallery', 'sphinx_rtd_theme', 'matplotlib', 'pandas']}
-PYTHON_REQUIRES= '>=3.6'
+PYTHON_REQUIRES= '>=3.5'
 TEST_SUITE='nose.collector'
 PACKAGE_DIR= {'smote_variants': 'smote_variants'}
 
