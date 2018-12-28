@@ -579,7 +579,7 @@ def create_readme_page():
 .. |ReadTheDocs| image:: https://readthedocs.org/projects/smote-variants/badge/?version=latest
 .. _ReadTheDocs: https://smote-variants.readthedocs.io/en/latest/?badge=latest
 
-.. |PythonVersion| image:: https://img.shields.io/badge/python-3.5%7C%20%203.6%20%7C%203.7-green.svg
+.. |PythonVersion| image:: https://img.shields.io/badge/python-3.5%7C%20%203.6-green.svg
 .. _PythonVersion: https://img.shields.io/badge/python-3.5%7C%20%203.6%20%7C%203.7-green.svg
 
 .. |PyPi| image:: https://badge.fury.io/py/smote-variants.svg
@@ -632,7 +632,7 @@ The implemented techniques: %s\n\n""" % ", ".join(["[" + s + "]_ " for s in list
     file.write(docs)
     file.close()
 
-def generate_downloads_pages():
+def create_downloads_page():
     docs= "Downloads\n" + "*"*len("Ranking") + "\n\n"
     
     docs= docs + "* Database foldings: https://drive.google.com/open?id=1PKw1vETVUzaToomio1-RGzJ9_-buYjOW\n"
@@ -653,6 +653,7 @@ def generate_doc_pages():
     create_gallery_page()
     create_ranking_page()
     create_readme_page()
+    create_downloads_page()
 
 generate_all_figures()
 generate_doc_pages()
