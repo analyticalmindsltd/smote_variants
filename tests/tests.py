@@ -10,6 +10,13 @@ import numpy as np
 
 import logging
 
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.tree import DecisionTreeClassifier
+import sklearn.datasets as datasets
+
+import os.path
+import os
+
 import smote_variants as sv
 
 def validation(smote, X, y):
@@ -115,6 +122,21 @@ def test_normal():
         logging.info("testing %s" % str(s))
         X_samp, y_samp= s().sample(X, y)
         assert len(X_samp) > 0
+        
+    samplers_plus= [sv.polynom_fit_SMOTE(topology= 'star'),
+                    sv.polynom_fit_SMOTE(topology= 'bus'),
+                    sv.polynom_fit_SMOTE(topology= 'mesh'),
+                    sv.polynom_fit_SMOTE(topology= 'poly_2'),
+                    sv.Stefanowski(strategy= 'weak_amp'),
+                    sv.Stefanowski(strategy= 'weak_amp_relabel'),
+                    sv.Stefanowski(strategy= 'strong_amp'),
+                    sv.G_SMOTE(method= 'non-linear_2.0'),
+                    sv.SMOTE_PSOBAT(method= 'pso')]
+    
+    for s in samplers_plus:
+        logging.info("testing %s" % str(s.__class__.__name__))
+        X_samp, y_samp= s.sample(X, y)
+        assert len(X_samp) > 0
     
     nf= sv.get_all_noisefilters()
     
@@ -137,7 +159,7 @@ def test_parameters():
             for x in original_parameters:
                 assert parameters[x] == original_parameters[x]
 
-def test_evaluation():
+def test_model_selection():
     data_min= np.array([[ 5.7996138 , -0.25574582], [ 3.0637093 ,  2.11750874],
                    [ 4.91444087, -0.72380123], [ 1.06414164,  0.08694243],
                    [ 2.59071708,  0.75283568], [ 3.44834937,  1.46118085],
@@ -183,13 +205,6 @@ def test_evaluation():
     X= np.vstack([data_min, data_maj])
     y= np.hstack([np.repeat(1, len(data_min)), np.repeat(0, len(data_maj))])
     
-    # import classifiers
-    from sklearn.neighbors import KNeighborsClassifier
-    from sklearn.tree import DecisionTreeClassifier
-
-    import os.path
-    import os
-
     # setting cache path
     cache_path= os.path.join(os.path.expanduser('~'), 'smote_test')
     os.mkdir(cache_path)
@@ -209,11 +224,12 @@ def test_evaluation():
                                           n_jobs= 1)
     
     assert (not samp_obj is None) and (not cl_obj is None)
+    
+    results= sv.read_oversampling_results(datasets= [dataset], cache_path= cache_path)
+    
+    assert len(results) > 0
 
 def test_multiclass():
-    import smote_variants as sv
-    import sklearn.datasets as datasets
-    
     dataset= datasets.load_wine()
     
     oversampler= sv.MulticlassOversampling(sv.distance_SMOTE())
@@ -221,3 +237,19 @@ def test_multiclass():
     X_samp, y_samp= oversampler.sample(dataset['data'], dataset['target'])
     
     assert len(X_samp) > 0
+
+def test_queries():
+    assert len(sv.get_all_oversamplers()) > 0
+    assert len(sv.get_all_noisefilters()) > 0
+    assert len(sv.get_n_quickest_oversamplers(5)) == 5
+    assert len(sv.get_all_oversamplers_multiclass()) > 0
+    assert len(sv.get_n_quickest_oversamplers_multiclass(5)) == 5
+    
+def test_mlp_wrapper():
+    dataset= datasets.load_wine()
+    classifier= sv.MLPClassifierWrapper()
+    classifier.train(dataset['data'], dataset['target'])
+    
+    assert not classifier is None
+    
+    
