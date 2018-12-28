@@ -632,6 +632,17 @@ The implemented techniques: %s\n\n""" % ", ".join(["[" + s + "]_ " for s in list
     file.write(docs)
     file.close()
 
+def generate_downloads_pages():
+    docs= "Downloads\n" + "*"*len("Ranking") + "\n\n"
+    
+    docs= docs + "* Database foldings: https://drive.google.com/open?id=1PKw1vETVUzaToomio1-RGzJ9_-buYjOW\n"
+    docs= docs + "* Raw results: https://drive.google.com/open?id=12CfB3184nchLIwStaHhrjcQK7Ari18Mo\n"
+    docs= docs + "* Aggregated results: https://drive.google.com/open?id=19JGikRYXQ6-eOxaFVrqkF64zOCiSdT-j\n\n"
+    
+    file= open("downloads.rst", "w")
+    file.write(docs)
+    file.close()
+
 def generate_all_figures():
     generate_figures()
     generate_multiclass_figures()
