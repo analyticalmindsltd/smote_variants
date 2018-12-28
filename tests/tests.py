@@ -222,3 +222,15 @@ def test_evaluation():
                                           n_jobs= 1)
     
     assert (not samp_obj is None) and (not cl_obj is None)
+
+def test_multiclass():
+    import smote_variants as sv
+    import sklearn.datasets as datasets
+    
+    dataset= datasets.load_wine()
+    
+    oversampler= sv.MulticlassOversampling(sv.distance_SMOTE())
+    
+    X_samp, y_samp= oversampler.sample(dataset['data'], dataset['target'])
+    
+    assert len(X_samp) > 0
