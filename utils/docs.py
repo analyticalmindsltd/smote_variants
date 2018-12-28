@@ -621,7 +621,7 @@ The implemented techniques: %s\n\n""" % ", ".join(["[" + s + "]_ " for s in list
     docs= docs + "References\n" + '-'*len('References') + '\n\n'
     
     for s in bibs:
-        docs= docs + (".. [%s] : " % s) + bibs[s]['author'] + (""", "%s" """ % bibs[s]['title'])
+        docs= docs + (".. [%s] " % s) + bibs[s]['author'] + (""", "%s" """ % bibs[s]['title'])
         if 'journal' in bibs[s]:
             docs= docs + (", %s" % bibs[s]['journal'])
         if 'booktitle' in bibs[s]:

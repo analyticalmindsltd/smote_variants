@@ -54,173 +54,173 @@ Downloads
 References
 ----------
 
-.. [SMOTE] : N. V. Chawla and K. W. Bowyer and L. O. Hall and W. P. Kegelmeyer, "{SMOTE}: synthetic minority over-sampling technique" , Journal of Artificial Intelligence Research, 2002, pp. 321--357
+.. [SMOTE] N. V. Chawla and K. W. Bowyer and L. O. Hall and W. P. Kegelmeyer, "{SMOTE}: synthetic minority over-sampling technique" , Journal of Artificial Intelligence Research, 2002, pp. 321--357
 
-.. [SMOTE_TomekLinks] : Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina, "A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data" , SIGKDD Explor. Newsl., 2004, pp. 20--29
+.. [SMOTE_TomekLinks] Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina, "A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data" , SIGKDD Explor. Newsl., 2004, pp. 20--29
 
-.. [SMOTE_ENN] : Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina, "A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data" , SIGKDD Explor. Newsl., 2004, pp. 20--29
+.. [SMOTE_ENN] Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina, "A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data" , SIGKDD Explor. Newsl., 2004, pp. 20--29
 
-.. [Borderline_SMOTE1] : Ha, "Borderline-SMOTE: A New Over-Sampling Method in Imbalanced Data Sets Learning" , Advances in Intelligent Computing, 2005, pp. 878--887
+.. [Borderline_SMOTE1] Ha, "Borderline-SMOTE: A New Over-Sampling Method in Imbalanced Data Sets Learning" , Advances in Intelligent Computing, 2005, pp. 878--887
 
-.. [Borderline_SMOTE2] : Ha, "Borderline-SMOTE: A New Over-Sampling Method in Imbalanced Data Sets Learning" , Advances in Intelligent Computing, 2005, pp. 878--887
+.. [Borderline_SMOTE2] Ha, "Borderline-SMOTE: A New Over-Sampling Method in Imbalanced Data Sets Learning" , Advances in Intelligent Computing, 2005, pp. 878--887
 
-.. [ADASYN] : H. He and Y. Bai and E. A. Garcia and S. Li, "{ADASYN}: adaptive synthetic sampling approach for imbalanced learning" , Proceedings of IJCNN, 2008, pp. 1322--1328
+.. [ADASYN] H. He and Y. Bai and E. A. Garcia and S. Li, "{ADASYN}: adaptive synthetic sampling approach for imbalanced learning" , Proceedings of IJCNN, 2008, pp. 1322--1328
 
-.. [AHC] : Gilles Cohen and Mélanie Hilario and Hugo Sax and Stéphane Hugonnet and Antoine Geissbuhler, "Learning from imbalanced data in surveillance of nosocomial infection" , Artificial Intelligence in Medicine, 2006, pp. 7 - 18
+.. [AHC] Gilles Cohen and Mélanie Hilario and Hugo Sax and Stéphane Hugonnet and Antoine Geissbuhler, "Learning from imbalanced data in surveillance of nosocomial infection" , Artificial Intelligence in Medicine, 2006, pp. 7 - 18
 
-.. [LLE_SMOTE] : J. Wang and M. Xu and H. Wang and J. Zhang, "Classification of Imbalanced Data by Using the SMOTE Algorithm and Locally Linear Embedding" , 2006 8th international Conference on Signal Processing, 2006, pp. 
+.. [LLE_SMOTE] J. Wang and M. Xu and H. Wang and J. Zhang, "Classification of Imbalanced Data by Using the SMOTE Algorithm and Locally Linear Embedding" , 2006 8th international Conference on Signal Processing, 2006, pp. 
 
-.. [distance_SMOTE] : de la Calleja, J. and Fuentes, O., "A distance-based over-sampling method for learning from imbalanced data sets" , Proceedings of the Twentieth International Florida Artificial Intelligence, 2007, pp. 634--635
+.. [distance_SMOTE] de la Calleja, J. and Fuentes, O., "A distance-based over-sampling method for learning from imbalanced data sets" , Proceedings of the Twentieth International Florida Artificial Intelligence, 2007, pp. 634--635
 
-.. [SMMO] : de la Calleja, Jorge and Fuentes, Olac and González, Jesús, "Selecting Minority Examples from Misclassified Data for Over-Sampling." , Proceedings of the Twenty-First International Florida Artificial Intelligence Research Society Conference, 2008, pp. 276-281
+.. [SMMO] de la Calleja, Jorge and Fuentes, Olac and González, Jesús, "Selecting Minority Examples from Misclassified Data for Over-Sampling." , Proceedings of the Twenty-First International Florida Artificial Intelligence Research Society Conference, 2008, pp. 276-281
 
-.. [polynom_fit_SMOTE] : S. Gazzah and N. E. B. Amara, "New Oversampling Approaches Based on Polynomial Fitting for Imbalanced Data Sets" , 2008 The Eighth IAPR International Workshop on Document Analysis Systems, 2008, pp. 677-684
+.. [polynom_fit_SMOTE] S. Gazzah and N. E. B. Amara, "New Oversampling Approaches Based on Polynomial Fitting for Imbalanced Data Sets" , 2008 The Eighth IAPR International Workshop on Document Analysis Systems, 2008, pp. 677-684
 
-.. [Stefanowski] : Stefanowski, Jerzy and Wilk, Szymon, "Selective Pre-processing of Imbalanced Data for Improving Classification Performance" , Proceedings of the 10th International Conference on Data Warehousing and Knowledge Discovery, 2008, pp. 283--292
+.. [Stefanowski] Stefanowski, Jerzy and Wilk, Szymon, "Selective Pre-processing of Imbalanced Data for Improving Classification Performance" , Proceedings of the 10th International Conference on Data Warehousing and Knowledge Discovery, 2008, pp. 283--292
 
-.. [ADOMS] : S. Tang and S. Chen, "The generation mechanism of synthetic minority class examples" , 2008 International Conference on Information Technology and Applications in Biomedicine, 2008, pp. 444-447
+.. [ADOMS] S. Tang and S. Chen, "The generation mechanism of synthetic minority class examples" , 2008 International Conference on Information Technology and Applications in Biomedicine, 2008, pp. 444-447
 
-.. [Safe_Level_SMOTE] : Bunkhumpornpat, Chumphol and Sinapiromsaran, Krung and Lursinsap, Chidchanok, "Safe-Level-SMOTE: Safe-Level-Synthetic Minority Over-Sampling TEchnique for Handling the Class Imbalanced Problem" , Proceedings of the 13th Pacific-Asia Conference on Advances in Knowledge Discovery and Data Mining, 2009, pp. 475--482
+.. [Safe_Level_SMOTE] Bunkhumpornpat, Chumphol and Sinapiromsaran, Krung and Lursinsap, Chidchanok, "Safe-Level-SMOTE: Safe-Level-Synthetic Minority Over-Sampling TEchnique for Handling the Class Imbalanced Problem" , Proceedings of the 13th Pacific-Asia Conference on Advances in Knowledge Discovery and Data Mining, 2009, pp. 475--482
 
-.. [MSMOTE] : Hu, Shengguo and Liang, Yanfeng and Ma, Lintao and He, Ying, "MSMOTE: Improving Classification Performance When Training Data is Imbalanced" , Proceedings of the 2009 Second International Workshop on Computer Science and Engineering - Volume 02, 2009, pp. 13--17
+.. [MSMOTE] Hu, Shengguo and Liang, Yanfeng and Ma, Lintao and He, Ying, "MSMOTE: Improving Classification Performance When Training Data is Imbalanced" , Proceedings of the 2009 Second International Workshop on Computer Science and Engineering - Volume 02, 2009, pp. 13--17
 
-.. [DE_oversampling] : L. Chen and Z. Cai and L. Chen and Q. Gu, "A Novel Differential Evolution-Clustering Hybrid Resampling Algorithm on Imbalanced Datasets" , 2010 Third International Conference on Knowledge Discovery and Data Mining, 2010, pp. 81-85
+.. [DE_oversampling] L. Chen and Z. Cai and L. Chen and Q. Gu, "A Novel Differential Evolution-Clustering Hybrid Resampling Algorithm on Imbalanced Datasets" , 2010 Third International Conference on Knowledge Discovery and Data Mining, 2010, pp. 81-85
 
-.. [SMOBD] : Q. Cao and S. Wang, "Applying Over-sampling Technique Based on Data Density and Cost-sensitive SVM to Imbalanced Learning" , 2011 International Conference on Information Management, Innovation Management and Industrial Engineering, 2011, pp. 543-548
+.. [SMOBD] Q. Cao and S. Wang, "Applying Over-sampling Technique Based on Data Density and Cost-sensitive SVM to Imbalanced Learning" , 2011 International Conference on Information Management, Innovation Management and Industrial Engineering, 2011, pp. 543-548
 
-.. [SUNDO] : S. Cateni and V. Colla and M. Vannucci, "Novel resampling method for the classification of imbalanced datasets for industrial and other real-world problems" , 2011 11th International Conference on Intelligent Systems Design and Applications, 2011, pp. 402-407
+.. [SUNDO] S. Cateni and V. Colla and M. Vannucci, "Novel resampling method for the classification of imbalanced datasets for industrial and other real-world problems" , 2011 11th International Conference on Intelligent Systems Design and Applications, 2011, pp. 402-407
 
-.. [MSYN] : Fa, "Margin-Based Over-Sampling Method for Learning from Imbalanced Datasets" , Advances in Knowledge Discovery and Data Mining, 2011, pp. 309--320
+.. [MSYN] Fa, "Margin-Based Over-Sampling Method for Learning from Imbalanced Datasets" , Advances in Knowledge Discovery and Data Mining, 2011, pp. 309--320
 
-.. [SVM_balance] : Farquad, M.A.H. and Bose, Indranil, "Preprocessing Unbalanced Data Using Support Vector Machine" , Decis. Support Syst., 2012, pp. 226--233
+.. [SVM_balance] Farquad, M.A.H. and Bose, Indranil, "Preprocessing Unbalanced Data Using Support Vector Machine" , Decis. Support Syst., 2012, pp. 226--233
 
-.. [TRIM_SMOTE] : Puntumapo, "A Pruning-Based Approach for Searching Precise and Generalized Region for Synthetic Minority Over-Sampling" , Advances in Knowledge Discovery and Data Mining, 2012, pp. 371--382
+.. [TRIM_SMOTE] Puntumapo, "A Pruning-Based Approach for Searching Precise and Generalized Region for Synthetic Minority Over-Sampling" , Advances in Knowledge Discovery and Data Mining, 2012, pp. 371--382
 
-.. [SMOTE_RSB] : Ramento, "SMOTE-RSB*: a hybrid preprocessing approach based on oversampling and undersampling for high imbalanced data-sets using SMOTE and rough sets theory" , Knowledge and Information Systems, 2012, pp. 245--265
+.. [SMOTE_RSB] Ramento, "SMOTE-RSB*: a hybrid preprocessing approach based on oversampling and undersampling for high imbalanced data-sets using SMOTE and rough sets theory" , Knowledge and Information Systems, 2012, pp. 245--265
 
-.. [ProWSyn] : Baru, "ProWSyn: Proximity Weighted Synthetic Oversampling Technique for Imbalanced Data Set Learning" , Advances in Knowledge Discovery and Data Mining, 2013, pp. 317--328
+.. [ProWSyn] Baru, "ProWSyn: Proximity Weighted Synthetic Oversampling Technique for Imbalanced Data Set Learning" , Advances in Knowledge Discovery and Data Mining, 2013, pp. 317--328
 
-.. [SL_graph_SMOTE] : Bunkhumpornpat, Chumpol and Subpaiboonkit, Sitthichoke, "Safe level graph for synthetic minority over-sampling techniques" , 13th International Symposium on Communications and Information Technologies, 2013, pp. 570-575
+.. [SL_graph_SMOTE] Bunkhumpornpat, Chumpol and Subpaiboonkit, Sitthichoke, "Safe level graph for synthetic minority over-sampling techniques" , 13th International Symposium on Communications and Information Technologies, 2013, pp. 570-575
 
-.. [NRSBoundary_SMOTE] : Feng, Hu and Hang, Li, "A Novel Boundary Oversampling Algorithm Based on Neighborhood Rough Set Model: NRSBoundary-SMOTE" , Mathematical Problems in Engineering, 2013, pp. 10
+.. [NRSBoundary_SMOTE] Feng, Hu and Hang, Li, "A Novel Boundary Oversampling Algorithm Based on Neighborhood Rough Set Model: NRSBoundary-SMOTE" , Mathematical Problems in Engineering, 2013, pp. 10
 
-.. [LVQ_SMOTE] : Munehiro Nakamura and Yusuke Kajiwara and Atsushi Otsuka and Haruhiko Kimura, "LVQ-SMOTE – Learning Vector Quantization based Synthetic Minority Over–sampling Technique for biomedical data" , BioData Mining, 2013
+.. [LVQ_SMOTE] Munehiro Nakamura and Yusuke Kajiwara and Atsushi Otsuka and Haruhiko Kimura, "LVQ-SMOTE – Learning Vector Quantization based Synthetic Minority Over–sampling Technique for biomedical data" , BioData Mining, 2013
 
-.. [SOI_CJ] : I. Sánchez, Atlántida and Morales, Eduardo and Gonzalez, Jesus, "Synthetic Oversampling of Instances Using Clustering" , International Journal of Artificial Intelligence Tools, 2013, pp. 
+.. [SOI_CJ] I. Sánchez, Atlántida and Morales, Eduardo and Gonzalez, Jesus, "Synthetic Oversampling of Instances Using Clustering" , International Journal of Artificial Intelligence Tools, 2013, pp. 
 
-.. [ROSE] : Menard, "Training and assessing classification rules with imbalanced data" , Data Mining and Knowledge Discovery, 2014, pp. 92--122
+.. [ROSE] Menard, "Training and assessing classification rules with imbalanced data" , Data Mining and Knowledge Discovery, 2014, pp. 92--122
 
-.. [SMOTE_OUT] : Fajri Koto, "SMOTE-Out, SMOTE-Cosine, and Selected-SMOTE: An enhancement strategy to handle imbalance in data level" , 2014 International Conference on Advanced Computer Science and Information System, 2014, pp. 280-284
+.. [SMOTE_OUT] Fajri Koto, "SMOTE-Out, SMOTE-Cosine, and Selected-SMOTE: An enhancement strategy to handle imbalance in data level" , 2014 International Conference on Advanced Computer Science and Information System, 2014, pp. 280-284
 
-.. [SMOTE_Cosine] : Fajri Koto, "SMOTE-Out, SMOTE-Cosine, and Selected-SMOTE: An enhancement strategy to handle imbalance in data level" , 2014 International Conference on Advanced Computer Science and Information System, 2014, pp. 280-284
+.. [SMOTE_Cosine] Fajri Koto, "SMOTE-Out, SMOTE-Cosine, and Selected-SMOTE: An enhancement strategy to handle imbalance in data level" , 2014 International Conference on Advanced Computer Science and Information System, 2014, pp. 280-284
 
-.. [Selected_SMOTE] : Fajri Koto, "SMOTE-Out, SMOTE-Cosine, and Selected-SMOTE: An enhancement strategy to handle imbalance in data level" , 2014 International Conference on Advanced Computer Science and Information System, 2014, pp. 280-284
+.. [Selected_SMOTE] Fajri Koto, "SMOTE-Out, SMOTE-Cosine, and Selected-SMOTE: An enhancement strategy to handle imbalance in data level" , 2014 International Conference on Advanced Computer Science and Information System, 2014, pp. 280-284
 
-.. [LN_SMOTE] : T. Maciejewski and J. Stefanowski, "Local neighbourhood extension of SMOTE for mining imbalanced data" , 2011 IEEE Symposium on Computational Intelligence and Data Mining (CIDM), 2011, pp. 104-111
+.. [LN_SMOTE] T. Maciejewski and J. Stefanowski, "Local neighbourhood extension of SMOTE for mining imbalanced data" , 2011 IEEE Symposium on Computational Intelligence and Data Mining (CIDM), 2011, pp. 104-111
 
-.. [MWMOTE] : S. Barua and M. M. Islam and X. Yao and K. Murase, "MWMOTE--Majority Weighted Minority Oversampling Technique for Imbalanced Data Set Learning" , IEEE Transactions on Knowledge and Data Engineering, 2014, pp. 405-425
+.. [MWMOTE] S. Barua and M. M. Islam and X. Yao and K. Murase, "MWMOTE--Majority Weighted Minority Oversampling Technique for Imbalanced Data Set Learning" , IEEE Transactions on Knowledge and Data Engineering, 2014, pp. 405-425
 
-.. [PDFOS] : Ming Gao and Xia Hong and Sheng Chen and Chris J. Harris and Emad Khalaf, "PDFOS: PDF estimation based over-sampling for imbalanced two-class problems" , Neurocomputing, 2014, pp. 248 - 259
+.. [PDFOS] Ming Gao and Xia Hong and Sheng Chen and Chris J. Harris and Emad Khalaf, "PDFOS: PDF estimation based over-sampling for imbalanced two-class problems" , Neurocomputing, 2014, pp. 248 - 259
 
-.. [IPADE_ID] : Victoria López and Isaac Triguero and Cristóbal J. Carmona and Salvador García and Francisco Herrera, "Addressing imbalanced classification with instance generation techniques: IPADE-ID" , Neurocomputing, 2014, pp. 15 - 28
+.. [IPADE_ID] Victoria López and Isaac Triguero and Cristóbal J. Carmona and Salvador García and Francisco Herrera, "Addressing imbalanced classification with instance generation techniques: IPADE-ID" , Neurocomputing, 2014, pp. 15 - 28
 
-.. [RWO_sampling] : Zhang, Huaxzhang and Li, Mingfang, "RWO-Sampling: A Random Walk Over-Sampling Approach to Imbalanced Data Classification" , Information Fusion, 2014, pp. 
+.. [RWO_sampling] Zhang, Huaxzhang and Li, Mingfang, "RWO-Sampling: A Random Walk Over-Sampling Approach to Imbalanced Data Classification" , Information Fusion, 2014, pp. 
 
-.. [NEATER] : B. A. Almogahed and I. A. Kakadiaris, "NEATER: Filtering of Over-sampled Data Using Non-cooperative Game Theory" , 2014 22nd International Conference on Pattern Recognition, 2014, pp. 1371-1376
+.. [NEATER] B. A. Almogahed and I. A. Kakadiaris, "NEATER: Filtering of Over-sampled Data Using Non-cooperative Game Theory" , 2014 22nd International Conference on Pattern Recognition, 2014, pp. 1371-1376
 
-.. [DEAGO] : C. Bellinger and N. Japkowicz and C. Drummond, "Synthetic Oversampling for Advanced Radioactive Threat Detection" , 2015 IEEE 14th International Conference on Machine Learning and Applications (ICMLA), 2015, pp. 948-953
+.. [DEAGO] C. Bellinger and N. Japkowicz and C. Drummond, "Synthetic Oversampling for Advanced Radioactive Threat Detection" , 2015 IEEE 14th International Conference on Machine Learning and Applications (ICMLA), 2015, pp. 948-953
 
-.. [Gazzah] : S. Gazzah and A. Hechkel and N. Essoukri Ben Amara, "A hybrid sampling method for imbalanced data" , 2015 IEEE 12th International Multi-Conference on Systems, Signals Devices (SSD15), 2015, pp. 1-6
+.. [Gazzah] S. Gazzah and A. Hechkel and N. Essoukri Ben Amara, "A hybrid sampling method for imbalanced data" , 2015 IEEE 12th International Multi-Conference on Systems, Signals Devices (SSD15), 2015, pp. 1-6
 
-.. [MCT] : Jiang, Liangxiao and Qiu, Chen and Li, Chaoqun, "A Novel Minority Cloning Technique for Cost-Sensitive Learning" , International Journal of Pattern Recognition and Artificial Intelligence, 2015, pp. 1551004
+.. [MCT] Jiang, Liangxiao and Qiu, Chen and Li, Chaoqun, "A Novel Minority Cloning Technique for Cost-Sensitive Learning" , International Journal of Pattern Recognition and Artificial Intelligence, 2015, pp. 1551004
 
-.. [ADG] : Pourhabib, A. and Mallick, Bani K. and Ding, Yu, "A Novel Minority Cloning Technique for Cost-Sensitive Learning" , Journal of Machine Learning Research, 2015, pp. 2695--2724
+.. [ADG] Pourhabib, A. and Mallick, Bani K. and Ding, Yu, "A Novel Minority Cloning Technique for Cost-Sensitive Learning" , Journal of Machine Learning Research, 2015, pp. 2695--2724
 
-.. [SMOTE_IPF] : José A. Sáez and Julián Luengo and Jerzy Stefanowski and Francisco Herrera, "SMOTE–IPF: Addressing the noisy and borderline examples problem in imbalanced classification by a re-sampling method with filtering" , Information Sciences, 2015, pp. 184 - 203
+.. [SMOTE_IPF] José A. Sáez and Julián Luengo and Jerzy Stefanowski and Francisco Herrera, "SMOTE–IPF: Addressing the noisy and borderline examples problem in imbalanced classification by a re-sampling method with filtering" , Information Sciences, 2015, pp. 184 - 203
 
-.. [KernelADASYN] : B. Tang and H. He, "KernelADASYN: Kernel based adaptive synthetic data generation for imbalanced learning" , 2015 IEEE Congress on Evolutionary Computation (CEC), 2015, pp. 664-671
+.. [KernelADASYN] B. Tang and H. He, "KernelADASYN: Kernel based adaptive synthetic data generation for imbalanced learning" , 2015 IEEE Congress on Evolutionary Computation (CEC), 2015, pp. 664-671
 
-.. [MOT2LD] : Xi, "A Synthetic Minority Oversampling Method Based on Local Densities in Low-Dimensional Space for Imbalanced Learning" , Database Systems for Advanced Applications, 2015, pp. 3--18
+.. [MOT2LD] Xi, "A Synthetic Minority Oversampling Method Based on Local Densities in Low-Dimensional Space for Imbalanced Learning" , Database Systems for Advanced Applications, 2015, pp. 3--18
 
-.. [V_SYNTH] : Young,Ii, William A. and Nykl, Scott L. and Weckman, Gary R. and Chelberg, David M., "Using Voronoi Diagrams to Improve Classification Performances when Modeling Imbalanced Datasets" , Neural Comput. Appl., 2015, pp. 1041--1054
+.. [V_SYNTH] Young,Ii, William A. and Nykl, Scott L. and Weckman, Gary R. and Chelberg, David M., "Using Voronoi Diagrams to Improve Classification Performances when Modeling Imbalanced Datasets" , Neural Comput. Appl., 2015, pp. 1041--1054
 
-.. [OUPS] : William A. Rivera and Petros Xanthopoulos, "A priori synthetic over-sampling methods for increasing classification sensitivity in imbalanced data sets" , Expert Systems with Applications, 2016, pp. 124 - 135
+.. [OUPS] William A. Rivera and Petros Xanthopoulos, "A priori synthetic over-sampling methods for increasing classification sensitivity in imbalanced data sets" , Expert Systems with Applications, 2016, pp. 124 - 135
 
-.. [SMOTE_D] : Torre, "SMOTE-D a Deterministic Version of SMOTE" , Pattern Recognition, 2016, pp. 177--188
+.. [SMOTE_D] Torre, "SMOTE-D a Deterministic Version of SMOTE" , Pattern Recognition, 2016, pp. 177--188
 
-.. [SMOTE_PSO] : Jair Cervantes and Farid Garcia-Lamont and Lisbeth Rodriguez and Asdrúbal López and José Ruiz Castilla and Adrian Trueba, "PSO-based method for SVM classification on skewed data sets" , Neurocomputing, 2017, pp. 187 - 197
+.. [SMOTE_PSO] Jair Cervantes and Farid Garcia-Lamont and Lisbeth Rodriguez and Asdrúbal López and José Ruiz Castilla and Adrian Trueba, "PSO-based method for SVM classification on skewed data sets" , Neurocomputing, 2017, pp. 187 - 197
 
-.. [CURE_SMOTE] : M, "CURE-SMOTE algorithm and hybrid algorithm for feature selection and parameter optimization based on random forests" , BMC Bioinformatics, 2017, pp. 169
+.. [CURE_SMOTE] M, "CURE-SMOTE algorithm and hybrid algorithm for feature selection and parameter optimization based on random forests" , BMC Bioinformatics, 2017, pp. 169
 
-.. [SOMO] : Georgios Douzas and Fernando Bacao, "Self-Organizing Map Oversampling (SOMO) for imbalanced data set learning" , Expert Systems with Applications, 2017, pp. 40 - 52
+.. [SOMO] Georgios Douzas and Fernando Bacao, "Self-Organizing Map Oversampling (SOMO) for imbalanced data set learning" , Expert Systems with Applications, 2017, pp. 40 - 52
 
-.. [ISOMAP_Hybrid] : Gu, Qiong and Cai, Zhihua and Zhu, Li, "Classification of Imbalanced Data Sets by Using the Hybrid Re-sampling Algorithm Based on Isomap" , Proceedings of the 4th International Symposium on Advances in Computation and Intelligence, 2009, pp. 287--296
+.. [ISOMAP_Hybrid] Gu, Qiong and Cai, Zhihua and Zhu, Li, "Classification of Imbalanced Data Sets by Using the Hybrid Re-sampling Algorithm Based on Isomap" , Proceedings of the 4th International Symposium on Advances in Computation and Intelligence, 2009, pp. 287--296
 
-.. [CE_SMOTE] : S. Chen and G. Guo and L. Chen, "A New Over-Sampling Method Based on Cluster Ensembles" , 2010 IEEE 24th International Conference on Advanced Information Networking and Applications Workshops, 2010, pp. 599-604
+.. [CE_SMOTE] S. Chen and G. Guo and L. Chen, "A New Over-Sampling Method Based on Cluster Ensembles" , 2010 IEEE 24th International Conference on Advanced Information Networking and Applications Workshops, 2010, pp. 599-604
 
-.. [Edge_Det_SMOTE] : Y. Kang and S. Won, "Weight decision algorithm for oversampling technique on class-imbalanced learning" , ICCAS 2010, 2010, pp. 182-186
+.. [Edge_Det_SMOTE] Y. Kang and S. Won, "Weight decision algorithm for oversampling technique on class-imbalanced learning" , ICCAS 2010, 2010, pp. 182-186
 
-.. [CBSO] : Baru, "A Novel Synthetic Minority Oversampling Technique for Imbalanced Data Set Learning" , Neural Information Processing, 2011, pp. 735--744
+.. [CBSO] Baru, "A Novel Synthetic Minority Oversampling Technique for Imbalanced Data Set Learning" , Neural Information Processing, 2011, pp. 735--744
 
-.. [E_SMOTE] : T. Deepa and M. Punithavalli, "An E-SMOTE technique for feature selection in High-Dimensional Imbalanced Dataset" , 2011 3rd International Conference on Electronics Computer Technology, 2011, pp. 322-324
+.. [E_SMOTE] T. Deepa and M. Punithavalli, "An E-SMOTE technique for feature selection in High-Dimensional Imbalanced Dataset" , 2011 3rd International Conference on Electronics Computer Technology, 2011, pp. 322-324
 
-.. [DBSMOTE] : Bunkhumpornpa, "DBSMOTE: Density-Based Synthetic Minority Over-sampling TEchnique" , Applied Intelligence, 2012, pp. 664--684
+.. [DBSMOTE] Bunkhumpornpa, "DBSMOTE: Density-Based Synthetic Minority Over-sampling TEchnique" , Applied Intelligence, 2012, pp. 664--684
 
-.. [ASMOBD] : Senzhang Wang and Zhoujun Li and Wenhan Chao and Qinghua Cao, "Applying adaptive over-sampling technique based on data density and cost-sensitive SVM to imbalanced learning" , The 2012 International Joint Conference on Neural Networks (IJCNN), 2012, pp. 1-8
+.. [ASMOBD] Senzhang Wang and Zhoujun Li and Wenhan Chao and Qinghua Cao, "Applying adaptive over-sampling technique based on data density and cost-sensitive SVM to imbalanced learning" , The 2012 International Joint Conference on Neural Networks (IJCNN), 2012, pp. 1-8
 
-.. [Assembled_SMOTE] : B. Zhou and C. Yang and H. Guo and J. Hu, "A quasi-linear SVM combined with assembled SMOTE for imbalanced data classification" , The 2013 International Joint Conference on Neural Networks (IJCNN), 2013, pp. 1-7
+.. [Assembled_SMOTE] B. Zhou and C. Yang and H. Guo and J. Hu, "A quasi-linear SVM combined with assembled SMOTE for imbalanced data classification" , The 2013 International Joint Conference on Neural Networks (IJCNN), 2013, pp. 1-7
 
-.. [SDSMOTE] : K. Li and W. Zhang and Q. Lu and X. Fang, "An Improved SMOTE Imbalanced Data Classification Method Based on Support Degree" , 2014 International Conference on Identification, Information and Knowledge in the Internet of Things, 2014, pp. 34-38
+.. [SDSMOTE] K. Li and W. Zhang and Q. Lu and X. Fang, "An Improved SMOTE Imbalanced Data Classification Method Based on Support Degree" , 2014 International Conference on Identification, Information and Knowledge in the Internet of Things, 2014, pp. 34-38
 
-.. [DSMOTE] : S. Mahmoudi and P. Moradi and F. Akhlaghian and R. Moradi, "Diversity and separable metrics in over-sampling technique for imbalanced data classification" , 2014 4th International Conference on Computer and Knowledge Engineering (ICCKE), 2014, pp. 152-158
+.. [DSMOTE] S. Mahmoudi and P. Moradi and F. Akhlaghian and R. Moradi, "Diversity and separable metrics in over-sampling technique for imbalanced data classification" , 2014 4th International Conference on Computer and Knowledge Engineering (ICCKE), 2014, pp. 152-158
 
-.. [G_SMOTE] : T. Sandhan and J. Y. Choi, "Handling Imbalanced Datasets by Partially Guided Hybrid Sampling for Pattern Recognition" , 2014 22nd International Conference on Pattern Recognition, 2014, pp. 1449-1453
+.. [G_SMOTE] T. Sandhan and J. Y. Choi, "Handling Imbalanced Datasets by Partially Guided Hybrid Sampling for Pattern Recognition" , 2014 22nd International Conference on Pattern Recognition, 2014, pp. 1449-1453
 
-.. [NT_SMOTE] : Y. H. Xu and H. Li and L. P. Le and X. Y. Tian, "Neighborhood Triangular Synthetic Minority Over-sampling Technique for Imbalanced Prediction on Small Samples of Chinese Tourism and Hospitality Firms" , 2014 Seventh International Joint Conference on Computational Sciences and Optimization, 2014, pp. 534-538
+.. [NT_SMOTE] Y. H. Xu and H. Li and L. P. Le and X. Y. Tian, "Neighborhood Triangular Synthetic Minority Over-sampling Technique for Imbalanced Prediction on Small Samples of Chinese Tourism and Hospitality Firms" , 2014 Seventh International Joint Conference on Computational Sciences and Optimization, 2014, pp. 534-538
 
-.. [Lee] : Lee, Jaedong and Kim, Noo-ri and Lee, Jee-Hyong, "An Over-sampling Technique with Rejection for Imbalanced Class Learning" , Proceedings of the 9th International Conference on Ubiquitous Information Management and Communication, 2015, pp. 102:1--102:6
+.. [Lee] Lee, Jaedong and Kim, Noo-ri and Lee, Jee-Hyong, "An Over-sampling Technique with Rejection for Imbalanced Class Learning" , Proceedings of the 9th International Conference on Ubiquitous Information Management and Communication, 2015, pp. 102:1--102:6
 
-.. [SPY] : X. T. Dang and D. H. Tran and O. Hirose and K. Satou, "SPY: A Novel Resampling Method for Improving Classification Performance in Imbalanced Data" , 2015 Seventh International Conference on Knowledge and Systems Engineering (KSE), 2015, pp. 280-285
+.. [SPY] X. T. Dang and D. H. Tran and O. Hirose and K. Satou, "SPY: A Novel Resampling Method for Improving Classification Performance in Imbalanced Data" , 2015 Seventh International Conference on Knowledge and Systems Engineering (KSE), 2015, pp. 280-285
 
-.. [SMOTE_PSOBAT] : J. Li and S. Fong and Y. Zhuang, "Optimizing SMOTE by Metaheuristics with Neural Network and Decision Tree" , 2015 3rd International Symposium on Computational and Business Intelligence (ISCBI), 2015, pp. 26-32
+.. [SMOTE_PSOBAT] J. Li and S. Fong and Y. Zhuang, "Optimizing SMOTE by Metaheuristics with Neural Network and Decision Tree" , 2015 3rd International Symposium on Computational and Business Intelligence (ISCBI), 2015, pp. 26-32
 
-.. [MDO] : L. Abdi and S. Hashemi, "To Combat Multi-Class Imbalanced Problems by Means of Over-Sampling Techniques" , IEEE Transactions on Knowledge and Data Engineering, 2016, pp. 238-251
+.. [MDO] L. Abdi and S. Hashemi, "To Combat Multi-Class Imbalanced Problems by Means of Over-Sampling Techniques" , IEEE Transactions on Knowledge and Data Engineering, 2016, pp. 238-251
 
-.. [Random_SMOTE] : Don, "A New Over-Sampling Approach: Random-SMOTE for Learning from Imbalanced Data Sets" , Knowledge Scienc, 2011, pp. 343--352
+.. [Random_SMOTE] Don, "A New Over-Sampling Approach: Random-SMOTE for Learning from Imbalanced Data Sets" , Knowledge Scienc, 2011, pp. 343--352
 
-.. [ISMOTE] : L, "A New Combination Sampling Method for Imbalanced Data" , Proceedings of 2013 Chinese Intelligent Automation Conference, 2013, pp. 547--554
+.. [ISMOTE] L, "A New Combination Sampling Method for Imbalanced Data" , Proceedings of 2013 Chinese Intelligent Automation Conference, 2013, pp. 547--554
 
-.. [VIS_RST] : Borowsk, "Imbalanced Data Classification: A Novel Re-sampling Approach Combining Versatile Improved SMOTE and Rough Sets" , Computer Information Systems and Industrial Management, 2016, pp. 31--42
+.. [VIS_RST] Borowsk, "Imbalanced Data Classification: A Novel Re-sampling Approach Combining Versatile Improved SMOTE and Rough Sets" , Computer Information Systems and Industrial Management, 2016, pp. 31--42
 
-.. [GASMOTE] : Jian, "A Novel Algorithm for Imbalance Data Classification Based on Genetic Algorithm Improved SMOTE" , Arabian Journal for Science and Engineering, 2016, pp. 3255--3266
+.. [GASMOTE] Jian, "A Novel Algorithm for Imbalance Data Classification Based on Genetic Algorithm Improved SMOTE" , Arabian Journal for Science and Engineering, 2016, pp. 3255--3266
 
-.. [A_SUWO] : Iman Nekooeimehr and Susana K. Lai-Yuen, "Adaptive semi-unsupervised weighted oversampling (A-SUWO) for imbalanced datasets" , Expert Systems with Applications, 2016, pp. 405 - 416
+.. [A_SUWO] Iman Nekooeimehr and Susana K. Lai-Yuen, "Adaptive semi-unsupervised weighted oversampling (A-SUWO) for imbalanced datasets" , Expert Systems with Applications, 2016, pp. 405 - 416
 
-.. [SMOTE_FRST_2T] : E. Ramentol and I. Gondres and S. Lajes and R. Bello and Y. Caballero and C. Cornelis and F. Herrera, "Fuzzy-rough imbalanced learning for the diagnosis of High Voltage Circuit Breaker maintenance: The SMOTE-FRST-2T algorithm" , Engineering Applications of Artificial Intelligence, 2016, pp. 134 - 139
+.. [SMOTE_FRST_2T] E. Ramentol and I. Gondres and S. Lajes and R. Bello and Y. Caballero and C. Cornelis and F. Herrera, "Fuzzy-rough imbalanced learning for the diagnosis of High Voltage Circuit Breaker maintenance: The SMOTE-FRST-2T algorithm" , Engineering Applications of Artificial Intelligence, 2016, pp. 134 - 139
 
-.. [AND_SMOTE] : Yun, Jaesub and Ha, Jihyun and Lee, Jong-Seok, "Automatic Determination of Neighborhood Size in SMOTE" , Proceedings of the 10th International Conference on Ubiquitous Information Management and Communication, 2016, pp. 100:1--100:8
+.. [AND_SMOTE] Yun, Jaesub and Ha, Jihyun and Lee, Jong-Seok, "Automatic Determination of Neighborhood Size in SMOTE" , Proceedings of the 10th International Conference on Ubiquitous Information Management and Communication, 2016, pp. 100:1--100:8
 
-.. [NRAS] : William A. Rivera, "Noise Reduction A Priori Synthetic Over-Sampling for class imbalanced data sets" , Information Sciences, 2017, pp. 146 - 161
+.. [NRAS] William A. Rivera, "Noise Reduction A Priori Synthetic Over-Sampling for class imbalanced data sets" , Information Sciences, 2017, pp. 146 - 161
 
-.. [AMSCO] : Jinyan Li and Simon Fong and Raymond K. Wong and Victor W. Chu, "Adaptive multi-objective swarm fusion for imbalanced data classification" , Information Fusion, 2018, pp. 1 - 24
+.. [AMSCO] Jinyan Li and Simon Fong and Raymond K. Wong and Victor W. Chu, "Adaptive multi-objective swarm fusion for imbalanced data classification" , Information Fusion, 2018, pp. 1 - 24
 
-.. [SSO] : Ron, "Stochastic Sensitivity Oversampling Technique for Imbalanced Data" , Machine Learning and Cybernetics, 2014, pp. 161--171
+.. [SSO] Ron, "Stochastic Sensitivity Oversampling Technique for Imbalanced Data" , Machine Learning and Cybernetics, 2014, pp. 161--171
 
-.. [NDO_sampling] : L. Zhang and W. Wang, "A Re-sampling Method for Class Imbalance Learning with Credit Data" , 2011 International Conference of Information Technology, Computer Engineering and Management Sciences, 2011, pp. 393-397
+.. [NDO_sampling] L. Zhang and W. Wang, "A Re-sampling Method for Class Imbalance Learning with Credit Data" , 2011 International Conference of Information Technology, Computer Engineering and Management Sciences, 2011, pp. 393-397
 
-.. [DSRBF] : Francisco Fernández-Navarro and César Hervás-Martínez and Pedro Antonio Gutiérrez, "A dynamic over-sampling procedure based on sensitivity for multi-class problems" , Pattern Recognition, 2011, pp. 1821 - 1833
+.. [DSRBF] Francisco Fernández-Navarro and César Hervás-Martínez and Pedro Antonio Gutiérrez, "A dynamic over-sampling procedure based on sensitivity for multi-class problems" , Pattern Recognition, 2011, pp. 1821 - 1833
 
-.. [Gaussian_SMOTE] : Hansoo Lee and Jonggeun Kim and Sungshin Kim, "Gaussian-Based SMOTE Algorithm for Solving Skewed Class Distributions" , Int. J. Fuzzy Logic and Intelligent Systems, 2017, pp. 229-234
+.. [Gaussian_SMOTE] Hansoo Lee and Jonggeun Kim and Sungshin Kim, "Gaussian-Based SMOTE Algorithm for Solving Skewed Class Distributions" , Int. J. Fuzzy Logic and Intelligent Systems, 2017, pp. 229-234
 
-.. [kmeans_SMOTE] : Georgios Douzas and Fernando Bacao and Felix Last, "Improving imbalanced learning through a heuristic oversampling method based on k-means and SMOTE" , Information Sciences, 2018, pp. 1 - 20
+.. [kmeans_SMOTE] Georgios Douzas and Fernando Bacao and Felix Last, "Improving imbalanced learning through a heuristic oversampling method based on k-means and SMOTE" , Information Sciences, 2018, pp. 1 - 20
 
-.. [Supervised_SMOTE] : Hu, Jun AND He, Xue AND Yu, Dong-Jun AND Yang, Xi-Bei AND Yang, Jing-Yu AND Shen, Hong-Bin, "A New Supervised Over-Sampling Algorithm with Application to Protein-Nucleotide Binding Residue Prediction" , PLOS ONE, 2014, pp. 1-10
+.. [Supervised_SMOTE] Hu, Jun AND He, Xue AND Yu, Dong-Jun AND Yang, Xi-Bei AND Yang, Jing-Yu AND Shen, Hong-Bin, "A New Supervised Over-Sampling Algorithm with Application to Protein-Nucleotide Binding Residue Prediction" , PLOS ONE, 2014, pp. 1-10
 
-.. [SN_SMOTE] : Garc{'i}, "Surrounding neighborhood-based SMOTE for learning from imbalanced data sets" , Progress in Artificial Intelligence, 2012, pp. 347--362
+.. [SN_SMOTE] Garc{'i}, "Surrounding neighborhood-based SMOTE for learning from imbalanced data sets" , Progress in Artificial Intelligence, 2012, pp. 347--362
 
-.. [CCR] : Koziarski, Michał and Wozniak, Michal, "CCR: A combined cleaning and resampling algorithm for imbalanced data classification" , International Journal of Applied Mathematics and Computer Science, 2017, pp. 727–736
+.. [CCR] Koziarski, Michał and Wozniak, Michal, "CCR: A combined cleaning and resampling algorithm for imbalanced data classification" , International Journal of Applied Mathematics and Computer Science, 2017, pp. 727–736
 
-.. [ANS] : Siriseriwan, W and Sinapiromsaran, Krung, "Adaptive neighbor synthetic minority oversampling technique under 1NN outcast handling" , Songklanakarin Journal of Science and Technology, 2017, pp. 565-576
+.. [ANS] Siriseriwan, W and Sinapiromsaran, Krung, "Adaptive neighbor synthetic minority oversampling technique under 1NN outcast handling" , Songklanakarin Journal of Science and Technology, 2017, pp. 565-576
 
-.. [cluster_SMOTE] : D. A. Cieslak and N. V. Chawla and A. Striegel, "Combating imbalance in network intrusion datasets" , 2006 IEEE International Conference on Granular Computing, 2006, pp. 732-737
+.. [cluster_SMOTE] D. A. Cieslak and N. V. Chawla and A. Striegel, "Combating imbalance in network intrusion datasets" , 2006 IEEE International Conference on Granular Computing, 2006, pp. 732-737
 
