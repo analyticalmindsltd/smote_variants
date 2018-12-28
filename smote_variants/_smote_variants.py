@@ -14329,6 +14329,8 @@ class RBF:
             new_neurons_1=np.random.choice(rbf.neurons, np.random.randint(1, len(rbf.neurons)))
             new.neurons= [n.clone() for n in new_neurons_0]
             new.neurons.extend([n.clone() for n in new_neurons_1])
+            while len(new.neurons) > self.m_max:
+                del new.neurons[np.random.randint(len(new.neurons))]
         else:
             for i in range(len(new.neurons)):
                 if np.random.random() < 0.2:
