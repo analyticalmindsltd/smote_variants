@@ -1,0 +1,281 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Using smote_variants in Julia &mdash; smote_variants 0.1.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="About the competition" href="competition.html" />
+    <link rel="prev" title="Using smote_variants in R" href="use_in_r.html" /> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> smote_variants
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+</ul>
+<p class="caption"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="oversamplers.html">Oversamplers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="noise_filters.html">Noise filters and prototype selection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model_selection.html">Model selection, evaluation and validation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="multiclass_oversampling.html">Multiclass oversampling</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Usage</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="add_new_oversampler.html">Adding a new oversampler</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gallery.html">Gallery</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Interfaces</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="use_in_r.html">Using <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> in R</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Using <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> in Julia</a></li>
+</ul>
+<p class="caption"><span class="caption-text">The competition</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="competition.html">About the competition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ranking.html">Ranking</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Additional Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="contribute.html">Contribute</a></li>
+<li class="toctree-l1"><a class="reference internal" href="release_history.html">Release History</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">smote_variants</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Using <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> in Julia</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/use_in_julia.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="using-smote-variants-in-julia">
+<h1>Using <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> in Julia<a class="headerlink" href="#using-smote-variants-in-julia" title="Permalink to this headline">¶</a></h1>
+<p>Similarly to R using <code class="docutils literal notranslate"><span class="pre">reticulate</span></code>, Python packages can be called from Julia using the package <code class="docutils literal notranslate"><span class="pre">PyCall</span></code> given that some python installation with <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> is available.</p>
+<p>Suppose, there is an Anaconda3 install available at ‘/home/&lt;user&gt;/anaconda3’ and <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> and <code class="docutils literal notranslate"><span class="pre">imbalanced_databases</span></code> are installed on the base conda environment.</p>
+<p>The following steps are needed to run oversampler codes from the <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> package:</p>
+<blockquote>
+<div><ul class="simple">
+<li>Start the Julia interpreter:</li>
+</ul>
+<div class="highlight-Julia notranslate"><div class="highlight"><pre><span></span><span class="n">julia</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li>In the Julia prompt, set the Python path to that of the Anaconda install:</li>
+</ul>
+<div class="highlight-Julia notranslate"><div class="highlight"><pre><span></span><span class="nb">ENV</span><span class="p">[</span><span class="s">&quot;PYTHON&quot;</span><span class="p">]</span><span class="o">=</span> <span class="s">&quot;/home/&lt;user&gt;/anaconda3/bin/python3&quot;</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li>Add the <code class="docutils literal notranslate"><span class="pre">PyCall</span></code> package:</li>
+</ul>
+<div class="highlight-Julia notranslate"><div class="highlight"><pre><span></span><span class="k">import</span> <span class="n">Pkg</span>
+
+<span class="n">Pkg</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&quot;PyCall&quot;</span><span class="p">)</span>
+
+<span class="n">Pkg</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="s">&quot;PyCall&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li>Restart the Julia interpreter.</li>
+<li>The following code should work:</li>
+</ul>
+<div class="highlight-Julia notranslate"><div class="highlight"><pre><span></span><span class="k">using</span> <span class="n">PyCall</span>
+
+<span class="nd">@pyimport</span> <span class="n">imbalanced_databases</span> <span class="n">as</span> <span class="n">imbd</span>
+<span class="nd">@pyimport</span> <span class="n">smote_variants</span> <span class="n">as</span> <span class="n">sv</span>
+
+<span class="n">dataset</span><span class="o">=</span> <span class="n">imbd</span><span class="o">.</span><span class="n">load_iris0</span><span class="p">()</span>
+<span class="n">oversampler</span><span class="o">=</span> <span class="n">sv</span><span class="o">.</span><span class="n">SMOTE_ENN</span><span class="p">()</span>
+
+<span class="n">X_samp</span><span class="p">,</span> <span class="n">y_samp</span><span class="o">=</span> <span class="n">oversampler</span><span class="p">[</span><span class="o">:</span><span class="n">sample</span><span class="p">](</span><span class="n">dataset</span><span class="p">[</span><span class="s">&quot;data&quot;</span><span class="p">],</span> <span class="n">dataset</span><span class="p">[</span><span class="s">&quot;target&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="competition.html" class="btn btn-neutral float-right" title="About the competition" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="use_in_r.html" class="btn btn-neutral" title="Using smote_variants in R" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018, György Kovács
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+    
+
+  
+
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

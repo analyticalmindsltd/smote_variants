@@ -1,0 +1,382 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Multiclass oversampling &mdash; smote_variants 0.1.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Examples" href="examples.html" />
+    <link rel="prev" title="Model selection, evaluation and validation" href="model_selection.html" /> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> smote_variants
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+</ul>
+<p class="caption"><span class="caption-text">API</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="oversamplers.html">Oversamplers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="noise_filters.html">Noise filters and prototype selection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model_selection.html">Model selection, evaluation and validation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Multiclass oversampling</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Usage</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="add_new_oversampler.html">Adding a new oversampler</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gallery.html">Gallery</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Interfaces</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="use_in_r.html">Using <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> in R</a></li>
+<li class="toctree-l1"><a class="reference internal" href="use_in_julia.html">Using <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> in Julia</a></li>
+</ul>
+<p class="caption"><span class="caption-text">The competition</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="competition.html">About the competition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ranking.html">Ranking</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Additional Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="contribute.html">Contribute</a></li>
+<li class="toctree-l1"><a class="reference internal" href="release_history.html">Release History</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">smote_variants</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Multiclass oversampling</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/multiclass_oversampling.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="multiclass-oversampling">
+<h1>Multiclass oversampling<a class="headerlink" href="#multiclass-oversampling" title="Permalink to this headline">¶</a></h1>
+<p>Multiclass oversampling is highly ambiguous task, as balancing various classes might be optimal with various oversampling techniques. The multiclass oversampling goes on by selecting minority classes one-by-one and oversampling them to the same cardinality as the original majority class, using the union of the original majority class and all already oversampled classes as the majority class in the binary oversampling process. This technique works only with those binary oversampling techniques which do not change the majority class and have a <code class="docutils literal notranslate"><span class="pre">proportion</span></code> parameter to explicitly specify the number of samples to be generated. Suitable oversampling techniques can be queried by the <code class="docutils literal notranslate"><span class="pre">get_all_oversamplers_multiclass</span></code> function:</p>
+<dl class="function">
+<dt id="smote_variants.get_all_oversamplers_multiclass">
+<code class="descclassname">smote_variants.</code><code class="descname">get_all_oversamplers_multiclass</code><span class="sig-paren">(</span><em>strategy='equalize'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#get_all_oversamplers_multiclass"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.get_all_oversamplers_multiclass" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns all oversampling classes which can be used with the multiclass strategy specified</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>strategy</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – the multiclass oversampling strategy</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">list of all oversampling classes which can be used with the multiclass strategy specified</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)">list</a>(OverSampling)</td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">smote_variants</span> <span class="k">as</span> <span class="nn">sv</span>
+
+<span class="n">oversamplers</span><span class="o">=</span> <span class="n">sv</span><span class="o">.</span><span class="n">get_all_oversamplers_multiclass</span><span class="p">()</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="function">
+<dt id="smote_variants.get_n_quickest_oversamplers_multiclass">
+<code class="descclassname">smote_variants.</code><code class="descname">get_n_quickest_oversamplers_multiclass</code><span class="sig-paren">(</span><em>n</em>, <em>strategy='equalize'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#get_n_quickest_oversamplers_multiclass"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.get_n_quickest_oversamplers_multiclass" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the n quickest oversamplers based on testing on the datasets of
+the imbalanced_databases package, and suitable for using the multiclass strategy specified.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>n</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of oversamplers to return</li>
+<li><strong>strategy</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – the multiclass oversampling strategy</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">list of n quickest oversampling classes which can be used with the multiclass strategy specified</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)">list</a>(OverSampling)</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">smote_variants</span> <span class="k">as</span> <span class="nn">sv</span>
+
+<span class="n">oversamplers</span><span class="o">=</span> <span class="n">sv</span><span class="o">.</span><span class="n">get_n_quickest_oversamplers_multiclass</span><span class="p">()</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="class">
+<dt id="smote_variants.MulticlassOversampling">
+<em class="property">class </em><code class="descclassname">smote_variants.</code><code class="descname">MulticlassOversampling</code><span class="sig-paren">(</span><em>oversampler=&lt;smote_variants._smote_variants.SMOTE object&gt;</em>, <em>strategy='equalize'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#MulticlassOversampling"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.MulticlassOversampling" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="smote_variants.MulticlassOversampling.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>oversampler=&lt;smote_variants._smote_variants.SMOTE object&gt;</em>, <em>strategy='equalize'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#MulticlassOversampling.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.MulticlassOversampling.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Constructor of the multiclass oversampling object</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>oversampler</strong> (<em>obj</em>) – an oversampling object</li>
+<li><strong>strategy</strong> (<em>str/obj</em>) – a multiclass oversampling strategy, currently ‘equalize’</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="smote_variants.MulticlassOversampling.get_params">
+<code class="descname">get_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#MulticlassOversampling.get_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.MulticlassOversampling.get_params" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">the parameters of the multiclass oversampling object</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.7)">dict</a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="smote_variants.MulticlassOversampling.sample">
+<code class="descname">sample</code><span class="sig-paren">(</span><em>X</em>, <em>y</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#MulticlassOversampling.sample"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.MulticlassOversampling.sample" title="Permalink to this definition">¶</a></dt>
+<dd><p>Does the sample generation according to the oversampling strategy.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>X</strong> (<em>np.ndarray</em>) – training set</li>
+<li><strong>y</strong> (<em>np.array</em>) – target labels</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">the extended training set and target labels</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">(np.ndarray, np.array)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="smote_variants.MulticlassOversampling.sample_equalize">
+<code class="descname">sample_equalize</code><span class="sig-paren">(</span><em>X</em>, <em>y</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#MulticlassOversampling.sample_equalize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.MulticlassOversampling.sample_equalize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Does the sample generation by oversampling each minority class to the
+cardinality of the majority class.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>X</strong> (<em>np.ndarray</em>) – training set</li>
+<li><strong>y</strong> (<em>np.array</em>) – target labels</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">the extended training set and target labels</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">(np.ndarray, np.array)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="examples.html" class="btn btn-neutral float-right" title="Examples" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="model_selection.html" class="btn btn-neutral" title="Model selection, evaluation and validation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018, György Kovács
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+    
+
+  
+
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

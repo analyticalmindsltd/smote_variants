@@ -1,11 +1,9 @@
 Gallery
 ********
 
-In this page we demonstrate the output of various oversampling                     and noise removal techniques, using default parameters.
+In this page, we demonstrate the output of various oversampling                     and noise removal techniques, using default parameters.
 
-For binary oversampling and noise removal, the figures can be reproduced by the ``ballpark_sample`` function using                     a built-in or user definied dataset:
-
-.. autofunction:: smote_variants.ballpark_sample
+For binary oversampling and nosie removal, an artificial database was used, available in the ``utils` directory of the github repository.
 
 For multiclass oversampling we have used the 'wine' dataset from                     ``sklearn.datasets``, which has 3 classes and many features, out                     which the first two coordinates have been used for visualization.
 
@@ -178,58 +176,59 @@ Multiclass sample results
 .. image:: figures/multiclass-SL_graph_SMOTE.png
 .. image:: figures/multiclass-NRSBoundary_SMOTE.png
 
+.. image:: figures/multiclass-LVQ_SMOTE.png
 .. image:: figures/multiclass-SOI_CJ.png
 .. image:: figures/multiclass-ROSE.png
 .. image:: figures/multiclass-SMOTE_OUT.png
-.. image:: figures/multiclass-SMOTE_Cosine.png
 
+.. image:: figures/multiclass-SMOTE_Cosine.png
 .. image:: figures/multiclass-Selected_SMOTE.png
 .. image:: figures/multiclass-LN_SMOTE.png
 .. image:: figures/multiclass-MWMOTE.png
-.. image:: figures/multiclass-PDFOS.png
 
+.. image:: figures/multiclass-PDFOS.png
 .. image:: figures/multiclass-RWO_sampling.png
 .. image:: figures/multiclass-DEAGO.png
 .. image:: figures/multiclass-MCT.png
-.. image:: figures/multiclass-ADG.png
 
+.. image:: figures/multiclass-ADG.png
 .. image:: figures/multiclass-KernelADASYN.png
 .. image:: figures/multiclass-MOT2LD.png
 .. image:: figures/multiclass-V_SYNTH.png
-.. image:: figures/multiclass-OUPS.png
 
+.. image:: figures/multiclass-OUPS.png
 .. image:: figures/multiclass-SMOTE_D.png
 .. image:: figures/multiclass-CURE_SMOTE.png
 .. image:: figures/multiclass-SOMO.png
-.. image:: figures/multiclass-CE_SMOTE.png
 
+.. image:: figures/multiclass-CE_SMOTE.png
 .. image:: figures/multiclass-Edge_Det_SMOTE.png
 .. image:: figures/multiclass-CBSO.png
 .. image:: figures/multiclass-DBSMOTE.png
-.. image:: figures/multiclass-ASMOBD.png
 
+.. image:: figures/multiclass-ASMOBD.png
 .. image:: figures/multiclass-Assembled_SMOTE.png
 .. image:: figures/multiclass-SDSMOTE.png
 .. image:: figures/multiclass-G_SMOTE.png
-.. image:: figures/multiclass-NT_SMOTE.png
 
+.. image:: figures/multiclass-NT_SMOTE.png
 .. image:: figures/multiclass-Lee.png
 .. image:: figures/multiclass-MDO.png
 .. image:: figures/multiclass-Random_SMOTE.png
-.. image:: figures/multiclass-A_SUWO.png
 
+.. image:: figures/multiclass-A_SUWO.png
 .. image:: figures/multiclass-AND_SMOTE.png
 .. image:: figures/multiclass-NRAS.png
 .. image:: figures/multiclass-SSO.png
-.. image:: figures/multiclass-NDO_sampling.png
 
+.. image:: figures/multiclass-NDO_sampling.png
 .. image:: figures/multiclass-DSRBF.png
 .. image:: figures/multiclass-Gaussian_SMOTE.png
 .. image:: figures/multiclass-kmeans_SMOTE.png
-.. image:: figures/multiclass-Supervised_SMOTE.png
 
+.. image:: figures/multiclass-Supervised_SMOTE.png
 .. image:: figures/multiclass-SN_SMOTE.png
 .. image:: figures/multiclass-CCR.png
 .. image:: figures/multiclass-ANS.png
-.. image:: figures/multiclass-cluster_SMOTE.png
 
+.. image:: figures/multiclass-cluster_SMOTE.png

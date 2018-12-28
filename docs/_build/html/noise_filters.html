@@ -1,0 +1,801 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Noise filters and prototype selection &mdash; smote_variants 0.1.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Model selection, evaluation and validation" href="model_selection.html" />
+    <link rel="prev" title="Oversamplers" href="oversamplers.html" /> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> smote_variants
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+</ul>
+<p class="caption"><span class="caption-text">API</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="oversamplers.html">Oversamplers</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Noise filters and prototype selection</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#tomeklinkremoval">TomekLinkRemoval</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#api">API</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#example">Example</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#condensednearestneighbors">CondensedNearestNeighbors</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id1">API</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id2">Example</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#onesidedselection">OneSidedSelection</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id3">API</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">Example</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#cnntomeklinks">CNNTomekLinks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id5">API</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id6">Example</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#neighborhoodcleaningrule">NeighborhoodCleaningRule</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id7">API</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id8">Example</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#editednearestneighbors">EditedNearestNeighbors</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id9">API</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id10">Example</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="model_selection.html">Model selection, evaluation and validation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="multiclass_oversampling.html">Multiclass oversampling</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Usage</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="add_new_oversampler.html">Adding a new oversampler</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gallery.html">Gallery</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Interfaces</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="use_in_r.html">Using <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> in R</a></li>
+<li class="toctree-l1"><a class="reference internal" href="use_in_julia.html">Using <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> in Julia</a></li>
+</ul>
+<p class="caption"><span class="caption-text">The competition</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="competition.html">About the competition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ranking.html">Ranking</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Additional Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="contribute.html">Contribute</a></li>
+<li class="toctree-l1"><a class="reference internal" href="release_history.html">Release History</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">smote_variants</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Noise filters and prototype selection</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/noise_filters.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="noise-filters-and-prototype-selection">
+<h1>Noise filters and prototype selection<a class="headerlink" href="#noise-filters-and-prototype-selection" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="tomeklinkremoval">
+<h2>TomekLinkRemoval<a class="headerlink" href="#tomeklinkremoval" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="api">
+<h3>API<a class="headerlink" href="#api" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="smote_variants.TomekLinkRemoval">
+<em class="property">class </em><code class="descclassname">smote_variants.</code><code class="descname">TomekLinkRemoval</code><span class="sig-paren">(</span><em>strategy='remove_majority'</em>, <em>n_jobs=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#TomekLinkRemoval"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.TomekLinkRemoval" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="smote_variants.TomekLinkRemoval.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>strategy='remove_majority'</em>, <em>n_jobs=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#TomekLinkRemoval.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.TomekLinkRemoval.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Constructor of the noise filter.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>strategy</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – noise removal strategy: ‘remove_majority’/’remove_both’</li>
+<li><strong>n_jobs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of jobs</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="smote_variants.TomekLinkRemoval.remove_noise">
+<code class="descname">remove_noise</code><span class="sig-paren">(</span><em>X</em>, <em>y</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#TomekLinkRemoval.remove_noise"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.TomekLinkRemoval.remove_noise" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes noise from dataset</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>X</strong> (<em>np.matrix</em>) – features</li>
+<li><strong>y</strong> (<em>np.array</em>) – target labels</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">dataset after noise removal</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.matrix, np.array</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="example">
+<h3>Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">noise_filter</span><span class="o">=</span> <span class="n">smote_variants</span><span class="o">.</span><span class="n">TomekLinkRemoval</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">X_samp</span><span class="p">,</span> <span class="n">y_samp</span><span class="o">=</span> <span class="n">noise_filter</span><span class="o">.</span><span class="n">remove_noise</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+</pre></div>
+</div>
+<img alt="_images/base.png" src="_images/base.png" />
+<img alt="_images/TomekLinkRemoval.png" src="_images/TomekLinkRemoval.png" />
+<p>Tomek link removal</p>
+<dl class="docutils">
+<dt>References:</dt>
+<dd><ul class="first last">
+<li><p class="first">BibTex:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@article</span><span class="p">{</span><span class="n">smoteNoise0</span><span class="p">,</span>
+         <span class="n">author</span> <span class="o">=</span> <span class="p">{</span><span class="n">Batista</span><span class="p">,</span> <span class="n">Gustavo</span> <span class="n">E</span><span class="o">.</span> <span class="n">A</span><span class="o">.</span> <span class="n">P</span><span class="o">.</span> <span class="n">A</span><span class="o">.</span> <span class="ow">and</span> <span class="n">Prati</span><span class="p">,</span> <span class="n">Ronaldo</span> <span class="n">C</span><span class="o">.</span> <span class="ow">and</span> <span class="n">Monard</span><span class="p">,</span> <span class="n">Maria</span> <span class="n">Carolina</span><span class="p">},</span>
+         <span class="n">title</span> <span class="o">=</span> <span class="p">{</span><span class="n">A</span> <span class="n">Study</span> <span class="n">of</span> <span class="n">the</span> <span class="n">Behavior</span> <span class="n">of</span> <span class="n">Several</span> <span class="n">Methods</span> <span class="k">for</span> <span class="n">Balancing</span> <span class="n">Machine</span> <span class="n">Learning</span> <span class="n">Training</span> <span class="n">Data</span><span class="p">},</span>
+         <span class="n">journal</span> <span class="o">=</span> <span class="p">{</span><span class="n">SIGKDD</span> <span class="n">Explor</span><span class="o">.</span> <span class="n">Newsl</span><span class="o">.</span><span class="p">},</span>
+         <span class="n">issue_date</span> <span class="o">=</span> <span class="p">{</span><span class="n">June</span> <span class="mi">2004</span><span class="p">},</span>
+         <span class="n">volume</span> <span class="o">=</span> <span class="p">{</span><span class="mi">6</span><span class="p">},</span>
+         <span class="n">number</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1</span><span class="p">},</span>
+         <span class="n">month</span> <span class="o">=</span> <span class="n">jun</span><span class="p">,</span>
+         <span class="n">year</span> <span class="o">=</span> <span class="p">{</span><span class="mi">2004</span><span class="p">},</span>
+         <span class="n">issn</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1931</span><span class="o">-</span><span class="mi">0145</span><span class="p">},</span>
+         <span class="n">pages</span> <span class="o">=</span> <span class="p">{</span><span class="mi">20</span><span class="o">--</span><span class="mi">29</span><span class="p">},</span>
+         <span class="n">numpages</span> <span class="o">=</span> <span class="p">{</span><span class="mi">10</span><span class="p">},</span>
+         <span class="n">url</span> <span class="o">=</span> <span class="p">{</span><span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="n">doi</span><span class="o">.</span><span class="n">acm</span><span class="o">.</span><span class="n">org</span><span class="o">/</span><span class="mf">10.1145</span><span class="o">/</span><span class="mf">1007730.1007735</span><span class="p">},</span>
+         <span class="n">doi</span> <span class="o">=</span> <span class="p">{</span><span class="mf">10.1145</span><span class="o">/</span><span class="mf">1007730.1007735</span><span class="p">},</span>
+         <span class="n">acmid</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1007735</span><span class="p">},</span>
+         <span class="n">publisher</span> <span class="o">=</span> <span class="p">{</span><span class="n">ACM</span><span class="p">},</span>
+         <span class="n">address</span> <span class="o">=</span> <span class="p">{</span><span class="n">New</span> <span class="n">York</span><span class="p">,</span> <span class="n">NY</span><span class="p">,</span> <span class="n">USA</span><span class="p">}</span>
+        <span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">URL: <a class="reference external" href="https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx">https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx</a></p>
+</li>
+</ul>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="condensednearestneighbors">
+<h2>CondensedNearestNeighbors<a class="headerlink" href="#condensednearestneighbors" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id1">
+<h3>API<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="smote_variants.CondensedNearestNeighbors">
+<em class="property">class </em><code class="descclassname">smote_variants.</code><code class="descname">CondensedNearestNeighbors</code><span class="sig-paren">(</span><em>n_jobs=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#CondensedNearestNeighbors"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.CondensedNearestNeighbors" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="smote_variants.CondensedNearestNeighbors.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>n_jobs=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#CondensedNearestNeighbors.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.CondensedNearestNeighbors.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Constructor of the noise removing object</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>n_jobs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of jobs</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="smote_variants.CondensedNearestNeighbors.remove_noise">
+<code class="descname">remove_noise</code><span class="sig-paren">(</span><em>X</em>, <em>y</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#CondensedNearestNeighbors.remove_noise"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.CondensedNearestNeighbors.remove_noise" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes noise from dataset</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>X</strong> (<em>np.matrix</em>) – features</li>
+<li><strong>y</strong> (<em>np.array</em>) – target labels</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">dataset after noise removal</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.matrix, np.array</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="id2">
+<h3>Example<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">noise_filter</span><span class="o">=</span> <span class="n">smote_variants</span><span class="o">.</span><span class="n">CondensedNearestNeighbors</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">X_samp</span><span class="p">,</span> <span class="n">y_samp</span><span class="o">=</span> <span class="n">noise_filter</span><span class="o">.</span><span class="n">remove_noise</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+</pre></div>
+</div>
+<img alt="_images/base.png" src="_images/base.png" />
+<img alt="_images/CondensedNearestNeighbors.png" src="_images/CondensedNearestNeighbors.png" />
+<p>Condensed nearest neighbors</p>
+<dl class="docutils">
+<dt>References:</dt>
+<dd><ul class="first last">
+<li><p class="first">BibTex:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@ARTICLE</span><span class="p">{</span><span class="n">condensed_nn</span><span class="p">,</span>
+            <span class="n">author</span><span class="o">=</span><span class="p">{</span><span class="n">P</span><span class="o">.</span> <span class="n">Hart</span><span class="p">},</span>
+            <span class="n">journal</span><span class="o">=</span><span class="p">{</span><span class="n">IEEE</span> <span class="n">Transactions</span> <span class="n">on</span> <span class="n">Information</span> <span class="n">Theory</span><span class="p">},</span>
+            <span class="n">title</span><span class="o">=</span><span class="p">{</span><span class="n">The</span> <span class="n">condensed</span> <span class="n">nearest</span> <span class="n">neighbor</span> <span class="n">rule</span> <span class="p">(</span><span class="n">Corresp</span><span class="o">.</span><span class="p">)},</span>
+            <span class="n">year</span><span class="o">=</span><span class="p">{</span><span class="mi">1968</span><span class="p">},</span>
+            <span class="n">volume</span><span class="o">=</span><span class="p">{</span><span class="mi">14</span><span class="p">},</span>
+            <span class="n">number</span><span class="o">=</span><span class="p">{</span><span class="mi">3</span><span class="p">},</span>
+            <span class="n">pages</span><span class="o">=</span><span class="p">{</span><span class="mi">515</span><span class="o">-</span><span class="mi">516</span><span class="p">},</span>
+            <span class="n">keywords</span><span class="o">=</span><span class="p">{</span><span class="n">Pattern</span> <span class="n">classification</span><span class="p">},</span>
+            <span class="n">doi</span><span class="o">=</span><span class="p">{</span><span class="mf">10.1109</span><span class="o">/</span><span class="n">TIT</span><span class="o">.</span><span class="mf">1968.1054155</span><span class="p">},</span>
+            <span class="n">ISSN</span><span class="o">=</span><span class="p">{</span><span class="mi">0018</span><span class="o">-</span><span class="mi">9448</span><span class="p">},</span>
+            <span class="n">month</span><span class="o">=</span><span class="p">{</span><span class="n">May</span><span class="p">}}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="onesidedselection">
+<h2>OneSidedSelection<a class="headerlink" href="#onesidedselection" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id3">
+<h3>API<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="smote_variants.OneSidedSelection">
+<em class="property">class </em><code class="descclassname">smote_variants.</code><code class="descname">OneSidedSelection</code><span class="sig-paren">(</span><em>n_jobs=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#OneSidedSelection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.OneSidedSelection" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="smote_variants.OneSidedSelection.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>n_jobs=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#OneSidedSelection.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.OneSidedSelection.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Constructor of the noise removal object</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>n_jobs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of jobs</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="smote_variants.OneSidedSelection.remove_noise">
+<code class="descname">remove_noise</code><span class="sig-paren">(</span><em>X</em>, <em>y</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#OneSidedSelection.remove_noise"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.OneSidedSelection.remove_noise" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes noise</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>X</strong> (<em>np.matrix</em>) – features</li>
+<li><strong>y</strong> (<em>np.array</em>) – target labels</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">cleaned features and target labels</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.matrix, np.array</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="id4">
+<h3>Example<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">noise_filter</span><span class="o">=</span> <span class="n">smote_variants</span><span class="o">.</span><span class="n">OneSidedSelection</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">X_samp</span><span class="p">,</span> <span class="n">y_samp</span><span class="o">=</span> <span class="n">noise_filter</span><span class="o">.</span><span class="n">remove_noise</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+</pre></div>
+</div>
+<img alt="_images/base.png" src="_images/base.png" />
+<img alt="_images/OneSidedSelection.png" src="_images/OneSidedSelection.png" />
+<dl class="docutils">
+<dt>References:</dt>
+<dd><ul class="first last">
+<li><p class="first">BibTex:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@article</span><span class="p">{</span><span class="n">smoteNoise0</span><span class="p">,</span>
+         <span class="n">author</span> <span class="o">=</span> <span class="p">{</span><span class="n">Batista</span><span class="p">,</span> <span class="n">Gustavo</span> <span class="n">E</span><span class="o">.</span> <span class="n">A</span><span class="o">.</span> <span class="n">P</span><span class="o">.</span> <span class="n">A</span><span class="o">.</span> <span class="ow">and</span> <span class="n">Prati</span><span class="p">,</span> <span class="n">Ronaldo</span> <span class="n">C</span><span class="o">.</span> <span class="ow">and</span> <span class="n">Monard</span><span class="p">,</span> <span class="n">Maria</span> <span class="n">Carolina</span><span class="p">},</span>
+         <span class="n">title</span> <span class="o">=</span> <span class="p">{</span><span class="n">A</span> <span class="n">Study</span> <span class="n">of</span> <span class="n">the</span> <span class="n">Behavior</span> <span class="n">of</span> <span class="n">Several</span> <span class="n">Methods</span> <span class="k">for</span> <span class="n">Balancing</span> <span class="n">Machine</span> <span class="n">Learning</span> <span class="n">Training</span> <span class="n">Data</span><span class="p">},</span>
+         <span class="n">journal</span> <span class="o">=</span> <span class="p">{</span><span class="n">SIGKDD</span> <span class="n">Explor</span><span class="o">.</span> <span class="n">Newsl</span><span class="o">.</span><span class="p">},</span>
+         <span class="n">issue_date</span> <span class="o">=</span> <span class="p">{</span><span class="n">June</span> <span class="mi">2004</span><span class="p">},</span>
+         <span class="n">volume</span> <span class="o">=</span> <span class="p">{</span><span class="mi">6</span><span class="p">},</span>
+         <span class="n">number</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1</span><span class="p">},</span>
+         <span class="n">month</span> <span class="o">=</span> <span class="n">jun</span><span class="p">,</span>
+         <span class="n">year</span> <span class="o">=</span> <span class="p">{</span><span class="mi">2004</span><span class="p">},</span>
+         <span class="n">issn</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1931</span><span class="o">-</span><span class="mi">0145</span><span class="p">},</span>
+         <span class="n">pages</span> <span class="o">=</span> <span class="p">{</span><span class="mi">20</span><span class="o">--</span><span class="mi">29</span><span class="p">},</span>
+         <span class="n">numpages</span> <span class="o">=</span> <span class="p">{</span><span class="mi">10</span><span class="p">},</span>
+         <span class="n">url</span> <span class="o">=</span> <span class="p">{</span><span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="n">doi</span><span class="o">.</span><span class="n">acm</span><span class="o">.</span><span class="n">org</span><span class="o">/</span><span class="mf">10.1145</span><span class="o">/</span><span class="mf">1007730.1007735</span><span class="p">},</span>
+         <span class="n">doi</span> <span class="o">=</span> <span class="p">{</span><span class="mf">10.1145</span><span class="o">/</span><span class="mf">1007730.1007735</span><span class="p">},</span>
+         <span class="n">acmid</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1007735</span><span class="p">},</span>
+         <span class="n">publisher</span> <span class="o">=</span> <span class="p">{</span><span class="n">ACM</span><span class="p">},</span>
+         <span class="n">address</span> <span class="o">=</span> <span class="p">{</span><span class="n">New</span> <span class="n">York</span><span class="p">,</span> <span class="n">NY</span><span class="p">,</span> <span class="n">USA</span><span class="p">}</span>
+        <span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">URL: <a class="reference external" href="https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx">https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx</a></p>
+</li>
+</ul>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="cnntomeklinks">
+<h2>CNNTomekLinks<a class="headerlink" href="#cnntomeklinks" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id5">
+<h3>API<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="smote_variants.CNNTomekLinks">
+<em class="property">class </em><code class="descclassname">smote_variants.</code><code class="descname">CNNTomekLinks</code><span class="sig-paren">(</span><em>n_jobs=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#CNNTomekLinks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.CNNTomekLinks" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="smote_variants.CNNTomekLinks.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>n_jobs=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#CNNTomekLinks.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.CNNTomekLinks.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Constructor of the noise removal object</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>n_jobs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of parallel jobs</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="smote_variants.CNNTomekLinks.remove_noise">
+<code class="descname">remove_noise</code><span class="sig-paren">(</span><em>X</em>, <em>y</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#CNNTomekLinks.remove_noise"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.CNNTomekLinks.remove_noise" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes noise</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>X</strong> (<em>np.matrix</em>) – features</li>
+<li><strong>y</strong> (<em>np.array</em>) – target labels</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">cleaned features and target labels</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.matrix, np.array</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="id6">
+<h3>Example<a class="headerlink" href="#id6" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">noise_filter</span><span class="o">=</span> <span class="n">smote_variants</span><span class="o">.</span><span class="n">CNNTomekLinks</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">X_samp</span><span class="p">,</span> <span class="n">y_samp</span><span class="o">=</span> <span class="n">noise_filter</span><span class="o">.</span><span class="n">remove_noise</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+</pre></div>
+</div>
+<img alt="_images/base.png" src="_images/base.png" />
+<img alt="_images/CNNTomekLinks.png" src="_images/CNNTomekLinks.png" />
+<dl class="docutils">
+<dt>References:</dt>
+<dd><ul class="first last">
+<li><p class="first">BibTex:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@article</span><span class="p">{</span><span class="n">smoteNoise0</span><span class="p">,</span>
+         <span class="n">author</span> <span class="o">=</span> <span class="p">{</span><span class="n">Batista</span><span class="p">,</span> <span class="n">Gustavo</span> <span class="n">E</span><span class="o">.</span> <span class="n">A</span><span class="o">.</span> <span class="n">P</span><span class="o">.</span> <span class="n">A</span><span class="o">.</span> <span class="ow">and</span> <span class="n">Prati</span><span class="p">,</span> <span class="n">Ronaldo</span> <span class="n">C</span><span class="o">.</span> <span class="ow">and</span> <span class="n">Monard</span><span class="p">,</span> <span class="n">Maria</span> <span class="n">Carolina</span><span class="p">},</span>
+         <span class="n">title</span> <span class="o">=</span> <span class="p">{</span><span class="n">A</span> <span class="n">Study</span> <span class="n">of</span> <span class="n">the</span> <span class="n">Behavior</span> <span class="n">of</span> <span class="n">Several</span> <span class="n">Methods</span> <span class="k">for</span> <span class="n">Balancing</span> <span class="n">Machine</span> <span class="n">Learning</span> <span class="n">Training</span> <span class="n">Data</span><span class="p">},</span>
+         <span class="n">journal</span> <span class="o">=</span> <span class="p">{</span><span class="n">SIGKDD</span> <span class="n">Explor</span><span class="o">.</span> <span class="n">Newsl</span><span class="o">.</span><span class="p">},</span>
+         <span class="n">issue_date</span> <span class="o">=</span> <span class="p">{</span><span class="n">June</span> <span class="mi">2004</span><span class="p">},</span>
+         <span class="n">volume</span> <span class="o">=</span> <span class="p">{</span><span class="mi">6</span><span class="p">},</span>
+         <span class="n">number</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1</span><span class="p">},</span>
+         <span class="n">month</span> <span class="o">=</span> <span class="n">jun</span><span class="p">,</span>
+         <span class="n">year</span> <span class="o">=</span> <span class="p">{</span><span class="mi">2004</span><span class="p">},</span>
+         <span class="n">issn</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1931</span><span class="o">-</span><span class="mi">0145</span><span class="p">},</span>
+         <span class="n">pages</span> <span class="o">=</span> <span class="p">{</span><span class="mi">20</span><span class="o">--</span><span class="mi">29</span><span class="p">},</span>
+         <span class="n">numpages</span> <span class="o">=</span> <span class="p">{</span><span class="mi">10</span><span class="p">},</span>
+         <span class="n">url</span> <span class="o">=</span> <span class="p">{</span><span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="n">doi</span><span class="o">.</span><span class="n">acm</span><span class="o">.</span><span class="n">org</span><span class="o">/</span><span class="mf">10.1145</span><span class="o">/</span><span class="mf">1007730.1007735</span><span class="p">},</span>
+         <span class="n">doi</span> <span class="o">=</span> <span class="p">{</span><span class="mf">10.1145</span><span class="o">/</span><span class="mf">1007730.1007735</span><span class="p">},</span>
+         <span class="n">acmid</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1007735</span><span class="p">},</span>
+         <span class="n">publisher</span> <span class="o">=</span> <span class="p">{</span><span class="n">ACM</span><span class="p">},</span>
+         <span class="n">address</span> <span class="o">=</span> <span class="p">{</span><span class="n">New</span> <span class="n">York</span><span class="p">,</span> <span class="n">NY</span><span class="p">,</span> <span class="n">USA</span><span class="p">}</span>
+        <span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">URL: <a class="reference external" href="https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx">https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx</a></p>
+</li>
+</ul>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="neighborhoodcleaningrule">
+<h2>NeighborhoodCleaningRule<a class="headerlink" href="#neighborhoodcleaningrule" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id7">
+<h3>API<a class="headerlink" href="#id7" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="smote_variants.NeighborhoodCleaningRule">
+<em class="property">class </em><code class="descclassname">smote_variants.</code><code class="descname">NeighborhoodCleaningRule</code><span class="sig-paren">(</span><em>n_jobs=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#NeighborhoodCleaningRule"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.NeighborhoodCleaningRule" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="smote_variants.NeighborhoodCleaningRule.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>n_jobs=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#NeighborhoodCleaningRule.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.NeighborhoodCleaningRule.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Constructor of the noise removal object</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>n_jobs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of parallel jobs</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="smote_variants.NeighborhoodCleaningRule.remove_noise">
+<code class="descname">remove_noise</code><span class="sig-paren">(</span><em>X</em>, <em>y</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#NeighborhoodCleaningRule.remove_noise"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.NeighborhoodCleaningRule.remove_noise" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes noise</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>X</strong> (<em>np.matrix</em>) – features</li>
+<li><strong>y</strong> (<em>np.array</em>) – target labels</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">cleaned features and target labels</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.matrix, np.array</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="id8">
+<h3>Example<a class="headerlink" href="#id8" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">noise_filter</span><span class="o">=</span> <span class="n">smote_variants</span><span class="o">.</span><span class="n">NeighborhoodCleaningRule</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">X_samp</span><span class="p">,</span> <span class="n">y_samp</span><span class="o">=</span> <span class="n">noise_filter</span><span class="o">.</span><span class="n">remove_noise</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+</pre></div>
+</div>
+<img alt="_images/base.png" src="_images/base.png" />
+<img alt="_images/NeighborhoodCleaningRule.png" src="_images/NeighborhoodCleaningRule.png" />
+<dl class="docutils">
+<dt>References:</dt>
+<dd><ul class="first last">
+<li><p class="first">BibTex:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@article</span><span class="p">{</span><span class="n">smoteNoise0</span><span class="p">,</span>
+         <span class="n">author</span> <span class="o">=</span> <span class="p">{</span><span class="n">Batista</span><span class="p">,</span> <span class="n">Gustavo</span> <span class="n">E</span><span class="o">.</span> <span class="n">A</span><span class="o">.</span> <span class="n">P</span><span class="o">.</span> <span class="n">A</span><span class="o">.</span> <span class="ow">and</span> <span class="n">Prati</span><span class="p">,</span> <span class="n">Ronaldo</span> <span class="n">C</span><span class="o">.</span> <span class="ow">and</span> <span class="n">Monard</span><span class="p">,</span> <span class="n">Maria</span> <span class="n">Carolina</span><span class="p">},</span>
+         <span class="n">title</span> <span class="o">=</span> <span class="p">{</span><span class="n">A</span> <span class="n">Study</span> <span class="n">of</span> <span class="n">the</span> <span class="n">Behavior</span> <span class="n">of</span> <span class="n">Several</span> <span class="n">Methods</span> <span class="k">for</span> <span class="n">Balancing</span> <span class="n">Machine</span> <span class="n">Learning</span> <span class="n">Training</span> <span class="n">Data</span><span class="p">},</span>
+         <span class="n">journal</span> <span class="o">=</span> <span class="p">{</span><span class="n">SIGKDD</span> <span class="n">Explor</span><span class="o">.</span> <span class="n">Newsl</span><span class="o">.</span><span class="p">},</span>
+         <span class="n">issue_date</span> <span class="o">=</span> <span class="p">{</span><span class="n">June</span> <span class="mi">2004</span><span class="p">},</span>
+         <span class="n">volume</span> <span class="o">=</span> <span class="p">{</span><span class="mi">6</span><span class="p">},</span>
+         <span class="n">number</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1</span><span class="p">},</span>
+         <span class="n">month</span> <span class="o">=</span> <span class="n">jun</span><span class="p">,</span>
+         <span class="n">year</span> <span class="o">=</span> <span class="p">{</span><span class="mi">2004</span><span class="p">},</span>
+         <span class="n">issn</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1931</span><span class="o">-</span><span class="mi">0145</span><span class="p">},</span>
+         <span class="n">pages</span> <span class="o">=</span> <span class="p">{</span><span class="mi">20</span><span class="o">--</span><span class="mi">29</span><span class="p">},</span>
+         <span class="n">numpages</span> <span class="o">=</span> <span class="p">{</span><span class="mi">10</span><span class="p">},</span>
+         <span class="n">url</span> <span class="o">=</span> <span class="p">{</span><span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="n">doi</span><span class="o">.</span><span class="n">acm</span><span class="o">.</span><span class="n">org</span><span class="o">/</span><span class="mf">10.1145</span><span class="o">/</span><span class="mf">1007730.1007735</span><span class="p">},</span>
+         <span class="n">doi</span> <span class="o">=</span> <span class="p">{</span><span class="mf">10.1145</span><span class="o">/</span><span class="mf">1007730.1007735</span><span class="p">},</span>
+         <span class="n">acmid</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1007735</span><span class="p">},</span>
+         <span class="n">publisher</span> <span class="o">=</span> <span class="p">{</span><span class="n">ACM</span><span class="p">},</span>
+         <span class="n">address</span> <span class="o">=</span> <span class="p">{</span><span class="n">New</span> <span class="n">York</span><span class="p">,</span> <span class="n">NY</span><span class="p">,</span> <span class="n">USA</span><span class="p">}</span>
+        <span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">URL: <a class="reference external" href="https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx">https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx</a></p>
+</li>
+</ul>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="editednearestneighbors">
+<h2>EditedNearestNeighbors<a class="headerlink" href="#editednearestneighbors" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id9">
+<h3>API<a class="headerlink" href="#id9" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="smote_variants.EditedNearestNeighbors">
+<em class="property">class </em><code class="descclassname">smote_variants.</code><code class="descname">EditedNearestNeighbors</code><span class="sig-paren">(</span><em>remove='both'</em>, <em>n_jobs=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#EditedNearestNeighbors"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.EditedNearestNeighbors" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="smote_variants.EditedNearestNeighbors.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>remove='both'</em>, <em>n_jobs=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#EditedNearestNeighbors.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.EditedNearestNeighbors.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Constructor of the noise removal object</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>remove</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – class to remove from ‘both’/’min’/’maj’</li>
+<li><strong>n_jobs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of parallel jobs</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="smote_variants.EditedNearestNeighbors.remove_noise">
+<code class="descname">remove_noise</code><span class="sig-paren">(</span><em>X</em>, <em>y</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#EditedNearestNeighbors.remove_noise"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.EditedNearestNeighbors.remove_noise" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes noise</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>X</strong> (<em>np.matrix</em>) – features</li>
+<li><strong>y</strong> (<em>np.array</em>) – target labels</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">cleaned features and target labels</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.matrix, np.array</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="id10">
+<h3>Example<a class="headerlink" href="#id10" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">noise_filter</span><span class="o">=</span> <span class="n">smote_variants</span><span class="o">.</span><span class="n">EditedNearestNeighbors</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">X_samp</span><span class="p">,</span> <span class="n">y_samp</span><span class="o">=</span> <span class="n">noise_filter</span><span class="o">.</span><span class="n">remove_noise</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+</pre></div>
+</div>
+<img alt="_images/base.png" src="_images/base.png" />
+<img alt="_images/EditedNearestNeighbors.png" src="_images/EditedNearestNeighbors.png" />
+<dl class="docutils">
+<dt>References:</dt>
+<dd><ul class="first last">
+<li><p class="first">BibTex:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@article</span><span class="p">{</span><span class="n">smoteNoise0</span><span class="p">,</span>
+         <span class="n">author</span> <span class="o">=</span> <span class="p">{</span><span class="n">Batista</span><span class="p">,</span> <span class="n">Gustavo</span> <span class="n">E</span><span class="o">.</span> <span class="n">A</span><span class="o">.</span> <span class="n">P</span><span class="o">.</span> <span class="n">A</span><span class="o">.</span> <span class="ow">and</span> <span class="n">Prati</span><span class="p">,</span> <span class="n">Ronaldo</span> <span class="n">C</span><span class="o">.</span> <span class="ow">and</span> <span class="n">Monard</span><span class="p">,</span> <span class="n">Maria</span> <span class="n">Carolina</span><span class="p">},</span>
+         <span class="n">title</span> <span class="o">=</span> <span class="p">{</span><span class="n">A</span> <span class="n">Study</span> <span class="n">of</span> <span class="n">the</span> <span class="n">Behavior</span> <span class="n">of</span> <span class="n">Several</span> <span class="n">Methods</span> <span class="k">for</span> <span class="n">Balancing</span> <span class="n">Machine</span> <span class="n">Learning</span> <span class="n">Training</span> <span class="n">Data</span><span class="p">},</span>
+         <span class="n">journal</span> <span class="o">=</span> <span class="p">{</span><span class="n">SIGKDD</span> <span class="n">Explor</span><span class="o">.</span> <span class="n">Newsl</span><span class="o">.</span><span class="p">},</span>
+         <span class="n">issue_date</span> <span class="o">=</span> <span class="p">{</span><span class="n">June</span> <span class="mi">2004</span><span class="p">},</span>
+         <span class="n">volume</span> <span class="o">=</span> <span class="p">{</span><span class="mi">6</span><span class="p">},</span>
+         <span class="n">number</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1</span><span class="p">},</span>
+         <span class="n">month</span> <span class="o">=</span> <span class="n">jun</span><span class="p">,</span>
+         <span class="n">year</span> <span class="o">=</span> <span class="p">{</span><span class="mi">2004</span><span class="p">},</span>
+         <span class="n">issn</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1931</span><span class="o">-</span><span class="mi">0145</span><span class="p">},</span>
+         <span class="n">pages</span> <span class="o">=</span> <span class="p">{</span><span class="mi">20</span><span class="o">--</span><span class="mi">29</span><span class="p">},</span>
+         <span class="n">numpages</span> <span class="o">=</span> <span class="p">{</span><span class="mi">10</span><span class="p">},</span>
+         <span class="n">url</span> <span class="o">=</span> <span class="p">{</span><span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="n">doi</span><span class="o">.</span><span class="n">acm</span><span class="o">.</span><span class="n">org</span><span class="o">/</span><span class="mf">10.1145</span><span class="o">/</span><span class="mf">1007730.1007735</span><span class="p">},</span>
+         <span class="n">doi</span> <span class="o">=</span> <span class="p">{</span><span class="mf">10.1145</span><span class="o">/</span><span class="mf">1007730.1007735</span><span class="p">},</span>
+         <span class="n">acmid</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1007735</span><span class="p">},</span>
+         <span class="n">publisher</span> <span class="o">=</span> <span class="p">{</span><span class="n">ACM</span><span class="p">},</span>
+         <span class="n">address</span> <span class="o">=</span> <span class="p">{</span><span class="n">New</span> <span class="n">York</span><span class="p">,</span> <span class="n">NY</span><span class="p">,</span> <span class="n">USA</span><span class="p">}</span>
+        <span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">URL: <a class="reference external" href="https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx">https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx</a></p>
+</li>
+</ul>
+</dd>
+</dl>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="model_selection.html" class="btn btn-neutral float-right" title="Model selection, evaluation and validation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="oversamplers.html" class="btn btn-neutral" title="Oversamplers" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018, György Kovács
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+    
+
+  
+
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

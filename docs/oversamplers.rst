@@ -157,7 +157,7 @@ Example
 References:
     * BibTex::
         
-        @InProceedings{borderline_SMOTE,
+        @InProceedings{borderlineSMOTE,
                         author="Han, Hui
                         and Wang, Wen-Yuan
                         and Mao, Bing-Huan",
@@ -200,7 +200,7 @@ Example
 References:
     * BibTex::
         
-        @InProceedings{borderline_SMOTE,
+        @InProceedings{borderlineSMOTE,
                         author="Han, Hui
                         and Wang, Wen-Yuan
                         and Mao, Bing-Huan",
@@ -826,7 +826,7 @@ Example
 References:
     * BibTex::
         
-        @article{SVM_balance,
+        @article{svm_balance,
                  author = {Farquad, M.A.H. and Bose, Indranil},
                  title = {Preprocessing Unbalanced Data Using Support Vector Machine},
                  journal = {Decis. Support Syst.},
@@ -2280,7 +2280,7 @@ Example
 References:
     * BibTex::
         
-        @InProceedings{CBSO,
+        @InProceedings{cbso,
                         author="Barua, Sukarna
                         and Islam, Md. Monirul
                         and Murase, Kazuyuki",

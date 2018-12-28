@@ -1,0 +1,274 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Getting Started &mdash; smote_variants 0.1.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Installation" href="installation.html" />
+    <link rel="prev" title="Welcome to smote_variants’s documentation!" href="index.html" /> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> smote_variants
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Getting Started</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#what-is-smote-variants">What is <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code>?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#why-oversampling">Why oversampling?</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+</ul>
+<p class="caption"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="oversamplers.html">Oversamplers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="noise_filters.html">Noise filters and prototype selection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model_selection.html">Model selection, evaluation and validation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="multiclass_oversampling.html">Multiclass oversampling</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Usage</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="add_new_oversampler.html">Adding a new oversampler</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gallery.html">Gallery</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Interfaces</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="use_in_r.html">Using <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> in R</a></li>
+<li class="toctree-l1"><a class="reference internal" href="use_in_julia.html">Using <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> in Julia</a></li>
+</ul>
+<p class="caption"><span class="caption-text">The competition</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="competition.html">About the competition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ranking.html">Ranking</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Additional Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="contribute.html">Contribute</a></li>
+<li class="toctree-l1"><a class="reference internal" href="release_history.html">Release History</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">smote_variants</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Getting Started</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/getting_started.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="getting-started">
+<h1>Getting Started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="what-is-smote-variants">
+<h2>What is <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code>?<a class="headerlink" href="#what-is-smote-variants" title="Permalink to this headline">¶</a></h2>
+<p>Imbalanced datasets are around. In fact, the synthetic oversampling of the minority class is able to improve classification performance in imbalanced learning scenarios.
+There are more than 85 variants of the classical Synthetic Minority Oversampling Technique (SMOTE) published, but source codes are available for only
+a handful of techniques. In this package we have implemented 85 variants of SMOTE in a common framework, and also supplied some model selection and evaluation codes.</p>
+<p>In order to get an impression on what to expect, an ordinary, imbalanced, 2D dataset can be seen in the left hand side, and the oversampled dataset on the right hand side:</p>
+<img alt="_images/base.png" src="_images/base.png" />
+<img alt="_images/SMOTE_ENN.png" src="_images/SMOTE_ENN.png" />
+<p>If you use this package, please cite the following paper:</p>
+<div class="highlight-Latex notranslate"><div class="highlight"><pre><span></span>@article<span class="nb">{</span>smote<span class="nb">_</span>variants<span class="nb">_</span>comparison,
+        author=<span class="nb">{</span>Gy<span class="k">\&quot;</span>orgy, Kov<span class="k">\&#39;</span>acs<span class="nb">}</span>,
+        title=<span class="nb">{</span>Empirical comparison and evaluation of 85 variants of the Synthetic Minority Oversampling Technique on 104 imbalanced datasets<span class="nb">}</span>,
+        journal=<span class="nb">{}</span>,
+        volume=<span class="nb">{}</span>
+        pages=<span class="nb">{}</span>,
+        year=<span class="nb">{</span>2019<span class="nb">}</span>
+        <span class="nb">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="why-oversampling">
+<h2>Why oversampling?<a class="headerlink" href="#why-oversampling" title="Permalink to this headline">¶</a></h2>
+<p>At first glance, oversampling seems to be an empirical heuristic technique to improve classification performance. After all, generating samples somehow and using them for training a classifier seems to be fairly contracitory. However, there are some reasons why the contrary is the case:</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li><em>Data augmentation</em>: sample generation is widely used on nowadays’ flagship field deep learning, but it is called data augmentation. In data augmentation additional images are generated to drive deep learning by applying various geometrical and statistical distortions like skewing or adding noise. In the image domain, it is known that these transformations shouldn’t change the useful content of the image much, but increase the variability of the training set, thus, better models can be expected. Using a general dataset, the set of transformations that keep the content unchanged is unclear, but one can expect that applying some interpolation between close data points of a class is likely to remain in the same class. This is exatly what oversampling does, so, it can be considered as a general analogy of the widely accepted data augmentation process.</li>
+<li><em>Improved regularization</em>: to avoid overfitting, most of the classifiers have some hyperparameters for regularization. Whether it is the coefficient of the L1 or L2 norm of weights in the objective function or it is an upper bound on the depth of decision trees, it’s goal is to reduce overfitting by making a compromise between bias and variance. Training an imbalanced dataset, most of the general purpose classifiers tend to overfit the majority class (since it has a larger contribution to the loss function, or its samples are more dense and dominate some regions in the feature space, etc.). Even though the overfitting caused by imbalance is a decent effect in the training process, we have only those regularization parameters developed for balanced datasets. It becomes extremely hard to prevent overfitting some classes using the standard regularization parameters, especially if the degree of imbalance varies in space. One of the basic principles of machine learning is that the goal of regularization is to fix the lack of data. If we had enough training data, there would be no need for regularization, at all. Thus, generating training data is closely related to the root of the problem, it is a kind of regularization, in which we put artificial sample points to certain positions in the feature space to articulate what we expect about the shape of the class manifold.</li>
+<li><em>Regularization by samples - a Bayesian thought</em>: finally, Bayesian people usually say that one important reason why Bayesian statistics is better than frequentist statistics is that in the lack of infinite data (which is ususally the case), all we can derive is a distribution on any parameter of interest. And, arbitrary distributions can be represented by a bunch of sampels. Analoguosly, in our interpretation, there is no better way to do regularization than generating artificial training sampels according to our expectations on the distribution of the data.</li>
+</ol>
+</div></blockquote>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="installation.html" class="btn btn-neutral float-right" title="Installation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="index.html" class="btn btn-neutral" title="Welcome to smote_variants’s documentation!" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018, György Kovács
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+    
+
+  
+
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

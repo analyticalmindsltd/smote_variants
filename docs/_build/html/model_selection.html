@@ -1,0 +1,424 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Model selection, evaluation and validation &mdash; smote_variants 0.1.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Multiclass oversampling" href="multiclass_oversampling.html" />
+    <link rel="prev" title="Noise filters and prototype selection" href="noise_filters.html" /> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> smote_variants
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+</ul>
+<p class="caption"><span class="caption-text">API</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="oversamplers.html">Oversamplers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="noise_filters.html">Noise filters and prototype selection</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Model selection, evaluation and validation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#caching">Caching</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#parallelization">Parallelization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#querying-and-filtering-oversamplers">Querying and filtering oversamplers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#evaluation-and-validation">Evaluation and validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#model-selection">Model selection</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="multiclass_oversampling.html">Multiclass oversampling</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Usage</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="add_new_oversampler.html">Adding a new oversampler</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gallery.html">Gallery</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Interfaces</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="use_in_r.html">Using <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> in R</a></li>
+<li class="toctree-l1"><a class="reference internal" href="use_in_julia.html">Using <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> in Julia</a></li>
+</ul>
+<p class="caption"><span class="caption-text">The competition</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="competition.html">About the competition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ranking.html">Ranking</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Additional Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="contribute.html">Contribute</a></li>
+<li class="toctree-l1"><a class="reference internal" href="release_history.html">Release History</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">smote_variants</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Model selection, evaluation and validation</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/model_selection.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="model-selection-evaluation-and-validation">
+<h1>Model selection, evaluation and validation<a class="headerlink" href="#model-selection-evaluation-and-validation" title="Permalink to this headline">¶</a></h1>
+<p>Besides the oversampler implementation, we have prepared some codes for model selection compatible with <code class="docutils literal notranslate"><span class="pre">sklearn</span></code> classifier interfaces.</p>
+<p>Having a dataset, a bunch of candidate oversamplers and classifiers, the tools below enable customizable model selection.</p>
+<div class="section" id="caching">
+<h2>Caching<a class="headerlink" href="#caching" title="Permalink to this headline">¶</a></h2>
+<p>The evaluation and comparison of oversampling techniques on many datasets might take enormous time. In order to increase the reliability
+of an evaluation process, make it stoppable and restartable and let the oversampling techniques utilize results already computed, we
+have implemented some model selection and evaluation scripts, both using some hard-disk cache directory to store partial and final results.
+These functions cannot be used without specifying some cache directory.</p>
+</div>
+<div class="section" id="parallelization">
+<h2>Parallelization<a class="headerlink" href="#parallelization" title="Permalink to this headline">¶</a></h2>
+<p>The evaluation and model selection scripts are executing oversampling and classification jobs in parallel. If the number of jobs specified
+is 1, they will call the sklearn algorithms to run in parallel, otherwise the sklearn implementations run in sequential, and the oversampling
+and classification jobs will be executed in parallel, using <code class="docutils literal notranslate"><span class="pre">n_jobs</span></code> processes.</p>
+</div>
+<div class="section" id="querying-and-filtering-oversamplers">
+<h2>Querying and filtering oversamplers<a class="headerlink" href="#querying-and-filtering-oversamplers" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="smote_variants.get_all_oversamplers">
+<code class="descclassname">smote_variants.</code><code class="descname">get_all_oversamplers</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#get_all_oversamplers"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.get_all_oversamplers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns all oversampling classes</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">list of all oversampling classes</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)">list</a>(OverSampling)</td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">smote_variants</span> <span class="k">as</span> <span class="nn">sv</span>
+
+<span class="n">oversamplers</span><span class="o">=</span> <span class="n">sv</span><span class="o">.</span><span class="n">get_all_oversamplers</span><span class="p">()</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="function">
+<dt id="smote_variants.get_n_quickest_oversamplers">
+<code class="descclassname">smote_variants.</code><code class="descname">get_n_quickest_oversamplers</code><span class="sig-paren">(</span><em>n=10</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#get_n_quickest_oversamplers"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.get_n_quickest_oversamplers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the n quickest oversamplers based on testing on the datasets of
+the imbalanced_databases package.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>n</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of oversamplers to return</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">list of the n quickest oversampling classes</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)">list</a>(OverSampling)</td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">smote_variants</span> <span class="k">as</span> <span class="nn">sv</span>
+
+<span class="n">oversamplers</span><span class="o">=</span> <span class="n">sv</span><span class="o">.</span><span class="n">get_n_quickest_oversamplers</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</div>
+<div class="section" id="evaluation-and-validation">
+<h2>Evaluation and validation<a class="headerlink" href="#evaluation-and-validation" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="smote_variants.evaluate_oversamplers">
+<code class="descclassname">smote_variants.</code><code class="descname">evaluate_oversamplers</code><span class="sig-paren">(</span><em>datasets</em>, <em>samplers</em>, <em>classifiers</em>, <em>cache_path</em>, <em>validator=&lt;sklearn.model_selection._split.RepeatedStratifiedKFold object&gt;</em>, <em>all_results=False</em>, <em>remove_sampling_cache=False</em>, <em>max_n_sampler_parameters=35</em>, <em>n_jobs=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#evaluate_oversamplers"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.evaluate_oversamplers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Evaluates oversampling techniques using various classifiers on various datasets</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>datasets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – list of datasets and/or dataset loaders - a dataset is a dict with ‘data’, ‘target’ and ‘name’ keys</li>
+<li><strong>samplers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – list of oversampling classes/objects</li>
+<li><strong>classifiers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – list of classifier objects</li>
+<li><strong>cache_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – path to a cache directory</li>
+<li><strong>validator</strong> (<em>obj</em>) – validator object</li>
+<li><strong>all_results</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – True to return all results, False to return an aggregation</li>
+<li><strong>remove_sampling_cache</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – True to remove sampling objects after evaluation</li>
+<li><strong>max_n_sampler_parameters</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – maximum number of sampler parameter combinations to be tested</li>
+<li><strong>n_jobs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of parallel jobs</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">all results or the aggregated results if all_results is False</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">pd.DataFrame</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">smote_variants</span> <span class="k">as</span> <span class="nn">sv</span>
+<span class="kn">import</span> <span class="nn">imbalanced_datasets</span> <span class="k">as</span> <span class="nn">imbd</span>
+
+<span class="kn">from</span> <span class="nn">sklearn.tree</span> <span class="k">import</span> <span class="n">DecisionTreeClassifier</span>
+<span class="kn">from</span> <span class="nn">sklearn.neighbors</span> <span class="k">import</span> <span class="n">KNeighborsClassifier</span>
+
+<span class="n">datasets</span><span class="o">=</span> <span class="p">[</span><span class="n">imbd</span><span class="o">.</span><span class="n">load_glass2</span><span class="p">,</span> <span class="n">imbd</span><span class="o">.</span><span class="n">load_ecoli4</span><span class="p">]</span>
+<span class="n">oversamplers</span><span class="o">=</span> <span class="p">[</span><span class="n">sv</span><span class="o">.</span><span class="n">SMOTE_ENN</span><span class="p">,</span> <span class="n">sv</span><span class="o">.</span><span class="n">NEATER</span><span class="p">,</span> <span class="n">sv</span><span class="o">.</span><span class="n">Lee</span><span class="p">]</span>
+<span class="n">classifiers</span><span class="o">=</span> <span class="p">[</span><span class="n">KNeighborsClassifier</span><span class="p">(</span><span class="n">n_neighbors</span><span class="o">=</span> <span class="mi">3</span><span class="p">),</span>
+              <span class="n">KNeighborsClassifier</span><span class="p">(</span><span class="n">n_neighbors</span><span class="o">=</span> <span class="mi">5</span><span class="p">),</span>
+              <span class="n">DecisionTreeClassifier</span><span class="p">()]</span>
+
+<span class="n">cache_path</span><span class="o">=</span> <span class="s1">&#39;/home/&lt;user&gt;/smote_validation/&#39;</span>
+
+<span class="n">results</span><span class="o">=</span> <span class="n">evaluate_oversamplers</span><span class="p">(</span><span class="n">datasets</span><span class="p">,</span>
+                               <span class="n">oversamplers</span><span class="p">,</span>
+                               <span class="n">classifiers</span><span class="p">,</span>
+                               <span class="n">cache_path</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</div>
+<div class="section" id="model-selection">
+<h2>Model selection<a class="headerlink" href="#model-selection" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="smote_variants.model_selection">
+<code class="descclassname">smote_variants.</code><code class="descname">model_selection</code><span class="sig-paren">(</span><em>datasets</em>, <em>samplers</em>, <em>classifiers</em>, <em>cache_path</em>, <em>score='auc'</em>, <em>validator=&lt;sklearn.model_selection._split.RepeatedStratifiedKFold object&gt;</em>, <em>remove_sampling_cache=False</em>, <em>max_n_sampler_parameters=35</em>, <em>n_jobs=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#model_selection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.model_selection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Evaluates oversampling techniques on various classifiers and dataset
+and returns the oversampling and classifier objects giving the best performance</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>datasets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – list of datasets and/or dataset loaders - a dataset is a dict with ‘data’, ‘target’ and ‘name’ keys</li>
+<li><strong>samplers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – list of oversampling classes/objects</li>
+<li><strong>classifiers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – list of classifier objects</li>
+<li><strong>cache_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – path to a cache directory</li>
+<li><strong>score</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – ‘auc’/’acc’/’gacc’/’f1’/’brier’/’p_top20’</li>
+<li><strong>validator</strong> (<em>obj</em>) – validator object</li>
+<li><strong>all_results</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – True to return all results, False to return an aggregation</li>
+<li><strong>remove_sampling_cache</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – True to remove sampling objects after evaluation</li>
+<li><strong>max_n_sampler_parameters</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – maximum number of sampler parameter combinations to be tested</li>
+<li><strong>n_jobs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of parallel jobs</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">the best performing sampler object and the best performing classifier object</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">obj, obj</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">smote_variants</span> <span class="k">as</span> <span class="nn">sv</span>
+<span class="kn">import</span> <span class="nn">imbalanced_datasets</span> <span class="k">as</span> <span class="nn">imbd</span>
+
+<span class="kn">from</span> <span class="nn">sklearn.tree</span> <span class="k">import</span> <span class="n">DecisionTreeClassifier</span>
+<span class="kn">from</span> <span class="nn">sklearn.neighbors</span> <span class="k">import</span> <span class="n">KNeighborsClassifier</span>
+
+<span class="n">datasets</span><span class="o">=</span> <span class="p">[</span><span class="n">imbd</span><span class="o">.</span><span class="n">load_glass2</span><span class="p">]</span>
+<span class="n">oversamplers</span><span class="o">=</span> <span class="p">[</span><span class="n">sv</span><span class="o">.</span><span class="n">SMOTE_ENN</span><span class="p">,</span> <span class="n">sv</span><span class="o">.</span><span class="n">NEATER</span><span class="p">,</span> <span class="n">sv</span><span class="o">.</span><span class="n">Lee</span><span class="p">]</span>
+<span class="n">classifiers</span><span class="o">=</span> <span class="p">[</span><span class="n">KNeighborsClassifier</span><span class="p">(</span><span class="n">n_neighbors</span><span class="o">=</span> <span class="mi">3</span><span class="p">),</span>
+              <span class="n">KNeighborsClassifier</span><span class="p">(</span><span class="n">n_neighbors</span><span class="o">=</span> <span class="mi">5</span><span class="p">),</span>
+              <span class="n">DecisionTreeClassifier</span><span class="p">()]</span>
+
+<span class="n">cache_path</span><span class="o">=</span> <span class="s1">&#39;/home/&lt;user&gt;/smote_validation/&#39;</span>
+
+<span class="n">sampler</span><span class="p">,</span> <span class="n">classifier</span><span class="o">=</span> <span class="n">model_selection</span><span class="p">(</span><span class="n">datasets</span><span class="p">,</span>
+                                     <span class="n">oversamplers</span><span class="p">,</span>
+                                     <span class="n">classifiers</span><span class="p">,</span>
+                                     <span class="n">cache_path</span><span class="p">,</span>
+                                     <span class="s1">&#39;auc&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="multiclass_oversampling.html" class="btn btn-neutral float-right" title="Multiclass oversampling" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="noise_filters.html" class="btn btn-neutral" title="Noise filters and prototype selection" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018, György Kovács
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+    
+
+  
+
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
