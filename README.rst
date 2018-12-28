@@ -6,7 +6,7 @@
 .. _Travis: https://travis-ci.org/gykovacs/smote_variants
 
 .. |Codecov| image:: https://codecov.io/gh/gykovacs/smote_variants/branch/master/graph/badge.svg
-.. _Codecov: https://codecov.io/gh/gykovacs/smote-variants
+.. _Codecov: https://codecov.io/gh/gykovacs/smote_variants
 
 .. |ReadTheDocs| image:: https://readthedocs.org/projects/smote-variants/badge/?version=latest
 .. _ReadTheDocs: https://smote-variants.readthedocs.io/en/latest/?badge=latest
