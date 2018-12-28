@@ -10,6 +10,7 @@ def get_version():
     version_file= os.path.join('smote_variants', '_version.py')
     with open(version_file) as f:
         exec(f.read())
+    return __version__
 
 DISTNAME= 'smote_variants'
 DESCRIPTION= 'Variants of the synthetic minority oversampling technique (SMOTE) for imbalanced learning'
@@ -19,7 +20,7 @@ MAINTAINER_EMAIL= 'gyuriofkovacs@gmail.com'
 URL= 'https://github.com/gykovacs/smote-variants'
 LICENSE= 'MIT'
 DOWNLOAD_URL= 'https://github.com/gykovacs/smote-variants'
-VERSION= get_version()['__version__']
+VERSION= get_version()
 CLASSIFIERS= [  'Intended Audiance :: Science/Research',
                 'Intended Audiance :: Developers',
                 'Development Status :: 3 - Alpha',
