@@ -210,6 +210,43 @@ def oversampler_summary_table():
 
     print(res)
 
+def oversampler_summary_table_thin():
+    """
+    Creates the oversampler summary table.
+    """
+    oversamplers= sv.get_all_oversamplers()
+    oversamplers.remove(sv.NoSMOTE)
+    
+    oversampling_bibtex= {o.__name__: extract_bibtex_entry(o.__doc__) for o in oversamplers}
+    oversampling_years= {o.__name__: oversampling_bibtex[o.__name__]['year'] for o in oversamplers}
+    
+    oversamplers= sorted(oversamplers, key= lambda x: oversampling_years[x.__name__])
+    
+    cat_summary= []
+    for o in oversamplers:
+        cat_summary.append({'method': o.__name__.replace('_', '-') + ' citep(' + oversampling_bibtex[o.__name__]['key'] + '))'})
+    
+    pd.set_option('max_colwidth', 100)
+    cat_summary= pd.DataFrame(cat_summary)
+    cat_summary= cat_summary[['method']]
+    cat_summary.index= np.arange(1, len(cat_summary) + 1)
+    cat_summary_first= cat_summary.iloc[:int(len(cat_summary)/2+0.5)].reset_index()
+    cat_summary_second= cat_summary.iloc[int(len(cat_summary)/2+0.5):].reset_index()
+
+    cat_summary_second['index']= cat_summary_second['index'].astype(str)
+    results= pd.concat([cat_summary_first, cat_summary_second], axis= 1)
+    
+    res= results.to_latex(index= False)
+    res= res.replace('index', '')
+    res= res.replace('\\toprule', '')
+    res= res.replace('citep(', '\\citep{')
+    res= res.replace('))', '}')
+    res= res.replace('\_', '_')
+    res= res.replace('NaN', '')
+
+    print(res)
+
+
 def dataset_summary_table():
     """
     Creates the dataset summary table.
