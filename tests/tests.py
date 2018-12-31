@@ -282,7 +282,7 @@ def test_model_selection():
     dt_classifier= DecisionTreeClassifier()
 
     # instantiate the validation object
-    samp_obj, cl_obj= sv.model_selection(datasets= [dataset],
+    samp_obj, cl_obj= sv.model_selection(dataset= dataset,
                                           samplers= sv.get_n_quickest_oversamplers(5),
                                           classifiers= [knn_classifier, dt_classifier],
                                           cache_path= cache_path,
@@ -375,7 +375,7 @@ def test_cross_validate():
     knn_classifier= KNeighborsClassifier()
 
     # instantiate the validation object
-    results= sv.cross_validate(datasets= dataset,
+    results= sv.cross_validate(dataset= dataset,
                                         sampler= sv.SMOTE(),
                                         classifier= knn_classifier)
     
