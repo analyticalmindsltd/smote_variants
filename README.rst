@@ -14,8 +14,8 @@
 .. |ReadTheDocs| image:: https://readthedocs.org/projects/smote-variants/badge/?version=latest
 .. _ReadTheDocs: https://smote-variants.readthedocs.io/en/latest/?badge=latest
 
-.. |PythonVersion| image:: https://img.shields.io/badge/python-3.5%7C%20%203.6-green.svg
-.. _PythonVersion: https://img.shields.io/badge/python-3.5%7C%20%203.6%20%7C%203.7-green.svg
+.. |PythonVersion| image:: https://img.shields.io/badge/python-3.5%20%7C%203.6%20%7C%203.7-blue.svg
+.. _PythonVersion: https://img.shields.io/badge/python-3.5%20%7C%203.6%20%7C%203.7-blue.svg
 
 .. |PyPi| image:: https://badge.fury.io/py/smote-variants.svg
 .. _PyPi: https://badge.fury.io/py/smote-variants
