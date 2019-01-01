@@ -302,6 +302,11 @@ def test_multiclass():
     X_samp, y_samp= oversampler.sample(dataset['data'], dataset['target'])
     
     assert len(X_samp) > 0
+    
+    oversampler= sv.MulticlassOversampling(sv.distance_SMOTE(), strategy= 'equalize_1_vs_many')
+    
+    X_samp, y_samp= oversampler.sample(dataset['data'], dataset['target'])
+    
 
 def test_queries():
     assert len(sv.get_all_oversamplers()) > 0
@@ -380,3 +385,12 @@ def test_cross_validate():
                                         classifier= knn_classifier)
     
     assert len(results) > 0
+    
+    dataset= datasets.load_wine()
+    
+    results= sv.cross_validate(dataset= dataset,
+                               sampler= sv.SMOTE(),
+                               classifier= knn_classifier)
+    
+    assert len(results) > 0
+    
