@@ -7,4 +7,5 @@ minisom
 statistics
 tensorflow
 keras
+nose
 
