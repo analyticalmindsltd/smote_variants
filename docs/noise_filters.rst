@@ -78,7 +78,7 @@ References:
     * BibTex::
         
         @ARTICLE{condensed_nn, 
-                    author={P. Hart}, 
+                    author={Hart, P.}, 
                     journal={IEEE Transactions on Information Theory}, 
                     title={The condensed nearest neighbor rule (Corresp.)}, 
                     year={1968}, 

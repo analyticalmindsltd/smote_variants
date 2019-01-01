@@ -647,7 +647,7 @@ class CondensedNearestNeighbors(NoiseFilter):
         * BibTex::
             
             @ARTICLE{condensed_nn, 
-                        author={P. Hart}, 
+                        author={Hart, P.}, 
                         journal={IEEE Transactions on Information Theory}, 
                         title={The condensed nearest neighbor rule (Corresp.)}, 
                         year={1968}, 
@@ -1206,7 +1206,7 @@ class SMOTE(OverSampling):
         * BibTex::
             
             @article{smote,
-                author={N. V. Chawla and K. W. Bowyer and L. O. Hall and W. P. Kegelmeyer},
+                author={Chawla, N. V. and Bowyer, K. W. and Hall, L. O. and Kegelmeyer, W. P.},
                 title={{SMOTE}: synthetic minority over-sampling technique},
                 journal={Journal of Artificial Intelligence Research},
                 volume={16},
@@ -1785,7 +1785,7 @@ class ADASYN(OverSampling):
         * BibTex::
             
             @inproceedings{adasyn,
-                          author={H. He and Y. Bai and E. A. Garcia and S. Li},
+                          author={He, H. and Bai, Y. and Garcia, E. A. and Li, S.},
                           title={{ADASYN}: adaptive synthetic sampling approach for imbalanced learning},
                           booktitle={Proceedings of IJCNN},
                           year={2008},
@@ -2066,7 +2066,7 @@ class LLE_SMOTE(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{lle_smote, 
-                            author={J. Wang and M. Xu and H. Wang and J. Zhang}, 
+                            author={Wang, J. and Xu, M. and Wang, H. and Zhang, J.}, 
                             booktitle={2006 8th international Conference on Signal Processing}, 
                             title={Classification of Imbalanced Data by Using the SMOTE Algorithm and Locally Linear Embedding}, 
                             year={2006}, 
@@ -2447,7 +2447,7 @@ class polynom_fit_SMOTE(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{polynomial_fit_smote, 
-                            author={S. Gazzah and N. E. B. Amara}, 
+                            author={Gazzah, S. and Amara, N. E. B.}, 
                             booktitle={2008 The Eighth IAPR International Workshop on Document Analysis Systems}, 
                             title={New Oversampling Approaches Based on Polynomial Fitting for Imbalanced Data Sets}, 
                             year={2008}, 
@@ -2730,7 +2730,7 @@ class ADOMS(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{adoms, 
-                            author={S. Tang and S. Chen}, 
+                            author={Tang, S. and Chen, S.}, 
                             booktitle={2008 International Conference on Information Technology and Applications in Biomedicine}, 
                             title={The generation mechanism of synthetic minority class examples}, 
                             year={2008}, 
@@ -3129,7 +3129,7 @@ class DE_oversampling(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{de_oversampling, 
-                            author={L. Chen and Z. Cai and L. Chen and Q. Gu}, 
+                            author={Chen, L. and Cai, Z. and Chen, L. and Gu, Q.}, 
                             booktitle={2010 Third International Conference on Knowledge Discovery and Data Mining}, 
                             title={A Novel Differential Evolution-Clustering Hybrid Resampling Algorithm on Imbalanced Datasets}, 
                             year={2010}, 
@@ -3446,7 +3446,7 @@ class SMOBD(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{smobd, 
-                            author={Q. Cao and S. Wang}, 
+                            author={Cao, Q. and Wang, S.}, 
                             booktitle={2011 International Conference on Information Management, Innovation Management and Industrial Engineering}, 
                             title={Applying Over-sampling Technique Based on Data Density and Cost-sensitive SVM to Imbalanced Learning}, 
                             year={2011}, 
@@ -3604,7 +3604,7 @@ class SUNDO(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{sundo, 
-                            author={S. Cateni and V. Colla and M. Vannucci}, 
+                            author={Cateni, S. and Colla, V. and Vannucci, M.}, 
                             booktitle={2011 11th International Conference on Intelligent Systems Design and Applications}, 
                             title={Novel resampling method for the classification of imbalanced datasets for industrial and other real-world problems}, 
                             year={2011}, 
@@ -4958,7 +4958,7 @@ class SOI_CJ(OverSampling):
         * BibTex::
             
             @article{soi_cj,
-                    author = {I. Sánchez, Atlántida and Morales, Eduardo and Gonzalez, Jesus},
+                    author = {Sánchez, Atlántida I. and Morales, Eduardo and Gonzalez, Jesus},
                     year = {2013},
                     month = {01},
                     pages = {},
@@ -5624,7 +5624,7 @@ class LN_SMOTE(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{ln_smote, 
-                            author={T. Maciejewski and J. Stefanowski}, 
+                            author={Maciejewski, T. and Stefanowski, J.}, 
                             booktitle={2011 IEEE Symposium on Computational Intelligence and Data Mining (CIDM)}, 
                             title={Local neighbourhood extension of SMOTE for mining imbalanced data}, 
                             year={2011}, 
@@ -5811,7 +5811,7 @@ class MWMOTE(OverSampling):
         * BibTex::
             
             @ARTICLE{mwmote, 
-                        author={S. Barua and M. M. Islam and X. Yao and K. Murase}, 
+                        author={Barua, S. and Islam, M. M. and Yao, X. and Murase, K.}, 
                         journal={IEEE Transactions on Knowledge and Data Engineering}, 
                         title={MWMOTE--Majority Weighted Minority Oversampling Technique for Imbalanced Data Set Learning}, 
                         year={2014}, 
@@ -6596,7 +6596,7 @@ class NEATER(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{neater, 
-                            author={B. A. Almogahed and I. A. Kakadiaris}, 
+                            author={Almogahed, B. A. and Kakadiaris, I. A.}, 
                             booktitle={2014 22nd International Conference on Pattern Recognition}, 
                             title={NEATER: Filtering of Over-sampled Data Using Non-cooperative Game Theory}, 
                             year={2014}, 
@@ -6790,7 +6790,7 @@ class DEAGO(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{deago, 
-                            author={C. Bellinger and N. Japkowicz and C. Drummond}, 
+                            author={Bellinger, C. and Japkowicz, N. and Drummond, C.}, 
                             booktitle={2015 IEEE 14th International Conference on Machine Learning and Applications (ICMLA)}, 
                             title={Synthetic Oversampling for Advanced Radioactive Threat Detection}, 
                             year={2015}, 
@@ -6951,7 +6951,7 @@ class Gazzah(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{gazzah, 
-                            author={S. Gazzah and A. Hechkel and N. Essoukri Ben Amara}, 
+                            author={Gazzah, S. and Hechkel, A. and Essoukri Ben Amara, N. }, 
                             booktitle={2015 IEEE 12th International Multi-Conference on Systems, Signals Devices (SSD15)}, 
                             title={A hybrid sampling method for imbalanced data}, 
                             year={2015}, 
@@ -7688,7 +7688,7 @@ class KernelADASYN(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{kernel_adasyn, 
-                            author={B. Tang and H. He}, 
+                            author={Tang, B. and He, H.}, 
                             booktitle={2015 IEEE Congress on Evolutionary Computation (CEC)}, 
                             title={KernelADASYN: Kernel based adaptive synthetic data generation for imbalanced learning}, 
                             year={2015}, 
@@ -9236,7 +9236,7 @@ class CE_SMOTE(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{ce_smote, 
-                                author={S. Chen and G. Guo and L. Chen}, 
+                                author={Chen, S. and Guo, G. and Chen, L.}, 
                                 booktitle={2010 IEEE 24th International Conference on Advanced Information Networking and Applications Workshops}, 
                                 title={A New Over-Sampling Method Based on Cluster Ensembles}, 
                                 year={2010}, 
@@ -9385,7 +9385,7 @@ class Edge_Det_SMOTE(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{Edge_Det_SMOTE, 
-                            author={Y. Kang and S. Won}, 
+                            author={Kang, Y. and Won, S.}, 
                             booktitle={ICCAS 2010}, 
                             title={Weight decision algorithm for oversampling technique on class-imbalanced learning}, 
                             year={2010}, 
@@ -9680,7 +9680,7 @@ class E_SMOTE(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{e_smote, 
-                            author={T. Deepa and M. Punithavalli}, 
+                            author={Deepa, T. and Punithavalli, M.}, 
                             booktitle={2011 3rd International Conference on Electronics Computer Technology}, 
                             title={An E-SMOTE technique for feature selection in High-Dimensional Imbalanced Dataset}, 
                             year={2011}, 
@@ -10310,7 +10310,7 @@ class Assembled_SMOTE(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{assembled_smote, 
-                            author={B. Zhou and C. Yang and H. Guo and J. Hu}, 
+                            author={Zhou, B. and Yang, C. and Guo, H. and Hu, J.}, 
                             booktitle={The 2013 International Joint Conference on Neural Networks (IJCNN)}, 
                             title={A quasi-linear SVM combined with assembled SMOTE for imbalanced data classification}, 
                             year={2013}, 
@@ -10507,7 +10507,7 @@ class SDSMOTE(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{sdsmote, 
-                            author={K. Li and W. Zhang and Q. Lu and X. Fang}, 
+                            author={Li, K. and Zhang, W. and Lu, Q. and Fang, X.}, 
                             booktitle={2014 International Conference on Identification, Information and Knowledge in the Internet of Things}, 
                             title={An Improved SMOTE Imbalanced Data Classification Method Based on Support Degree}, 
                             year={2014}, 
@@ -10629,7 +10629,7 @@ class DSMOTE(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{dsmote, 
-                            author={S. Mahmoudi and P. Moradi and F. Akhlaghian and R. Moradi}, 
+                            author={Mahmoudi, S. and Moradi, P. and Akhlaghian, F. and Moradi, R.}, 
                             booktitle={2014 4th International Conference on Computer and Knowledge Engineering (ICCKE)}, 
                             title={Diversity and separable metrics in over-sampling technique for imbalanced data classification}, 
                             year={2014}, 
@@ -10858,7 +10858,7 @@ class G_SMOTE(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{g_smote, 
-                            author={T. Sandhan and J. Y. Choi}, 
+                            author={Sandhan, T. and Choi, J. Y.}, 
                             booktitle={2014 22nd International Conference on Pattern Recognition}, 
                             title={Handling Imbalanced Datasets by Partially Guided Hybrid Sampling for Pattern Recognition}, 
                             year={2014}, 
@@ -11011,7 +11011,7 @@ class NT_SMOTE(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{nt_smote, 
-                            author={Y. H. Xu and H. Li and L. P. Le and X. Y. Tian}, 
+                            author={Xu, Y. H. and Li, H. and Le, L. P. and Tian, X. Y.}, 
                             booktitle={2014 Seventh International Joint Conference on Computational Sciences and Optimization}, 
                             title={Neighborhood Triangular Synthetic Minority Over-sampling Technique for Imbalanced Prediction on Small Samples of Chinese Tourism and Hospitality Firms}, 
                             year={2014}, 
@@ -11256,7 +11256,7 @@ class SPY(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{spy, 
-                            author={X. T. Dang and D. H. Tran and O. Hirose and K. Satou}, 
+                            author={Dang, X. T. and Tran, D. H. and Hirose, O. and Satou, K.}, 
                             booktitle={2015 Seventh International Conference on Knowledge and Systems Engineering (KSE)}, 
                             title={SPY: A Novel Resampling Method for Improving Classification Performance in Imbalanced Data}, 
                             year={2015}, 
@@ -11354,7 +11354,7 @@ class SMOTE_PSOBAT(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{smote_psobat, 
-                            author={J. Li and S. Fong and Y. Zhuang}, 
+                            author={Li, J. and Fong, S. and Zhuang, Y.}, 
                             booktitle={2015 3rd International Symposium on Computational and Business Intelligence (ISCBI)}, 
                             title={Optimizing SMOTE by Metaheuristics with Neural Network and Decision Tree}, 
                             year={2015}, 
@@ -11696,7 +11696,7 @@ class MDO(OverSampling):
         * BibTex::
             
             @ARTICLE{mdo, 
-                        author={L. Abdi and S. Hashemi}, 
+                        author={Abdi, L. and Hashemi, S.}, 
                         journal={IEEE Transactions on Knowledge and Data Engineering}, 
                         title={To Combat Multi-Class Imbalanced Problems by Means of Over-Sampling Techniques}, 
                         year={2016}, 
@@ -12797,7 +12797,7 @@ class SMOTE_FRST_2T(OverSampling):
                         issn = "0952-1976",
                         doi = "https://doi.org/10.1016/j.engappai.2015.10.009",
                         url = "http://www.sciencedirect.com/science/article/pii/S0952197615002389",
-                        author = "E. Ramentol and I. Gondres and S. Lajes and R. Bello and Y. Caballero and C. Cornelis and F. Herrera",
+                        author = "Ramentol, E. and Gondres, I. and Lajes, S. and Bello, R. and Caballero,Y. and Cornelis, C. and Herrera, F.",
                         keywords = "High Voltage Circuit Breaker (HVCB), Imbalanced learning, Fuzzy rough set theory, Resampling methods"
                         }
 
@@ -13796,7 +13796,7 @@ class NDO_sampling(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{ndo_sampling, 
-                            author={L. Zhang and W. Wang}, 
+                            author={Zhang, L. and Wang, W.}, 
                             booktitle={2011 International Conference of Information Technology, Computer Engineering and Management Sciences}, 
                             title={A Re-sampling Method for Class Imbalance Learning with Credit Data}, 
                             year={2011}, 
@@ -15247,7 +15247,7 @@ class cluster_SMOTE(OverSampling):
         * BibTex::
             
             @INPROCEEDINGS{cluster_SMOTE, 
-                            author={D. A. Cieslak and N. V. Chawla and A. Striegel}, 
+                            author={Cieslak, D. A. and Chawla, N. V. and Striegel, A.}, 
                             booktitle={2006 IEEE International Conference on Granular Computing}, 
                             title={Combating imbalance in network intrusion datasets}, 
                             year={2006}, 
