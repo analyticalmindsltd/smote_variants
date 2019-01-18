@@ -1,7 +1,7 @@
 import os
 import codecs
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 def readme():
     with codecs.open('README.rst', encoding='utf-8-sig') as f:
@@ -42,6 +42,8 @@ PACKAGE_DIR= {'smote_variants': 'smote_variants'}
 setup(name=DISTNAME,
       maintainer=MAINTAINER,
       maintainer_email=MAINTAINER_EMAIL,
+      author=MAINTAINER,
+      author_email=MAINTAINER_EMAIL,
       description=DESCRIPTION,
       license=LICENSE,
       url=URL,
@@ -55,7 +57,8 @@ setup(name=DISTNAME,
       extras_require=EXTRAS_REQUIRE,
       python_requires=PYTHON_REQUIRES,
       test_suite=TEST_SUITE,
-      package_dir=PACKAGE_DIR)
+      package_dir=PACKAGE_DIR,
+      packages=find_packages(exclude=[])
 
 #setup(name='smote_variants',
 #      version=getversion(),
