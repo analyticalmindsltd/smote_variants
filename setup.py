@@ -58,7 +58,7 @@ setup(name=DISTNAME,
       python_requires=PYTHON_REQUIRES,
       test_suite=TEST_SUITE,
       package_dir=PACKAGE_DIR,
-      packages=find_packages(exclude=[])
+      packages=find_packages(exclude=[]))
 
 #setup(name='smote_variants',
 #      version=getversion(),
