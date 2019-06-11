@@ -3,7 +3,7 @@ numpy>=1.13.0
 pandas
 scipy
 sklearn
-minisom
+minisom=2.1.5
 statistics
 tensorflow
 keras
