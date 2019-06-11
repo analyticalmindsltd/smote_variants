@@ -1885,6 +1885,10 @@ class ADASYN(OverSampling):
         r= np.array(r)
         r= r/sum(r)
         
+        if any(np.isnan(r)):
+            _logger.warning(self.__class__.__name__ + ": " + "not enough non-noise samples for oversampling")
+            return X.copy(), y.copy()
+        
         # fitting nearest neighbors models to minority samples
         n_neigh= min([len(X_min), self.n_neighbors + 1])
         nn= NearestNeighbors(n_neigh, n_jobs= self.n_jobs)
@@ -7080,6 +7084,10 @@ class MCT(OverSampling):
         # distribution of copies is determined (Euclidean distance is a dissimilarity measure
         # which is changed to similarity by subtracting from 1.0)
         distribution= (1.0 - distances)/(np.sum(1.0 - distances))
+        
+        if any(np.isnan(distribution)):
+            _logger.warning(self.__class__.__name__ + ": " + "NaN in the probability distribution derived in MCT")
+            return X.copy(), y.copy()
         
         # do the sampling
         samples= []
