@@ -577,8 +577,6 @@ class TomekLinkRemoval(NoiseFilter):
                      publisher = {ACM},
                      address = {New York, NY, USA}
                     } 
-    
-        * URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
     """
     def __init__(self, strategy= 'remove_majority', n_jobs= 1):
         """
@@ -732,8 +730,6 @@ class OneSidedSelection(NoiseFilter):
                      publisher = {ACM},
                      address = {New York, NY, USA}
                     } 
-            
-        * URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
     """
     def __init__(self, n_jobs= 1):
         """
@@ -791,8 +787,6 @@ class CNNTomekLinks(NoiseFilter):
                      publisher = {ACM},
                      address = {New York, NY, USA}
                     } 
-            
-        * URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
     """
     def __init__(self, n_jobs= 1):
         """
@@ -850,8 +844,6 @@ class NeighborhoodCleaningRule(NoiseFilter):
                      publisher = {ACM},
                      address = {New York, NY, USA}
                     } 
-            
-        * URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
     """
     def __init__(self, n_jobs= 1):
         """
@@ -925,8 +917,6 @@ class EditedNearestNeighbors(NoiseFilter):
                      publisher = {ACM},
                      address = {New York, NY, USA}
                     } 
-            
-        * URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
     """
     def __init__(self, remove= 'both', n_jobs= 1):
         """
@@ -1213,8 +1203,6 @@ class SMOTE(OverSampling):
                 year={2002},
                 pages={321--357}
               }
-        
-        * URL: https://drive.google.com/open?id=1DSPXx8aaVkoNASNPue-O2_4OTu5HzZ2Z
     """
     
     categories= [OverSampling.cat_sample_ordinary,
@@ -1281,7 +1269,8 @@ class SMOTE(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting the model
-        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors+1]), n_jobs= self.n_jobs)
+        n_neigh= min([len(X_min), self.n_neighbors+1])
+        nn= NearestNeighbors(n_neighbors= n_neigh, n_jobs= self.n_jobs)
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
@@ -1289,13 +1278,23 @@ class SMOTE(OverSampling):
             return X.copy(), y.copy()
         
         # generating samples
-        samples= []
-        for _ in range(num_to_sample):
-            base_idx= np.random.randint(len(X_min))
-            neighbor_idx= np.random.choice(ind[base_idx][1:])
-            samples.append(self.sample_between_points(X_min[base_idx], X_min[neighbor_idx]))
+        #samples= []
+        #for _ in range(num_to_sample):
+        #    base_idx= np.random.randint(len(X_min))
+        #    neighbor_idx= np.random.choice(ind[base_idx][1:])
+        #    samples.append(self.sample_between_points(X_min[base_idx], X_min[neighbor_idx]))
         
-        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.hstack([self.minority_label]*num_to_sample)])
+        #return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.hstack([self.minority_label]*num_to_sample)])
+        
+        base_indices= np.random.choice(list(range(len(X_min))), num_to_sample)
+        neighbor_indices= np.random.choice(list(range(1, n_neigh)), num_to_sample)
+        
+        X_base= X_min[base_indices]
+        X_neighbor= X_min[ind[base_indices, neighbor_indices]]
+        
+        samples= X_base + np.multiply(np.random.rand(num_to_sample, 1), X_neighbor - X_base)
+        
+        return np.vstack([X, samples]), np.hstack([y, np.hstack([self.minority_label]*num_to_sample)])
     
     def get_params(self):
         """
@@ -1329,8 +1328,6 @@ class SMOTE_TomekLinks(OverSampling):
                      publisher = {ACM},
                      address = {New York, NY, USA},
                     } 
-            
-        * URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
     """
     
     categories= [OverSampling.cat_sample_ordinary,
@@ -1428,8 +1425,6 @@ class SMOTE_ENN(OverSampling):
                      publisher = {ACM},
                      address = {New York, NY, USA},
                     } 
-            
-        * URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
     Notes:
         * Can remove too many of minority samples.
     """
@@ -1524,8 +1519,6 @@ class Borderline_SMOTE1(OverSampling):
                             pages="878--887",
                             isbn="978-3-540-31902-3"
                             }
-            
-        * URL: https://drive.google.com/open?id=1dlG3wtxMIuiWgmd08nP9KN-Wq7dXTReb
     """
     
     categories= [OverSampling.cat_sample_ordinary,
@@ -1606,27 +1599,36 @@ class Borderline_SMOTE1(OverSampling):
         for i in range(len(indices)):
             if self.n_neighbors == sum(y[indices[i][1:]] == self.majority_label):
                 noise.append(i)
-            if mode(y[indices[i][1:]]) == self.majority_label:
+            elif mode(y[indices[i][1:]]) == self.majority_label:
                 danger.append(i)
         X_danger= X_min[danger]
+        X_min= np.delete(X_min, np.array(noise), axis= 0)
+        
+        if self.class_stats[self.minority_label] < 2:
+            _logger.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
         
         if len(X_danger) == 0:
             _logger.info(self.__class__.__name__ + ": " + "No samples in danger")
             return X.copy(), y.copy()
         
         # fitting nearest neighbors model to minority samples
-        nn= NearestNeighbors(min([len(X_min), self.k_neighbors + 1]), n_jobs= self.n_jobs)
+        k_neigh= min([len(X_min), self.k_neighbors + 1])
+        nn= NearestNeighbors(k_neigh, n_jobs= self.n_jobs)
         nn.fit(X_min)
         # extracting neighbors of samples in danger
         distances, indices= nn.kneighbors(X_danger)
         
         # generating samples near points in danger
-        samples= []
-        for _ in range(num_to_sample):
-            index= np.random.randint(len(indices))
-            samples.append(self.sample_between_points(X_danger[index], X_min[np.random.choice(indices[index][1:])]))
-            
-        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        base_indices= np.random.choice(list(range(len(X_danger))), num_to_sample)
+        neighbor_indices= np.random.choice(list(range(1, k_neigh)), num_to_sample)
+        
+        X_base= X_danger[base_indices]
+        X_neighbor= X_min[indices[base_indices, neighbor_indices]]
+        
+        samples= X_base + np.multiply(np.random.rand(num_to_sample, 1), X_neighbor - X_base)
+        
+        return np.vstack([X, samples]), np.hstack([y, np.hstack([self.minority_label]*num_to_sample)])
     
     def get_params(self):
         """
@@ -1658,8 +1660,6 @@ class Borderline_SMOTE2(OverSampling):
                             pages="878--887",
                             isbn="978-3-540-31902-3"
                             }
-            
-        * URL: https://drive.google.com/open?id=1dlG3wtxMIuiWgmd08nP9KN-Wq7dXTReb
     """
     
     categories= [OverSampling.cat_sample_ordinary,
@@ -1741,33 +1741,38 @@ class Borderline_SMOTE2(OverSampling):
         for i in range(len(indices)):
             if self.n_neighbors == sum(y[indices[i][1:]] == self.majority_label):
                 noise.append(i)
-            if mode(y[indices[i][1:]]) == self.majority_label:
+            elif mode(y[indices[i][1:]]) == self.majority_label:
                 danger.append(i)
         X_danger= X_min[danger]
+        X_min= np.delete(X_min, np.array(noise), axis= 0)
+        
+        if len(X_min) < 2:
+            _logger.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
         
         if len(X_danger) == 0:
             _logger.info(self.__class__.__name__ + ": " + "No samples in danger")
             return X.copy(), y.copy()
         
         # fitting nearest neighbors model to minority samples
-        nn= NearestNeighbors(self.k_neighbors + 1, n_jobs= self.n_jobs)
+        k_neigh= self.k_neighbors + 1
+        nn= NearestNeighbors(k_neigh, n_jobs= self.n_jobs)
         nn.fit(X)
         distances, indices= nn.kneighbors(X_danger)
         
-        # generating samples near points in danger
-        samples= []
-        for _ in range(num_to_sample):
-            index= np.random.randint(len(X_danger))
-            neighbor_index= np.random.choice(indices[index][1:])
-            
-            r= np.random.random()
-            diff= X[neighbor_index] - X_danger[index]
-            if y[neighbor_index] == self.minority_label:
-                samples.append(X_danger[index] + r*diff)
-            else:
-                samples.append(X_danger[index] + r/2.0*diff)
+        # generating the samples
+        base_indices= np.random.choice(list(range(len(X_danger))), num_to_sample)
+        neighbor_indices= np.random.choice(list(range(1, k_neigh)), num_to_sample)
         
-        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        X_base= X_danger[base_indices]
+        X_neighbor= X[indices[base_indices, neighbor_indices]]
+        diff= X_neighbor - X_base
+        r= np.random.rand(num_to_sample, 1)
+        r[y[neighbor_indices] == self.majority_label]= r[y[neighbor_indices] == self.majority_label]*0.5
+        
+        samples= X_base + np.multiply(r, diff)
+        
+        return np.vstack([X, samples]), np.hstack([y, np.hstack([self.minority_label]*num_to_sample)])
     
     def get_params(self):
         """
@@ -1791,8 +1796,6 @@ class ADASYN(OverSampling):
                           year={2008},
                           pages={1322--1328}
                         }
-        
-        * URL: https://drive.google.com/open?id=1CiybjtmNVe4wo3t36VG82lB10IBmjv17
     """
     
     categories= [OverSampling.cat_sample_ordinary,
@@ -1882,19 +1885,36 @@ class ADASYN(OverSampling):
         r= np.array(r)
         r= r/sum(r)
         
+        if any(np.isnan(r)):
+            _logger.warning(self.__class__.__name__ + ": " + "not enough non-noise samples for oversampling")
+            return X.copy(), y.copy()
+        
         # fitting nearest neighbors models to minority samples
-        nn= NearestNeighbors(min([len(X_min), self.n_neighbors + 1]), n_jobs= self.n_jobs)
+        n_neigh= min([len(X_min), self.n_neighbors + 1])
+        nn= NearestNeighbors(n_neigh, n_jobs= self.n_jobs)
         nn.fit(X_min)
         distances, indices= nn.kneighbors(X_min)
         
         # sampling points
-        samples= []
-        while len(samples) < num_to_sample:
-            idx= np.random.choice(np.arange(len(X_min)), p=r)
-            neighbor_idx= np.random.choice(indices[idx][1:])
-            samples.append(self.sample_between_points(X_min[idx], X_min[neighbor_idx]))
+        #samples= []
+        #while len(samples) < num_to_sample:
+        #    idx= np.random.choice(np.arange(len(X_min)), p=r)
+        #    neighbor_idx= np.random.choice(indices[idx][1:])
+        #    samples.append(self.sample_between_points(X_min[idx], X_min[neighbor_idx]))
         
-        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        #return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+        base_indices= np.random.choice(list(range(len(X_min))), size=int(num_to_sample), p=r)
+        neighbor_indices= np.random.choice(list(range(1, n_neigh)), int(num_to_sample))
+        
+        X_base= X_min[base_indices]
+        X_neighbor= X_min[indices[base_indices, neighbor_indices]]
+        diff= X_neighbor - X_base
+        r= np.random.rand(int(num_to_sample), 1)
+        
+        samples= X_base + np.multiply(r, diff)
+        
+        return np.vstack([X, samples]), np.hstack([y, np.hstack([self.minority_label]*int(num_to_sample))])
     
     def get_params(self):
         """
@@ -1925,8 +1945,6 @@ class AHC(OverSampling):
                     author = "Gilles Cohen and Mélanie Hilario and Hugo Sax and Stéphane Hugonnet and Antoine Geissbuhler",
                     keywords = "Nosocomial infection, Machine learning, Support vector machines, Data imbalance"
                     }
-    
-        * URL: https://drive.google.com/open?id=1APnBwng3-AZofx3FxMaKnR-Su-6ItDUM
     """
     
     categories= [OverSampling.cat_changes_majority,
@@ -2077,8 +2095,6 @@ class LLE_SMOTE(OverSampling):
                             doi={10.1109/ICOSP.2006.345752}, 
                             ISSN={2164-5221}, 
                             month={Nov}}
-            
-        * URL: https://drive.google.com/open?id=1gCPLdTq_5mhF5cKGSmJdkPzhw2GY2SWs
     
     Notes:
         * There might be numerical issues if the nearest neighbors contain some element multiple times.
@@ -2217,8 +2233,6 @@ class distance_SMOTE(OverSampling):
                             volume={3}, 
                             pages={634--635}
                             }
-            
-        * URL: https://drive.google.com/open?id=1O7tGVLXdZwC8N1TxGblw0J8n70FYspDc
         
     Notes:
         * It is not clear what the authors mean by "weighted distance".
@@ -2321,8 +2335,6 @@ class SMMO(OverSampling):
                             pages = {276-281},
                             title = {Selecting Minority Examples from Misclassified Data for Over-Sampling.}
                             }
-            
-        * URL: https://drive.google.com/open?id=1hPEez2lVZ9wVV4dZjZQgK0lcl_jNt59g
     
     Notes:
         * In this implementation the ensemble is not specified. I have selected some very fast, basic classifiers.
@@ -2458,8 +2470,6 @@ class polynom_fit_SMOTE(OverSampling):
                             doi={10.1109/DAS.2008.74}, 
                             ISSN={}, 
                             month={Sept},}
-            
-        * URL: https://drive.google.com/open?id=1WkGbFBqCV8vnUh7yM97kO6EPlEgkC51P
     """
     
     categories= [OverSampling.cat_extensive]
@@ -2591,8 +2601,6 @@ class Stefanowski(OverSampling):
                  publisher = {Springer-Verlag},
                  address = {Berlin, Heidelberg},
                 } 
-
-        * URL: https://drive.google.com/open?id=1MMrk-QnEfr0SUgptQkRl7Abbmh9ZncpD
     """
     
     categories= [OverSampling.cat_changes_majority,
@@ -2741,8 +2749,6 @@ class ADOMS(OverSampling):
                             doi={10.1109/ITAB.2008.4570642}, 
                             ISSN={2168-2194}, 
                             month={May}}
-    
-        * URL: https://drive.google.com/open?id=1NHrfqf9tPYwdOMTd7gQAl49Z8Mppwv_n
     """
     
     categories= [OverSampling.cat_dim_reduction,
@@ -2864,8 +2870,6 @@ class Safe_Level_SMOTE(OverSampling):
                          address = {Berlin, Heidelberg},
                          keywords = {Class Imbalanced Problem, Over-sampling, SMOTE, Safe Level},
                         } 
-            
-        * URL: https://drive.google.com/open?id=18XNDTxIYeQ9GMocEXU_-zyj3W_5ovplR
         
     Notes:
         * The original method was not prepared for the case when no minority sample has minority neighbors.
@@ -3012,8 +3016,6 @@ class MSMOTE(OverSampling):
                              keywords = {imbalanced data, over-sampling, SMOTE, AdaBoost, samples groups, SMOTEBoost},
                             } 
     
-        * URL: https://drive.google.com/open?id=1tFtNJWUSIYDKnhBAdb6QqIhYqy-khIxa
-    
     Notes:
         * The original method was not prepared for the case when all minority samples are noise.
     """
@@ -3140,8 +3142,6 @@ class DE_oversampling(OverSampling):
                             doi={10.1109/WKDD.2010.48}, 
                             ISSN={}, 
                             month={Jan},}
-    
-        * URL: https://drive.google.com/open?id=1LyfMvSdFqscupz4AADXV4GW-K8T3olwK
     """
     
     categories= [OverSampling.cat_changes_majority,
@@ -3457,8 +3457,6 @@ class SMOBD(OverSampling):
                             doi={10.1109/ICIII.2011.276}, 
                             ISSN={2155-1456}, 
                             month={Nov},}
-    
-        * URL: https://drive.google.com/open?id=1jQGTZli3D2RB3y2oe50hwFzo0q6y73FI
     """
     
     categories= [OverSampling.cat_uses_clustering,
@@ -3615,8 +3613,6 @@ class SUNDO(OverSampling):
                             doi={10.1109/ISDA.2011.6121689}, 
                             ISSN={2164-7151}, 
                             month={Nov}}
-            
-        * URL: https://drive.google.com/open?id=1lVwDDE-wTx3bsA7HbwyQ2ifRX5BmO8rq
     """
     
     categories= [OverSampling.cat_changes_majority,
@@ -3753,8 +3749,6 @@ class MSYN(OverSampling):
                             abstract="Learning from imbalanced datasets has drawn more and more attentions from both theoretical and practical aspects. Over- sampling is a popular and simple method for imbalanced learning. In this paper, we show that there is an inherently potential risk associated with the over-sampling algorithms in terms of the large margin principle. Then we propose a new synthetic over sampling method, named Margin-guided Synthetic Over-sampling (MSYN), to reduce this risk. The MSYN improves learning with respect to the data distributions guided by the margin-based rule. Empirical study verities the efficacy of MSYN.",
                             isbn="978-3-642-20847-8"
                             }
-            
-        * URL: https://drive.google.com/open?id=1i1ah7i4JfSoD8j5AJiP9Lx3-DIniKeYN
     """
     
     categories= [OverSampling.cat_extensive]
@@ -3900,8 +3894,6 @@ class SVM_balance(OverSampling):
                      address = {Amsterdam, The Netherlands, The Netherlands},
                      keywords = {COIL data, Hybrid method, Preprocessor, SVM, Unbalanced data},
                     } 
-    
-        * URL: https://drive.google.com/open?id=1DWDPQhJfzvUFgGAeAej-Xtlz5zX7trPz
     """
     
     categories= [OverSampling.cat_extensive,
@@ -4014,8 +4006,6 @@ class TRIM_SMOTE(OverSampling):
                             abstract="One solution to deal with class imbalance is to modify its class distribution. Synthetic over-sampling is a well-known method to modify class distribution by generating new synthetic minority data. Synthetic Minority Over-sampling TEchnique (SMOTE) is a state-of-the-art synthetic over-sampling algorithm that generates new synthetic data along the line between the minority data and their selected nearest neighbors. Advantages of SMOTE is to have decision regions larger and less specific to original data. However, its drawback is the over-generalization problem where synthetic data is generated into majority class region. Over-generalization leads to misclassify non-minority class region into minority class. To overcome the over-generalization problem, we propose an algorithm, called TRIM, to search for precise minority region while maintaining its generalization. TRIM iteratively filters out irrelevant majority data from the precise minority region. Output of the algorithm is the multiple set of seed minority data, and each individual set will be used for generating new synthetic data. Compared with state-of-the-art over-sampling algorithms, experimental results show significant performance improvement in terms of F-measure and AUC. This suggests over-generalization has a significant impact on the performance of the synthetic over-sampling method.",
                             isbn="978-3-642-30220-6"
                             }
-
-        * URL: https://drive.google.com/open?id=1VIUmLYe29YeJeXHDAyD5zHf7Ban8RTZf
     
     Notes:
         * It is not described precisely how the filtered data is used for sample generation. The method is proposed to be a preprocessing step, and it states that it applies sample generation to each group extracted. 
@@ -4294,8 +4284,6 @@ class SMOTE_RSB(OverSampling):
                     doi="10.1007/s10115-011-0465-6",
                     url="https://doi.org/10.1007/s10115-011-0465-6"
                     }
-        
-        * URL: https://drive.google.com/open?id=1erSr3NWqBNXO1dCK1h2DMfEzdtaHDTJB
     
     Notes:
         * I think the description of the algorithm in Fig 5 of the paper is not correct. The set "resultSet" is initialized with the original instances, and then the While loop in the Algorithm run until resultSet is empty, which never holds. Also, the resultSet is only extended in the loop. Our implementation is changed in the following way: we generate twice as many instances are required to balance the dataset, and repeat the loop until the number of new samples added to the training set is enough to balance the dataset.
@@ -4435,8 +4423,6 @@ class ProWSyn(OverSampling):
                         abstract="An imbalanced data set creates severe problems for the classifier as number of samples of one class (majority) is much higher than the other class (minority). Synthetic oversampling methods address this problem by generating new synthetic minority class samples. To distribute the synthetic samples effectively, recent approaches create weight values for original minority samples based on their importance and distribute synthetic samples according to weight values. However, most of the existing algorithms create inappropriate weights and in many cases, they cannot generate the required weight values for the minority samples. This results in a poor distribution of generated synthetic samples. In this respect, this paper presents a new synthetic oversampling algorithm, Proximity Weighted Synthetic Oversampling Technique (ProWSyn). Our proposed algorithm generate effective weight values for the minority data samples based on sample's proximity information, i.e., distance from boundary which results in a proper distribution of generated synthetic samples across the minority data set. Simulation results on some real world datasets shows the effectiveness of the proposed method showing improvements in various assessment metrics such as AUC, F-measure, and G-mean.",
                         isbn="978-3-642-37456-2"
                         }
-        
-        * URL: https://drive.google.com/open?id=12yiLJc0XOT6tjVN7yIPBKJa-eIC229s3
     """
     
     categories= [OverSampling.cat_extensive,
@@ -4586,8 +4572,6 @@ class SL_graph_SMOTE(OverSampling):
                     title = {Safe level graph for synthetic minority over-sampling techniques},
                     isbn = {978-1-4673-5578-0}
                     }
-        
-        * URL: https://drive.google.com/open?id=1UxPfhGjM9KA7eXA4yhPvfYBjbPp8fZeT
     """
     
     categories= [OverSampling.cat_extensive,
@@ -4686,8 +4670,6 @@ class NRSBoundary_SMOTE(OverSampling):
                     doi= {10.1155/2013/694809},
                     url= {http://dx.doi.org/10.1155/694809}
                     }
-        
-        * URL: https://drive.google.com/open?id=1CdBzRHdcKmvGB6bkRSv6_ZviMeuwCZDT
     """
     
     categories= [OverSampling.cat_extensive,
@@ -4835,8 +4817,6 @@ class LVQ_SMOTE(OverSampling):
                               booktitle={BioData Mining},
                               year={2013}
                             }
-        
-        * URL: https://drive.google.com/open?id=18ecI_0tYQG-1nRm8GhFRXZxFVPw7CzfD
     
     Notes:
         * This implementation is only a rough estimation of the method described in the paper. The main problem is that the paper uses many datasets to find similar patterns in the codebooks and replicate patterns appearing in other datasets to the imbalanced datasets based on their relative position compared to the codebook elements. What we do is clustering the minority class to extract a codebook as kmeans cluster means, then, find pairs of codebook elements which have the most similar relative position to a randomly selected pair of codebook elements, and translate nearby minority samples from the neighborhood one pair of codebook elements to the neighborood of another pair of codebook elements.
@@ -4966,8 +4946,6 @@ class SOI_CJ(OverSampling):
                     volume = {22},
                     booktitle = {International Journal of Artificial Intelligence Tools}
                     }
-        
-        * URL: https://drive.google.com/open?id=13GzuVxVZtelG6VNW_Ic8hlxge3XhCYKq
     """
     
     categories= [OverSampling.cat_extensive,
@@ -5168,8 +5146,6 @@ class ROSE(OverSampling):
                     doi="10.1007/s10618-012-0295-5",
                     url="https://doi.org/10.1007/s10618-012-0295-5"
                     }
-
-        * URL: https://drive.google.com/open?id=1eLOTCWtXCcqti9NpgXujw7BNY38ToyTc
     
     Notes:
         * It is not entirely clear if the authors propose kernel density estimation \
@@ -5260,8 +5236,6 @@ class SMOTE_OUT(OverSampling):
                       year={2014},
                       pages={280-284}
                     }
-
-        * URL: https://drive.google.com/open?id=1XyyaphBLWJU_nQFppy1f1v5MYkSDqrJ2
     """
     
     categories= [OverSampling.cat_extensive]
@@ -5372,8 +5346,6 @@ class SMOTE_Cosine(OverSampling):
                       year={2014},
                       pages={280-284}
                     }
-
-        * URL: https://drive.google.com/open?id=1XyyaphBLWJU_nQFppy1f1v5MYkSDqrJ2
     """
     
     categories= [OverSampling.cat_extensive]
@@ -5493,8 +5465,6 @@ class Selected_SMOTE(OverSampling):
                   year={2014},
                   pages={280-284}
                 }
-
-        * URL: https://drive.google.com/open?id=1XyyaphBLWJU_nQFppy1f1v5MYkSDqrJ2
     
     Notes:
         * Significant attribute selection was not described in the paper, therefore we have implemented something meaningful.
@@ -5635,8 +5605,6 @@ class LN_SMOTE(OverSampling):
                             doi={10.1109/CIDM.2011.5949434}, 
                             ISSN={}, 
                             month={April}}
-
-        * URL: https://drive.google.com/open?id=1VXfwlXcfFrrL_DYa6lpgTLn-bCxxTKAM
     """
     
     categories= [OverSampling.cat_extensive,
@@ -5822,8 +5790,6 @@ class MWMOTE(OverSampling):
                         doi={10.1109/TKDE.2012.232}, 
                         ISSN={1041-4347}, 
                         month={Feb}}
-
-        * URL: https://drive.google.com/open?id=1PiOSHhJJMZZniuiYvMPyD2BWmR9Q9L1q
     
     Notes:
         * The original method was not prepared for the case of having clusters of 1 elements.
@@ -6027,8 +5993,6 @@ class PDFOS(OverSampling):
                     author = "Ming Gao and Xia Hong and Sheng Chen and Chris J. Harris and Emad Khalaf",
                     keywords = "Imbalanced classification, Probability density function based over-sampling, Radial basis function classifier, Orthogonal forward selection, Particle swarm optimisation"
                     }
-
-        * URL: https://drive.google.com/open?id=1sBz9pFeHoGJ0XBwNwQ24r-gQA6-KhLSw
     
     Notes:
         * Not prepared for low-rank data.
@@ -6227,8 +6191,6 @@ class IPADE_ID(OverSampling):
                     author = "Victoria López and Isaac Triguero and Cristóbal J. Carmona and Salvador García and Francisco Herrera",
                     keywords = "Differential evolution, Instance generation, Nearest neighbor, Decision tree, Imbalanced datasets"
                     }
-
-        * URL: https://drive.google.com/open?id=1G6MS_K0uBgIWlwWMyTciR8_6O7fwPTTg
     
     Notes:
         * According to the algorithm, if the addition of a majority sample doesn't improve the AUC during the DE optimization process, the addition of no further majority points is tried.
@@ -6520,8 +6482,6 @@ class RWO_sampling(OverSampling):
                     volume = {20},
                     booktitle = {Information Fusion}
                     }
-
-        * URL: https://drive.google.com/open?id=1zewg606Wpm1yDyuTOagmAiFwmwFyTzQv
     """
     
     categories= [OverSampling.cat_extensive]
@@ -6607,8 +6567,6 @@ class NEATER(OverSampling):
                             doi={10.1109/ICPR.2014.245}, 
                             ISSN={1051-4651}, 
                             month={Aug}}
-
-        * URL: https://drive.google.com/open?id=1GfMmurmyG-B5jfEVhyFrQAx8lA1JxbXl
     
     Notes:
         * Evolving both majority and minority probabilities as nothing ensures that the probabilities remain in the range [0,1], and they need to be normalized.
@@ -6801,8 +6759,6 @@ class DEAGO(OverSampling):
                             doi={10.1109/ICMLA.2015.58}, 
                             ISSN={}, 
                             month={Dec}}
-
-        * URL: https://drive.google.com/open?id=1cnCltSny-X_Dl8s3BqcNCbqVn_eDPWlB
     
     Notes:
         * There is no hint on the activation functions and amounts of noise.
@@ -6962,8 +6918,6 @@ class Gazzah(OverSampling):
                             doi={10.1109/SSD.2015.7348093}, 
                             ISSN={}, 
                             month={March}}
-
-        * URL: https://drive.google.com/open?id=1oh_FRi1e0NElX3wzWxTg0ecfqe1VWshN
     """
     
     categories= [OverSampling.cat_extensive,
@@ -7065,8 +7019,6 @@ class MCT(OverSampling):
                     volume = {29},
                     booktitle = {International Journal of Pattern Recognition and Artificial Intelligence}
                     }
-
-        * URL: https://drive.google.com/open?id=1yyy-DmCFGWEPa8mdOpzHOx4l8xVVlCgA
     
     Notes:
         * Mode is changed to median, distance is changed to Euclidean to support continuous features, and normalized.
@@ -7133,6 +7085,10 @@ class MCT(OverSampling):
         # which is changed to similarity by subtracting from 1.0)
         distribution= (1.0 - distances)/(np.sum(1.0 - distances))
         
+        if any(np.isnan(distribution)):
+            _logger.warning(self.__class__.__name__ + ": " + "NaN in the probability distribution derived in MCT")
+            return X.copy(), y.copy()
+        
         # do the sampling
         samples= []
         while len(samples) < num_to_sample:
@@ -7162,8 +7118,6 @@ class ADG(OverSampling):
                     volume = {16},
                     journal = {Journal of Machine Learning Research}
                     }
-
-        * URL: https://drive.google.com/open?id=16QNZOJA77rS-AEmNlj-xH2uogAAhp3b3
     
     Notes:
         * This method has a lot of parameters, it becomes fairly hard to cross-validate thoroughly.
@@ -7552,8 +7506,6 @@ class SMOTE_IPF(OverSampling):
                         author = "José A. Sáez and Julián Luengo and Jerzy Stefanowski and Francisco Herrera",
                         keywords = "Imbalanced classification, Borderline examples, Noisy data, Noise filters, SMOTE"
                         }
-
-        * URL: https://drive.google.com/open?id=1j2SKWvovYczOkg2MaMBep2i8XaZ0r_rS
     """
     
     categories= [OverSampling.cat_changes_majority,
@@ -7699,8 +7651,6 @@ class KernelADASYN(OverSampling):
                             doi={10.1109/CEC.2015.7256954}, 
                             ISSN={1089-778X}, 
                             month={May}}
-
-        * URL: https://drive.google.com/open?id=1RXURKKH7BLOzC0N7J-btZBhBK9OCyB4K
     
     Notes:
         * The method of sampling was not specified, Markov Chain Monte Carlo has been implemented.
@@ -7881,8 +7831,6 @@ class MOT2LD(OverSampling):
                             abstract="Imbalanced class distribution is a challenging problem in many real-life classification problems. Existing synthetic oversampling do suffer from the curse of dimensionality because they rely heavily on Euclidean distance. This paper proposed a new method, called Minority Oversampling Technique based on Local Densities in Low-Dimensional Space (or MOT2LD in short). MOT2LD first maps each training sample into a low-dimensional space, and makes clustering of their low-dimensional representations. It then assigns weight to each minority sample as the product of two quantities: local minority density and local majority count, indicating its importance of sampling. The synthetic minority class samples are generated inside some minority cluster. MOT2LD has been evaluated on 15 real-world data sets. The experimental results have shown that our method outperforms some other existing methods including SMOTE, Borderline-SMOTE, ADASYN, and MWMOTE, in terms of G-mean and F-measure.",
                             isbn="978-3-319-18123-3"
                             }
-
-        * URL: https://drive.google.com/open?id=191-gIFEmY1EmOT7iq0mK8fNr3btKovQ6
     
     Notes:
         * Clusters might contain 1 elements, and all points can be filtered as noise.
@@ -8115,8 +8063,6 @@ class V_SYNTH(OverSampling):
                      address = {London, UK, UK},
                      keywords = {Data engineering, Data mining, Imbalanced datasets, Knowledge extraction, Numerical algorithms, Synthetic over-sampling},
                     }
-
-        * URL: https://drive.google.com/open?id=1mbp816SazOpTOL22eMHfDkmJEKRaUKez
     
     Notes:
         * The proposed encompassing bounding box generation is incorrect.
@@ -8268,8 +8214,6 @@ class OUPS(OverSampling):
                         author = "William A. Rivera and Petros Xanthopoulos",
                         keywords = "SMOTE, OUPS, Class imbalance, Classification"
                         }
-
-        * URL: https://drive.google.com/open?id=1Q9X9Ye7F3igLrIV9GRqrAoyNmp592TGn
     
     Notes:
         * In the description of the algorithm a fractional number p (j) is used to index a vector.
@@ -8387,8 +8331,6 @@ class SMOTE_D(OverSampling):
                             abstract="Imbalanced data is a problem of current research interest. This problem arises when the number of objects in a class is much lower than in other classes. In order to address this problem several methods for oversampling the minority class have been proposed. Oversampling methods generate synthetic objects for the minority class in order to balance the amount of objects between classes, among them, SMOTE is one of the most successful and well-known methods. In this paper, we introduce a modification of SMOTE which deterministically generates synthetic objects for the minority class. Our proposed method eliminates the random component of SMOTE and generates different amount of synthetic objects for each object of the minority class. An experimental comparison of the proposed method against SMOTE in standard imbalanced datasets is provided. The experimental results show an improvement of our proposed method regarding SMOTE, in terms of F-measure.",
                             isbn="978-3-319-39393-3"
                             }
-
-        * URL: https://drive.google.com/open?id=1x_9IYnDvVBXeYjBcwgV9FOlL7pj-Yi2f
     
     Notes:
         * Copying happens if two points are the neighbors of each other.
@@ -8508,8 +8450,6 @@ class SMOTE_PSO(OverSampling):
                         author = "Jair Cervantes and Farid Garcia-Lamont and Lisbeth Rodriguez and Asdrúbal López and José Ruiz Castilla and Adrian Trueba",
                         keywords = "Skew data sets, SVM, Hybrid algorithms"
                         }
-
-        * URL: https://drive.google.com/open?id=1rJu-2aLrosz_NGlcoRdz3qyCGlExQsvZ
     
     Notes:
         * I find the description of the technique a bit confusing, especially on the bounds of the search space of velocities and positions. Equations 15 and 16 specify the lower and upper bounds, the lower bound is in fact a vector while the upper bound is a distance. I tried to implement something meaningful.
@@ -8765,8 +8705,6 @@ class CURE_SMOTE(OverSampling):
                         doi="10.1186/s12859-017-1578-z",
                         url="https://doi.org/10.1186/s12859-017-1578-z"
                         }
-
-        * URL: https://drive.google.com/open?id=1XJua_4oAcffDxt_seCu-eQHhfG9ig1Og
     
     Notes:
         * It is not specified how to determine the cluster with the "slowest growth rate"
@@ -8931,8 +8869,6 @@ class SOMO(OverSampling):
                         url = "http://www.sciencedirect.com/science/article/pii/S0957417417302324",
                         author = "Georgios Douzas and Fernando Bacao"
                         }
-
-        * URL: https://drive.google.com/open?id=1RiPlh4KQ383YTr04-voi3Vq2iBBE-1Ij
     
     Notes:
         * It is not specified how to handle those cases when a cluster contains 1 minority samples, the mean of within-cluster distances is set to 100 in these cases.
@@ -9134,8 +9070,6 @@ class ISOMAP_Hybrid(OverSampling):
                              address = {Berlin, Heidelberg},
                              keywords = {Imbalanced data set, Isomap, NCR, Smote, re-sampling},
                             } 
-
-        * URL: https://drive.google.com/open?id=1_j8kYoKt8mFxr8Y_ceNVPlejfTXk6-5w
     """
     
     categories= [OverSampling.cat_extensive,
@@ -9247,8 +9181,6 @@ class CE_SMOTE(OverSampling):
                                 doi={10.1109/WAINA.2010.40}, 
                                 ISSN={}, 
                                 month={April}}
-
-        * URL: https://drive.google.com/open?id=1erU3PsoePzxFCyv8aVwNJ2LO1hHX6dTz
     """
     
     categories= [OverSampling.cat_extensive,
@@ -9396,8 +9328,6 @@ class Edge_Det_SMOTE(OverSampling):
                             doi={10.1109/ICCAS.2010.5669889}, 
                             ISSN={}, 
                             month={Oct}}
-
-        * URL: https://drive.google.com/open?id=11eSqSkAzhVTeutlLNqWNo2g3ZYIZbEdM
     
     Notes:
         * This technique is very loosely specified.
@@ -9522,8 +9452,6 @@ class CBSO(OverSampling):
                             abstract="Imbalanced data sets contain an unequal distribution of data samples among the classes and pose a challenge to the learning algorithms as it becomes hard to learn the minority class concepts. Synthetic oversampling techniques address this problem by creating synthetic minority samples to balance the data set. However, most of these techniques may create wrong synthetic minority samples which fall inside majority regions. In this respect, this paper presents a novel Cluster Based Synthetic Oversampling (CBSO) algorithm. CBSO adopts its basic idea from existing synthetic oversampling techniques and incorporates unsupervised clustering in its synthetic data generation mechanism. CBSO ensures that synthetic samples created via this method always lie inside minority regions and thus, avoids any wrong synthetic sample creation. Simualtion analyses on some real world datasets show the effectiveness of CBSO showing improvements in various assesment metrics such as overall accuracy, F-measure, and G-mean.",
                             isbn="978-3-642-24958-7"
                             }
-
-        * URL: https://drive.google.com/open?id=16OYKeBf5UPeHJgXCD7-WZtqdc2Am4kBQ
     
     Notes:
         * Clusters containing 1 element induce cloning of samples.
@@ -9691,8 +9619,6 @@ class E_SMOTE(OverSampling):
                             doi={10.1109/ICECTECH.2011.5941710}, 
                             ISSN={}, 
                             month={April}}
-
-        * URL: https://drive.google.com/open?id=1P-4XvnbNuA6OzdeaYBeQEBcUnCgV1R3M
     
     Notes:
         * This technique is basically unreproducible. I try to implement something following the idea of applying some simple genetic algorithm for optimization.
@@ -9880,8 +9806,6 @@ class DBSMOTE(OverSampling):
                         doi="10.1007/s10489-011-0287-y",
                         url="https://doi.org/10.1007/s10489-011-0287-y"
                         }
-
-        * URL: https://drive.google.com/open?id=1FczQWnv7ZveAuLME1flnQw9ogEAcYQ5a
     
     Notes:
         * Standardization is needed to use absolute eps values.
@@ -10109,8 +10033,6 @@ class ASMOBD(OverSampling):
                             doi={10.1109/IJCNN.2012.6252696}, 
                             ISSN={2161-4407}, 
                             month={June}}
-
-        * URL: https://drive.google.com/open?id=1rF4H2L5W4Y1myX2K3TbKYj1IuwclOWsW
     
     Notes:
         * In order to use absolute thresholds, the data is standardized.
@@ -10321,8 +10243,6 @@ class Assembled_SMOTE(OverSampling):
                             doi={10.1109/IJCNN.2013.6707035}, 
                             ISSN={2161-4407}, 
                             month={Aug}}
-
-        * URL: https://drive.google.com/open?id=1r3odAQ9aMPvy373wUFbdfr2r8uV0KLHO
     
     Notes:
         * Absolute value of the angles extracted should be taken. (implemented this way)
@@ -10518,8 +10438,6 @@ class SDSMOTE(OverSampling):
                             doi={10.1109/IIKI.2014.14}, 
                             ISSN={}, 
                             month={Oct}}
-
-        * URL: https://drive.google.com/open?id=1jq20pUZJliHkkndyGYjL_A70kF3nKcNU
     """
     
     categories= [OverSampling.cat_extensive,
@@ -10640,8 +10558,6 @@ class DSMOTE(OverSampling):
                             doi={10.1109/ICCKE.2014.6993409}, 
                             ISSN={}, 
                             month={Oct}}
-
-        * URL: https://drive.google.com/open?id=1l2rhdGRICI-ttTlMAPYDK_SGPamSR1Fo
     
     Notes:
         * The method is highly inefficient when the number of minority samples is high, time complexity is O(n^3), with 1000 minority samples it takes about 1e9 objective function evaluations to find 1 new sample points. Adding 1000 samples would take about 1e12 evaluations of the objective function, which is unfeasible. We introduce a new parameter, n_step, and during the search for the new sample at most n_step combinations of minority samples are tried.
@@ -10869,8 +10785,6 @@ class G_SMOTE(OverSampling):
                             doi={10.1109/ICPR.2014.258}, 
                             ISSN={1051-4651}, 
                             month={Aug}}
-
-        * URL: https://drive.google.com/open?id=1GJ67qd2r0RH3MMJV5XqVhUBDVfnz4ErF
     
     Notes:
         * the non-linear approach is inefficient 
@@ -11022,8 +10936,6 @@ class NT_SMOTE(OverSampling):
                             doi={10.1109/CSO.2014.104}, 
                             ISSN={}, 
                             month={July}}
-
-        * URL: https://drive.google.com/open?id=1iMeem5Ax2AkvwatvMpf1ZGMfHSsI3vQi
     """
     
     categories= [OverSampling.cat_extensive,
@@ -11132,8 +11044,6 @@ class Lee(OverSampling):
                              address = {New York, NY, USA},
                              keywords = {data distribution, data preprocessing, imbalanced problem, rejection rule, synthetic minority oversampling technique}
                             } 
-
-        * URL: https://drive.google.com/open?id=1omttVQFQ8oDZHeZ87bUSa5Hr7fqt2Vwf
     """
     
     categories= [OverSampling.cat_extensive,
@@ -11267,8 +11177,6 @@ class SPY(OverSampling):
                             doi={10.1109/KSE.2015.24}, 
                             ISSN={}, 
                             month={Oct}}
-
-        * URL: https://drive.google.com/open?id=1B3qUj6lPdO21EjxuVKLHi8OV68gLZUUA
     """
     
     categories= [OverSampling.cat_changes_majority]
@@ -11365,8 +11273,6 @@ class SMOTE_PSOBAT(OverSampling):
                             doi={10.1109/ISCBI.2015.12}, 
                             ISSN={}, 
                             month={Dec}}
-
-        * URL: https://drive.google.com/open?id=1PQfIJRpKkNVcwQixzJxPN-K1FKEr_oDc
     
     Notes:
         * The parameters of the memetic algorithms are not specified.
@@ -11707,8 +11613,6 @@ class MDO(OverSampling):
                         doi={10.1109/TKDE.2015.2458858}, 
                         ISSN={1041-4347}, 
                         month={Jan}}
-
-        * URL: https://drive.google.com/open?id=1O_X4rhJcMx5h4eION2WJGHTqLyxoGO9i
     """
     
     categories= [OverSampling.cat_extensive,
@@ -11876,8 +11780,6 @@ class Random_SMOTE(OverSampling):
                             abstract="For imbalanced data sets, examples of minority class are sparsely distributed in sample space compared with the overwhelming amount of majority class. This presents a great challenge for learning from the minority class. Enlightened by SMOTE, a new over-sampling method, Random-SMOTE, which generates examples randomly in the sample space of minority class is proposed. According to the experiments on real data sets, Random-SMOTE is more effective compared with other random sampling approaches.",
                             isbn="978-3-642-25975-3"
                             }
-
-        * URL: https://drive.google.com/open?id=1_Wd2KaqlIcSmnjvlksYBgu5PsWIhDhbY
     """
     
     categories= [OverSampling.cat_extensive,
@@ -11986,8 +11888,6 @@ class ISMOTE(OverSampling):
                             abstract="Imbalanced data is commonly in the real world and brings a lot of challenges. In this paper, we propose a combination sampling method which resamples both minority class and majority class. Improved SMOTE (ISMOTE) is used to do over-sampling on minority class, while distance-based under-sampling (DUS) method is used to do under-sampling on majority class. We adjust the sampling times to search for the optimal results while maintain the dataset size unchanged. Experiments on UCI datasets show that the proposed method performs better than using single over-sampling or under-sampling method.",
                             isbn="978-3-642-38466-0"
                             }
-
-        * URL: https://drive.google.com/open?id=1z5J2-eDZBOobFvYH4jsXmT8-b3eJ0f6W
     """
     
     categories= [OverSampling.cat_changes_majority]
@@ -12108,8 +12008,6 @@ class VIS_RST(OverSampling):
                             abstract="In recent years, the problem of learning from imbalanced data has emerged as important and challenging. The fact that one of the classes is underrepresented in the data set is not the only reason of difficulties. The complex distribution of data, especially small disjuncts, noise and class overlapping, contributes to the significant depletion of classifier's performance. Hence, the numerous solutions were proposed. They are categorized into three groups: data-level techniques, algorithm-level methods and cost-sensitive approaches. This paper presents a novel data-level method combining Versatile Improved SMOTE and rough sets. The algorithm was applied to the two-class problems, data sets were characterized by the nominal attributes. We evaluated the proposed technique in comparison with other preprocessing methods. The impact of the additional cleaning phase was specifically verified.",
                             isbn="978-3-319-45378-1"
                             }
-
-        * URL: https://drive.google.com/open?id=1mTca65RRZ39SLNOy4hxvh23qlNha8kpj
     
     Notes:
         * Replication of DANGER samples will be removed by the last step of noise filtering.
@@ -12294,8 +12192,6 @@ class GASMOTE(OverSampling):
                         doi="10.1007/s13369-016-2179-2",
                         url="https://doi.org/10.1007/s13369-016-2179-2"
                         }
-
-        * URL: https://drive.google.com/open?id=1VYA2Y_lKXPlMIYNEYO9p2ylymTVcnNR_
     """
     
     categories= [OverSampling.cat_extensive,
@@ -12536,8 +12432,6 @@ class A_SUWO(OverSampling):
                         author = "Iman Nekooeimehr and Susana K. Lai-Yuen",
                         keywords = "Imbalanced dataset, Classification, Clustering, Oversampling"
                         }
-
-        * URL: https://drive.google.com/open?id=14ePxLnx4LlPITR4K_Sjm2PWW41kdczMy
     
     Notes:
         * Equation (7) misses a division by R_j.
@@ -12800,8 +12694,6 @@ class SMOTE_FRST_2T(OverSampling):
                         author = "Ramentol, E. and Gondres, I. and Lajes, S. and Bello, R. and Caballero,Y. and Cornelis, C. and Herrera, F.",
                         keywords = "High Voltage Circuit Breaker (HVCB), Imbalanced learning, Fuzzy rough set theory, Resampling methods"
                         }
-
-        * URL: https://drive.google.com/open?id=1Zmb2MmKGszJB8Q1k7eTZLNG-8KhF4KTc
     
     Notes:
         * Unlucky setting of parameters might result 0 points added, we have fixed this by increasing the gamma_S threshold if the number of samples accepted is low.
@@ -13000,8 +12892,6 @@ class AND_SMOTE(OverSampling):
                              address = {New York, NY, USA},
                              keywords = {SMOTE, imbalanced learning, synthetic data generation},
                             } 
-
-        * URL: https://drive.google.com/open?id=1bwj4hQiFnFgfCPDM2e8_GGloZcUd3vBG
     """
     
     categories= [OverSampling.cat_extensive,
@@ -13169,8 +13059,6 @@ class NRAS(OverSampling):
                         author = "William A. Rivera",
                         keywords = "NRAS, SMOTE, OUPS, Class imbalance, Classification"
                         }
-
-        * URL: https://drive.google.com/open?id=1AZ_jRoplDczplH8g1AM3Zn_jujMxaAxA
     """
     
     categories= [OverSampling.cat_sample_ordinary,
@@ -13308,8 +13196,6 @@ class AMSCO(OverSampling):
                         author = "Jinyan Li and Simon Fong and Raymond K. Wong and Victor W. Chu",
                         keywords = "Swarm fusion, Swarm intelligence algorithm, Multi-objective, Crossover rebalancing, Imbalanced data classification"
                         }
-
-        * URL: https://drive.google.com/open?id=1Y90GGJMZeFjp4I_emwk1Z430kjwnNQnt
     
     Notes:
         * It is not clear how the kappa threshold is used, I do use the RA score to drive all the evolution. Particularly:
@@ -13604,8 +13490,6 @@ class SSO(OverSampling):
                             abstract="Data level technique is proved to be effective in imbalance learning. The SMOTE is a famous oversampling technique generating synthetic minority samples by linear interpolation between adjacent minorities. However, it becomes inefficiency for datasets with sparse distributions. In this paper, we propose the Stochastic Sensitivity Oversampling (SSO) which generates synthetic samples following Gaussian distributions in the Q-union of minority samples. The Q-union is the union of Q-neighborhoods (hypercubes centered at minority samples) and such that new samples are synthesized around minority samples. Experimental results show that the proposed algorithm performs well on most of datasets, especially those with a sparse distribution.",
                             isbn="978-3-662-45652-1"
                             }
-
-        * URL: https://drive.google.com/open?id=1iW1g0gefhC5bjpXvd9l63N85JgSWTyAc
     
     Notes:
         * In the algorithm step 2d adds a constant to a vector. I have changed it to a componentwise adjustment, and also used the normalized STSM as I don't see any reason why it would be some reasonable, bounded value.
@@ -13807,8 +13691,6 @@ class NDO_sampling(OverSampling):
                             doi={10.1109/ICM.2011.34}, 
                             ISSN={}, 
                             month={Sept}}
-
-        * URL: https://drive.google.com/open?id=1vrCst6Jk97kTiu-2aJZt3oN5uGHRQA6Q
     """
     
     categories= [OverSampling.cat_extensive,
@@ -14183,8 +14065,6 @@ class DSRBF(OverSampling):
                         author = "Francisco Fernández-Navarro and César Hervás-Martínez and Pedro Antonio Gutiérrez",
                         keywords = "Classification, Multi-class, Sensitivity, Accuracy, Memetic algorithm, Imbalanced datasets, Over-sampling method, SMOTE"
                         }
-
-        * URL: https://drive.google.com/open?id=1bUOgi2rFcv55ujfRWuHm_9nHzdg3Uilh
     
     Notes:
         * It is not entirely clear why J-1 output is supposed where J is the number of classes.
@@ -14389,8 +14269,6 @@ class Gaussian_SMOTE(OverSampling):
                       volume={17},
                       pages={229-234}
                     }
-
-        * URL: https://drive.google.com/open?id=12oKlw_GRqsT5-Z4WmvJErBD-vcz5ekwN
     """
     
     categories= [OverSampling.cat_extensive]
@@ -14502,8 +14380,6 @@ class kmeans_SMOTE(OverSampling):
                         author = "Georgios Douzas and Fernando Bacao and Felix Last",
                         keywords = "Class-imbalanced learning, Oversampling, Classification, Clustering, Supervised learning, Within-class imbalance"
                         }
-
-        * URL: https://drive.google.com/open?id=1cFpaCsWBXTRYCTIS0hTSOMp_xOwGAPNK
     """
     
     categories= [OverSampling.cat_extensive,
@@ -14650,8 +14526,6 @@ class Supervised_SMOTE(OverSampling):
                         number = {9},
                         doi = {10.1371/journal.pone.0107676}
                     }
-
-        * URL: https://drive.google.com/open?id=1QwAVP9VUBprGFPtrqQra7y-xEBYvqO7Z
     """
     
     categories= [OverSampling.cat_extensive,
@@ -14787,8 +14661,6 @@ class SN_SMOTE(OverSampling):
                         doi="10.1007/s13748-012-0027-5",
                         url="https://doi.org/10.1007/s13748-012-0027-5"
                         }
-
-        * URL: https://drive.google.com/open?id=1-cXaoG2z2hoBlI8--Gfe2bOB9lCOIURH
     """
     
     categories= [OverSampling.cat_extensive,
@@ -14919,8 +14791,6 @@ class CCR(OverSampling):
                     volume = {27},
                     journal = {International Journal of Applied Mathematics and Computer Science}
                     }
-
-        * URL: https://drive.google.com/open?id=1-hkZ_pnfHvq4lHwHzC-UxDXae2SzfiuY
     
     Notes:
         * Adapted from https://github.com/michalkoziarski/CCR
@@ -15090,8 +14960,6 @@ class ANS(OverSampling):
                      volume = {39},
                      booktitle = {Songklanakarin Journal of Science and Technology}
                      }
-
-        * URL: https://drive.google.com/open?id=1Oz2IloYViHhIbuEBV2GAwaPNB5pgoeNs
     
     Notes:
         * The method is not prepared for the case when there is no c satisfying the condition in line 25 of the algorithm, fixed.
@@ -15258,8 +15126,6 @@ class cluster_SMOTE(OverSampling):
                             doi={10.1109/GRC.2006.1635905}, 
                             ISSN={}, 
                             month={May}}
-
-        * URL: https://drive.google.com/open?id=1kDF-WdyMn13h9GNd55b2DLmXt_qtzgBM
     """
     
     categories= [OverSampling.cat_extensive,
@@ -15451,17 +15317,17 @@ class MulticlassOversampling(StatisticsMixin):
             X_samp, y_samp= oversampler.sample(X_training, y_training)
             
             # registaring the newly oversampled minority class in the output set
-            results[class_labels[i]]= X_samp[y_samp == 1]
+            results[class_labels[i]]= X_samp[len(X_training):][y_samp[len(X_training):] == 1]
         
         # constructing the output set
-        X_final= results[majority_class_label]
-        y_final= np.repeat(majority_class_label, len(X_final))
+        X_final= results[class_labels[1]]
+        y_final= np.repeat(class_labels[1], len(results[class_labels[1]]))
         
-        for i in range(1, len(class_labels)):
+        for i in range(2, len(class_labels)):
             X_final= np.vstack([X_final, results[class_labels[i]]])
             y_final= np.hstack([y_final, np.repeat(class_labels[i], len(results[class_labels[i]]))])
         
-        return X_final, y_final
+        return np.vstack([X, X_final]), np.hstack([y, y_final])
     
     def sample_equalize_1_vs_many_successive(self, X, y):
         """
@@ -15528,17 +15394,17 @@ class MulticlassOversampling(StatisticsMixin):
             X_maj= np.vstack([X_maj, X_samp[y_samp == 1]])
             
             # registaring the newly oversampled minority class in the output set
-            results[class_labels[i]]= X_samp[y_samp == 1]
+            results[class_labels[i]]= X_samp[len(X_training):][y_samp[len(X_training):] == 1]
+
+        # constructing the output set        
+        X_final= results[class_labels[1]]
+        y_final= np.repeat(class_labels[1], len(results[class_labels[1]]))
         
-        # constructing the output set
-        X_final= results[majority_class_label]
-        y_final= np.repeat(majority_class_label, len(X_final))
-        
-        for i in range(1, len(class_labels)):
+        for i in range(2, len(class_labels)):
             X_final= np.vstack([X_final, results[class_labels[i]]])
             y_final= np.hstack([y_final, np.repeat(class_labels[i], len(results[class_labels[i]]))])
         
-        return X_final, y_final
+        return np.vstack([X, X_final]), np.hstack([y, y_final])
         
     def sample(self, X, y):
         """
