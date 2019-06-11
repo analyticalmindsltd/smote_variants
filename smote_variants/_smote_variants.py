@@ -1281,7 +1281,8 @@ class SMOTE(OverSampling):
         X_min= X[y == self.minority_label]
         
         # fitting the model
-        nn= NearestNeighbors(n_neighbors= min([len(X_min), self.n_neighbors+1]), n_jobs= self.n_jobs)
+        n_neigh= min([len(X_min), self.n_neighbors+1])
+        nn= NearestNeighbors(n_neighbors= n_neigh, n_jobs= self.n_jobs)
         nn.fit(X_min)
         dist, ind= nn.kneighbors(X_min)
         
@@ -1289,13 +1290,23 @@ class SMOTE(OverSampling):
             return X.copy(), y.copy()
         
         # generating samples
-        samples= []
-        for _ in range(num_to_sample):
-            base_idx= np.random.randint(len(X_min))
-            neighbor_idx= np.random.choice(ind[base_idx][1:])
-            samples.append(self.sample_between_points(X_min[base_idx], X_min[neighbor_idx]))
+        #samples= []
+        #for _ in range(num_to_sample):
+        #    base_idx= np.random.randint(len(X_min))
+        #    neighbor_idx= np.random.choice(ind[base_idx][1:])
+        #    samples.append(self.sample_between_points(X_min[base_idx], X_min[neighbor_idx]))
         
-        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.hstack([self.minority_label]*num_to_sample)])
+        #return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.hstack([self.minority_label]*num_to_sample)])
+        
+        base_indices= np.random.choice(list(range(len(X_min))), num_to_sample)
+        neighbor_indices= np.random.choice(list(range(1, n_neigh)), num_to_sample)
+        
+        X_base= X_min[base_indices]
+        X_neighbor= X_min[ind[base_indices, neighbor_indices]]
+        
+        samples= X_base + np.multiply(np.random.rand(num_to_sample, 1), X_neighbor - X_base)
+        
+        return np.vstack([X, samples]), np.hstack([y, np.hstack([self.minority_label]*num_to_sample)])
     
     def get_params(self):
         """
@@ -1606,27 +1617,36 @@ class Borderline_SMOTE1(OverSampling):
         for i in range(len(indices)):
             if self.n_neighbors == sum(y[indices[i][1:]] == self.majority_label):
                 noise.append(i)
-            if mode(y[indices[i][1:]]) == self.majority_label:
+            elif mode(y[indices[i][1:]]) == self.majority_label:
                 danger.append(i)
         X_danger= X_min[danger]
+        X_min= np.delete(X_min, np.array(noise), axis= 0)
+        
+        if self.class_stats[self.minority_label] < 2:
+            _logger.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
         
         if len(X_danger) == 0:
             _logger.info(self.__class__.__name__ + ": " + "No samples in danger")
             return X.copy(), y.copy()
         
         # fitting nearest neighbors model to minority samples
-        nn= NearestNeighbors(min([len(X_min), self.k_neighbors + 1]), n_jobs= self.n_jobs)
+        k_neigh= min([len(X_min), self.k_neighbors + 1])
+        nn= NearestNeighbors(k_neigh, n_jobs= self.n_jobs)
         nn.fit(X_min)
         # extracting neighbors of samples in danger
         distances, indices= nn.kneighbors(X_danger)
         
         # generating samples near points in danger
-        samples= []
-        for _ in range(num_to_sample):
-            index= np.random.randint(len(indices))
-            samples.append(self.sample_between_points(X_danger[index], X_min[np.random.choice(indices[index][1:])]))
-            
-        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        base_indices= np.random.choice(list(range(len(X_danger))), num_to_sample)
+        neighbor_indices= np.random.choice(list(range(1, k_neigh)), num_to_sample)
+        
+        X_base= X_danger[base_indices]
+        X_neighbor= X_min[indices[base_indices, neighbor_indices]]
+        
+        samples= X_base + np.multiply(np.random.rand(num_to_sample, 1), X_neighbor - X_base)
+        
+        return np.vstack([X, samples]), np.hstack([y, np.hstack([self.minority_label]*num_to_sample)])
     
     def get_params(self):
         """
@@ -1741,33 +1761,38 @@ class Borderline_SMOTE2(OverSampling):
         for i in range(len(indices)):
             if self.n_neighbors == sum(y[indices[i][1:]] == self.majority_label):
                 noise.append(i)
-            if mode(y[indices[i][1:]]) == self.majority_label:
+            elif mode(y[indices[i][1:]]) == self.majority_label:
                 danger.append(i)
         X_danger= X_min[danger]
+        X_min= np.delete(X_min, np.array(noise), axis= 0)
+        
+        if len(X_min) < 2:
+            _logger.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
+            return X.copy(), y.copy()
         
         if len(X_danger) == 0:
             _logger.info(self.__class__.__name__ + ": " + "No samples in danger")
             return X.copy(), y.copy()
         
         # fitting nearest neighbors model to minority samples
-        nn= NearestNeighbors(self.k_neighbors + 1, n_jobs= self.n_jobs)
+        k_neigh= self.k_neighbors + 1
+        nn= NearestNeighbors(k_neigh, n_jobs= self.n_jobs)
         nn.fit(X)
         distances, indices= nn.kneighbors(X_danger)
         
-        # generating samples near points in danger
-        samples= []
-        for _ in range(num_to_sample):
-            index= np.random.randint(len(X_danger))
-            neighbor_index= np.random.choice(indices[index][1:])
-            
-            r= np.random.random()
-            diff= X[neighbor_index] - X_danger[index]
-            if y[neighbor_index] == self.minority_label:
-                samples.append(X_danger[index] + r*diff)
-            else:
-                samples.append(X_danger[index] + r/2.0*diff)
+        # generating the samples
+        base_indices= np.random.choice(list(range(len(X_danger))), num_to_sample)
+        neighbor_indices= np.random.choice(list(range(1, k_neigh)), num_to_sample)
         
-        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        X_base= X_danger[base_indices]
+        X_neighbor= X[indices[base_indices, neighbor_indices]]
+        diff= X_neighbor - X_base
+        r= np.random.rand(num_to_sample, 1)
+        r[y[neighbor_indices] == self.majority_label]= r[y[neighbor_indices] == self.majority_label]*0.5
+        
+        samples= X_base + np.multiply(r, diff)
+        
+        return np.vstack([X, samples]), np.hstack([y, np.hstack([self.minority_label]*num_to_sample)])
     
     def get_params(self):
         """
@@ -1883,18 +1908,31 @@ class ADASYN(OverSampling):
         r= r/sum(r)
         
         # fitting nearest neighbors models to minority samples
-        nn= NearestNeighbors(min([len(X_min), self.n_neighbors + 1]), n_jobs= self.n_jobs)
+        n_neigh= min([len(X_min), self.n_neighbors + 1])
+        nn= NearestNeighbors(n_neigh, n_jobs= self.n_jobs)
         nn.fit(X_min)
         distances, indices= nn.kneighbors(X_min)
         
         # sampling points
-        samples= []
-        while len(samples) < num_to_sample:
-            idx= np.random.choice(np.arange(len(X_min)), p=r)
-            neighbor_idx= np.random.choice(indices[idx][1:])
-            samples.append(self.sample_between_points(X_min[idx], X_min[neighbor_idx]))
+        #samples= []
+        #while len(samples) < num_to_sample:
+        #    idx= np.random.choice(np.arange(len(X_min)), p=r)
+        #    neighbor_idx= np.random.choice(indices[idx][1:])
+        #    samples.append(self.sample_between_points(X_min[idx], X_min[neighbor_idx]))
         
-        return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        #return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
+        
+        base_indices= np.random.choice(list(range(len(X_min))), size=int(num_to_sample), p=r)
+        neighbor_indices= np.random.choice(list(range(1, n_neigh)), int(num_to_sample))
+        
+        X_base= X_min[base_indices]
+        X_neighbor= X_min[indices[base_indices, neighbor_indices]]
+        diff= X_neighbor - X_base
+        r= np.random.rand(int(num_to_sample), 1)
+        
+        samples= X_base + np.multiply(r, diff)
+        
+        return np.vstack([X, samples]), np.hstack([y, np.hstack([self.minority_label]*int(num_to_sample))])
     
     def get_params(self):
         """
@@ -15451,17 +15489,17 @@ class MulticlassOversampling(StatisticsMixin):
             X_samp, y_samp= oversampler.sample(X_training, y_training)
             
             # registaring the newly oversampled minority class in the output set
-            results[class_labels[i]]= X_samp[y_samp == 1]
+            results[class_labels[i]]= X_samp[len(X_training):][y_samp == 1]
         
         # constructing the output set
-        X_final= results[majority_class_label]
-        y_final= np.repeat(majority_class_label, len(X_final))
+        X_final= results[class_labels[1]]
+        y_final= np.repeat(class_labels[1], len(results[class_labels[1]]))
         
-        for i in range(1, len(class_labels)):
+        for i in range(2, len(class_labels)):
             X_final= np.vstack([X_final, results[class_labels[i]]])
             y_final= np.hstack([y_final, np.repeat(class_labels[i], len(results[class_labels[i]]))])
         
-        return X_final, y_final
+        return np.vstack([X, X_final]), np.hstack([y, y_final])
     
     def sample_equalize_1_vs_many_successive(self, X, y):
         """
@@ -15528,17 +15566,17 @@ class MulticlassOversampling(StatisticsMixin):
             X_maj= np.vstack([X_maj, X_samp[y_samp == 1]])
             
             # registaring the newly oversampled minority class in the output set
-            results[class_labels[i]]= X_samp[y_samp == 1]
+            results[class_labels[i]]= X_samp[len(X_training):][y_samp[len(X_training):] == 1]
+
+        # constructing the output set        
+        X_final= results[class_labels[1]]
+        y_final= np.repeat(class_labels[1], len(results[class_labels[1]]))
         
-        # constructing the output set
-        X_final= results[majority_class_label]
-        y_final= np.repeat(majority_class_label, len(X_final))
-        
-        for i in range(1, len(class_labels)):
+        for i in range(2, len(class_labels)):
             X_final= np.vstack([X_final, results[class_labels[i]]])
             y_final= np.hstack([y_final, np.repeat(class_labels[i], len(results[class_labels[i]]))])
         
-        return X_final, y_final
+        return np.vstack([X, X_final]), np.hstack([y, y_final])
         
     def sample(self, X, y):
         """
