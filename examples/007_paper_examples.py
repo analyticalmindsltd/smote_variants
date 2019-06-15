@@ -83,21 +83,22 @@ def plot_mc(X, y, title, label_0, label_1, label_2, filename):
 # In[5]:
 
 
-# fetching the libras_move dataset
-
-datasets= imb_datasets.fetch_datasets()
-
-libras= datasets['libras_move']
+# setting the random seed
+np.random.seed(random_seed)
 
 
 # In[6]:
 
 
-# executing the oversampling
+# sample code segment #0
+# oversampling by OUPS and plotting
 
-np.random.seed(random_seed)
-oups= sv.OUPS()
-X, y= oups.sample(libras['data'], libras['target'])
+import smote_variants as sv
+import imblearn.datasets as imb_datasets
+
+libras= imb_datasets.fetch_datasets()['libras_move']
+
+X, y= sv.OUPS().sample(libras['data'], libras['target'])
 
 plot(libras['data'], libras['target'], 'libras_move', 1, -1, 'libras_move.eps')
 plot(X, y, 'libras_move oversampled by OUPS', 1, -1, 'libras_move_oups.eps')
@@ -106,20 +107,23 @@ plot(X, y, 'libras_move oversampled by OUPS', 1, -1, 'libras_move_oups.eps')
 # In[7]:
 
 
-# evaluating the performance of k neighbors classifier with oversampling
-
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.model_selection import RepeatedStratifiedKFold
-
+# setting the random seed
 np.random.seed(random_seed)
-results= sv.cross_validate(dataset= libras, 
-                           sampler= sv.OUPS(), 
-                           classifier= KNeighborsClassifier(),
-                           validator= RepeatedStratifiedKFold(n_repeats= 8,
-                                                              n_splits= 5))
 
 
 # In[8]:
+
+
+# sample code segment #1
+# evaluating the performance of k neighbors classifier with oversampling
+
+from sklearn.neighbors import KNeighborsClassifier
+
+results= sv.cross_validate(dataset= libras, sampler= sv.OUPS(), 
+                           classifier= KNeighborsClassifier())
+
+
+# In[9]:
 
 
 # printing the results
@@ -127,20 +131,17 @@ results= sv.cross_validate(dataset= libras,
 print(results.T[['sampler', 'auc', 'gacc']])
 
 
-# In[9]:
+# In[10]:
 
 
 # evaluating the performance of k neighbors classifier without oversampling
 
 np.random.seed(random_seed)
-results_wo= sv.cross_validate(dataset= libras, 
-                           sampler= sv.NoSMOTE(), 
-                           classifier= KNeighborsClassifier(),
-                           validator= RepeatedStratifiedKFold(n_repeats= 8,
-                                                              n_splits= 5))
+results_wo= sv.cross_validate(dataset= libras, sampler= sv.NoSMOTE(), 
+                               classifier= KNeighborsClassifier())
 
 
-# In[10]:
+# In[11]:
 
 
 # printing the results
