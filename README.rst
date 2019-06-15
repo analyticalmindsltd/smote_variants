@@ -45,11 +45,22 @@ Documentation
 -------------
 
 For a detailed documentation see http://smote-variants.readthedocs.io.
+For a YouTube tutorial check https://www.youtube.com/watch?v=GSK7akQPM60
 
-Downloads
----------
+The competition
+---------------
+
+We have kicked off a competition to find the best general purpose oversampling technique. The competition is ongoing, the preliminary results are available at the page https://smote-variants.readthedocs.io/en/latest/competition.html
+
+All the numerical results are reproducible by the 005_evaluation example script, downloading the database foldings from the link below and following the instructions in the script. Anyone is open to join the competition by implementing an oversampling technique as part of the smote_variants package. The below database foldings can be used to evaluate the technique, and compare the results to the already implemented ones. Once the code is added to a feature branch, the evaluation will be repeated by the organizers and the results added to the rankings page.
 
 * Database foldings: `https://drive.google.com/open?id=1PKw1vETVUzaToomio1-RGzJ9_-buYjOW <https://drive.google.com/open?id=1PKw1vETVUzaToomio1-RGzJ9_-buYjOW>`__
+
+Other downloads
+---------------
+
+If someone is interested in the results of the evaluation of 85 oversamplers on 104 imbalanced datasets, the raw and aggregated results as structured pickle files are avaialble at the below links:
+
 * Raw results: `https://drive.google.com/open?id=12CfB3184nchLIwStaHhrjcQK7Ari18Mo <https://drive.google.com/open?id=12CfB3184nchLIwStaHhrjcQK7Ari18Mo>`__
 * Aggregated results: `https://drive.google.com/open?id=19JGikRYXQ6-eOxaFVrqkF64zOCiSdT-j <https://drive.google.com/open?id=19JGikRYXQ6-eOxaFVrqkF64zOCiSdT-j>`__
 
