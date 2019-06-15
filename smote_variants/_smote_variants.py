@@ -16410,4 +16410,4 @@ def cross_validate(dataset,
         results['class_label_mapping']= mapping
         print(results['confusion_matrix'])
 
-    return pd.DataFrame(list(results.values()), index= results.keys(), columns= ['value'])
+    return pd.DataFrame({'value': list(results.values())}, index= results.keys())
