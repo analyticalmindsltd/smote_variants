@@ -122,16 +122,10 @@ from sklearn.neighbors import KNeighborsClassifier
 results= sv.cross_validate(dataset= libras, sampler= sv.OUPS(), 
                            classifier= KNeighborsClassifier())
 
+print(results.loc['auc'])
+
 
 # In[9]:
-
-
-# printing the results
-
-print(results.T[['sampler', 'auc', 'gacc']])
-
-
-# In[10]:
 
 
 # evaluating the performance of k neighbors classifier without oversampling
@@ -141,10 +135,10 @@ results_wo= sv.cross_validate(dataset= libras, sampler= sv.NoSMOTE(),
                                classifier= KNeighborsClassifier())
 
 
-# In[11]:
+# In[10]:
 
 
 # printing the results
 
-print(results_wo.T[['sampler', 'auc', 'gacc']])
+print(results_wo.loc['auc'])
 
