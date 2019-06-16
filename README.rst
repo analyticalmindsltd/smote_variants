@@ -44,8 +44,8 @@ The publication of this work and its derivatives is going on, please come back i
 Documentation
 -------------
 
-For a detailed documentation see http://smote-variants.readthedocs.io.
-For a YouTube tutorial check https://www.youtube.com/watch?v=GSK7akQPM60
+* For a detailed documentation see http://smote-variants.readthedocs.io.
+* For a YouTube tutorial check https://www.youtube.com/watch?v=GSK7akQPM60
 
 The competition
 ---------------
