@@ -11,7 +11,9 @@ a handful of techniques. In this package we have implemented 85 variants of SMOT
 In order to get an impression on what to expect, an ordinary, imbalanced, 2D dataset can be seen in the left hand side, and the oversampled dataset on the right hand side:
 
 .. image:: figures/base.png
+    :width: 200px
 .. image:: figures/SMOTE_ENN.png
+    :width: 200px
 
 If you use this package, please consider citing the following papers:
 
