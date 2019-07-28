@@ -1,7 +1,7 @@
 Release History
 ***************
 
-Version 3.0 (2019.07.28.)
+Version 3.2 (2019.07.28.)
 =========================
 
 * ```OversamplingClassifier``` added for compatibility with ```sklearn``` ```Pipeline```.
