@@ -13,18 +13,42 @@ In order to get an impression on what to expect, an ordinary, imbalanced, 2D dat
 .. image:: figures/base.png
 .. image:: figures/SMOTE_ENN.png
 
-If you use this package, please cite the following paper:
+If you use this package, please consider citing the following papers:
 
-.. code-block:: Latex
+BibTex for the package:
 
-    @article{smote_variants_comparison,
-            author={Gy\"orgy, Kov\'acs},
-            title={Empirical comparison and evaluation of 85 variants of the Synthetic Minority Oversampling Technique on 104 imbalanced datasets},
-            journal={},
-            volume={}
-            pages={},
-            year={2019}
-            }
+.. code-block:: BibTex
+
+    @article{smote-variants,
+      author={Gy\"orgy Kov\'acs},
+      title={smote-variants: a Python Implementation of 85 Minority Oversampling Techniques},
+      journal={Neurocomputing},
+      note={(IF-2019=4.07)},
+      year={2019},
+      group={journal},
+      preprint= {https://www.researchgate.net/publication/333968087_smote-variants_a_Python_Implementation_of_85_Minority_Oversampling_Techniques},
+      code= {https://github.com/gykovacs/smote_variants}
+    }
+
+BibTex for the comparison and evaluation:
+
+.. code-block:: BibTex
+
+    @article{smote-comparison,
+      author={Gy\"orgy Kov\'acs},
+      title={An empirical comparison and evaluation of minority oversampling techniques on a large number of imbalanced datasets},
+      journal={Applied Soft Computing},
+      note={(IF-2019=4.873)},
+      year={2019},
+      group={journal},
+      code={https://github.com/gykovacs/smote_variants},
+      preprint={https://www.researchgate.net/publication/334732374_An_empirical_comparison_and_evaluation_of_minority_oversampling_techniques_on_a_large_number_of_imbalanced_datasets}
+    }
+
+Comparison and evaluation
+=========================
+
+For a thorough comparison and evaluation see https://www.researchgate.net/publication/334732374_An_empirical_comparison_and_evaluation_of_minority_oversampling_techniques_on_a_large_number_of_imbalanced_datasets
 
 Why oversampling?
 =================
