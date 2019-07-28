@@ -41,6 +41,8 @@ For a detailed comparison and evaluation of all the implemented techniques see h
 Citation
 --------
 
+If you use this package in your research, please consider citing the below papers.
+
 BibTex for the package:
 
 .. code-block:: BibTex
@@ -55,7 +57,6 @@ BibTex for the package:
     preprint= {https://www.researchgate.net/publication/333968087_smote-variants_a_Python_Implementation_of_85_Minority_Oversampling_Techniques},
     code= {https://github.com/gykovacs/smote_variants}
   }
-
 
 BibTex for the comparison and evaluation:
 
@@ -78,6 +79,113 @@ Documentation
 * For a detailed documentation see http://smote-variants.readthedocs.io.
 * For a YouTube tutorial check https://www.youtube.com/watch?v=GSK7akQPM60
 
+Sample Usage
+------------
+
+Binary oversampling:
+
+.. code-block:: Python
+
+  import smote_variants as sv
+  import imbalanced_databases as imbd
+  
+  dataset= imbd.load_iris0()
+  X, y= dataset['data'], dataset['target']
+  
+  oversampler= sv.distance_SMOTE()
+  X_samp, y_samp= oversampler.sample(X, y)
+
+Multiclass oversampling:
+
+.. code-block:: Python
+
+  import smote_variants as sv
+  import sklearn.datasets as datasets
+
+  dataset= datasets.load_wine()
+  X, y= dataset['data'], dataset['target']
+
+  oversampler= sv.MulticlassOversampling(sv.distance_SMOTE())
+  X_samp, y_samp= oversampler.sample(X, y)
+
+Selection of the best oversampler:
+
+.. code-block:: Python
+
+  import os.path
+  from sklearn.neighbors import KNeighborsClassifier
+  from sklearn.tree import DecisionTreeClassifier
+  import smote_variants as sv
+  import sklearn.datasets as datasets
+
+  cache_path= os.path.join(os.path.expanduser('~'), 'smote_test')
+
+  if not os.path.exists(cache_path):
+      os.makedirs(cache_path)
+
+  dataset= datasets.load_breast_cancer()
+  dataset= {'data': dataset['data'], 'target': dataset['target'], 'name': 'breast_cancer'}
+
+  knn_classifier= KNeighborsClassifier()
+  dt_classifier= DecisionTreeClassifier()
+
+  samp_obj, cl_obj= sv.model_selection(dataset= dataset,
+                                          samplers= sv.get_n_quickest_oversamplers(5),
+                                          classifiers= [knn_classifier, dt_classifier],
+                                          cache_path= cache_path,
+                                          n_jobs= 5,
+                                          max_samp_par_comb= 35)
+
+Integration with sklearn pipelines:
+
+.. code-block:: Python
+
+  import smote_variants as sv
+  import imblearn.datasets as imb_datasets
+
+  from sklearn.model_selection import train_test_split, GridSearchCV
+  from sklearn.pipeline import Pipeline
+  from sklearn.preprocessing import StandardScaler
+  from sklearn.neighbors import KNeighborsClassifier
+
+  libras= imb_datasets.fetch_datasets()['libras_move']
+  X, y= libras['data'], libras['target']
+
+  oversampler= sv.MulticlassOversampling(sv.distance_SMOTE())
+  classifier= KNeighborsClassifier(n_neighbors= 5)
+
+  model= Pipeline([('scale', StandardScaler()), ('clf', sv.OversamplingClassifier(oversampler, classifier))])
+
+  model.fit(X, y)
+
+Integration with sklearn grid search:
+
+.. code-block:: Python
+
+  import smote_variants as sv
+  import imblearn.datasets as imb_datasets
+
+  from sklearn.model_selection import train_test_split, GridSearchCV
+  from sklearn.pipeline import Pipeline
+  from sklearn.preprocessing import StandardScaler
+  from sklearn.neighbors import KNeighborsClassifier
+
+  libras= imb_datasets.fetch_datasets()['libras_move']
+  X, y= libras['data'], libras['target']
+
+  oversampler= sv.MulticlassOversampling(sv.distance_SMOTE())
+  classifier= KNeighborsClassifier(n_neighbors= 5)
+
+  model= Pipeline([('scale', StandardScaler()), ('clf', sv.OversamplingClassifier(oversampler, classifier))])
+
+  param_grid= {'clf__oversampler':[sv.distance_SMOTE(proportion=0.5),
+                                 sv.distance_SMOTE(proportion=1.0),
+                                 sv.distance_SMOTE(proportion=1.5)]}
+  
+  grid= GridSearchCV(model, param_grid= param_grid, cv= 3, n_jobs= 1, verbose= 2, scoring= 'accuracy')
+  
+  grid.fit(X, y)
+  
 The competition
 ---------------
 
