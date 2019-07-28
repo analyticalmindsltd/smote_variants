@@ -7411,7 +7411,11 @@ class ADG(OverSampling):
             mixture= xgmeans(X_plus)
             
             # step 6
-            Z= mixture.sample(q)[0]
+            try:
+                Z= mixture.sample(q)[0]
+            except:
+                _logger.warning(self.__class__.__name__ + ": sampling error in sklearn.mixture.GaussianMixture")
+                return X.copy(), y.copy()
             
             # step 7
             # computing the kernel matrix of generated samples with all samples
