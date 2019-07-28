@@ -42,7 +42,7 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 #from sklearn.calibration import CalibratedClassifierCV
-from sklearn.base import clone
+from sklearn.base import clone, BaseEstimator, ClassifierMixin
 
 # some statistical methods
 from scipy.stats import skew
@@ -181,7 +181,8 @@ __all__= ['__author__',
 'ANS',
 'cluster_SMOTE',
 'NoSMOTE',
-'MulticlassOversampling']
+'MulticlassOversampling',
+'OversamplingClassifier']
 
 def get_all_oversamplers():
     """
@@ -1087,7 +1088,7 @@ class OverSampling(StatisticsMixin, ParameterCheckingMixin, ParameterCombination
         """
         return X
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns the parameters of the object as a dictionary.
         Returns:
@@ -1126,7 +1127,7 @@ class UnderSampling(StatisticsMixin, ParameterCheckingMixin, ParameterCombinatio
         """
         pass
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns the parameters of the object as a dictionary.
         Returns:
@@ -1182,7 +1183,7 @@ class NoSMOTE(OverSampling):
         
         return X.copy(), y.copy()
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -1296,7 +1297,7 @@ class SMOTE(OverSampling):
         
         return np.vstack([X, samples]), np.hstack([y, np.hstack([self.minority_label]*num_to_sample)])
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -1393,7 +1394,7 @@ class SMOTE_TomekLinks(OverSampling):
         
         return X_samp, y_samp
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -1490,7 +1491,7 @@ class SMOTE_ENN(OverSampling):
         
         return enn.remove_noise(X_new, y_new)
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -1630,7 +1631,7 @@ class Borderline_SMOTE1(OverSampling):
         
         return np.vstack([X, samples]), np.hstack([y, np.hstack([self.minority_label]*num_to_sample)])
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -1774,7 +1775,7 @@ class Borderline_SMOTE2(OverSampling):
         
         return np.vstack([X, samples]), np.hstack([y, np.hstack([self.minority_label]*num_to_sample)])
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -1916,7 +1917,7 @@ class ADASYN(OverSampling):
         
         return np.vstack([X, samples]), np.hstack([y, np.hstack([self.minority_label]*int(num_to_sample))])
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -2070,7 +2071,7 @@ class AHC(OverSampling):
             X_maj_resampled= self.sample_majority(X_maj, min([len(X_maj), len(X_min_resampled) + len(X_min)]))
             return np.vstack([X_min_resampled, X_min, X_maj_resampled]), np.hstack([np.repeat(self.minority_label, (len(X_min_resampled) + len(X_min))), np.repeat(self.majority_label, len(X_maj_resampled))])
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -2210,7 +2211,7 @@ class LLE_SMOTE(OverSampling):
             
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -2313,7 +2314,7 @@ class distance_SMOTE(OverSampling):
             
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -2443,7 +2444,7 @@ class SMMO(OverSampling):
         
         return np.vstack([X, np.vstack([samples])]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -2572,7 +2573,7 @@ class polynom_fit_SMOTE(OverSampling):
             
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -2724,7 +2725,7 @@ class Stefanowski(OverSampling):
             
         return np.vstack([X_noise_removed, np.vstack(samples)]), np.hstack([y_noise_removed, np.repeat(self.minority_label, len(samples))])
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -2839,7 +2840,7 @@ class ADOMS(OverSampling):
 
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -2985,7 +2986,7 @@ class Safe_Level_SMOTE(OverSampling):
         else:
             return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -3116,7 +3117,7 @@ class MSMOTE(OverSampling):
 
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -3282,7 +3283,7 @@ class DE_oversampling(OverSampling):
                     
         return np.delete(X, to_remove, axis= 0), np.delete(y, to_remove)
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -3584,7 +3585,7 @@ class SMOBD(OverSampling):
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -3721,7 +3722,7 @@ class SUNDO(OverSampling):
         
         return np.vstack([X_min_extended, X_maj_cleaned]), np.hstack([np.repeat(self.minority_label, len(X_min_extended)), np.repeat(self.majority_label, len(X_maj_cleaned))])
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -3861,7 +3862,7 @@ class MSYN(OverSampling):
        
         return np.vstack([X, X_new[new_ind]]), np.hstack([y, np.repeat(self.minority_label, len(new_ind))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -3976,7 +3977,7 @@ class SVM_balance(OverSampling):
 
         return X, svc.predict(X_norm)
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -4251,7 +4252,7 @@ class TRIM_SMOTE(OverSampling):
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -4391,7 +4392,7 @@ class SMOTE_RSB(OverSampling):
         else:
             return np.vstack([X, X_samp]), np.hstack([y, y_samp])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -4547,7 +4548,7 @@ class ProWSyn(OverSampling):
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -4647,7 +4648,7 @@ class SL_graph_SMOTE(OverSampling):
         
         return s.sample(X, y)
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -4796,7 +4797,7 @@ class NRSBoundary_SMOTE(OverSampling):
             
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -4922,7 +4923,7 @@ class LVQ_SMOTE(OverSampling):
         
         return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -5115,7 +5116,7 @@ class SOI_CJ(OverSampling):
             _logger.warning(self.__class__.__name__ + ": " +"No clusters with more than 2 elements")
             return X.copy(), y.copy()
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -5217,7 +5218,7 @@ class ROSE(OverSampling):
         
         return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -5325,7 +5326,7 @@ class SMOTE_OUT(OverSampling):
         
         return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -5444,7 +5445,7 @@ class SMOTE_Cosine(OverSampling):
         
         return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -5578,7 +5579,7 @@ class Selected_SMOTE(OverSampling):
         
         return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -5764,7 +5765,7 @@ class LN_SMOTE(OverSampling):
         
         return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -5962,7 +5963,7 @@ class MWMOTE(OverSampling):
         
         return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -6165,7 +6166,7 @@ class PDFOS(OverSampling):
 
         return np.vstack([X, ss.inverse_transform(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -6455,7 +6456,7 @@ class IPADE_ID(OverSampling):
 
         return mms.inverse_transform(GS), GS_y
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -6542,7 +6543,7 @@ class RWO_sampling(OverSampling):
 
         return np.vstack([X, samples]), np.hstack([y, np.array([self.minority_label]*len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -6730,7 +6731,7 @@ class NEATER(OverSampling):
         
         return X_all, y_all
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -6889,7 +6890,7 @@ class DEAGO(OverSampling):
 
         return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -6996,7 +6997,7 @@ class Gazzah(OverSampling):
         
         return np.vstack([X_maj, X_min_samp]), np.hstack([np.repeat(self.majority_label,len(X_maj)), np.repeat(self.minority_label,len(X_min_samp))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -7096,7 +7097,7 @@ class MCT(OverSampling):
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -7410,7 +7411,11 @@ class ADG(OverSampling):
             mixture= xgmeans(X_plus)
             
             # step 6
-            Z= mixture.sample(q)[0]
+            try:
+                Z= mixture.sample(q)[0]
+            except:
+                _logger.warning(self.__class__.__name__ + ": sampling error in sklearn.mixture.GaussianMixture")
+                return X.copy(), y.copy()
             
             # step 7
             # computing the kernel matrix of generated samples with all samples
@@ -7476,7 +7481,7 @@ class ADG(OverSampling):
         
         return X.copy(), y.copy()
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -7620,7 +7625,7 @@ class SMOTE_IPF(OverSampling):
             
         return X_samp, y_samp
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -7798,7 +7803,7 @@ class KernelADASYN(OverSampling):
             
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -8028,7 +8033,7 @@ class MOT2LD(OverSampling):
         
         return np.vstack([np.delete(X, noise, axis= 0), np.vstack(samples)]), np.hstack([np.delete(y, noise), np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -8188,7 +8193,7 @@ class V_SYNTH(OverSampling):
         
         return np.vstack([X, pca.inverse_transform(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -8300,7 +8305,7 @@ class OUPS(OverSampling):
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -8423,7 +8428,7 @@ class SMOTE_D(OverSampling):
         else:
             return X.copy(), y.copy()
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -8670,7 +8675,7 @@ class SMOTE_PSO(OverSampling):
             
         return np.vstack([X_orig, mms.inverse_transform(global_best)]), np.hstack([y_orig, np.repeat(self.minority_label, len(global_best))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -8843,7 +8848,7 @@ class CURE_SMOTE(OverSampling):
         
         return np.vstack([X, mms.inverse_transform(np.vstack(samples))]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -9036,7 +9041,7 @@ class SOMO(OverSampling):
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -9153,7 +9158,7 @@ class ISOMAP_Hybrid(OverSampling):
         """
         return self.isomap.transform(X)
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -9300,7 +9305,7 @@ class CE_SMOTE(OverSampling):
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -9422,7 +9427,7 @@ class Edge_Det_SMOTE(OverSampling):
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -9592,7 +9597,7 @@ class CBSO(OverSampling):
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -9774,7 +9779,7 @@ class E_SMOTE(OverSampling):
         """
         return X[:,self.mask]
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -10006,7 +10011,7 @@ class DBSMOTE(OverSampling):
     
         return np.vstack([X, ss.inverse_transform(np.vstack(samples))]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -10209,7 +10214,7 @@ class ASMOBD(OverSampling):
         
         return np.vstack([X, ss.inverse_transform(np.vstack(samples))]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -10410,7 +10415,7 @@ class Assembled_SMOTE(OverSampling):
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -10532,7 +10537,7 @@ class SDSMOTE(OverSampling):
 
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -10757,7 +10762,7 @@ class DSMOTE(OverSampling):
         
         return mms.inverse_transform(np.vstack([X_maj, X_min])), np.hstack([np.repeat(self.majority_label, len(X_maj)), np.repeat(self.minority_label, len(X_min))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -10909,7 +10914,7 @@ class G_SMOTE(OverSampling):
         
         return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -11013,7 +11018,7 @@ class NT_SMOTE(OverSampling):
         
         return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -11150,7 +11155,7 @@ class Lee(OverSampling):
         
         return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -11247,7 +11252,7 @@ class SPY(OverSampling):
         
         return X.copy(), y_new
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -11582,7 +11587,7 @@ class SMOTE_PSOBAT(OverSampling):
         
         return SMOTE(proportion= best_combination[1], n_neighbors= int(best_combination[0]), n_jobs= self.n_jobs).sample(X, y)
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -11751,7 +11756,7 @@ class MDO(OverSampling):
 
         return np.vstack([X, pca.inverse_transform(samples) + mu]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -11858,7 +11863,7 @@ class Random_SMOTE(OverSampling):
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -11980,7 +11985,7 @@ class ISMOTE(OverSampling):
         
         return np.vstack([X_new, np.vstack(samples)]), np.hstack([y_new, np.repeat(self.minority_label, len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -12161,7 +12166,7 @@ class VIS_RST(OverSampling):
         
         return ss.inverse_transform(np.vstack([X, X_samp])), np.hstack([y, np.repeat(self.minority_label, len(X_samp))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -12401,7 +12406,7 @@ class GASMOTE(OverSampling):
 
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
 
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -12666,7 +12671,7 @@ class A_SUWO(OverSampling):
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
 
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -12859,7 +12864,7 @@ class SMOTE_FRST_2T(OverSampling):
         
         return mmscaler.inverse_transform(X_res), y_res
 
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -13033,7 +13038,7 @@ class AND_SMOTE(OverSampling):
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
 
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -13169,7 +13174,7 @@ class NRAS(OverSampling):
         
         return mms.inverse_transform(np.vstack([X_maj, X_min, np.vstack(samples)])), np.hstack([np.repeat(self.majority_label, len(X_maj)), np.repeat(self.minority_label, len(X_min)), np.repeat(self.minority_label, len(samples))])
 
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -13455,7 +13460,7 @@ class AMSCO(OverSampling):
         
         return np.vstack([current_maj, current_min]), np.hstack([np.repeat(self.majority_label, len(current_maj)), np.repeat(self.minority_label, len(current_min))])
 
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -13663,7 +13668,7 @@ class SSO(OverSampling):
                     
         return X.copy(), y.copy()
 
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -13793,7 +13798,7 @@ class NDO_sampling(OverSampling):
                     
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
 
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -14239,7 +14244,7 @@ class DSRBF(OverSampling):
             
         return ss.inverse_transform(p_best[1]), p_best[2]
 
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -14353,7 +14358,7 @@ class Gaussian_SMOTE(OverSampling):
             
         return np.vstack([X, ss.inverse_transform(np.vstack(samples))]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
 
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -14496,7 +14501,7 @@ class kmeans_SMOTE(OverSampling):
             
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
 
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -14627,7 +14632,7 @@ class Supervised_SMOTE(OverSampling):
             
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
 
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -14768,7 +14773,7 @@ class SN_SMOTE(OverSampling):
             
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
 
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -14936,7 +14941,7 @@ class CCR(OverSampling):
             return X.copy(), y.copy()
         return np.vstack([X, np.vstack(appended)]), np.hstack([y, np.repeat(self.minority_label, len(appended))])
 
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -15101,7 +15106,7 @@ class ANS(OverSampling):
             
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
 
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -15218,7 +15223,7 @@ class cluster_SMOTE(OverSampling):
             
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label,len(samples))])
         
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
@@ -15425,12 +15430,96 @@ class MulticlassOversampling(StatisticsMixin):
         else:
             raise ValueError("Multiclass oversampling startegy %s not implemented." % self.strategy)
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the multiclass oversampling object
         """
         return {'oversampler': self.oversampler, 'strategy': self.strategy}
+
+class OversamplingClassifier(BaseEstimator, ClassifierMixin):
+    """
+    This class wraps an oversampler and a classifier, making it compatible
+    with sklearn based pipelines.
+    """
+    
+    def __init__(self, oversampler, classifier):
+        """
+        Constructor of the wrapper.
+        
+        Args:
+            oversampler (obj): an oversampler object
+            classifier (obj): an sklearn-compatible classifier
+        """
+        
+        self.oversampler= oversampler
+        self.classifier= classifier
+        
+    def fit(self, X, y=None):
+        """
+        Carries out oversampling and fits the classifier.
+        
+        Args:
+            X (np.ndarray): feature vectors
+            y (np.array): target values
+        
+        Returns:
+            obj: the object itself
+        """
+        
+        X_samp, y_samp= self.oversampler.sample(X, y)
+        self.classifier.fit(X_samp, y_samp)
+        
+        return self
+    
+    def predict(self, X):
+        """
+        Carries out the predictions.
+        
+        Args:
+            X (np.ndarray): feature vectors
+        """
+        
+        return self.classifier.predict(X)
+    
+    def predict_proba(self, X):
+        """
+        Carries out the predictions with probability estimations.
+        
+        Args:
+            X (np.ndarray): feature vectors
+        """
+        
+        return self.classifier.predict_proba(X)
+    
+    def get_params(self, deep=True):
+        """
+        Returns the dictionary of parameters.
+        
+        Args:
+            deep (bool): wether to return parameters with deep discovery
+        
+        Returns:
+            dict: the dictionary of parameters
+        """
+        
+        return {'oversampler': self.oversampler, 'classifier': self.classifier}
+    
+    def set_params(self, **parameters):
+        """
+        Sets the parameters.
+        
+        Args:
+            parameters (dict): the parameters to set.
+        
+        Returns:
+            obj: the object itself
+        """
+        
+        for parameter, value in parameters.items():
+            setattr(self, parameter, value)
+            
+        return self
 
 class MLPClassifierWrapper():
     """
@@ -15490,7 +15579,7 @@ class MLPClassifierWrapper():
         """
         return self.model.predict_proba(X)
     
-    def get_params(self):
+    def get_params(self, deep=False):
         """
         Returns the parameters of the classifier.
         
@@ -15559,7 +15648,7 @@ class Folding():
                 self.folding= pickle.load(open(os.path.join(self.cache_path, self.filename), "rb"))
         return self.folding
     
-    def get_params(self):
+    def get_params(self, deep=False):
         return {'db_name': self.db_name}
     
     def descriptor(self):
@@ -15687,7 +15776,7 @@ class Sampling():
         results= pickle.load(open(os.path.join(self.cache_path, self.filename), 'rb'))
         return results
     
-    def get_params(self):
+    def get_params(self, deep=False):
         return {'folding': self.folding.get_params(), 'sampler_name': self.sampler.__name__, 'sampler_parameters': self.sampler_parameters}
     
     def descriptor(self):
