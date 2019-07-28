@@ -1,5 +1,6 @@
+setuptools>=41.0.0
 joblib
-numpy>=1.13.0
+numpy>=1.14.5
 pandas
 scipy
 sklearn
