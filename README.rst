@@ -57,7 +57,6 @@ BibTex for the package:
     note={(IF-2019=4.07)},
     year={2019},
     group={journal},
-    preprint= {https://www.researchgate.net/publication/333968087_smote-variants_a_Python_Implementation_of_85_Minority_Oversampling_Techniques},
     code= {https://github.com/gykovacs/smote_variants}
   }
 
@@ -70,10 +69,13 @@ BibTex for the comparison and evaluation:
     title={An empirical comparison and evaluation of minority oversampling techniques on a large number of imbalanced datasets},
     journal={Applied Soft Computing},
     note={(IF-2019=4.873)},
+    volume={83},
+    pages={105662},
     year={2019},
+    link={https://www.sciencedirect.com/science/article/pii/S1568494619304429},
     group={journal},
     code={https://github.com/gykovacs/smote_variants},
-    preprint={https://www.researchgate.net/publication/334732374_An_empirical_comparison_and_evaluation_of_minority_oversampling_techniques_on_a_large_number_of_imbalanced_datasets}
+    doi={10.1016/j.asoc.2019.105662}
   }
 
 Documentation
