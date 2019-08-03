@@ -46,6 +46,8 @@ Citation
 
 If you use this package in your research, please consider citing the below papers.
 
+Preprint describing the package: https://www.researchgate.net/publication/333968087_smote-variants_a_Python_Implementation_of_85_Minority_Oversampling_Techniques
+
 BibTex for the package:
 
 .. code-block:: BibTex
@@ -59,6 +61,8 @@ BibTex for the package:
     group={journal},
     code= {https://github.com/gykovacs/smote_variants}
   }
+
+Preprint of the comparative study: https://www.researchgate.net/publication/334732374_An_empirical_comparison_and_evaluation_of_minority_oversampling_techniques_on_a_large_number_of_imbalanced_datasets
 
 BibTex for the comparison and evaluation:
 
