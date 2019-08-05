@@ -102,6 +102,8 @@ Binary oversampling:
   X, y= dataset['data'], dataset['target']
   
   oversampler= sv.distance_SMOTE()
+  
+  # X_samp and y_samp contain the oversampled dataset
   X_samp, y_samp= oversampler.sample(X, y)
 
 Multiclass oversampling:
@@ -115,6 +117,8 @@ Multiclass oversampling:
   X, y= dataset['data'], dataset['target']
 
   oversampler= sv.MulticlassOversampling(sv.distance_SMOTE())
+  
+  # X_samp and y_samp contain the oversampled dataset
   X_samp, y_samp= oversampler.sample(X, y)
 
 Selection of the best oversampler:
@@ -138,12 +142,18 @@ Selection of the best oversampler:
   knn_classifier= KNeighborsClassifier()
   dt_classifier= DecisionTreeClassifier()
 
+  # samp_obj and cl_obj contain the oversampling and classifier objects which give the
+  # best performance together
   samp_obj, cl_obj= sv.model_selection(dataset= dataset,
                                           samplers= sv.get_n_quickest_oversamplers(5),
                                           classifiers= [knn_classifier, dt_classifier],
                                           cache_path= cache_path,
                                           n_jobs= 5,
                                           max_samp_par_comb= 35)
+   
+  # training the best techniques using the entire dataset
+  X_samp, y_samp= samp_obj.sample(dataset['data'], dataset['target'])
+  cl_obj.fit(X_samp, y_samp)
 
 Integration with sklearn pipelines:
 
@@ -163,6 +173,7 @@ Integration with sklearn pipelines:
   oversampler= sv.MulticlassOversampling(sv.distance_SMOTE())
   classifier= KNeighborsClassifier(n_neighbors= 5)
 
+  # Constructing a pipeline which contains oversampling and classification as the last step.
   model= Pipeline([('scale', StandardScaler()), ('clf', sv.OversamplingClassifier(oversampler, classifier))])
 
   model.fit(X, y)
@@ -185,14 +196,17 @@ Integration with sklearn grid search:
   oversampler= sv.MulticlassOversampling(sv.distance_SMOTE())
   classifier= KNeighborsClassifier(n_neighbors= 5)
 
+  # Constructing a pipeline with oversampling and classification as the last step
   model= Pipeline([('scale', StandardScaler()), ('clf', sv.OversamplingClassifier(oversampler, classifier))])
 
   param_grid= {'clf__oversampler':[sv.distance_SMOTE(proportion=0.5),
                                  sv.distance_SMOTE(proportion=1.0),
                                  sv.distance_SMOTE(proportion=1.5)]}
   
+  # Specifying the gridsearch for model selection
   grid= GridSearchCV(model, param_grid= param_grid, cv= 3, n_jobs= 1, verbose= 2, scoring= 'accuracy')
   
+  # Fitting the pipeline
   grid.fit(X, y)
   
 The competition
