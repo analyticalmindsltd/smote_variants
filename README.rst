@@ -88,6 +88,21 @@ Documentation
 * For a detailed documentation see http://smote-variants.readthedocs.io.
 * For a YouTube tutorial check https://www.youtube.com/watch?v=GSK7akQPM60
 
+Best practices
+--------------
+
+Normalization/standardization/scaling/feature selection
+*******************************************************
+
+Most of the oversampling techniques operate in the Euclidean space implied by the attributes. Therefore it is extremely important to normalize/scale the attributes appropriatly. With no knowledge on the importance of attributes, the normalization/standardization is a good first try. Having some domain knowledge or attribute importances from bootstrap classification, the scaling of attribute ranges according to their importances is also reasonable. Alternatively, feature subset selection might also improve the results by making oversampling work in the most suitable subspace.
+
+Model selection for the number of samples to be generated
+*********************************************************
+
+Classification after oversampling is highly sensitive to the number of minority samples being generated. Balancing the dataset is rarely the right choice, as most of the classifiers operate the most efficiently if the density of positive and negative samples near the decision boundary is approximately the same. If the manifolds of the positive and negative classes do not have the same size approximately, balancing the dataset cannot achieve this. Moreover, in certain regions it can even revert the situation: if the manifold of the minority class is much smaller than that of the majority class, balancing will turn the minority class into the majority in the local environments along the decision boundary.
+
+The solution is to apply model selection for the number of samples being generated. Almost all techniques implemented in the ```smote-variants``` package have a parameter called ```proportion```. This parameter controls how many samples to generate, namely, the number of minority samples generated is ```proportion*(N_maj - N_min)```, that is, setting the proportion parameter to 1 will balance the dataset. It is highly recommended to carry out cross-validated model selection for a range like ```proportion``` = 0.1, 0.2, 0.5, 1.0, 2.0, 5.0.
+
 Sample Usage
 ------------
 
