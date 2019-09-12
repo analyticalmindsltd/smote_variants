@@ -344,6 +344,8 @@ class RandomStateMixin:
             self.random_state= np.random.RandomState(random_state)
         elif isinstance(random_state, np.random.RandomState):
             self.random_state= random_state
+        elif random_state is np.random:
+            self.random_state= random_state
         else:
             raise ValueError("random state cannot be initialized by " + str(random_state))
         
