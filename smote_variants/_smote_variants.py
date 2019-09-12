@@ -41,6 +41,7 @@ from sklearn.mixture import GaussianMixture
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
+from sklearn.calibration import CalibratedClassifierCV
 #from sklearn.calibration import CalibratedClassifierCV
 from sklearn.base import clone, BaseEstimator, ClassifierMixin
 
@@ -322,7 +323,31 @@ class StatisticsMixin:
         self.class_stats= dict(zip(unique, counts))
         self.minority_label= unique[0] if counts[0] < counts[1] else unique[1]
         self.majority_label= unique[1] if counts[0] < counts[1] else unique[0]
+
+class RandomStateMixin:
+    """
+    Mixin to set random state
+    """
+    def set_random_state(self, random_state):
+        """
+        sets the random_state member of the object
         
+        Args:
+            random_state (int/np.random.RandomState/None): the random state initializer
+        """
+        
+        self._random_state_init= random_state
+        
+        if random_state is None:
+            self.random_state= np.random
+        elif isinstance(random_state, int):
+            self.random_state= np.random.RandomState(random_state)
+        elif isinstance(random_state, np.random.RandomState):
+            self.random_state= random_state
+        else:
+            raise ValueError("random state cannot be initialized by " + str(random_state))
+        
+
 class ParameterCheckingMixin:
     """
     Mixin to check if parameters come from a valid range
@@ -532,7 +557,10 @@ class ParameterCombinationsMixin:
         if num is None:
             return combinations
         else:
-            return np.random.choice(combinations, num, replace= False)
+            if hasattr(cls, 'random_state'):
+                return cls.random_state.choice(combinations, num, replace= False)
+            else:
+                return np.random.choice(combinations, num, replace= False)
 
 class NoiseFilter(StatisticsMixin, ParameterCheckingMixin, ParameterCombinationsMixin):
     """
@@ -552,6 +580,29 @@ class NoiseFilter(StatisticsMixin, ParameterCheckingMixin, ParameterCombinations
             y (np.array): target labels
         """
         pass
+    
+    def get_params(self, deep=False):
+        """
+        Return parameters
+        
+        Returns:
+            dict: dictionary of parameters
+        """
+        
+        return {}
+    
+    def set_params(self, **params):
+        """
+        Set parameters
+        
+        Args:
+            params (dict): dictionary of parameters
+        """
+        
+        for key, value in params.items():
+            setattr(self, key, value)
+        
+        return self
     
 class TomekLinkRemoval(NoiseFilter):
     """
@@ -960,8 +1011,17 @@ class EditedNearestNeighbors(NoiseFilter):
                     to_remove.append(i)
                 
         return np.delete(X, to_remove, axis= 0), np.delete(y, to_remove)
+    
+    def get_params(self):
+        """
+        Get noise removal parameters
+        
+        Returns:
+            dict: dictionary of parameters
+        """
+        return {'remove': self.remove}
 
-class OverSampling(StatisticsMixin, ParameterCheckingMixin, ParameterCombinationsMixin):
+class OverSampling(StatisticsMixin, ParameterCheckingMixin, ParameterCombinationsMixin, RandomStateMixin):
     """
     Base class of oversampling methods
     """
@@ -1010,7 +1070,7 @@ class OverSampling(StatisticsMixin, ParameterCheckingMixin, ParameterCombination
         Returns:
             np.array: the new sample
         """
-        return x + (y - x)*np.random.random()
+        return x + (y - x)*self.random_state.random_sample()
     
     def sample_between_points_componentwise(self, x, y, mask= None):
         """
@@ -1023,9 +1083,9 @@ class OverSampling(StatisticsMixin, ParameterCheckingMixin, ParameterCombination
             np.array: the new sample being generated
         """
         if mask is None:
-            return x + (y - x)*np.random.random()
+            return x + (y - x)*self.random_state.random_sample()
         else:
-            return x + (y - x)*np.random.random()*mask
+            return x + (y - x)*self.random_state.random_sample()*mask
     
     def sample_by_jittering(self, x, std):
         """
@@ -1036,7 +1096,7 @@ class OverSampling(StatisticsMixin, ParameterCheckingMixin, ParameterCombination
         Returns:
             np.array: the new sample
         """
-        return x + (np.random.random() - 0.5)*2.0*std
+        return x + (self.random_state.random_sample() - 0.5)*2.0*std
     
     def sample_by_jittering_componentwise(self, x, std):
         """
@@ -1047,7 +1107,7 @@ class OverSampling(StatisticsMixin, ParameterCheckingMixin, ParameterCombination
         Returns:
             np.array: the new sample
         """
-        return x + (np.random.random(len(x))-0.5)*2.0 * std
+        return x + (self.random_state.random_sample(len(x))-0.5)*2.0 * std
     
     def sample_by_gaussian_jittering(self, x, std):
         """
@@ -1058,7 +1118,7 @@ class OverSampling(StatisticsMixin, ParameterCheckingMixin, ParameterCombination
         Returns:
             np.array: the new sample
         """
-        return np.random.normal(x, std)
+        return self.random_state.normal(x, std)
     
     def sample(self, X, y):
         """
@@ -1095,6 +1155,19 @@ class OverSampling(StatisticsMixin, ParameterCheckingMixin, ParameterCombination
             dict: the parameters of the object
         """
         pass
+    
+    def set_params(self, **params):
+        """
+        Set parameters
+        
+        Args:
+            params (dict): dictionary of parameters
+        """
+        
+        for key, value in params.items():
+            setattr(self, key, value)
+        
+        return self
     
     def descriptor(self):
         """
@@ -1151,9 +1224,12 @@ class NoSMOTE(OverSampling):
     
     categories= []
     
-    def __init__(self):
+    def __init__(self, random_state= None):
         """
         Constructor of the NoSMOTE object.
+        
+        random_state (int/np.random.RandomState/None): dummy parameter for the
+                        compatibility of interfaces
         """
         super().__init__()
     
@@ -1209,7 +1285,7 @@ class SMOTE(OverSampling):
     categories= [OverSampling.cat_sample_ordinary,
                  OverSampling.cat_extensive]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the SMOTE object
         
@@ -1219,6 +1295,7 @@ class SMOTE(OverSampling):
             majority samples
             n_neighbors (int): control parameter of the nearest neighbor technique
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         
@@ -1229,6 +1306,8 @@ class SMOTE(OverSampling):
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
     
     @classmethod
     def parameter_combinations(cls):
@@ -1255,7 +1334,7 @@ class SMOTE(OverSampling):
         _logger.info(self.__class__.__name__ + ": " +"Running sampling via %s" % self.descriptor())
         
         self.class_label_statistics(X, y)
-        
+
         if self.class_stats[self.minority_label] < 2:
             _logger.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
             return X.copy(), y.copy()
@@ -1279,21 +1358,13 @@ class SMOTE(OverSampling):
             return X.copy(), y.copy()
         
         # generating samples
-        #samples= []
-        #for _ in range(num_to_sample):
-        #    base_idx= np.random.randint(len(X_min))
-        #    neighbor_idx= np.random.choice(ind[base_idx][1:])
-        #    samples.append(self.sample_between_points(X_min[base_idx], X_min[neighbor_idx]))
-        
-        #return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.hstack([self.minority_label]*num_to_sample)])
-        
-        base_indices= np.random.choice(list(range(len(X_min))), num_to_sample)
-        neighbor_indices= np.random.choice(list(range(1, n_neigh)), num_to_sample)
+        base_indices= self.random_state.choice(list(range(len(X_min))), num_to_sample)
+        neighbor_indices= self.random_state.choice(list(range(1, n_neigh)), num_to_sample)
         
         X_base= X_min[base_indices]
         X_neighbor= X_min[ind[base_indices, neighbor_indices]]
         
-        samples= X_base + np.multiply(np.random.rand(num_to_sample, 1), X_neighbor - X_base)
+        samples= X_base + np.multiply(self.random_state.rand(num_to_sample, 1), X_neighbor - X_base)
         
         return np.vstack([X, samples]), np.hstack([y, np.hstack([self.minority_label]*num_to_sample)])
     
@@ -1304,7 +1375,8 @@ class SMOTE(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class SMOTE_TomekLinks(OverSampling):
     """
@@ -1335,7 +1407,7 @@ class SMOTE_TomekLinks(OverSampling):
                  OverSampling.cat_noise_removal,
                  OverSampling.cat_changes_majority]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the SMOTE object
         
@@ -1345,6 +1417,7 @@ class SMOTE_TomekLinks(OverSampling):
             will be equal to the number of majority samples
             n_neighbors (int): control parameter of the nearest neighbor technique
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         
@@ -1355,6 +1428,8 @@ class SMOTE_TomekLinks(OverSampling):
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
 
     @classmethod
     def parameter_combinations(cls):
@@ -1381,7 +1456,7 @@ class SMOTE_TomekLinks(OverSampling):
         
         self.class_label_statistics(X, y)
         
-        smote= SMOTE(self.proportion, self.n_neighbors, n_jobs= self.n_jobs)
+        smote= SMOTE(self.proportion, self.n_neighbors, n_jobs= self.n_jobs, random_state= self.random_state)
         X_new, y_new= smote.sample(X, y)
         
         t= TomekLinkRemoval(strategy= 'remove_both', n_jobs= self.n_jobs)
@@ -1401,7 +1476,8 @@ class SMOTE_TomekLinks(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
     
 class SMOTE_ENN(OverSampling):
     """
@@ -1426,6 +1502,7 @@ class SMOTE_ENN(OverSampling):
                      publisher = {ACM},
                      address = {New York, NY, USA},
                     } 
+
     Notes:
         * Can remove too many of minority samples.
     """
@@ -1434,7 +1511,7 @@ class SMOTE_ENN(OverSampling):
                  OverSampling.cat_noise_removal,
                  OverSampling.cat_changes_majority]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the SMOTE object
         
@@ -1444,6 +1521,7 @@ class SMOTE_ENN(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): control parameter of the nearest neighbor technique
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         
@@ -1454,6 +1532,8 @@ class SMOTE_ENN(OverSampling):
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
     
     @classmethod
     def parameter_combinations(cls):
@@ -1484,7 +1564,7 @@ class SMOTE_ENN(OverSampling):
             _logger.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
             return X.copy(), y.copy()
         
-        smote= SMOTE(self.proportion, self.n_neighbors, n_jobs= self.n_jobs)
+        smote= SMOTE(self.proportion, self.n_neighbors, n_jobs= self.n_jobs, random_state=self.random_state)
         X_new, y_new= smote.sample(X, y)
         
         enn= EditedNearestNeighbors(n_jobs= self.n_jobs)
@@ -1498,7 +1578,8 @@ class SMOTE_ENN(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class Borderline_SMOTE1(OverSampling):
     """
@@ -1526,7 +1607,7 @@ class Borderline_SMOTE1(OverSampling):
                  OverSampling.cat_extensive,
                  OverSampling.cat_borderline]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, k_neighbors= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, k_neighbors= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -1537,6 +1618,7 @@ class Borderline_SMOTE1(OverSampling):
             n_neighbors (int): control parameter of the nearest neighbor technique for determining the borderline
             k_neighbors (int): control parameter of the nearest neighbor technique for sampling
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
@@ -1548,6 +1630,8 @@ class Borderline_SMOTE1(OverSampling):
         self.n_neighbors= n_neighbors
         self.k_neighbors= k_neighbors
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -1621,13 +1705,13 @@ class Borderline_SMOTE1(OverSampling):
         distances, indices= nn.kneighbors(X_danger)
         
         # generating samples near points in danger
-        base_indices= np.random.choice(list(range(len(X_danger))), num_to_sample)
-        neighbor_indices= np.random.choice(list(range(1, k_neigh)), num_to_sample)
+        base_indices= self.random_state.choice(list(range(len(X_danger))), num_to_sample)
+        neighbor_indices= self.random_state.choice(list(range(1, k_neigh)), num_to_sample)
         
         X_base= X_danger[base_indices]
         X_neighbor= X_min[indices[base_indices, neighbor_indices]]
         
-        samples= X_base + np.multiply(np.random.rand(num_to_sample, 1), X_neighbor - X_base)
+        samples= X_base + np.multiply(self.random_state.rand(num_to_sample, 1), X_neighbor - X_base)
         
         return np.vstack([X, samples]), np.hstack([y, np.hstack([self.minority_label]*num_to_sample)])
     
@@ -1639,7 +1723,8 @@ class Borderline_SMOTE1(OverSampling):
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
                 'k_neighbors': self.k_neighbors, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
     
 class Borderline_SMOTE2(OverSampling):
     """
@@ -1667,7 +1752,7 @@ class Borderline_SMOTE2(OverSampling):
                  OverSampling.cat_extensive,
                  OverSampling.cat_borderline]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, k_neighbors= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, k_neighbors= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -1678,6 +1763,7 @@ class Borderline_SMOTE2(OverSampling):
             n_neighbors (int): control parameter of the nearest neighbor technique for determining the borderline
             k_neighbors (int): control parameter of the nearest neighbor technique for sampling
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         
@@ -1690,6 +1776,8 @@ class Borderline_SMOTE2(OverSampling):
         self.n_neighbors= n_neighbors
         self.k_neighbors= k_neighbors
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -1762,13 +1850,13 @@ class Borderline_SMOTE2(OverSampling):
         distances, indices= nn.kneighbors(X_danger)
         
         # generating the samples
-        base_indices= np.random.choice(list(range(len(X_danger))), num_to_sample)
-        neighbor_indices= np.random.choice(list(range(1, k_neigh)), num_to_sample)
+        base_indices= self.random_state.choice(list(range(len(X_danger))), num_to_sample)
+        neighbor_indices= self.random_state.choice(list(range(1, k_neigh)), num_to_sample)
         
         X_base= X_danger[base_indices]
         X_neighbor= X[indices[base_indices, neighbor_indices]]
         diff= X_neighbor - X_base
-        r= np.random.rand(num_to_sample, 1)
+        r= self.random_state.rand(num_to_sample, 1)
         r[y[neighbor_indices] == self.majority_label]= r[y[neighbor_indices] == self.majority_label]*0.5
         
         samples= X_base + np.multiply(r, diff)
@@ -1783,7 +1871,8 @@ class Borderline_SMOTE2(OverSampling):
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
                 'k_neighbors': self.k_neighbors, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class ADASYN(OverSampling):
     """
@@ -1804,7 +1893,7 @@ class ADASYN(OverSampling):
                  OverSampling.cat_borderline,
                  OverSampling.cat_density_based]
     
-    def __init__(self, n_neighbors= 5, d_th= 0.9, beta= 1.0, n_jobs= 1):
+    def __init__(self, n_neighbors= 5, d_th= 0.9, beta= 1.0, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -1813,6 +1902,7 @@ class ADASYN(OverSampling):
             d_th (float): tolerated deviation level from balancedness
             beta (float): target level of balancedness, same as proportion in other techniques
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         
@@ -1825,6 +1915,8 @@ class ADASYN(OverSampling):
         self.d_th= d_th
         self.beta= beta
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -1897,21 +1989,13 @@ class ADASYN(OverSampling):
         distances, indices= nn.kneighbors(X_min)
         
         # sampling points
-        #samples= []
-        #while len(samples) < num_to_sample:
-        #    idx= np.random.choice(np.arange(len(X_min)), p=r)
-        #    neighbor_idx= np.random.choice(indices[idx][1:])
-        #    samples.append(self.sample_between_points(X_min[idx], X_min[neighbor_idx]))
-        
-        #return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
-        
-        base_indices= np.random.choice(list(range(len(X_min))), size=int(num_to_sample), p=r)
-        neighbor_indices= np.random.choice(list(range(1, n_neigh)), int(num_to_sample))
+        base_indices= self.random_state.choice(list(range(len(X_min))), size=int(num_to_sample), p=r)
+        neighbor_indices= self.random_state.choice(list(range(1, n_neigh)), int(num_to_sample))
         
         X_base= X_min[base_indices]
         X_neighbor= X_min[indices[base_indices, neighbor_indices]]
         diff= X_neighbor - X_base
-        r= np.random.rand(int(num_to_sample), 1)
+        r= self.random_state.rand(int(num_to_sample), 1)
         
         samples= X_base + np.multiply(r, diff)
         
@@ -1925,7 +2009,8 @@ class ADASYN(OverSampling):
         return {'n_neighbors': self.n_neighbors, 
                 'd_th': self.d_th, 
                 'beta': self.beta, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
     
 class AHC(OverSampling):
     """
@@ -1952,13 +2037,14 @@ class AHC(OverSampling):
                  OverSampling.cat_uses_clustering,
                  OverSampling.cat_application]
     
-    def __init__(self, strategy= 'min', n_jobs= 1):
+    def __init__(self, strategy= 'min', n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
         Args:
             strategy (str): which class to sample (min/maj/minmaj)
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_isin(strategy, 'strategy', ['min', 'maj', 'minmaj'])
@@ -1966,6 +2052,8 @@ class AHC(OverSampling):
         
         self.strategy= strategy
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
     
     @classmethod
     def parameter_combinations(cls):
@@ -1988,7 +2076,7 @@ class AHC(OverSampling):
         Returns:
             np.ndarray: downsampled vectors
         """
-        kmeans= KMeans(n_clusters= n_clusters, n_jobs= self.n_jobs)
+        kmeans= KMeans(n_clusters= n_clusters, n_jobs= self.n_jobs, random_state= self.random_state)
         kmeans.fit(X)
         return kmeans.cluster_centers_
     
@@ -2077,7 +2165,8 @@ class AHC(OverSampling):
             dict: the parameters of the current sampling object
         """
         return {'strategy': self.strategy, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class LLE_SMOTE(OverSampling):
     """
@@ -2104,7 +2193,7 @@ class LLE_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_dim_reduction]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_components= 2, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_components= 2, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -2115,6 +2204,7 @@ class LLE_SMOTE(OverSampling):
             n_neighbors (int): control parameter of the nearest neighbor component
             n_components (int): dimensionality of the embedding space
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
@@ -2126,6 +2216,8 @@ class LLE_SMOTE(OverSampling):
         self.n_neighbors= n_neighbors
         self.n_components= n_components
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -2203,8 +2295,8 @@ class LLE_SMOTE(OverSampling):
         # generating samples
         samples= []
         for _ in range(num_to_sample):
-            idx= np.random.randint(len(X_min))
-            xi= self.sample_between_points(X_min_transformed[idx], X_min_transformed[np.random.choice(ind[idx][1:])])
+            idx= self.random_state.randint(len(X_min))
+            xi= self.sample_between_points(X_min_transformed[idx], X_min_transformed[self.random_state.choice(ind[idx][1:])])
             Z= X_min_transformed[ind[idx][1:]]
             w= solve_for_weights(xi, Z)
             samples.append(np.dot(w, X_min[ind[idx][1:]]))
@@ -2219,7 +2311,8 @@ class LLE_SMOTE(OverSampling):
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
                 'n_components': self.n_components, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class distance_SMOTE(OverSampling):
     """
@@ -2242,7 +2335,7 @@ class distance_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -2252,6 +2345,7 @@ class distance_SMOTE(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): control parameter of the nearest neighbor component
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
@@ -2261,6 +2355,8 @@ class distance_SMOTE(OverSampling):
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -2308,7 +2404,7 @@ class distance_SMOTE(OverSampling):
         
         samples= []
         for _ in range(num_to_sample):
-            idx= np.random.randint(len(X_min))
+            idx= self.random_state.randint(len(X_min))
             mean_vector= np.mean(X_min[ind[idx][1:]], axis= 0)
             samples.append(self.sample_between_points(X_min[idx], mean_vector))
             
@@ -2321,7 +2417,8 @@ class distance_SMOTE(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class SMMO(OverSampling):
     """
@@ -2347,7 +2444,7 @@ class SMMO(OverSampling):
                  OverSampling.cat_extensive,
                  OverSampling.cat_uses_classifier]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, ensemble= [QuadraticDiscriminantAnalysis(), DecisionTreeClassifier(), GaussianNB()], n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, ensemble= [QuadraticDiscriminantAnalysis(), DecisionTreeClassifier(random_state= 2), GaussianNB()], n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -2375,6 +2472,8 @@ class SMMO(OverSampling):
         self.ensemble= ensemble
         self.n_jobs= n_jobs
         
+        self.set_random_state(random_state)
+        
     @classmethod
     def parameter_combinations(cls):
         """
@@ -2385,7 +2484,7 @@ class SMMO(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
-                                                    'ensemble': [[QuadraticDiscriminantAnalysis(), DecisionTreeClassifier(), GaussianNB()]]})
+                                                    'ensemble': [[QuadraticDiscriminantAnalysis(), DecisionTreeClassifier(random_state= 2), GaussianNB()]]})
     
     def sample(self, X, y):
         """
@@ -2438,7 +2537,7 @@ class SMMO(OverSampling):
         # doing the sampling
         samples= []
         while len(samples) < num_to_sample:
-            idx= np.random.randint(len(X_min_to_sample))
+            idx= self.random_state.randint(len(X_min_to_sample))
             mean= np.mean(X_min[ind[idx][1:]], axis= 0)
             samples.append(self.sample_between_points(X_min_to_sample[idx], mean))
         
@@ -2452,7 +2551,8 @@ class SMMO(OverSampling):
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
                 'ensemble': self.ensemble, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class polynom_fit_SMOTE(OverSampling):
     """
@@ -2475,7 +2575,7 @@ class polynom_fit_SMOTE(OverSampling):
     
     categories= [OverSampling.cat_extensive]
     
-    def __init__(self, proportion= 1.0, topology= 'star'):
+    def __init__(self, proportion= 1.0, topology= 'star', random_state= None):
         """
         Constructor of the sampling object
         
@@ -2484,6 +2584,7 @@ class polynom_fit_SMOTE(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             topoplogy (str): 'star'/'bus'/'mesh'
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0.0)
@@ -2494,6 +2595,8 @@ class polynom_fit_SMOTE(OverSampling):
         
         self.proportion= proportion
         self.topology= topology
+        
+        self.set_random_state(random_state)
     
     @classmethod
     def parameter_combinations(cls):
@@ -2551,8 +2654,8 @@ class polynom_fit_SMOTE(OverSampling):
             # Implementation of the mesh topology
             if len(X_min)**2 > num_to_sample:
                 while len(samples) < num_to_sample:
-                    random_i= np.random.randint(len(X_min))
-                    random_j= np.random.randint(len(X_min))
+                    random_i= self.random_state.randint(len(X_min))
+                    random_j= self.random_state.randint(len(X_min))
                     diff= X_min[random_i] - X_min[random_j]
                     samples.append(X_min[random_i] + 0.5*diff)
             else:
@@ -2568,7 +2671,7 @@ class polynom_fit_SMOTE(OverSampling):
             dim= len(X_min[0])
             polys= [np.poly1d(np.polyfit(np.arange(len(X_min)), X_min[:,d], deg)) for d in range(dim)]
             for d in range(dim):
-                samples.append(np.array([polys[d](np.random.random()*len(X_min)) for i in range(num_to_sample)]))
+                samples.append(np.array([polys[d](self.random_state.random_sample()*len(X_min)) for i in range(num_to_sample)]))
             samples= np.vstack(samples).T
             
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
@@ -2579,7 +2682,8 @@ class polynom_fit_SMOTE(OverSampling):
             dict: the parameters of the current sampling object
         """
         return {'proportion': self.proportion, 
-                'topology': self.topology}
+                'topology': self.topology,
+                'random_state': self._random_state_init}
     
 class Stefanowski(OverSampling):
     """
@@ -2609,13 +2713,14 @@ class Stefanowski(OverSampling):
                  OverSampling.cat_sample_copy,
                  OverSampling.cat_borderline]
     
-    def __init__(self, strategy= 'weak_amp', n_jobs= 1):
+    def __init__(self, strategy= 'weak_amp', n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
         Args:
             strategy (str): 'weak_amp'/'weak_amp_relabel'/'strong_amp'
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         
@@ -2624,6 +2729,10 @@ class Stefanowski(OverSampling):
         
         self.strategy= strategy
         self.n_jobs= n_jobs
+        
+        # this method does not maintain randomness, the parameter is introduced for
+        # the compatibility of interfaces
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -2654,6 +2763,8 @@ class Stefanowski(OverSampling):
             _logger.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
             return X.copy(), y.copy()
         
+        # copying y as its values will change
+        y= y.copy()
         # fitting the nearest neighbors model for noise filtering, 4 neighbors 
         # instead of 3 as the closest neighbor to a point is itself
         nn= NearestNeighbors(n_neighbors= min(4, len(X)), n_jobs= self.n_jobs)
@@ -2666,6 +2777,8 @@ class Stefanowski(OverSampling):
         nn5.fit(X)
         distance5, indices5= nn5.kneighbors(X)
         
+        print('a0', np.sum(y))
+        
         # determining noisy and safe flags
         flags= []
         for i in range(len(indices)):
@@ -2674,6 +2787,8 @@ class Stefanowski(OverSampling):
             else:
                 flags.append('noisy')
         flags= np.array(flags)
+        
+        print('a1', len(flags), np.sum(flags == 'noisy'))
         
         D= (y == self.majority_label) & (flags == 'noisy')
         minority_indices= np.where(y == self.minority_label)[0]
@@ -2685,6 +2800,7 @@ class Stefanowski(OverSampling):
             for i in minority_indices:
                 if flags[i] == 'noisy':
                     k= np.sum(np.logical_and(y[indices[i][1:]] == self.majority_label, flags[indices[i][1:]] == 'safe'))
+                    print('a', k)
                     for _ in range(k):
                         samples.append(X[i])
         if self.strategy == 'weak_amp_relabel':
@@ -2701,6 +2817,7 @@ class Stefanowski(OverSampling):
             for i in minority_indices:
                 if flags[i] == 'safe':
                     k= np.sum(np.logical_and(y[indices[i][1:]] == self.majority_label, flags[indices[i][1:]] == 'safe'))
+                    print('b', k)
                     for _ in range(k):
                         samples.append(X[i])
             # if classified correctly by knn(5), noisy minority samples are amplified 
@@ -2712,17 +2829,22 @@ class Stefanowski(OverSampling):
                         k= np.sum(np.logical_and(y[indices[i][1:]] == self.majority_label, flags[indices[i][1:]] == 'safe'))
                     else:
                         k= np.sum(np.logical_and(y[indices5[i][1:]] == self.majority_label, flags[indices5[i][1:]] == 'safe'))
+                    print('c', k)
                     for _ in range(k):
                         samples.append(X[i])
 
+
         to_remove= np.where(D)[0]
+        
+        print(len(X), len(to_remove), len(samples), self.strategy)
+        
         X_noise_removed= np.delete(X, to_remove, axis= 0)
         y_noise_removed= np.delete(y, to_remove, axis= 0)
         
         if len(samples) == 0:
             _logger.warning(self.__class__.__name__ + ": " + "no samples added")
             return X_noise_removed, y_noise_removed
-            
+        
         return np.vstack([X_noise_removed, np.vstack(samples)]), np.hstack([y_noise_removed, np.repeat(self.minority_label, len(samples))])
     
     def get_params(self, deep=False):
@@ -2755,7 +2877,7 @@ class ADOMS(OverSampling):
     categories= [OverSampling.cat_dim_reduction,
                  OverSampling.cat_extensive]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -2765,6 +2887,7 @@ class ADOMS(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): parameter of the nearest neighbor component
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0.0)
@@ -2774,6 +2897,8 @@ class ADOMS(OverSampling):
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
        
     @classmethod
     def parameter_combinations(cls):
@@ -2821,7 +2946,7 @@ class ADOMS(OverSampling):
         
         samples= []
         for _ in range(num_to_sample):
-            index= np.random.randint(len(X_min))
+            index= self.random_state.randint(len(X_min))
             neighbors= X_min[indices[index]]
             
             # fitting the PCA
@@ -2832,9 +2957,9 @@ class ADOMS(OverSampling):
             principal_direction= pca.components_[0]
             
             # do the sampling according to the description in the paper
-            random_neighbor= neighbors[np.random.randint(1, len(neighbors))]
+            random_neighbor= neighbors[self.random_state.randint(1, len(neighbors))]
             d= np.linalg.norm(random_neighbor - X_min[index])
-            r= np.random.random()
+            r= self.random_state.random_sample()
             sign= 1.0 if np.dot(random_neighbor - X_min[index], principal_direction) > 0.0 else -1.0
             samples.append(X_min[index] + sign*r*d*principal_direction)
 
@@ -2847,7 +2972,8 @@ class ADOMS(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class Safe_Level_SMOTE(OverSampling):
     """
@@ -2880,7 +3006,7 @@ class Safe_Level_SMOTE(OverSampling):
                  OverSampling.cat_extensive,
                  OverSampling.cat_sample_componentwise]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -2890,6 +3016,7 @@ class Safe_Level_SMOTE(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): control parameter of the nearest neighbor component
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         
@@ -2900,6 +3027,8 @@ class Safe_Level_SMOTE(OverSampling):
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -2946,8 +3075,8 @@ class Safe_Level_SMOTE(OverSampling):
         numattrs= len(X[0])
         samples= []
         for _ in range(num_to_sample):
-            index= np.random.randint(len(minority_indices))
-            neighbor_index= np.random.choice(indices[index][1:])
+            index= self.random_state.randint(len(minority_indices))
+            neighbor_index= self.random_state.choice(indices[index][1:])
             
             p= X[index]
             n= X[neighbor_index]
@@ -2971,11 +3100,11 @@ class Safe_Level_SMOTE(OverSampling):
                     if sl_ratio == np.inf and sl_p > 0:
                         gap= 0.0
                     elif sl_ratio == 1:
-                        gap= np.random.random()
+                        gap= self.random_state.random_sample()
                     elif sl_ratio > 1:
-                        gap= np.random.random()*1.0/sl_ratio
+                        gap= self.random_state.random_sample()*1.0/sl_ratio
                     elif sl_ratio < 1:
-                        gap= (1 - sl_ratio) + np.random.random()*sl_ratio
+                        gap= (1 - sl_ratio) + self.random_state.random_sample()*sl_ratio
                     dif= n[atti] - p[atti]
                     s[atti]= p[atti] + gap*dif
                 samples.append(s)
@@ -2993,7 +3122,8 @@ class Safe_Level_SMOTE(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class MSMOTE(OverSampling):
     """
@@ -3025,7 +3155,7 @@ class MSMOTE(OverSampling):
                  OverSampling.cat_noise_removal,
                  OverSampling.cat_borderline]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -3035,6 +3165,7 @@ class MSMOTE(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): control parameter of the nearest neighbor component
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         
@@ -3045,6 +3176,8 @@ class MSMOTE(OverSampling):
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
        
     @classmethod
     def parameter_combinations(cls):
@@ -3091,7 +3224,7 @@ class MSMOTE(OverSampling):
         # generating samples        
         samples= []
         while len(samples) < num_to_sample:
-            index= np.random.randint(len(X_min))
+            index= self.random_state.randint(len(X_min))
             
             n_p= np.sum(y[indices[index][1:]] == self.minority_label)
             
@@ -3107,7 +3240,7 @@ class MSMOTE(OverSampling):
                 sample_type= 'border'
                 
             if sample_type == 'security':
-                neighbor_index= np.random.choice(indices[index][1:])
+                neighbor_index= self.random_state.choice(indices[index][1:])
             elif sample_type == 'border':
                 neighbor_index= indices[index][1]
             else:
@@ -3124,7 +3257,8 @@ class MSMOTE(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class DE_oversampling(OverSampling):
     """
@@ -3148,7 +3282,7 @@ class DE_oversampling(OverSampling):
     categories= [OverSampling.cat_changes_majority,
                  OverSampling.cat_uses_clustering]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, crossover_rate= 0.5, similarity_threshold= 0.5, n_clusters= 30, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, crossover_rate= 0.5, similarity_threshold= 0.5, n_clusters= 30, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -3161,6 +3295,7 @@ class DE_oversampling(OverSampling):
             similarity_threshold (float): similarity threshold paramter
             n_clusters (int): number of clusters for cleansing
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
@@ -3176,6 +3311,8 @@ class DE_oversampling(OverSampling):
         self.similarity_threshold= similarity_threshold
         self.n_clusters= n_clusters
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
 
     @classmethod
     def parameter_combinations(cls):
@@ -3229,18 +3366,18 @@ class DE_oversampling(OverSampling):
         samples= []
         for _ in range(num_to_sample):
             # mutation according to the description in the paper
-            random_index= np.random.randint(len(X_min))
+            random_index= self.random_state.randint(len(X_min))
             random_point= X_min[random_index]
-            random_neighbor_indices= np.random.choice(indices[random_index][1:], 2, replace= False)
+            random_neighbor_indices= self.random_state.choice(indices[random_index][1:], 2, replace= False)
             random_neighbor_1= X_min[random_neighbor_indices[0]]
             random_neighbor_2= X_min[random_neighbor_indices[1]]
             
-            mutated= random_point + (random_neighbor_1 - random_neighbor_2)*np.random.random()
+            mutated= random_point + (random_neighbor_1 - random_neighbor_2)*self.random_state.random_sample()
             
             # crossover - updates the vector 'mutated'
-            rand_s= np.random.randint(d)
+            rand_s= self.random_state.randint(d)
             for i in range(d):
-                random_value= np.random.random()
+                random_value= self.random_state.random_sample()
                 if random_value >= self.crossover_rate and not i == rand_s:
                     mutated[i]= random_point[i]
                 elif random_value < self.crossover_rate or i == rand_s:
@@ -3253,7 +3390,7 @@ class DE_oversampling(OverSampling):
         X_min= X[y == self.minority_label]
         
         # cleansing based on clustering
-        kmeans= KMeans(n_clusters= min([len(X), self.n_clusters]), n_jobs= self.n_jobs)
+        kmeans= KMeans(n_clusters= min([len(X), self.n_clusters]), n_jobs= self.n_jobs, random_state= self.random_state)
         kmeans.fit(X)
         unique_labels= np.unique(kmeans.labels_)
         one_label_clusters= [l for l in unique_labels if len(np.unique(y[np.where(kmeans.labels_ == l)[0]])) == 1]
@@ -3293,7 +3430,8 @@ class DE_oversampling(OverSampling):
                 'crossover_rate': self.crossover_rate, 
                 'similarity_threshold': self.similarity_threshold, 
                 'n_clusters': self.n_clusters, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 # Borrowed from sklearn-dev, will be removed once the sklearn implementation
 # becomes stable
@@ -3465,7 +3603,7 @@ class SMOBD(OverSampling):
                  OverSampling.cat_extensive,
                  OverSampling.cat_noise_removal]
     
-    def __init__(self, proportion= 1.0, eta1= 0.5, t= 1.8, min_samples= 5, max_eps= 1.0, n_jobs= 1):
+    def __init__(self, proportion= 1.0, eta1= 0.5, t= 1.8, min_samples= 5, max_eps= 1.0, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -3478,6 +3616,7 @@ class SMOBD(OverSampling):
             min_samples (int): minimum samples parameter for OPTICS
             max_eps (float): maximum environment radius paramter for OPTICS
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
@@ -3493,6 +3632,8 @@ class SMOBD(OverSampling):
         self.min_samples= min_samples
         self.max_eps= max_eps
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -3579,8 +3720,8 @@ class SMOBD(OverSampling):
         # do the sampling
         samples= []
         while len(samples) < num_to_sample:
-            idx= np.random.choice(np.arange(len(X_min)), p= df_dens)
-            neighbor_idx= np.random.choice(indices[idx][1:])
+            idx= self.random_state.choice(np.arange(len(X_min)), p= df_dens)
+            neighbor_idx= self.random_state.choice(indices[idx][1:])
             samples.append(self.sample_between_points_componentwise(X_min[idx], X_min[neighbor_idx]))
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
@@ -3595,7 +3736,8 @@ class SMOBD(OverSampling):
                 't': self.t, 
                 'min_samples': self.min_samples, 
                 'max_eps': self.max_eps, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class SUNDO(OverSampling):
     """
@@ -3619,18 +3761,21 @@ class SUNDO(OverSampling):
     categories= [OverSampling.cat_changes_majority,
                  OverSampling.cat_application]
     
-    def __init__(self, n_jobs= 1):
+    def __init__(self, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
         Args:
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         
         self.check_n_jobs(n_jobs, 'n_jobs')
         
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
     
     @classmethod
     def parameter_combinations(cls):
@@ -3679,11 +3824,11 @@ class SUNDO(OverSampling):
         # sample isolated. This can be implemented by generating multiple samples
         # for each point and keep the one most distant from the majority samples.
         for _ in range(N):
-            i= np.random.randint(len(X_min))
+            i= self.random_state.randint(len(X_min))
             best_sample= None
             best_sample_dist= 0
             for _ in range(3):
-                s= np.random.normal(X_min[i], stds)
+                s= self.random_state.normal(X_min[i], stds)
                 dist, ind= nn.kneighbors(s.reshape(1, -1))
                 if dist[0][0] > best_sample_dist:
                     best_sample_dist= dist[0][0]
@@ -3727,7 +3872,8 @@ class SUNDO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'n_jobs': self.n_jobs}
+        return {'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class MSYN(OverSampling):
     """
@@ -3754,7 +3900,7 @@ class MSYN(OverSampling):
     
     categories= [OverSampling.cat_extensive]
     
-    def __init__(self, pressure= 1.5, n_neighbors= 5, n_jobs= 1):
+    def __init__(self, pressure= 1.5, n_neighbors= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -3764,6 +3910,7 @@ class MSYN(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors in the SMOTE sampling
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(pressure, 'pressure', 0)
@@ -3773,6 +3920,8 @@ class MSYN(OverSampling):
         self.pressure= pressure
         self.n_neighbors= n_neighbors
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -3810,7 +3959,7 @@ class MSYN(OverSampling):
         maj_indices= np.where(y == self.majority_label)[0]
         
         # generating samples
-        smote= SMOTE(proportion= self.pressure, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs)
+        smote= SMOTE(proportion= self.pressure, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs, random_state= self.random_state)
         X_res, y_res= smote.sample(X, y)
         X_new, _= X_res[len(X):], y_res[len(X):]
         
@@ -3869,7 +4018,8 @@ class MSYN(OverSampling):
         """
         return {'pressure': self.pressure, 
                 'n_neighbors': self.n_neighbors, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class SVM_balance(OverSampling):
     """
@@ -3901,7 +4051,7 @@ class SVM_balance(OverSampling):
                  OverSampling.cat_uses_classifier,
                  OverSampling.cat_changes_majority]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -3911,6 +4061,7 @@ class SVM_balance(OverSampling):
                                         samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors in the SMOTE sampling
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         
@@ -3921,6 +4072,8 @@ class SVM_balance(OverSampling):
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -3952,7 +4105,7 @@ class SVM_balance(OverSampling):
             _logger.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
             return X.copy(), y.copy()
         
-        X, y= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs).sample(X, y)
+        X, y= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs, random_state= self.random_state).sample(X, y)
         
         if sum(y == self.minority_label) < 2:
             return X.copy(), y.copy()
@@ -3984,7 +4137,8 @@ class SVM_balance(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class TRIM_SMOTE(OverSampling):
     """
@@ -4015,7 +4169,7 @@ class TRIM_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_uses_clustering]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, min_precision= 0.3, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, min_precision= 0.3, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -4024,6 +4178,7 @@ class TRIM_SMOTE(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
@@ -4035,6 +4190,8 @@ class TRIM_SMOTE(OverSampling):
         self.n_neighbors= n_neighbors
         self.min_precision= min_precision
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
     
     @classmethod
     def parameter_combinations(cls):
@@ -4246,8 +4403,8 @@ class TRIM_SMOTE(OverSampling):
         # do the sampling
         samples= []
         for _ in range(num_to_sample):
-            random_idx= np.random.randint(len(X_seed_min))
-            random_neighbor_idx= np.random.choice(indices[random_idx][1:])
+            random_idx= self.random_state.randint(len(X_seed_min))
+            random_neighbor_idx= self.random_state.choice(indices[random_idx][1:])
             samples.append(self.sample_between_points(X_seed_min[random_idx], X_seed_min[random_neighbor_idx]))
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
@@ -4260,7 +4417,8 @@ class TRIM_SMOTE(OverSampling):
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
                 'min_precision': self.min_precision, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class SMOTE_RSB(OverSampling):
     """
@@ -4293,7 +4451,7 @@ class SMOTE_RSB(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 2.0, n_neighbors= 5, n_jobs= 1):
+    def __init__(self, proportion= 2.0, n_neighbors= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -4303,6 +4461,7 @@ class SMOTE_RSB(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors in the SMOTE sampling
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         
@@ -4313,6 +4472,8 @@ class SMOTE_RSB(OverSampling):
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -4348,7 +4509,7 @@ class SMOTE_RSB(OverSampling):
         X_min= X[y == self.minority_label]
         
         # Step 1: do the sampling
-        smote= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs)
+        smote= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs, random_state= self.random_state)
         X_samp, y_samp= smote.sample(X, y)
         X_samp, y_samp= X_samp[len(X):], y_samp[len(X):]
         
@@ -4399,7 +4560,8 @@ class SMOTE_RSB(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class ProWSyn(OverSampling):
     """
@@ -4429,7 +4591,7 @@ class ProWSyn(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, L= 5, theta= 1.0, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, L= 5, theta= 1.0, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -4441,6 +4603,7 @@ class ProWSyn(OverSampling):
             L (int): number of levels
             theta (float): smoothing factor in weight formula
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -4454,6 +4617,8 @@ class ProWSyn(OverSampling):
         self.L= L
         self.theta= theta
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
     
     @classmethod
     def parameter_combinations(cls):
@@ -4541,9 +4706,9 @@ class ProWSyn(OverSampling):
         # do the sampling, from each cluster proportionally to the distribution
         samples= []
         while len(samples) < num_to_sample:
-            cluster_idx= np.random.choice(np.arange(len(weights)), p=weights)
+            cluster_idx= self.random_state.choice(np.arange(len(weights)), p=weights)
             if len(Ps[cluster_idx]) > 1:
-                random_idx1, random_idx2= np.random.choice(Ps[cluster_idx], 2, replace= False)
+                random_idx1, random_idx2= self.random_state.choice(Ps[cluster_idx], 2, replace= False)
                 samples.append(self.sample_between_points(X[random_idx1], X[random_idx2]))
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
@@ -4557,7 +4722,8 @@ class ProWSyn(OverSampling):
                 'n_neighbors': self.n_neighbors, 
                 'L': self.L, 
                 'theta': self.theta, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class SL_graph_SMOTE(OverSampling):
     """
@@ -4578,7 +4744,7 @@ class SL_graph_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_borderline]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -4588,6 +4754,7 @@ class SL_graph_SMOTE(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors in nearest neighbors component
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -4597,6 +4764,8 @@ class SL_graph_SMOTE(OverSampling):
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -4641,10 +4810,10 @@ class SL_graph_SMOTE(OverSampling):
         
         if skewness < 0:
             # left skewed
-            s= Safe_Level_SMOTE(self.proportion, self.n_neighbors, n_jobs= self.n_jobs)
+            s= Safe_Level_SMOTE(self.proportion, self.n_neighbors, n_jobs= self.n_jobs, random_state= self.random_state)
         else:
             # right skewed
-            s= Borderline_SMOTE1(self.proportion, self.n_neighbors, n_jobs= self.n_jobs)
+            s= Borderline_SMOTE1(self.proportion, self.n_neighbors, n_jobs= self.n_jobs, random_state= self.random_state)
         
         return s.sample(X, y)
         
@@ -4655,7 +4824,8 @@ class SL_graph_SMOTE(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class NRSBoundary_SMOTE(OverSampling):
     """
@@ -4676,7 +4846,7 @@ class NRSBoundary_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_borderline]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, w= 0.005, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, w= 0.005, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -4687,6 +4857,7 @@ class NRSBoundary_SMOTE(OverSampling):
             n_neighbors (int): number of neighbors in nearest neighbors component
             w (float): used to set neighborhood radius
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -4698,6 +4869,8 @@ class NRSBoundary_SMOTE(OverSampling):
         self.n_neighbors= n_neighbors
         self.w= w
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -4781,8 +4954,8 @@ class NRSBoundary_SMOTE(OverSampling):
         trials= 0
         w= self.w
         while len(samples) < num_to_sample:
-            idx= np.random.choice(len(bound_set))
-            random_neighbor_idx= np.random.choice(indices[idx][1:])
+            idx= self.random_state.choice(len(bound_set))
+            random_neighbor_idx= self.random_state.choice(indices[idx][1:])
             x_new= self.sample_between_points(X[bound_set[idx]], X_min[random_neighbor_idx])
             
             # checking the conflict
@@ -4805,7 +4978,8 @@ class NRSBoundary_SMOTE(OverSampling):
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
                 'w': self.w, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class LVQ_SMOTE(OverSampling):
     """
@@ -4826,7 +5000,7 @@ class LVQ_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_application]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_clusters= 10, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_clusters= 10, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -4837,6 +5011,7 @@ class LVQ_SMOTE(OverSampling):
             n_neighbors (int): number of neighbors in nearest neighbors component
             n_clusters (int): number of clusters in vector quantization
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -4848,6 +5023,8 @@ class LVQ_SMOTE(OverSampling):
         self.n_neighbors= n_neighbors
         self.n_clusters= n_clusters
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
 
     @classmethod
     def parameter_combinations(cls):
@@ -4889,7 +5066,7 @@ class LVQ_SMOTE(OverSampling):
         X_min= X[y == self.minority_label]
         
         # clustering X_min to extract codebook
-        kmeans= KMeans(n_clusters= min([len(X_min), self.n_clusters]), n_jobs= self.n_jobs)
+        kmeans= KMeans(n_clusters= min([len(X_min), self.n_clusters]), n_jobs= self.n_jobs, random_state= self.random_state)
         kmeans.fit(X_min)
         codebook= kmeans.cluster_centers_
         
@@ -4902,7 +5079,7 @@ class LVQ_SMOTE(OverSampling):
         samples= []
         while len(samples) < num_to_sample:
             # randomly selecting a pair of codebook elements
-            cb_0, cb_1= np.random.choice(list(range(len(codebook))), 2, replace= False)
+            cb_0, cb_1= self.random_state.choice(list(range(len(codebook))), 2, replace= False)
             diff= codebook[cb_0] - codebook[cb_1]
             min_dist= np.inf
             min_0= None
@@ -4913,11 +5090,11 @@ class LVQ_SMOTE(OverSampling):
                         dd= np.linalg.norm(diff - (codebook[i] - codebook[j]))
                         if dd < min_dist:
                             min_dist= dd
-                            min_0= np.random.choice([i,j])
+                            min_0= self.random_state.choice([i,j])
             
             # translating a random neighbor of codebook element min_0 to 
             # the neighborhood of point_0
-            point_0= codebook[cb_0] + (X_min[indices[min_0][np.random.randint(len(indices[min_0]))]] - codebook[min_0])
+            point_0= codebook[cb_0] + (X_min[indices[min_0][self.random_state.randint(len(indices[min_0]))]] - codebook[min_0])
             
             samples.append(point_0)
         
@@ -4931,7 +5108,8 @@ class LVQ_SMOTE(OverSampling):
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
                 'n_clusters': self.n_clusters, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class SOI_CJ(OverSampling):
     """
@@ -4953,7 +5131,7 @@ class SOI_CJ(OverSampling):
                  OverSampling.cat_uses_clustering,
                  OverSampling.cat_sample_componentwise]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, method= 'interpolation', n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, method= 'interpolation', n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -4964,6 +5142,7 @@ class SOI_CJ(OverSampling):
             n_neighbors (int): number of nearest neighbors in the SMOTE sampling
             method (str): 'interpolation'/'jittering'
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
@@ -4975,6 +5154,8 @@ class SOI_CJ(OverSampling):
         self.n_neighbors= n_neighbors
         self.method= method
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -5101,13 +5282,13 @@ class SOI_CJ(OverSampling):
             _logger.info(self.__class__.__name__ + ": " +"Executing sample generation")
             samples= []
             while len(samples) < num_to_sample:
-                cluster_idx= np.random.choice(np.arange(len(clusters_filtered)), p= cluster_weights)
+                cluster_idx= self.random_state.choice(np.arange(len(clusters_filtered)), p= cluster_weights)
                 if self.method == 'interpolation':
-                    idx_0, idx_1= np.random.choice(clusters_filtered[cluster_idx], 2, replace= False)
+                    idx_0, idx_1= self.random_state.choice(clusters_filtered[cluster_idx], 2, replace= False)
                     samples.append(self.sample_between_points_componentwise(X[idx_0], X[idx_1]))
                 elif self.method == 'jittering':
                     std= np.min(np.vstack([std_min, cluster_stds[cluster_idx]]), axis= 0)
-                    idx= np.random.choice(clusters_filtered[cluster_idx])
+                    idx= self.random_state.choice(clusters_filtered[cluster_idx])
                     samples.append(self.sample_by_jittering_componentwise(X[idx], std))
             
             return np.vstack([X, samples]), np.hstack([y, np.array([self.minority_label]*len(samples))])
@@ -5124,7 +5305,8 @@ class SOI_CJ(OverSampling):
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
                 'method': self.method, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class ROSE(OverSampling):
     """
@@ -5157,7 +5339,7 @@ class ROSE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_componentwise]
     
-    def __init__(self, proportion= 1.0):
+    def __init__(self, proportion= 1.0, random_state= None):
         """
         Constructor of the sampling object
         
@@ -5165,11 +5347,14 @@ class ROSE(OverSampling):
             proportion (float): proportion of the difference of n_maj and n_min to sample
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0.0)
         
         self.proportion= proportion
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -5213,7 +5398,7 @@ class ROSE(OverSampling):
         # do the sampling
         samples= []
         for _ in range(num_to_sample):
-            random_idx= np.random.randint(len(X_min))
+            random_idx= self.random_state.randint(len(X_min))
             samples.append(self.sample_by_gaussian_jittering(X_min[random_idx], H))
         
         return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
@@ -5223,7 +5408,8 @@ class ROSE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion}
+        return {'proportion': self.proportion,
+                'random_state': self._random_state_init}
 
 class SMOTE_OUT(OverSampling):
     """
@@ -5241,7 +5427,7 @@ class SMOTE_OUT(OverSampling):
     
     categories= [OverSampling.cat_extensive]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -5251,6 +5437,7 @@ class SMOTE_OUT(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): parameter of the NearestNeighbors component
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -5260,6 +5447,8 @@ class SMOTE_OUT(OverSampling):
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -5313,14 +5502,14 @@ class SMOTE_OUT(OverSampling):
         samples= []
         for _ in range(num_to_sample):
             # implementation of Algorithm 1 in the paper
-            random_idx= np.random.choice(np.arange(len(minority_indices)))
+            random_idx= self.random_state.choice(np.arange(len(minority_indices)))
             u= X[minority_indices[random_idx]]
-            v= X_maj[np.random.choice(maj_indices[random_idx])]
+            v= X_maj[self.random_state.choice(maj_indices[random_idx])]
             dif1= u - v
-            uu= u + np.random.random()*0.3*dif1
-            x= X_min[np.random.choice(min_indices[random_idx][1:])]
+            uu= u + self.random_state.random_sample()*0.3*dif1
+            x= X_min[self.random_state.choice(min_indices[random_idx][1:])]
             dif2= uu - x
-            w= x + np.random.random()*0.5*dif2
+            w= x + self.random_state.random_sample()*0.5*dif2
             
             samples.append(w)
         
@@ -5333,7 +5522,8 @@ class SMOTE_OUT(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class SMOTE_Cosine(OverSampling):
     """
@@ -5351,7 +5541,7 @@ class SMOTE_Cosine(OverSampling):
     
     categories= [OverSampling.cat_extensive]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -5361,6 +5551,7 @@ class SMOTE_Cosine(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): parameter of the NearestNeighbors component
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -5370,6 +5561,8 @@ class SMOTE_Cosine(OverSampling):
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -5423,7 +5616,7 @@ class SMOTE_Cosine(OverSampling):
         
         samples= []
         for _ in range(num_to_sample):
-            random_idx= np.random.choice(np.arange(len(minority_indices)))
+            random_idx= self.random_state.choice(np.arange(len(minority_indices)))
             u= X[minority_indices[random_idx]]
             # get the rank of each minority sample according to their distance from u
             _, sorted_by_euc_ind= zip(*(sorted(zip(nn_min_euc_ind[random_idx], np.arange(len(X_min))), key= lambda x: x[0])))
@@ -5435,12 +5628,12 @@ class SMOTE_Cosine(OverSampling):
             # get the indices of the n_neighbors nearest neighbors according to the composite metrics
             min_indices= sorted_ranking[1:(self.n_neighbors + 1)]
 
-            v= X_maj[np.random.choice(nn_maj_ind[random_idx])]
+            v= X_maj[self.random_state.choice(nn_maj_ind[random_idx])]
             dif1= u - v
-            uu= u + np.random.random()*0.3*dif1
-            x= X_min[np.random.choice(min_indices[1:])]
+            uu= u + self.random_state.random_sample()*0.3*dif1
+            x= X_min[self.random_state.choice(min_indices[1:])]
             dif2= uu - x
-            w= x + np.random.random()*0.5*dif2
+            w= x + self.random_state.random_sample()*0.5*dif2
             samples.append(w)
         
         return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
@@ -5452,7 +5645,8 @@ class SMOTE_Cosine(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class Selected_SMOTE(OverSampling):
     """
@@ -5474,7 +5668,7 @@ class Selected_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_componentwise]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, perc_sign_attr= 0.5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, perc_sign_attr= 0.5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -5485,6 +5679,7 @@ class Selected_SMOTE(OverSampling):
             n_neighbors (int): parameter of the NearestNeighbors component
             perc_sign_attr (float): [0,1] - percentage of significant attributes
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
@@ -5496,6 +5691,8 @@ class Selected_SMOTE(OverSampling):
         self.n_neighbors= n_neighbors
         self.perc_sign_attr= perc_sign_attr
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -5572,9 +5769,9 @@ class Selected_SMOTE(OverSampling):
         
         samples= []
         for _ in range(num_to_sample):
-            random_idx= np.random.choice(range(len(minority_indices)))
+            random_idx= self.random_state.choice(range(len(minority_indices)))
             u= X[minority_indices[random_idx]]
-            v= X_min[np.random.choice(nn_min_ind[random_idx][1:])]
+            v= X_min[self.random_state.choice(nn_min_ind[random_idx][1:])]
             samples.append(self.sample_between_points_componentwise(u, v, significant_attr))
         
         return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
@@ -5587,7 +5784,8 @@ class Selected_SMOTE(OverSampling):
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
                 'perc_sign_attr': self.perc_sign_attr, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class LN_SMOTE(OverSampling):
     """
@@ -5611,7 +5809,7 @@ class LN_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_componentwise]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -5621,6 +5819,7 @@ class LN_SMOTE(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): parameter of the NearestNeighbors component
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0.0)
@@ -5630,6 +5829,8 @@ class LN_SMOTE(OverSampling):
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -5725,11 +5926,11 @@ class LN_SMOTE(OverSampling):
             else:
                 sl_ratio= slp/sln
                 if sl_ratio == 1:
-                    delta= np.random.random()
+                    delta= self.random_state.random_sample()
                 elif sl_ratio > 1:
-                    delta= np.random.random()/sl_ratio
+                    delta= self.random_state.random_sample()/sl_ratio
                 else:
-                    delta= 1.0 - np.random.random()*sl_ratio
+                    delta= 1.0 - self.random_state.random_sample()*sl_ratio
             if not n_label == self.minority_label:
                 delta= delta*sln/(n_neighbors)
             return delta
@@ -5738,9 +5939,9 @@ class LN_SMOTE(OverSampling):
         trials= 0
         samples= []
         while len(samples) < num_to_sample:
-            p_idx= np.random.choice(minority_indices)
+            p_idx= self.random_state.choice(minority_indices)
             # extract random neighbor of p
-            n_idx= np.random.choice(indices[p_idx][1:-1])
+            n_idx= self.random_state.choice(indices[p_idx][1:-1])
             
             # checking can-create criteria
             slp= safe_level(p_idx)
@@ -5772,7 +5973,8 @@ class LN_SMOTE(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class MWMOTE(OverSampling):
     """
@@ -5800,7 +6002,7 @@ class MWMOTE(OverSampling):
                  OverSampling.cat_uses_clustering,
                  OverSampling.cat_borderline]
     
-    def __init__(self, proportion= 1.0, k1= 5, k2= 5, k3= 5, M= 10, cf_th= 5.0, cmax= 10.0, n_jobs= 1):
+    def __init__(self, proportion= 1.0, k1= 5, k2= 5, k3= 5, M= 10, cf_th= 5.0, cmax= 10.0, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -5815,6 +6017,7 @@ class MWMOTE(OverSampling):
             cf_th (float): cutoff threshold
             cmax (float): maximum closeness value
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
@@ -5834,6 +6037,8 @@ class MWMOTE(OverSampling):
         self.cf_th= cf_th
         self.cmax= cmax
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -5945,7 +6150,7 @@ class MWMOTE(OverSampling):
         
         # Step 10
         _logger.info(self.__class__.__name__ + ": " +'do clustering')
-        kmeans= KMeans(n_clusters= min([len(X_min), self.M]), n_jobs= self.n_jobs)
+        kmeans= KMeans(n_clusters= min([len(X_min), self.M]), n_jobs= self.n_jobs, random_state= self.random_state)
         kmeans.fit(X_min)
         imin_labels= kmeans.labels_[informative_minority]
         
@@ -5956,9 +6161,9 @@ class MWMOTE(OverSampling):
         
         # Step 12
         for i in range(num_to_sample):
-            random_index= np.random.choice(informative_minority, p= selection_probabilities)
+            random_index= self.random_state.choice(informative_minority, p= selection_probabilities)
             cluster_label= kmeans.labels_[random_index]
-            random_index_in_cluster= np.random.choice(clusters[cluster_label])
+            random_index_in_cluster= self.random_state.choice(clusters[cluster_label])
             samples.append(self.sample_between_points(X_min[random_index], X_min[random_index_in_cluster]))
         
         return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
@@ -5975,7 +6180,8 @@ class MWMOTE(OverSampling):
                 'M': self.M, 
                 'cf_th': self.cf_th, 
                 'cmax': self.cmax, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class PDFOS(OverSampling):
     """
@@ -6002,7 +6208,7 @@ class PDFOS(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_density_estimation]
     
-    def __init__(self, proportion= 1.0, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -6011,6 +6217,7 @@ class PDFOS(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -6018,6 +6225,8 @@ class PDFOS(OverSampling):
         
         self.proportion= proportion
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -6112,7 +6321,7 @@ class PDFOS(OverSampling):
         best_sigma= 0
         error= np.inf
         # the dataset is reduced to make the optimization more efficient
-        X_reduced= X[np.random.choice(list(range(len(X))), min([len(X), n_optimize]), replace= False)]
+        X_reduced= X[self.random_state.choice(list(range(len(X))), min([len(X), n_optimize]), replace= False)]
         
         # we suppose that the data is normalized, thus, this search space should be meaningful
         for sigma in np.logspace(-5, 2, num= 20):
@@ -6125,8 +6334,8 @@ class PDFOS(OverSampling):
         # generating samples according to the 
         samples= []
         for _ in range(num_to_sample):
-            idx= np.random.randint(len(X))
-            samples.append(np.random.multivariate_normal(X[idx], best_sigma*S))
+            idx= self.random_state.randint(len(X))
+            samples.append(self.random_state.multivariate_normal(X[idx], best_sigma*S))
             
         return np.vstack(samples)
     
@@ -6172,7 +6381,8 @@ class PDFOS(OverSampling):
             dict: the parameters of the current sampling object
         """
         return {'proportion': self.proportion, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class IPADE_ID(OverSampling):
     """
@@ -6203,7 +6413,7 @@ class IPADE_ID(OverSampling):
                  OverSampling.cat_memetic,
                  OverSampling.cat_uses_classifier]
     
-    def __init__(self, F= 0.1, G= 0.1, OT= 20, max_it= 40, dt_classifier= DecisionTreeClassifier(random_state= 2), base_classifier= DecisionTreeClassifier(random_state= 2), n_jobs= 1):
+    def __init__(self, F= 0.1, G= 0.1, OT= 20, max_it= 40, dt_classifier= DecisionTreeClassifier(random_state= 2), base_classifier= DecisionTreeClassifier(random_state= 2), n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -6215,6 +6425,7 @@ class IPADE_ID(OverSampling):
             dt_classifier (obj): decision tree classifier object
             base_classifier (obj): classifier object
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater(F, 'F', 0)
@@ -6230,6 +6441,8 @@ class IPADE_ID(OverSampling):
         self.dt_classifier= dt_classifier
         self.base_classifier= base_classifier
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -6299,11 +6512,11 @@ class IPADE_ID(OverSampling):
                 # doing the differential evolution
                 for i in range(len(GS)):
                     if GS_y[i] == self.minority_label:
-                        r1, r2, r3= np.random.choice(min_indices, 3, replace= False)
+                        r1, r2, r3= self.random_state.choice(min_indices, 3, replace= False)
                     else:
-                        r1, r2, r3= np.random.choice(maj_indices, 3, replace= False)
+                        r1, r2, r3= self.random_state.choice(maj_indices, 3, replace= False)
                     
-                    GS_hat.append(np.clip(GS[i] + self.G*np.random.random()*(X[r1] - X[i]) + self.F*(X[r2] - X[r3]), 0.0, 1.0))
+                    GS_hat.append(np.clip(GS[i] + self.G*self.random_state.random_sample()*(X[r1] - X[i]) + self.F*(X[r2] - X[r3]), 0.0, 1.0))
                 
                 # evaluating the current setting
                 AUC_GS_hat= evaluate_ID(GS_hat, GS_y, X[for_validation], y[for_validation], classifier)
@@ -6412,9 +6625,9 @@ class IPADE_ID(OverSampling):
                 GS= DE_optimization(GS, GS_y, X, y, min_indices, maj_indices, base_classifier, for_validation)
             else:
                 if target_class == self.minority_label:
-                    idx= np.random.choice(min_indices)
+                    idx= self.random_state.choice(min_indices)
                 else:
-                    idx= np.random.choice(maj_indices)
+                    idx= self.random_state.choice(maj_indices)
                 
                 GS_trial= np.vstack([GS, X[idx]])
                 GS_trial_y= np.hstack([GS_y, y[idx]])
@@ -6467,7 +6680,8 @@ class IPADE_ID(OverSampling):
                 'max_it': self.max_it, 
                 'n_jobs': self.n_jobs, 
                 'dt_classifier': self.dt_classifier, 
-                'base_classifier': self.base_classifier}
+                'base_classifier': self.base_classifier,
+                'random_state': self._random_state_init}
 
 class RWO_sampling(OverSampling):
     """
@@ -6487,7 +6701,7 @@ class RWO_sampling(OverSampling):
     
     categories= [OverSampling.cat_extensive]
     
-    def __init__(self, proportion= 1.0, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -6496,6 +6710,7 @@ class RWO_sampling(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -6503,6 +6718,8 @@ class RWO_sampling(OverSampling):
         
         self.proportion= proportion
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -6539,7 +6756,7 @@ class RWO_sampling(OverSampling):
         
         stds= np.diag(np.std(X_min, axis= 0)/np.sqrt(len(X_min)))
         
-        samples= [np.random.multivariate_normal(X_min[np.random.randint(len(X_min))], stds) for _ in range(num_to_sample)]
+        samples= [self.random_state.multivariate_normal(X_min[self.random_state.randint(len(X_min))], stds) for _ in range(num_to_sample)]
 
         return np.vstack([X, samples]), np.hstack([y, np.array([self.minority_label]*len(samples))])
         
@@ -6549,7 +6766,8 @@ class RWO_sampling(OverSampling):
             dict: the parameters of the current sampling object
         """
         return {'proportion': self.proportion, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class NEATER(OverSampling):
     """
@@ -6578,7 +6796,7 @@ class NEATER(OverSampling):
                  OverSampling.cat_borderline,
                  OverSampling.cat_changes_majority]
     
-    def __init__(self, proportion= 1.0, smote_n_neighbors= 5, b= 5, alpha= 0.1, h= 20, n_jobs= 1):
+    def __init__(self, proportion= 1.0, smote_n_neighbors= 5, b= 5, alpha= 0.1, h= 20, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -6591,6 +6809,7 @@ class NEATER(OverSampling):
             alpha (float): smoothing term
             h (int): number of iterations in evolution
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -6606,6 +6825,8 @@ class NEATER(OverSampling):
         self.alpha= alpha
         self.h= h
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
 
     @classmethod
     def parameter_combinations(cls):
@@ -6641,8 +6862,8 @@ class NEATER(OverSampling):
             return X.copy(), y.copy()
         
         # Applying SMOTE and ADASYN
-        X_0, y_0= SMOTE(proportion= self.proportion, n_neighbors= self.smote_n_neighbors, n_jobs= self.n_jobs).sample(X, y)
-        X_1, y_1= ADASYN(n_neighbors= self.b, n_jobs= self.n_jobs).sample(X, y)
+        X_0, y_0= SMOTE(proportion= self.proportion, n_neighbors= self.smote_n_neighbors, n_jobs= self.n_jobs, random_state= self.random_state).sample(X, y)
+        X_1, y_1= ADASYN(n_neighbors= self.b, n_jobs= self.n_jobs, random_state= self.random_state).sample(X, y)
         
         X_new= np.vstack([X_0, X_1[len(X):]])
         y_new= np.hstack([y_0, y_1[len(y):]])
@@ -6741,7 +6962,8 @@ class NEATER(OverSampling):
                 'b': self.b, 
                 'alpha': self.alpha, 
                 'h': self.h, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class DEAGO(OverSampling):
     """
@@ -6769,7 +6991,7 @@ class DEAGO(OverSampling):
                  OverSampling.cat_density_estimation,
                  OverSampling.cat_application]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, e= 100, h= 0.3, sigma= 0.1, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, e= 100, h= 0.3, sigma= 0.1, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -6782,6 +7004,7 @@ class DEAGO(OverSampling):
             h (float): fraction of number of hidden units
             sigma (float): training noise
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0.0)
@@ -6797,6 +7020,8 @@ class DEAGO(OverSampling):
         self.h= h
         self.sigma= sigma
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -6831,6 +7056,33 @@ class DEAGO(OverSampling):
             _logger.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
             return X.copy(), y.copy()
         
+        # ugly hack to get reproducible results from keras with tensorflow backend
+        if isinstance(self._random_state_init, int):
+            import os
+            os.environ['PYTHONHASHSEED']=str(self._random_state_init)
+            import keras as K
+            np.random.seed(self._random_state_init)
+            import random
+            random.seed(self._random_state_init)
+            from tensorflow import set_random_seed
+            set_random_seed(self._random_state_init)
+        else:
+            seed= 127
+            import os
+            os.environ['PYTHONHASHSEED']=str(seed)
+            import keras as K
+            np.random.seed(seed)
+            import random
+            random.seed(seed)
+            from tensorflow import set_random_seed
+            set_random_seed(seed)
+        
+        from keras import backend as K
+        import tensorflow as tf
+        session_conf= tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
+        sess= tf.Session(graph=tf.get_default_graph(), config=session_conf)
+        K.set_session(sess)
+        
         if not hasattr(self, 'Input'):
             from keras.layers import Input, Dense, GaussianNoise
             from keras.models import Model
@@ -6841,9 +7093,10 @@ class DEAGO(OverSampling):
             self.GaussianNoise= GaussianNoise
             self.Model= Model
             self.EarlyStopping= EarlyStopping
+            
         
         # sampling by smote
-        X_samp, y_samp= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs).sample(X, y)
+        X_samp, y_samp= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs, random_state= self.random_state).sample(X, y)
         
         # samples to map to the manifold extracted by the autoencoder
         X_init= X_samp[len(X):]
@@ -6900,7 +7153,8 @@ class DEAGO(OverSampling):
                 'e': self.e, 
                 'h': self.h, 
                 'sigma': self.sigma, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class Gazzah(OverSampling):
     """
@@ -6925,7 +7179,7 @@ class Gazzah(OverSampling):
                  OverSampling.cat_dim_reduction,
                  OverSampling.cat_changes_majority]
     
-    def __init__(self, proportion= 1.0, n_components= 2, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_components= 2, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -6935,6 +7189,7 @@ class Gazzah(OverSampling):
                                     samples will be equal to the number of majority samples
             n_components (int): number of components in PCA analysis
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -6944,6 +7199,8 @@ class Gazzah(OverSampling):
         self.proportion= proportion
         self.n_components= n_components
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -6972,7 +7229,7 @@ class Gazzah(OverSampling):
         self.class_label_statistics(X, y)
         
         # do the oversampling
-        X_samp, y_samp= polynom_fit_SMOTE(proportion= self.proportion).sample(X, y)
+        X_samp, y_samp= polynom_fit_SMOTE(proportion= self.proportion, random_state= self.random_state).sample(X, y)
         X_min_samp= X_samp[len(X):]
         
         if len(X_min_samp) == 0:
@@ -7004,7 +7261,8 @@ class Gazzah(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'n_components': self.n_components, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class MCT(OverSampling):
     """
@@ -7020,7 +7278,7 @@ class MCT(OverSampling):
                     volume = {29},
                     booktitle = {International Journal of Pattern Recognition and Artificial Intelligence}
                     }
-    
+
     Notes:
         * Mode is changed to median, distance is changed to Euclidean to support continuous features, and normalized.
     """
@@ -7028,7 +7286,7 @@ class MCT(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_copy]
     
-    def __init__(self, proportion= 1.0, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -7037,6 +7295,7 @@ class MCT(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -7044,6 +7303,8 @@ class MCT(OverSampling):
         
         self.proportion= proportion
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -7087,13 +7348,13 @@ class MCT(OverSampling):
         distribution= (1.0 - distances)/(np.sum(1.0 - distances))
         
         if any(np.isnan(distribution)):
-            _logger.warning(self.__class__.__name__ + ": " + "NaN in the probability distribution derived in MCT")
+            _logger.warning(self.__class__.__name__ + ": " + "NaN in the probability distribution")
             return X.copy(), y.copy()
         
         # do the sampling
         samples= []
         while len(samples) < num_to_sample:
-            samples.append(X_min[np.random.choice(np.arange(len(X_min)), p= distribution)])
+            samples.append(X_min[self.random_state.choice(np.arange(len(X_min)), p= distribution)])
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
@@ -7103,7 +7364,8 @@ class MCT(OverSampling):
             dict: the parameters of the current sampling object
         """
         return {'proportion': self.proportion, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class ADG(OverSampling):
     """
@@ -7119,7 +7381,7 @@ class ADG(OverSampling):
                     volume = {16},
                     journal = {Journal of Machine Learning Research}
                     }
-    
+
     Notes:
         * This method has a lot of parameters, it becomes fairly hard to cross-validate thoroughly.
         * Fails if matrix is singular when computing alpha_star, fixed by PCA.
@@ -7130,7 +7392,7 @@ class ADG(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_uses_clustering]
     
-    def __init__(self, proportion= 1.0, kernel= 'inner', lam= 1.0, mu= 1.0, k= 12, gamma= 1.0, n_jobs= 1):
+    def __init__(self, proportion= 1.0, kernel= 'inner', lam= 1.0, mu= 1.0, k= 12, gamma= 1.0, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -7144,6 +7406,7 @@ class ADG(OverSampling):
             k (int): number of samples to generate in each iteration
             gamma (float): gamma parameter of the method
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -7168,6 +7431,8 @@ class ADG(OverSampling):
         self.k= k
         self.gamma= gamma
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -7258,7 +7523,7 @@ class ADG(OverSampling):
             
             # do clustering for all n_clusters in the specified range
             for k in range(r[0], min([r[1], len(X)])):
-                kmeans= KMeans(n_clusters= k, n_jobs= self.n_jobs).fit(X)
+                kmeans= KMeans(n_clusters= k, n_jobs= self.n_jobs, random_state= self.random_state).fit(X)
                 
                 bic= bic_score(kmeans, X)
                 if bic < best_bic:
@@ -7283,7 +7548,7 @@ class ADG(OverSampling):
             
             # do model fitting for all n_components in the specified range
             for k in range(r[0], min([r[1], len(X)])):
-                gmm= GaussianMixture(n_components= k).fit(X)
+                gmm= GaussianMixture(n_components= k, random_state= self.random_state).fit(X)
                 bic= gmm.bic(X)
                 if bic < best_bic:
                     best_bic= bic
@@ -7398,7 +7663,8 @@ class ADG(OverSampling):
                                         lam= self.lam,
                                         mu= self.mu,
                                         k= self.k,
-                                        gamma= self.gamma).sample(X_trans, y)
+                                        gamma= self.gamma,
+                                        random_state= self.random_state).sample(X_trans, y)
                     if not X_samp is None:
                         return pca.inverse_transform(X_samp), y_samp
                     else:
@@ -7411,11 +7677,7 @@ class ADG(OverSampling):
             mixture= xgmeans(X_plus)
             
             # step 6
-            try:
-                Z= mixture.sample(q)[0]
-            except:
-                _logger.warning(self.__class__.__name__ + ": sampling error in sklearn.mixture.GaussianMixture")
-                return X.copy(), y.copy()
+            Z= mixture.sample(q)[0]
             
             # step 7
             # computing the kernel matrix of generated samples with all samples
@@ -7492,7 +7754,8 @@ class ADG(OverSampling):
                 'mu': self.mu, 
                 'k': self.k, 
                 'gamma': self.gamma, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class SMOTE_IPF(OverSampling):
     """
@@ -7516,7 +7779,7 @@ class SMOTE_IPF(OverSampling):
     categories= [OverSampling.cat_changes_majority,
                  OverSampling.cat_uses_classifier]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_folds= 9, k= 3, p= 0.01, voting= 'majority', classifier= DecisionTreeClassifier(), n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_folds= 9, k= 3, p= 0.01, voting= 'majority', classifier= DecisionTreeClassifier(random_state= 2), n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -7531,6 +7794,7 @@ class SMOTE_IPF(OverSampling):
             voting (str): 'majority'/'consensus'
             classifier (obj): classifier object
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -7550,6 +7814,8 @@ class SMOTE_IPF(OverSampling):
         self.classifier= classifier
         self.n_jobs= n_jobs
         
+        self.set_random_state(random_state)
+        
     @classmethod
     def parameter_combinations(cls):
         """
@@ -7564,7 +7830,7 @@ class SMOTE_IPF(OverSampling):
                                                     'k': [3], 
                                                     'p': [0.01], 
                                                     'voting': ['majority', 'consensus'], 
-                                                    'classifier': [DecisionTreeClassifier()]})
+                                                    'classifier': [DecisionTreeClassifier(random_state= 2)]})
     
     def sample(self, X, y):
         """
@@ -7586,7 +7852,7 @@ class SMOTE_IPF(OverSampling):
             return X.copy(), y.copy()
         
         # do SMOTE sampling
-        X_samp, y_samp= SMOTE(self.proportion, self.n_neighbors, n_jobs= self.n_jobs).sample(X, y)
+        X_samp, y_samp= SMOTE(self.proportion, self.n_neighbors, n_jobs= self.n_jobs, random_state= self.random_state).sample(X, y)
         
         n_folds= min([self.n_folds, np.sum(y == self.minority_label)])
         
@@ -7637,7 +7903,8 @@ class SMOTE_IPF(OverSampling):
                 'p': self.p, 
                 'voting': self.voting, 
                 'n_jobs': self.n_jobs, 
-                'classifier': self.classifier}
+                'classifier': self.classifier,
+                'random_state': self._random_state_init}
 
 class KernelADASYN(OverSampling):
     """
@@ -7656,7 +7923,7 @@ class KernelADASYN(OverSampling):
                             doi={10.1109/CEC.2015.7256954}, 
                             ISSN={1089-778X}, 
                             month={May}}
-    
+
     Notes:
         * The method of sampling was not specified, Markov Chain Monte Carlo has been implemented.
         * Not prepared for improperly conditioned covariance matrix.
@@ -7666,7 +7933,7 @@ class KernelADASYN(OverSampling):
                  OverSampling.cat_extensive,
                  OverSampling.cat_borderline]
     
-    def __init__(self, proportion= 1.0, k= 5, h= 1.0, n_jobs= 1):
+    def __init__(self, proportion= 1.0, k= 5, h= 1.0, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -7677,6 +7944,7 @@ class KernelADASYN(OverSampling):
             k (int): number of neighbors in the nearest neighbors component
             h (float): kernel bandwidth
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -7688,6 +7956,8 @@ class KernelADASYN(OverSampling):
         self.k= k
         self.h= h
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -7774,23 +8044,23 @@ class KernelADASYN(OverSampling):
             n_components= int(np.rint(len(covariance)/2))
             pca= PCA(n_components= n_components)
             X_trans= pca.fit_transform(X)
-            ka= KernelADASYN(proportion= self.proportion, k= self.k, h= self.h)
+            ka= KernelADASYN(proportion= self.proportion, k= self.k, h= self.h, random_state= self.random_state)
             X_samp, y_samp= ka.sample(X_trans, y)
             return pca.inverse_transform(X_samp), y_samp
         
         # starting Markov-Chain Monte Carlo for sampling
-        x_old= X_min[np.random.choice(np.where(r > 0)[0])]
+        x_old= X_min[self.random_state.choice(np.where(r > 0)[0])]
         p_old= p_x(x_old)
         
         # Cholesky decomposition
         L= np.linalg.cholesky(covariance)
         
         while len(samples) < num_to_sample:
-            x_new= x_old + np.dot(np.random.normal(size= len(x_old)), L)
+            x_new= x_old + np.dot(self.random_state.normal(size= len(x_old)), L)
             p_new= p_x(x_new)
             
             alpha= p_new/p_old
-            u= np.random.random()
+            u= self.random_state.random_sample()
             if u < alpha:
                 x_old= x_new
                 p_old= p_new
@@ -7811,7 +8081,8 @@ class KernelADASYN(OverSampling):
         return {'proportion': self.proportion, 
                 'k': self.k, 
                 'h': self.h, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class MOT2LD(OverSampling):
     """
@@ -7847,7 +8118,7 @@ class MOT2LD(OverSampling):
     categories= [OverSampling.cat_uses_clustering,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 1.0, n_components= 2, k= 5, d_cut= 'auto', n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_components= 2, k= 5, d_cut= 'auto', n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -7859,6 +8130,7 @@ class MOT2LD(OverSampling):
             k (int): number of neighbors in the nearest neighbor component
             d_cut (float/str): distance cut value/'auto' for automated selection
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
@@ -7876,6 +8148,8 @@ class MOT2LD(OverSampling):
         self.k= k
         self.d_cut= d_cut
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -7917,7 +8191,7 @@ class MOT2LD(OverSampling):
         
         _logger.info(self.__class__.__name__ + ": " + "starting TSNE")
         # do the stochastic embedding
-        X_tsne= TSNE(self.n_components).fit_transform(X)
+        X_tsne= TSNE(self.n_components, random_state= self.random_state).fit_transform(X)
         X_min= X_tsne[y == self.minority_label]
         _logger.info(self.__class__.__name__ + ": " + "TSNE finished")
         
@@ -8012,7 +8286,7 @@ class MOT2LD(OverSampling):
         samples= []
         while len(samples) < num_to_sample:
             # random sample according to the distribution computed
-            random_idx= np.random.choice(np.arange(len(X_min)), p= prob)
+            random_idx= self.random_state.choice(np.arange(len(X_min)), p= prob)
             # cluster label of the random minority sample
             cluster_label= cluster_labels[random_idx]
             if cluster_label == -1:
@@ -8026,9 +8300,9 @@ class MOT2LD(OverSampling):
                 continue
             else:            
                 # otherwise a random cluster index is selected for sample generation
-                random_neighbor_in_cluster_idx= np.random.choice(cluster_indices[cluster_label])
+                random_neighbor_in_cluster_idx= self.random_state.choice(cluster_indices[cluster_label])
                 while random_idx == random_neighbor_in_cluster_idx:
-                    random_neighbor_in_cluster_idx= np.random.choice(cluster_indices[cluster_label])
+                    random_neighbor_in_cluster_idx= self.random_state.choice(cluster_indices[cluster_label])
                 samples.append(self.sample_between_points(X_min[random_idx], X_min[random_neighbor_in_cluster_idx]))
         
         return np.vstack([np.delete(X, noise, axis= 0), np.vstack(samples)]), np.hstack([np.delete(y, noise), np.repeat(self.minority_label, len(samples))])
@@ -8042,7 +8316,8 @@ class MOT2LD(OverSampling):
                 'n_components': self.n_components, 
                 'k': self.k, 
                 'd_cut': self.d_cut, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class V_SYNTH(OverSampling):
     """
@@ -8068,7 +8343,7 @@ class V_SYNTH(OverSampling):
                      address = {London, UK, UK},
                      keywords = {Data engineering, Data mining, Imbalanced datasets, Knowledge extraction, Numerical algorithms, Synthetic over-sampling},
                     }
-    
+
     Notes:
         * The proposed encompassing bounding box generation is incorrect.
         * Voronoi diagram generation in high dimensional spaces is instable
@@ -8077,7 +8352,7 @@ class V_SYNTH(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 1.0, n_components= 3, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_components= 3, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -8087,6 +8362,7 @@ class V_SYNTH(OverSampling):
                                     samples will be equal to the number of majority samples
             n_components (int): number of components for PCA
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -8096,6 +8372,8 @@ class V_SYNTH(OverSampling):
         self.proportion= proportion
         self.n_components= n_components
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -8135,7 +8413,7 @@ class V_SYNTH(OverSampling):
         mins= mins - 0.1*np.abs(mins)
         maxs= maxs + 0.1*np.abs(maxs)
         
-        bounding_box= [np.where(np.random.randint(0, 1, size=len(X[0])) == 0, mins, maxs) for i in range(min([100, len(X[0])]))]
+        bounding_box= [np.where(self.random_state.randint(0, 1, size=len(X[0])) == 0, mins, maxs) for i in range(min([100, len(X[0])]))]
         X_bb= np.vstack([X, bounding_box])
         
         # applying PCA to reduce the dimensionality of the data
@@ -8170,11 +8448,11 @@ class V_SYNTH(OverSampling):
         samples= []
         for _ in range(num_to_sample):
             # randomly choosing a pair from the ridge point pairs of different labels
-            random_face= np.random.choice(candidate_face_generators)
+            random_face= self.random_state.choice(candidate_face_generators)
             # extracting the vertices of the face between the points
             face_vertices= voronoi.vertices[voronoi.ridge_vertices[random_face]]
             # creating a random vector for sampling the face (supposed to be convex)
-            w= np.random.random(size= len(X_pca[0]))
+            w= self.random_state.random_sample(size= len(X_pca[0]))
             w= w/np.sum(w)
             
             # initiating a sample point on the face
@@ -8200,7 +8478,8 @@ class V_SYNTH(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'n_components': self.n_components, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class OUPS(OverSampling):
     """
@@ -8227,7 +8506,7 @@ class OUPS(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 1.0, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -8236,6 +8515,7 @@ class OUPS(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         
@@ -8244,6 +8524,8 @@ class OUPS(OverSampling):
         
         self.proportion= proportion
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -8280,7 +8562,7 @@ class OUPS(OverSampling):
             return X.copy(), y.copy()
         
         # extracting propensity scores
-        lr= LogisticRegression(solver= 'lbfgs', n_jobs= self.n_jobs)
+        lr= LogisticRegression(solver= 'lbfgs', n_jobs= self.n_jobs, random_state= self.random_state)
         lr.fit(X, y)
         propensity= lr.predict_proba(X)[:,np.where(lr.classes_ == self.minority_label)[0][0]]
         
@@ -8297,7 +8579,7 @@ class OUPS(OverSampling):
                 num= 1
                 p_tmp= p
                 while p_tmp > 0 and n + num < len(propensity):
-                    if np.random.random() < p_tmp:
+                    if self.random_state.random_sample() < p_tmp:
                         samples.append(self.sample_between_points(X[prop_sorted[n][1]], X[prop_sorted[n+num][1]]))
                     p_tmp= p_tmp - 1
                     num= num + 1
@@ -8311,7 +8593,8 @@ class OUPS(OverSampling):
             dict: the parameters of the current sampling object
         """
         return {'proportion': self.proportion, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class SMOTE_D(OverSampling):
     """
@@ -8343,7 +8626,7 @@ class SMOTE_D(OverSampling):
     
     categories= [OverSampling.cat_extensive]
     
-    def __init__(self, proportion= 1.0, k= 3, n_jobs= 1):
+    def __init__(self, proportion= 1.0, k= 3, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -8353,6 +8636,7 @@ class SMOTE_D(OverSampling):
                                     samples will be equal to the number of majority samples
             k (int): number of neighbors in nearest neighbors component
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         
@@ -8363,6 +8647,8 @@ class SMOTE_D(OverSampling):
         self.proportion= proportion
         self.k= k
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -8419,7 +8705,7 @@ class SMOTE_D(OverSampling):
         for i in range(len(p_i)):
             for j in range(min([len(X_min)-1, self.k])):
                 while counts_ij[i][j] > 0:
-                    if np.random.random() < counts_ij[i][j]:
+                    if self.random_state.random_sample() < counts_ij[i][j]:
                         samples.append(X_min[i] + (X_min[ind[i][j+1]] - X_min[i])/(counts_ij[i][j]+1))
                     counts_ij[i][j]= counts_ij[i][j] - 1
         
@@ -8435,7 +8721,8 @@ class SMOTE_D(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'k': self.k, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class SMOTE_PSO(OverSampling):
     """
@@ -8466,7 +8753,7 @@ class SMOTE_PSO(OverSampling):
                  OverSampling.cat_memetic,
                  OverSampling.cat_uses_classifier]
     
-    def __init__(self, k= 3, eps= 0.05, n_pop= 10, w= 1.0, c1= 2.0, c2= 2.0, num_it= 10, n_jobs= 1):
+    def __init__(self, k= 3, eps= 0.05, n_pop= 10, w= 1.0, c1= 2.0, c2= 2.0, num_it= 10, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -8481,6 +8768,7 @@ class SMOTE_PSO(OverSampling):
             c2 (float): acceleration constant of population optimum
             num_it (int): number of iterations
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(k, "k", 1)
@@ -8500,6 +8788,8 @@ class SMOTE_PSO(OverSampling):
         self.c2= c2
         self.num_it= num_it
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -8579,7 +8869,7 @@ class SMOTE_PSO(OverSampling):
             y= np.delete(y, to_remove)
         
         # fitting SVM to extract initial support vectors
-        svc= SVC(kernel= 'rbf', probability= True, gamma= 'auto')
+        svc= SVC(kernel= 'rbf', probability= True, gamma= 'auto', random_state= self.random_state)
         svc.fit(X_scaled, y)
         
         # extracting the support vectors
@@ -8655,7 +8945,7 @@ class SMOTE_PSO(OverSampling):
             
             # update velocities
             for i, p in enumerate(particle_swarm):
-                velocities[i]= self.w*velocities[i] + self.c1*np.random.random()*(local_best[i] - p) + self.c2*np.random.random()*(global_best - p)
+                velocities[i]= self.w*velocities[i] + self.c1*self.random_state.random_sample()*(local_best[i] - p) + self.c2*self.random_state.random_sample()*(global_best - p)
             
             # bound velocities according to search space constraints
             for v in velocities:
@@ -8687,7 +8977,8 @@ class SMOTE_PSO(OverSampling):
                 'c1': self.c1, 
                 'c2': self.c2, 
                 'num_it': self.num_it, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class CURE_SMOTE(OverSampling):
     """
@@ -8719,7 +9010,7 @@ class CURE_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_uses_clustering]
     
-    def __init__(self, proportion= 1.0, n_clusters= 5, noise_th= 2, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_clusters= 5, noise_th= 2, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -8730,6 +9021,7 @@ class CURE_SMOTE(OverSampling):
             n_clusters (int): number of clusters to generate
             noise_th (int): below this number of elements the cluster is considered as noise
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -8741,6 +9033,8 @@ class CURE_SMOTE(OverSampling):
         self.n_clusters= n_clusters
         self.noise_th= noise_th
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -8801,7 +9095,7 @@ class CURE_SMOTE(OverSampling):
                 cluster_sizes= np.array([len(c) for c in clusters])
                 # removing one of the clusters with the smallest size
                 to_remove= np.where(cluster_sizes == np.min(cluster_sizes))[0]
-                to_remove= np.random.choice(to_remove)
+                to_remove= self.random_state.choice(to_remove)
                 del clusters[to_remove]
                 # adjusting the distance matrix accordingly
                 dm= np.delete(dm, to_remove, axis= 0)
@@ -8841,9 +9135,9 @@ class CURE_SMOTE(OverSampling):
         # generating samples
         samples= []
         for _ in range(num_to_sample):
-            cluster_idx= np.random.randint(len(clusters))
+            cluster_idx= self.random_state.randint(len(clusters))
             center= np.mean(X_min[clusters[cluster_idx]], axis= 0)
-            representative= X_min[np.random.choice(clusters[cluster_idx])]
+            representative= X_min[self.random_state.choice(clusters[cluster_idx])]
             samples.append(self.sample_between_points(center, representative))
         
         return np.vstack([X, mms.inverse_transform(np.vstack(samples))]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
@@ -8856,7 +9150,8 @@ class CURE_SMOTE(OverSampling):
         return {'proportion': self.proportion, 
                 'n_clusters': self.n_clusters, 
                 'noise_th': self.noise_th, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class SOMO(OverSampling):
     """
@@ -8882,7 +9177,7 @@ class SOMO(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_uses_clustering]
     
-    def __init__(self, proportion= 1.0, n_grid= 10, sigma= 0.2, learning_rate= 0.5, n_iter= 100, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_grid= 10, sigma= 0.2, learning_rate= 0.5, n_iter= 100, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -8895,6 +9190,7 @@ class SOMO(OverSampling):
             learning_rate (float) learning rate of SOM
             n_iter (int): number of iterations
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, 'proportion', 0)
@@ -8910,6 +9206,8 @@ class SOMO(OverSampling):
         self.learning_rate= learning_rate
         self.n_iter= n_iter
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -8950,7 +9248,7 @@ class SOMO(OverSampling):
         N_intra= num_to_sample/2
         
         # training SOM
-        som= minisom.MiniSom(self.n_grid, self.n_grid, len(X[0]), sigma= self.sigma, learning_rate= self.learning_rate)
+        som= minisom.MiniSom(self.n_grid, self.n_grid, len(X[0]), sigma= self.sigma, learning_rate= self.learning_rate, random_seed= 3)
         som.train_random(X, self.n_iter)
         
         # constructing the grid
@@ -9028,16 +9326,16 @@ class SOMO(OverSampling):
         # generating the samples according to the extracted distributions
         samples= []
         while len(samples) < dens_num:
-            cluster_idx= density_keys[np.random.choice(np.arange(len(density_keys)), p= density_vals)]
+            cluster_idx= density_keys[self.random_state.choice(np.arange(len(density_keys)), p= density_vals)]
             cluster= grid_min[cluster_idx]
-            sample_a, sample_b= np.random.choice(cluster, 2)
+            sample_a, sample_b= self.random_state.choice(cluster, 2)
             samples.append(self.sample_between_points(X[sample_a], X[sample_b]))
         
         while len(samples) < pair_num:
-            idx= pair_keys[np.random.choice(np.arange(len(pair_keys)), p= pair_dens_vals)]
+            idx= pair_keys[self.random_state.choice(np.arange(len(pair_keys)), p= pair_dens_vals)]
             cluster_a= grid_min[idx[0]]
             cluster_b= grid_min[idx[1]]
-            samples.append(self.sample_between_points(X[np.random.choice(cluster_a)], X[np.random.choice(cluster_b)]))
+            samples.append(self.sample_between_points(X[self.random_state.choice(cluster_a)], X[self.random_state.choice(cluster_b)]))
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
     
@@ -9051,7 +9349,8 @@ class SOMO(OverSampling):
                 'sigma': self.sigma, 
                 'learning_rate': self.learning_rate, 
                 'n_iter': self.n_iter, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class ISOMAP_Hybrid(OverSampling):
     """
@@ -9082,7 +9381,7 @@ class ISOMAP_Hybrid(OverSampling):
                  OverSampling.cat_dim_reduction,
                  OverSampling.cat_changes_majority]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_components= 3, smote_n_neighbors= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_components= 3, smote_n_neighbors= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -9107,6 +9406,8 @@ class ISOMAP_Hybrid(OverSampling):
         self.n_components= n_components
         self.smote_n_neighbors= smote_n_neighbors
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -9142,7 +9443,7 @@ class ISOMAP_Hybrid(OverSampling):
         
         self.isomap= Isomap(n_neighbors= self.n_neighbors, n_components= self.n_components, n_jobs= self.n_jobs)
         X_trans= self.isomap.fit_transform(X, y)
-        X_sm, y_sm= SMOTE(proportion= self.proportion, n_neighbors= self.smote_n_neighbors, n_jobs= self.n_jobs).sample(X_trans, y)
+        X_sm, y_sm= SMOTE(proportion= self.proportion, n_neighbors= self.smote_n_neighbors, n_jobs= self.n_jobs, random_state= self.random_state).sample(X_trans, y)
         
         return NeighborhoodCleaningRule(n_jobs= self.n_jobs).remove_noise(X_sm, y_sm)
     
@@ -9167,7 +9468,8 @@ class ISOMAP_Hybrid(OverSampling):
                 'n_neighbors': self.n_neighbors, 
                 'n_components': self.n_components, 
                 'smote_n_neighbors': self.smote_n_neighbors, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class CE_SMOTE(OverSampling):
     """
@@ -9193,7 +9495,7 @@ class CE_SMOTE(OverSampling):
                  OverSampling.cat_uses_clustering,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 1.0, h= 10, k= 5, alpha= 0.5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, h= 10, k= 5, alpha= 0.5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -9205,6 +9507,7 @@ class CE_SMOTE(OverSampling):
             k (int): number of clusters/neighbors
             alpha (float): [0,1] threshold to select boundary samples
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -9218,6 +9521,8 @@ class CE_SMOTE(OverSampling):
         self.k= k
         self.alpha= alpha
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -9257,9 +9562,9 @@ class CE_SMOTE(OverSampling):
         d= len(X[0])
         labels= []
         for _ in range(self.h):
-            f= np.random.randint(int(d/2), d)
-            features= np.random.choice(np.arange(d), f)
-            labels.append(KMeans(n_clusters= min([len(X), self.k]), n_jobs= self.n_jobs).fit(X[:,features]).labels_)
+            f= self.random_state.randint(int(d/2), d)
+            features= self.random_state.choice(np.arange(d), f)
+            labels.append(KMeans(n_clusters= min([len(X), self.k]), n_jobs= self.n_jobs, random_state= self.random_state).fit(X[:,features]).labels_)
         
         # do the cluster matching, clustering 0 will be considered the one to match the others to
         # the problem of finding cluster matching is basically the "assignment problem"
@@ -9300,8 +9605,8 @@ class CE_SMOTE(OverSampling):
         # do the sampling
         samples= []
         for _ in range(num_to_sample):
-            idx= np.random.randint(len(ind))
-            samples.append(self.sample_between_points(P_boundary[idx], P_boundary[np.random.choice(ind[idx][1:])]))
+            idx= self.random_state.randint(len(ind))
+            samples.append(self.sample_between_points(P_boundary[idx], P_boundary[self.random_state.choice(ind[idx][1:])]))
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
     
@@ -9314,7 +9619,8 @@ class CE_SMOTE(OverSampling):
                 'h': self.h, 
                 'k': self.k, 
                 'alpha': self.alpha, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class Edge_Det_SMOTE(OverSampling):
     """
@@ -9342,7 +9648,7 @@ class Edge_Det_SMOTE(OverSampling):
                  OverSampling.cat_borderline,
                  OverSampling.cat_extensive]
     
-    def __init__(self, proportion= 1.0, k= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, k= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -9352,6 +9658,7 @@ class Edge_Det_SMOTE(OverSampling):
                                     samples will be equal to the number of majority samples
             k (int): number of neighbors
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -9361,6 +9668,8 @@ class Edge_Det_SMOTE(OverSampling):
         self.proportion= proportion
         self.k= k
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -9422,8 +9731,8 @@ class Edge_Det_SMOTE(OverSampling):
         # do the sampling
         samples= []
         for _ in range(num_to_sample):
-            idx= np.random.choice(np.arange(len(X_min)), p= magnitudes)
-            samples.append(self.sample_between_points(X_min[idx], X_min[np.random.choice(ind[idx][1:])]))
+            idx= self.random_state.choice(np.arange(len(X_min)), p= magnitudes)
+            samples.append(self.sample_between_points(X_min[idx], X_min[self.random_state.choice(ind[idx][1:])]))
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
     
@@ -9434,7 +9743,8 @@ class Edge_Det_SMOTE(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'k': self.k, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class CBSO(OverSampling):
     """
@@ -9467,7 +9777,7 @@ class CBSO(OverSampling):
                  OverSampling.cat_extensive,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, C_p= 1.3, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, C_p= 1.3, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -9478,6 +9788,7 @@ class CBSO(OverSampling):
             n_neighbors (int): number of neighbors
             C_p (float): used to set the threshold of clustering
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -9489,6 +9800,8 @@ class CBSO(OverSampling):
         self.n_neighbors= n_neighbors
         self.C_p= C_p
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -9585,14 +9898,14 @@ class CBSO(OverSampling):
         # do the sampling
         samples= []
         while len(samples) < num_to_sample:
-            idx= np.random.choice(np.arange(len(X_min)), p= weights)
+            idx= self.random_state.choice(np.arange(len(X_min)), p= weights)
             if len(clusters[labels[idx]]) <= 1:
                 samples.append(X_min[idx])
                 continue
             else:
-                random_idx= np.random.choice(clusters[labels[idx]])
+                random_idx= self.random_state.choice(clusters[labels[idx]])
                 while random_idx == idx:
-                    random_idx= np.random.choice(clusters[labels[idx]])
+                    random_idx= self.random_state.choice(clusters[labels[idx]])
             samples.append(self.sample_between_points(X_min[idx], X_min[random_idx]))
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
@@ -9605,7 +9918,8 @@ class CBSO(OverSampling):
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
                 'C_p': self.C_p, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
     
 class E_SMOTE(OverSampling):
     """
@@ -9635,7 +9949,7 @@ class E_SMOTE(OverSampling):
                  OverSampling.cat_memetic,
                  OverSampling.cat_changes_majority]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, min_features= 2, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, min_features= 2, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -9646,6 +9960,7 @@ class E_SMOTE(OverSampling):
             n_neighbors (int): number of neighbors in the nearest neighbors component
             min_features (int): minimum number of features
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -9657,6 +9972,8 @@ class E_SMOTE(OverSampling):
         self.n_neighbors= n_neighbors
         self.min_features= min_features
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -9688,19 +10005,19 @@ class E_SMOTE(OverSampling):
         min_features= min(self.min_features, len(X[0]))
         
         if len(X) < 800:
-            classifier= SVC(gamma= 'auto')
+            classifier= SVC(gamma= 'auto', random_state= self.random_state)
         else:
-            classifier= DecisionTreeClassifier(max_depth= 4)
+            classifier= DecisionTreeClassifier(max_depth= 4, random_state= self.random_state)
         
         # parameters of the evolutionary algorithm
         n_generations= 50
         n_population= 5
         
         # creating initial mask
-        mask= np.random.choice([True, False], len(X[0]), replace= True)
+        mask= self.random_state.choice([True, False], len(X[0]), replace= True)
         # fixing if the mask doesn't contain any features
         if np.sum(mask) == 0:
-            mask[np.random.randint(len(mask))]= True
+            mask[self.random_state.randint(len(mask))]= True
         
         def crossover(mask_a, mask_b):
             """
@@ -9715,11 +10032,11 @@ class E_SMOTE(OverSampling):
             """
             mask= mask_a.copy()
             for i in range(len(mask_b)):
-                if np.random.randint(0, 2) == 0:
+                if self.random_state.randint(0, 2) == 0:
                     mask[i]= mask_b[i]
                     
             while np.sum(mask) < min_features:
-                mask[np.random.randint(len(mask))]= True
+                mask[self.random_state.randint(len(mask))]= True
             
             return mask
         
@@ -9735,11 +10052,11 @@ class E_SMOTE(OverSampling):
             """
             mask= mask_old.copy()
             for i in range(len(mask)):
-                if np.random.randint(0, 2) == 0:
+                if self.random_state.randint(0, 2) == 0:
                     mask[i]= not mask[i]
             
             while np.sum(mask) < min_features:
-                mask[np.random.randint(len(mask))]= True
+                mask[self.random_state.randint(len(mask))]= True
                 
             return mask
         
@@ -9749,12 +10066,12 @@ class E_SMOTE(OverSampling):
             # in each generation
             for _ in range(n_population):
                 # for each element of a population
-                if np.random.randint(0, 2) == 0:
+                if self.random_state.randint(0, 2) == 0:
                     # crossover
-                    mask= crossover(population[np.random.randint(n_population)][1], population[np.random.randint(n_population)][1])
+                    mask= crossover(population[self.random_state.randint(n_population)][1], population[self.random_state.randint(n_population)][1])
                 else:
                     # mutation
-                    mask= mutate(population[np.random.randint(n_population)][1])
+                    mask= mutate(population[self.random_state.randint(n_population)][1])
                 # evaluation
                 _logger.info(self.__class__.__name__ + ": " + "evaluating mask selection with features %d/%d" % (np.sum(mask), len(mask)))
                 score= np.sum(y == classifier.fit(X[:,mask], y).predict(X[:,mask]))/len(y)
@@ -9765,7 +10082,7 @@ class E_SMOTE(OverSampling):
         
         self.mask= population[0][1]
         # resampling the population in the given dimensions
-        return SMOTE(self.proportion, self.n_neighbors, n_jobs= self.n_jobs).sample(X[:,self.mask], y)
+        return SMOTE(self.proportion, self.n_neighbors, n_jobs= self.n_jobs, random_state= self.random_state).sample(X[:,self.mask], y)
     
     def transform(self, X):
         """
@@ -9787,7 +10104,8 @@ class E_SMOTE(OverSampling):
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
                 'min_features': self.min_features,
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class DBSMOTE(OverSampling):
     """
@@ -9822,7 +10140,7 @@ class DBSMOTE(OverSampling):
                  OverSampling.cat_uses_clustering,
                  OverSampling.cat_density_based]
     
-    def __init__(self, proportion= 1.0, eps= 0.8, min_samples= 3, n_jobs= 1):
+    def __init__(self, proportion= 1.0, eps= 0.8, min_samples= 3, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -9833,6 +10151,7 @@ class DBSMOTE(OverSampling):
             eps (float): eps paramter of DBSCAN
             min_samples (int): min_samples paramter of DBSCAN
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -9844,6 +10163,8 @@ class DBSMOTE(OverSampling):
         self.eps= eps
         self.min_samples= min_samples
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -9894,7 +10215,7 @@ class DBSMOTE(OverSampling):
                 _logger.info(self.__class__.__name__ + ": " +"Number of clusters is 0, can't adjust parameters further")
                 return X.copy(), y.copy()
             else:
-                return DBSMOTE(proportion= self.proportion, eps= self.eps*1.5, min_samples= self.min_samples-1, n_jobs= self.n_jobs).sample(X, y)
+                return DBSMOTE(proportion= self.proportion, eps= self.eps*1.5, min_samples= self.min_samples-1, n_jobs= self.n_jobs, random_state= self.random_state).sample(X, y)
         
         # determining cluster size distribution
         clusters= [np.where(labels == i)[0] for i in range(num_labels)]
@@ -9986,9 +10307,9 @@ class DBSMOTE(OverSampling):
         # generating samples
         samples= []
         while len(samples) < num_to_sample:
-            cluster_idx= np.random.choice(np.arange(len(clusters)), p= cluster_dist)
+            cluster_idx= self.random_state.choice(np.arange(len(clusters)), p= cluster_dist)
             cluster= X_min[clusters[cluster_idx]]
-            idx= np.random.choice(range(len(clusters[cluster_idx])))
+            idx= self.random_state.choice(range(len(clusters[cluster_idx])))
             
             # executing shortest path algorithm
             distances, parents= shortest_paths[cluster_idx]
@@ -10006,7 +10327,7 @@ class DBSMOTE(OverSampling):
                 samples.append(self.sample_between_points_componentwise(cluster[path[0]], cluster[path[1]]))
             else:
                 # if the path consists of at least two edges
-                random_vertex= np.random.randint(len(path)-1)
+                random_vertex= self.random_state.randint(len(path)-1)
                 samples.append(self.sample_between_points_componentwise(cluster[path[random_vertex]], cluster[path[random_vertex + 1]]))
     
         return np.vstack([X, ss.inverse_transform(np.vstack(samples))]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
@@ -10019,7 +10340,8 @@ class DBSMOTE(OverSampling):
         return {'proportion': self.proportion, 
                 'eps': self.eps, 
                 'min_samples': self.min_samples, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class ASMOBD(OverSampling):
     """
@@ -10048,7 +10370,7 @@ class ASMOBD(OverSampling):
                  OverSampling.cat_noise_removal,
                  OverSampling.cat_uses_clustering]
     
-    def __init__(self, proportion= 1.0, min_samples= 3, eps= 0.8, eta= 0.5, T_1= 1.0, T_2= 1.0, t_1= 4.0, t_2= 4.0, a= 0.05, smoothing= 'linear', n_jobs= 1):
+    def __init__(self, proportion= 1.0, min_samples= 3, eps= 0.8, eta= 0.5, T_1= 1.0, T_2= 1.0, t_1= 4.0, t_2= 4.0, a= 0.05, smoothing= 'linear', n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -10091,6 +10413,8 @@ class ASMOBD(OverSampling):
         self.a= a
         self.smoothing= smoothing
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -10187,7 +10511,7 @@ class ASMOBD(OverSampling):
             _logger.info(self.__class__.__name__ + ": " +"All minority samples found to be noise, increasing noise thresholds")
             return ASMOBD(proportion= self.proportion, min_samples= self.min_samples, eps= self.eps,
                           eta= self.eta, T_1= self.T_1*1.5, T_2= self.T_2*1.5, t_1= self.t_1*1.5, t_2= self.t_2*1.5, 
-                          a= self.a, smoothing= self.smoothing, n_jobs= self.n_jobs).sample(X, y)
+                          a= self.a, smoothing= self.smoothing, n_jobs= self.n_jobs, random_state= self.random_state).sample(X, y)
         
         # removing noise and adjusting the density factors accordingly
         X_min_not_noise= X_min[not_noise]
@@ -10208,8 +10532,8 @@ class ASMOBD(OverSampling):
         # do the sampling
         samples= []
         while len(samples) < num_to_sample:
-            idx= np.random.choice(np.arange(len(X_min_not_noise)), p= density)
-            random_neighbor_idx= np.random.choice(ind[idx][1:])
+            idx= self.random_state.choice(np.arange(len(X_min_not_noise)), p= density)
+            random_neighbor_idx= self.random_state.choice(ind[idx][1:])
             samples.append(self.sample_between_points(X_min_not_noise[idx], X_min_not_noise[random_neighbor_idx]))
         
         return np.vstack([X, ss.inverse_transform(np.vstack(samples))]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
@@ -10229,7 +10553,8 @@ class ASMOBD(OverSampling):
                 't_2': self.t_2, 
                 'a': self.a, 
                 'smoothing': self.smoothing, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class Assembled_SMOTE(OverSampling):
     """
@@ -10259,7 +10584,7 @@ class Assembled_SMOTE(OverSampling):
                  OverSampling.cat_borderline,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, pop= 2, thres= 0.3, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, pop= 2, thres= 0.3, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -10271,6 +10596,7 @@ class Assembled_SMOTE(OverSampling):
             pop (int): lower threshold on cluster sizes
             thres (float): threshold on angles
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -10284,6 +10610,8 @@ class Assembled_SMOTE(OverSampling):
         self.pop= pop
         self.thres= thres
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -10405,10 +10733,10 @@ class Assembled_SMOTE(OverSampling):
         # do the sampling
         samples= []
         while len(samples) < num_to_sample:
-            cluster_idx= np.random.choice(len(vectors), p= densities)
-            sample_idx= np.random.choice(np.arange(len(vectors[cluster_idx])))
+            cluster_idx= self.random_state.choice(len(vectors), p= densities)
+            sample_idx= self.random_state.choice(np.arange(len(vectors[cluster_idx])))
             if len(vectors[cluster_idx]) > 1:
-                random_neighbor_idx= np.random.choice(nns[cluster_idx][1][sample_idx][1:])
+                random_neighbor_idx= self.random_state.choice(nns[cluster_idx][1][sample_idx][1:])
             else:
                 random_neighbor_idx= sample_idx
             samples.append(self.sample_between_points(vectors[cluster_idx][sample_idx], vectors[cluster_idx][random_neighbor_idx]))
@@ -10424,7 +10752,8 @@ class Assembled_SMOTE(OverSampling):
                 'n_neighbors': self.n_neighbors, 
                 'pop': self.pop, 
                 'thres': self.thres, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class SDSMOTE(OverSampling):
     """
@@ -10449,7 +10778,7 @@ class SDSMOTE(OverSampling):
                  OverSampling.cat_sample_ordinary,
                  OverSampling.cat_borderline]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -10459,6 +10788,7 @@ class SDSMOTE(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors in nearest neighbors component
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -10468,6 +10798,8 @@ class SDSMOTE(OverSampling):
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -10531,8 +10863,8 @@ class SDSMOTE(OverSampling):
         # do the sampling
         samples= []
         while len(samples) < num_to_sample:
-            idx= np.random.choice(np.arange(len(density)), p= density)
-            random_neighbor_idx= np.random.choice(ind[idx][1:])
+            idx= self.random_state.choice(np.arange(len(density)), p= density)
+            random_neighbor_idx= self.random_state.choice(ind[idx][1:])
             samples.append(self.sample_between_points(X_min[idx], X_min[random_neighbor_idx]))
 
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
@@ -10544,7 +10876,8 @@ class SDSMOTE(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class DSMOTE(OverSampling):
     """
@@ -10573,7 +10906,7 @@ class DSMOTE(OverSampling):
     
     categories= [OverSampling.cat_changes_majority]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, rate= 0.1, n_step= 50, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, rate= 0.1, n_step= 50, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -10585,6 +10918,7 @@ class DSMOTE(OverSampling):
             rate (float): [0,1] rate of minority samples to turn into majority
             n_step (int): number of random configurations to check for new samples
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -10598,6 +10932,8 @@ class DSMOTE(OverSampling):
         self.rate= rate
         self.n_step= n_step
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
     
     @classmethod
     def parameter_combinations(cls):
@@ -10710,7 +11046,7 @@ class DSMOTE(OverSampling):
             highest_score= 0.0
             # we try n_step combinations of minority samples
             for _ in range(min([len(X_min)*(len(X_min)-1)*(len(X_min)-2), self.n_step])):
-                i,j,k= np.random.choice(np.arange(len(X_min)), 3, replace= False)
+                i,j,k= self.random_state.choice(np.arange(len(X_min)), 3, replace= False)
                 gm= gmean(X_min[np.array([i,j,k])], axis= 0)
                 
                 # computing the new objective function for the new point (gm) added
@@ -10771,7 +11107,8 @@ class DSMOTE(OverSampling):
                 'n_neighbors': self.n_neighbors, 
                 'rate': self.rate, 
                 'n_step': self.n_step, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class G_SMOTE(OverSampling):
     """
@@ -10798,7 +11135,7 @@ class G_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_componentwise]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, method= 'linear', n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, method= 'linear', n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -10809,6 +11146,7 @@ class G_SMOTE(OverSampling):
             n_neighbors (int): number of neighbors in nearest neighbors component
             method (str): 'linear'/'non-linear_2.0' - the float can be any number: standard deviation in the Gaussian-kernel
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -10825,6 +11163,8 @@ class G_SMOTE(OverSampling):
         self.n_neighbors= n_neighbors
         self.method= method
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -10892,7 +11232,7 @@ class G_SMOTE(OverSampling):
         # generating samples
         samples= []
         while len(samples) < num_to_sample:
-            idx= np.random.randint(len(X_min))
+            idx= self.random_state.randint(len(X_min))
             # calculating difference vectors from all neighbors
             P= X_min[ind[idx][1:]] - X_min[idx]
             if self.method == 'linear':
@@ -10922,7 +11262,8 @@ class G_SMOTE(OverSampling):
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
                 'method': self.method, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class NT_SMOTE(OverSampling):
     """
@@ -10946,7 +11287,7 @@ class NT_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_application]
     
-    def __init__(self, proportion= 1.0, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -10955,6 +11296,7 @@ class NT_SMOTE(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -10962,6 +11304,8 @@ class NT_SMOTE(OverSampling):
         
         self.proportion= proportion
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
     
     @classmethod
     def parameter_combinations(cls):
@@ -11008,13 +11352,13 @@ class NT_SMOTE(OverSampling):
         samples= []
         while len(samples) < num_to_sample:
             # select point randomly
-            idx= np.random.randint(len(X_min))
+            idx= self.random_state.randint(len(X_min))
             P_1= X_min[idx]
             # find two closest neighbors
             P_2= X_min[ind[idx][1]]
             P_3= X_min[ind[idx][2]]
             # generate random point by sampling the specified triangle
-            samples.append((P_3 + np.random.random()*((P_1 + np.random.random()*(P_2 - P_1)) - P_3)))
+            samples.append((P_3 + self.random_state.random_sample()*((P_1 + self.random_state.random_sample()*(P_2 - P_1)) - P_3)))
         
         return np.vstack([X, samples]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
         
@@ -11024,7 +11368,8 @@ class NT_SMOTE(OverSampling):
             dict: the parameters of the current sampling object
         """
         return {'proportion': self.proportion, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class Lee(OverSampling):
     """
@@ -11054,7 +11399,7 @@ class Lee(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, rejection_level= 0.5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, rejection_level= 0.5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -11068,6 +11413,7 @@ class Lee(OverSampling):
                                         is higher than this number, the generated point
                                         is rejected
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -11079,6 +11425,8 @@ class Lee(OverSampling):
         self.n_neighbors= n_neighbors
         self.rejection_level= rejection_level
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -11143,8 +11491,8 @@ class Lee(OverSampling):
                 passed= 0
             trial= trial + 1
             # generating random point
-            idx= np.random.randint(len(X_min))
-            random_neighbor_idx= np.random.choice(ind_min[idx][1:])
+            idx= self.random_state.randint(len(X_min))
+            random_neighbor_idx= self.random_state.choice(ind_min[idx][1:])
             random_point= self.sample_between_points(X_min[idx], X_min[random_neighbor_idx])
             # checking if the local environment is above the rejection level
             dist_new, ind_new= nn.kneighbors(random_point.reshape(1, -1))
@@ -11163,7 +11511,8 @@ class Lee(OverSampling):
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
                 'rejection_level': self.rejection_level, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class SPY(OverSampling):
     """
@@ -11186,7 +11535,7 @@ class SPY(OverSampling):
     
     categories= [OverSampling.cat_changes_majority]
     
-    def __init__(self, n_neighbors= 5, threshold= 0.5, n_jobs= 1):
+    def __init__(self, n_neighbors= 5, threshold= 0.5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -11194,6 +11543,7 @@ class SPY(OverSampling):
             n_neighbors (int): number of neighbors in nearest neighbor component
             threshold (float): threshold*n_neighbors gives the threshold z described in the paper
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
@@ -11203,6 +11553,9 @@ class SPY(OverSampling):
         self.n_neighbors= n_neighbors
         self.threshold= threshold
         self.n_jobs= n_jobs
+        
+        # random state takes no effect for this technique
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -11290,7 +11643,7 @@ class SMOTE_PSOBAT(OverSampling):
                  OverSampling.cat_sample_ordinary,
                  OverSampling.cat_memetic]
     
-    def __init__(self, maxit= 50, c1= 0.3, c2= 0.1, c3= 0.1, alpha= 0.9, gamma= 0.9, method= 'bat', n_jobs= 1):
+    def __init__(self, maxit= 50, c1= 0.3, c2= 0.1, c3= 0.1, alpha= 0.9, gamma= 0.9, method= 'bat', n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -11303,6 +11656,7 @@ class SMOTE_PSOBAT(OverSampling):
             gamma (float): gamma parameter of the method
             method (str): optimization technique to be used
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(maxit, "maxit", 1)
@@ -11322,6 +11676,8 @@ class SMOTE_PSOBAT(OverSampling):
         self.gamma= gamma
         self.method= method
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -11373,14 +11729,14 @@ class SMOTE_PSOBAT(OverSampling):
             Returns:
                 float, float: kappa and accuracy scores
             """
-            X_samp, y_samp= SMOTE(proportion= proportion, n_neighbors= K, n_jobs= self.n_jobs).sample(X, y)
+            X_samp, y_samp= SMOTE(proportion= proportion, n_neighbors= K, n_jobs= self.n_jobs, random_state= self.random_state).sample(X, y)
             
             # doing k-fold cross validation
             kfold= KFold(5)
             preds= []
             tests= []
             for train, test in kfold.split(X_samp):
-                preds.append(DecisionTreeClassifier().fit(X_samp[train], y_samp[train]).predict(X_samp[test]))
+                preds.append(DecisionTreeClassifier(random_state= self.random_state).fit(X_samp[train], y_samp[train]).predict(X_samp[test]))
                 tests.append(y_samp[test])
             preds= np.hstack(preds)
             tests= np.hstack(tests)
@@ -11412,7 +11768,7 @@ class SMOTE_PSOBAT(OverSampling):
             n_pop= 10
             
             # initial particles
-            ps= [np.array([np.random.randint(k_range[0], k_range[1]), np.random.random()*(proportion_range[1] - proportion_range[0]) + proportion_range[0]]) for _ in range(n_pop)]
+            ps= [np.array([self.random_state.randint(k_range[0], k_range[1]), self.random_state.random_sample()*(proportion_range[1] - proportion_range[0]) + proportion_range[0]]) for _ in range(n_pop)]
             # initial velocities
             velocities= [np.array([0, 0]) for _ in range(n_pop)]
             # best configurations of particles
@@ -11493,7 +11849,7 @@ class SMOTE_PSOBAT(OverSampling):
             f_max= 10
             
             # initial bat positions
-            bats= [np.array([np.random.randint(k_range[0], k_range[1]), np.random.random()*(proportion_range[1] - proportion_range[0]) + proportion_range[0]]) for _ in range(n_pop)]
+            bats= [np.array([self.random_state.randint(k_range[0], k_range[1]), self.random_state.random_sample()*(proportion_range[1] - proportion_range[0]) + proportion_range[0]]) for _ in range(n_pop)]
             # initial velocities
             velocities= [np.array([0, 0]) for _ in range(10)]
             # best configurations of particles
@@ -11501,11 +11857,11 @@ class SMOTE_PSOBAT(OverSampling):
             # scores of best configurations of particles
             global_best= [[0.0, 0.0], bats[0].copy()]
             # pulse frequencies
-            f= np.random.random(size= n_pop)*f_max
+            f= self.random_state.random_sample(size= n_pop)*f_max
             # pulse rates
-            r= np.random.random(size= n_pop)
+            r= self.random_state.random_sample(size= n_pop)
             # loudness
-            A= np.random.random(size= n_pop)
+            A= self.random_state.random_sample(size= n_pop)
             
             # gamma parameter according to the BAT paper
             gamma= self.gamma
@@ -11523,7 +11879,7 @@ class SMOTE_PSOBAT(OverSampling):
                     break
                 
                 # update frequencies
-                f= np.random.random(size= n_pop)*f_max
+                f= self.random_state.random_sample(size= n_pop)*f_max
                 
                 # update velocities
                 for i in range(len(velocities)):
@@ -11537,9 +11893,9 @@ class SMOTE_PSOBAT(OverSampling):
                 
                 for i in range(n_pop):
                     # generate local solution
-                    if np.random.random() > r[i]:
-                        random_best_sol= local_best[i][np.random.randint(min([len(local_best[i]), 5]))][1]
-                        bats[i]= random_best_sol + np.random.random(size=len(bat_star))*A[i]
+                    if self.random_state.random_sample() > r[i]:
+                        random_best_sol= local_best[i][self.random_state.randint(min([len(local_best[i]), 5]))][1]
+                        bats[i]= random_best_sol + self.random_state.random_sample(size=len(bat_star))*A[i]
                 
                 # evaluate and do local search
                 for i in range(n_pop):
@@ -11564,11 +11920,11 @@ class SMOTE_PSOBAT(OverSampling):
                         improved_local= True
                     
                     # local search in the bet algorithm
-                    if np.random.random() < A[i] and improved_local:
+                    if self.random_state.random_sample() < A[i] and improved_local:
                         local_best[i].append([scores, bats[i].copy()])
                         A[i]= A[i]*alpha
                         r[i]= r[i]*(1 - np.exp(-gamma*t))
-                    if np.random.random() < A[i] and improved_global:
+                    if self.random_state.random_sample() < A[i] and improved_global:
                         global_best= [scores, bats[i].copy()]
 
                     # ranking local solutions to keep track of the best 5
@@ -11585,7 +11941,7 @@ class SMOTE_PSOBAT(OverSampling):
         else:
             raise ValueError(self.__class__.__name__ + ": " + "Search method %s not supported yet." % self.method)
         
-        return SMOTE(proportion= best_combination[1], n_neighbors= int(best_combination[0]), n_jobs= self.n_jobs).sample(X, y)
+        return SMOTE(proportion= best_combination[1], n_neighbors= int(best_combination[0]), n_jobs= self.n_jobs, random_state= self.random_state).sample(X, y)
         
     def get_params(self, deep=False):
         """
@@ -11599,7 +11955,8 @@ class SMOTE_PSOBAT(OverSampling):
                 'alpha': self.alpha, 
                 'gamma': self.gamma, 
                 'method': self.method, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class MDO(OverSampling):
     """
@@ -11623,7 +11980,7 @@ class MDO(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_dim_reduction]
     
-    def __init__(self, proportion= 1.0, K2= 5, K1_frac= 0.5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, K2= 5, K1_frac= 0.5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -11634,6 +11991,7 @@ class MDO(OverSampling):
             K2 (int): number of neighbors
             K1_frac (float): the fraction of K2 to set K1
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -11645,6 +12003,8 @@ class MDO(OverSampling):
         self.K2= K2
         self.K1_frac= K1_frac
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -11721,7 +12081,7 @@ class MDO(OverSampling):
         samples= []
         while len(samples) < num_to_sample:
             # selecting a sample randomly according to the distribution
-            idx= np.random.choice(np.arange(len(X_sel)), p= weights)
+            idx= self.random_state.choice(np.arange(len(X_sel)), p= weights)
             
             # finding vector in PCA space
             X_temp= T[idx]
@@ -11738,7 +12098,7 @@ class MDO(OverSampling):
             # sampling components of the new vector
             s= 0
             for j in range(len(X_temp)-1):
-                r= (2*np.random.random()-1)*np.sqrt(alpha_V[j])
+                r= (2*self.random_state.random_sample()-1)*np.sqrt(alpha_V[j])
                 X_new[j]= r
                 s= s + (r**2/alpha_V[j])
             
@@ -11750,7 +12110,7 @@ class MDO(OverSampling):
                     tmp= 0
                 last_fea_val= np.sqrt(tmp)
             # determine last component to fulfill the ellipse equation
-            X_new[-1]= (2*np.random.random()-1)*last_fea_val
+            X_new[-1]= (2*self.random_state.random_sample()-1)*last_fea_val
             # append to new samples
             samples.append(X_new)
 
@@ -11764,7 +12124,8 @@ class MDO(OverSampling):
         return {'proportion': self.proportion, 
                 'K2': self.K2, 
                 'K1_frac': self.K1_frac, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class Random_SMOTE(OverSampling):
     """
@@ -11790,7 +12151,7 @@ class Random_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_componentwise]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -11800,6 +12161,8 @@ class Random_SMOTE(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
+            
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -11809,6 +12172,8 @@ class Random_SMOTE(OverSampling):
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -11856,8 +12221,8 @@ class Random_SMOTE(OverSampling):
         # generating samples
         samples= []
         while len(samples) < num_to_sample:
-            idx= np.random.choice(np.arange(len(X_min)))
-            y_1_idx, y_2_idx= np.random.choice(ind[idx][1:], 2)
+            idx= self.random_state.choice(np.arange(len(X_min)))
+            y_1_idx, y_2_idx= self.random_state.choice(ind[idx][1:], 2)
             t= self.sample_between_points_componentwise(X_min[y_1_idx], X_min[y_2_idx])
             samples.append(self.sample_between_points_componentwise(X_min[idx], t))
         
@@ -11870,7 +12235,8 @@ class Random_SMOTE(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class ISMOTE(OverSampling):
     """
@@ -11897,7 +12263,7 @@ class ISMOTE(OverSampling):
     
     categories= [OverSampling.cat_changes_majority]
     
-    def __init__(self, n_neighbors= 5, minority_weight= 0.5, n_jobs= 1):
+    def __init__(self, n_neighbors= 5, minority_weight= 0.5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -11905,6 +12271,7 @@ class ISMOTE(OverSampling):
             n_neighbors (int): number of neighbors
             minority_weight (float): weight parameter according to the paper
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
@@ -11914,6 +12281,8 @@ class ISMOTE(OverSampling):
         self.n_neighbors= n_neighbors
         self.minority_weight= minority_weight
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -11974,14 +12343,14 @@ class ISMOTE(OverSampling):
         # do the oversampling
         samples= []
         while len(samples) < num_to_sample:
-            idx= np.random.choice(np.arange(len(X_min)))
-            y_idx= np.random.choice(ind[idx][1:])
+            idx= self.random_state.choice(np.arange(len(X_min)))
+            y_idx= self.random_state.choice(ind[idx][1:])
             
             # different generation scheme depending on the class label
             if y_new[y_idx] == self.minority_label:
-                samples.append(X_min[idx] + np.random.random()*(X_new[y_idx] - X_min[idx])*self.minority_weight)
+                samples.append(X_min[idx] + self.random_state.random_sample()*(X_new[y_idx] - X_min[idx])*self.minority_weight)
             else:
-                samples.append(X_min[idx] + np.random.random()*(X_new[y_idx] - X_min[idx])*(1.0 - self.minority_weight))
+                samples.append(X_min[idx] + self.random_state.random_sample()*(X_new[y_idx] - X_min[idx])*(1.0 - self.minority_weight))
         
         return np.vstack([X_new, np.vstack(samples)]), np.hstack([y_new, np.repeat(self.minority_label, len(samples))])
         
@@ -11992,7 +12361,8 @@ class ISMOTE(OverSampling):
         """
         return {'n_neighbors': self.n_neighbors, 
                 'minority_weight': self.minority_weight, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class VIS_RST(OverSampling):
     """
@@ -12021,7 +12391,7 @@ class VIS_RST(OverSampling):
     categories= [OverSampling.cat_changes_majority,
                  OverSampling.cat_noise_removal]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -12031,6 +12401,7 @@ class VIS_RST(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (int): number of neighbors
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0.0)
@@ -12040,6 +12411,8 @@ class VIS_RST(OverSampling):
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -12134,7 +12507,7 @@ class VIS_RST(OverSampling):
         mask= np.repeat(False, len(X_min))
         while len(samples) < num_to_sample:
             # choosing a random minority sample
-            idx= np.random.choice(np.arange(len(X_min)))
+            idx= self.random_state.choice(np.arange(len(X_min)))
             
             # implementation of sampling rules depending on the mode
             if mode == 'high_complexity':
@@ -12144,17 +12517,17 @@ class VIS_RST(OverSampling):
                     samples.append(X_min[idx])
                     mask[idx]= True
                 else:
-                    samples.append(self.sample_between_points(X_min[idx], X_min[np.random.choice(ind_min[idx][1:])]))
+                    samples.append(self.sample_between_points(X_min[idx], X_min[self.random_state.choice(ind_min[idx][1:])]))
             elif mode == 'low_complexity':
                 if labels[idx] == 'noise':
                     pass
                 elif labels[idx] == 'danger':
-                    samples.append(self.sample_between_points(X_min[idx], X_min[np.random.choice(ind_min[idx][1:])]))
+                    samples.append(self.sample_between_points(X_min[idx], X_min[self.random_state.choice(ind_min[idx][1:])]))
                 elif not mask[idx]:
                     samples.append(X_min[idx]) 
                     mask[idx]= True
             else:
-                samples.add(self.sample_between_points(X_min[idx], X_min[np.random.choice(ind_min[idx][1:])]))
+                samples.add(self.sample_between_points(X_min[idx], X_min[self.random_state.choice(ind_min[idx][1:])]))
         
         X_samp= np.vstack(samples)
         
@@ -12173,7 +12546,8 @@ class VIS_RST(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class GASMOTE(OverSampling):
     """
@@ -12203,7 +12577,7 @@ class GASMOTE(OverSampling):
                  OverSampling.cat_memetic,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, n_neighbors= 5, maxn= 7, n_pop= 10, popl3= 5, pm= 0.3, pr= 0.2, Ge= 10, n_jobs= 1):
+    def __init__(self, n_neighbors= 5, maxn= 7, n_pop= 10, popl3= 5, pm= 0.3, pr= 0.2, Ge= 10, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -12216,6 +12590,7 @@ class GASMOTE(OverSampling):
             pr (float): selection probability
             Ge (int): number of generations
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
@@ -12234,6 +12609,8 @@ class GASMOTE(OverSampling):
         self.pr= pr
         self.Ge= Ge
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -12289,7 +12666,7 @@ class GASMOTE(OverSampling):
             samples= []
             for i in range(len(conf)):
                 for _ in range(conf[i]):
-                    samples.append(self.sample_between_points(X_min[i], X_min[np.random.choice(ind[i][1:])]))
+                    samples.append(self.sample_between_points(X_min[i], X_min[self.random_state.choice(ind[i][1:])]))
             
             if len(samples) == 0:
                 # if no samples are generated
@@ -12303,7 +12680,7 @@ class GASMOTE(OverSampling):
             # execute kfold cross validation
             preds, tests= [], []
             for train, test in kfold.split(X_new):
-                dt= DecisionTreeClassifier().fit(X_new[train], y_new[train])
+                dt= DecisionTreeClassifier(random_state= self.random_state).fit(X_new[train], y_new[train])
                 preds.append(dt.predict(X_new[test]))
                 tests.append(y_new[test])
             preds= np.hstack(preds)
@@ -12331,7 +12708,7 @@ class GASMOTE(OverSampling):
                 list(list), list(list): the configurations after crossover
             """
             for _ in range(self.popl3):
-                k= np.random.randint(len(conf_a))
+                k= self.random_state.randint(len(conf_a))
                 conf_a, conf_b= np.hstack([conf_a[:k], conf_b[k:]]), np.hstack([conf_b[:k], conf_a[k:]])
             return conf_a, conf_b
         
@@ -12344,19 +12721,19 @@ class GASMOTE(OverSampling):
                 ge (int): iteration number
             """
             conf= conf.copy()
-            if np.random.random() < self.pm:
+            if self.random_state.random_sample() < self.pm:
                 pass
             else:
                 for i in range(len(conf)):
-                    r= np.random.random()**((1 - ge/self.Ge)**3)
-                    if np.random.randint(2) == 0:
+                    r= self.random_state.random_sample()**((1 - ge/self.Ge)**3)
+                    if self.random_state.randint(2) == 0:
                         conf[i]= int(conf[i] + (self.maxn - conf[i])*r)
                     else:
                         conf[i]= int(conf[i] - (conf[i] - 0)*r)
             return conf
         
         # generate initial population
-        population= [[np.random.randint(self.maxn, size=len(X_min)), 0] for _ in range(self.n_pop)]
+        population= [[self.random_state.randint(self.maxn, size=len(X_min)), 0] for _ in range(self.n_pop)]
         
         # calculate fitness values
         for p in population:
@@ -12378,13 +12755,13 @@ class GASMOTE(OverSampling):
             
             # crossover
             for _ in range(int(self.n_pop/2)):
-                conf_a, conf_b= crossover(population[np.random.randint(self.n_pop)][0], population[np.random.randint(self.n_pop)][0])
+                conf_a, conf_b= crossover(population[self.random_state.randint(self.n_pop)][0], population[self.random_state.randint(self.n_pop)][0])
                 population.append([conf_a, fitness(conf_a)])
                 population.append([conf_b, fitness(conf_b)])
             
             #mutation
             for _ in range(int(self.n_pop/2)):
-                conf= mutation(population[np.random.randint(self.n_pop)][0], ge)
+                conf= mutation(population[self.random_state.randint(self.n_pop)][0], ge)
                 population.append([conf, fitness(conf)])
                 
             ge= ge + 1
@@ -12399,7 +12776,7 @@ class GASMOTE(OverSampling):
         samples= []
         for i in range(len(conf)):
             for _ in range(conf[i]):
-                samples.append(self.sample_between_points(X_min[i], X_min[np.random.choice(ind[i][1:])]))
+                samples.append(self.sample_between_points(X_min[i], X_min[self.random_state.choice(ind[i][1:])]))
                 
         if len(samples) == 0:
             return X.copy(), y.copy()
@@ -12418,7 +12795,8 @@ class GASMOTE(OverSampling):
                 'pm': self.pm, 
                 'pr': self.pr, 
                 'Ge': self.Ge, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class A_SUWO(OverSampling):
     """
@@ -12448,7 +12826,7 @@ class A_SUWO(OverSampling):
                  OverSampling.cat_density_based,
                  OverSampling.cat_noise_removal]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_clus_maj= 7, c_thres= 0.8, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_clus_maj= 7, c_thres= 0.8, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -12460,6 +12838,7 @@ class A_SUWO(OverSampling):
             n_clus_maj (int): number of majority clusters
             c_thres (float): threshold on distances
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -12473,6 +12852,8 @@ class A_SUWO(OverSampling):
         self.n_clus_maj= n_clus_maj
         self.c_thres= c_thres
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -12611,7 +12992,7 @@ class A_SUWO(OverSampling):
             # checking if cluster size is higher than 1
             if len(c) > 1:
                 k= min([len(c), 5])
-                kfold= KFold(k)
+                kfold= KFold(k, random_state= self.random_state)
                 preds= []
                 # executing k-fold cross validation with linear discriminant analysis
                 for train, test in kfold.split(X_min[c]):
@@ -12658,11 +13039,11 @@ class A_SUWO(OverSampling):
         samples= []
         while len(samples) < num_to_sample:
             # choose random cluster index
-            cluster_idx= np.random.choice(np.arange(len(min_clusters)), p= min_cluster_dist)
+            cluster_idx= self.random_state.choice(np.arange(len(min_clusters)), p= min_cluster_dist)
             if len(min_clusters[cluster_idx]) > 1:
                 # if the cluster has at least two elemenets
-                sample_idx= np.random.choice(np.arange(len(min_clusters[cluster_idx])), p= within_cluster_dist[cluster_idx])
-                neighbor_idx= np.random.choice(within_cluster_neighbors[cluster_idx][sample_idx][1:])
+                sample_idx= self.random_state.choice(np.arange(len(min_clusters[cluster_idx])), p= within_cluster_dist[cluster_idx])
+                neighbor_idx= self.random_state.choice(within_cluster_neighbors[cluster_idx][sample_idx][1:])
                 point= X_min[min_clusters[cluster_idx][sample_idx]]
                 neighbor= X_min[min_clusters[cluster_idx][neighbor_idx]]
                 samples.append(self.sample_between_points(point, neighbor))
@@ -12680,7 +13061,8 @@ class A_SUWO(OverSampling):
                 'n_neighbors': self.n_neighbors, 
                 'n_clus_maj': self.n_clus_maj, 
                 'c_thres': self.c_thres, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class SMOTE_FRST_2T(OverSampling):
     """
@@ -12711,7 +13093,7 @@ class SMOTE_FRST_2T(OverSampling):
                  OverSampling.cat_sample_ordinary,
                  OverSampling.cat_application]
     
-    def __init__(self, n_neighbors= 5, gamma_S= 0.7, gamma_M= 0.03, n_jobs= 1):
+    def __init__(self, n_neighbors= 5, gamma_S= 0.7, gamma_M= 0.03, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -12720,6 +13102,7 @@ class SMOTE_FRST_2T(OverSampling):
             gamma_S (float): threshold of synthesized samples
             gamma_M (float): threshold of majority samples
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
@@ -12731,6 +13114,8 @@ class SMOTE_FRST_2T(OverSampling):
         self.gamma_M= gamma_M
         self.n_neighbors= n_neighbors
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -12802,7 +13187,7 @@ class SMOTE_FRST_2T(OverSampling):
             prop= max(1.1/diff, 0.2)
             
             # executing SMOTE to generate some minority samples
-            X_samp, y_samp= SMOTE(proportion= prop, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs).sample(X, y)
+            X_samp, y_samp= SMOTE(proportion= prop, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs, random_state= self.random_state).sample(X, y)
             X_samp= X_samp[len(X):]
             
             new_synth= []
@@ -12872,7 +13257,8 @@ class SMOTE_FRST_2T(OverSampling):
         return {'n_neighbors': self.n_neighbors, 
                 'gamma_S': self.gamma_S, 
                 'gamma_M': self.gamma_M, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class AND_SMOTE(OverSampling):
     """
@@ -12902,7 +13288,7 @@ class AND_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 1.0, K= 15, n_jobs= 1):
+    def __init__(self, proportion= 1.0, K= 15, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -12912,6 +13298,7 @@ class AND_SMOTE(OverSampling):
                                     samples will be equal to the number of majority samples
             K (int): maximum number of nearest neighbors
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -12921,6 +13308,7 @@ class AND_SMOTE(OverSampling):
         self.proportion= proportion
         self.K= K
         self.n_jobs= n_jobs
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -13032,9 +13420,9 @@ class AND_SMOTE(OverSampling):
         samples= []
         while len(samples) < num_to_sample:
             # choose random point
-            idx= np.random.randint(len(X_min))
+            idx= self.random_state.randint(len(X_min))
             if kappa[idx] > 0:
-                samples.append(self.sample_between_points(X_min[idx], X_min[np.random.choice(ind[idx][1:(kappa[idx]+1)])]))
+                samples.append(self.sample_between_points(X_min[idx], X_min[self.random_state.choice(ind[idx][1:(kappa[idx]+1)])]))
         
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
 
@@ -13045,7 +13433,8 @@ class AND_SMOTE(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'K': self.K, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class NRAS(OverSampling):
     """
@@ -13069,7 +13458,7 @@ class NRAS(OverSampling):
     categories= [OverSampling.cat_sample_ordinary,
                  OverSampling.cat_noise_removal]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, t= 0.5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, t= 0.5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -13080,6 +13469,7 @@ class NRAS(OverSampling):
             n_neighbors (int): number of neighbors
             t (float): [0,1] fraction of n_neighbors as threshold
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -13091,6 +13481,8 @@ class NRAS(OverSampling):
         self.n_neighbors= n_neighbors
         self.t= t
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -13130,7 +13522,7 @@ class NRAS(OverSampling):
         X_trans= mms.fit_transform(X)
         
         # determining propensity scores using logistic regression
-        lr= LogisticRegression(solver= 'lbfgs', n_jobs= self.n_jobs)
+        lr= LogisticRegression(solver= 'lbfgs', n_jobs= self.n_jobs, random_state= self.random_state)
         lr.fit(X_trans, y)
         propensity= lr.predict_proba(X_trans)[:,np.where(lr.classes_ == self.minority_label)[0][0]]
         
@@ -13150,7 +13542,7 @@ class NRAS(OverSampling):
         samples= []
         to_remove= []
         while len(samples) < num_to_sample:
-            idx= np.random.randint(len(X_min))
+            idx= self.random_state.randint(len(X_min))
             # finding the number of minority neighbors
             t_hat= np.sum(y[ind[idx][1:]] == self.minority_label)
             if t_hat < self.t*n_neighbors:
@@ -13166,7 +13558,7 @@ class NRAS(OverSampling):
                     return X.copy(), y.copy()
             else:
                 # otherwise do the sampling
-                samples.append(self.sample_between_points(X_min[idx], X_trans[np.random.choice(ind[idx][1:])]))
+                samples.append(self.sample_between_points(X_min[idx], X_trans[self.random_state.choice(ind[idx][1:])]))
         
         # remove noisy elements
         X_maj= X_trans[y == self.majority_label]
@@ -13182,7 +13574,8 @@ class NRAS(OverSampling):
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
                 't': self.t, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class AMSCO(OverSampling):
     """
@@ -13221,7 +13614,7 @@ class AMSCO(OverSampling):
                  OverSampling.cat_memetic,
                  OverSampling.cat_uses_classifier]
     
-    def __init__(self, n_pop= 5, n_iter= 15, omega= 0.1, r1= 0.1, r2= 0.1, n_jobs= 1, classifier= DecisionTreeClassifier()):
+    def __init__(self, n_pop= 5, n_iter= 15, omega= 0.1, r1= 0.1, r2= 0.1, n_jobs= 1, classifier= DecisionTreeClassifier(random_state= 2), random_state= None):
         """
         Constructor of the sampling object
         
@@ -13249,6 +13642,8 @@ class AMSCO(OverSampling):
         self.n_jobs= n_jobs
         self.classifier= classifier
         
+        self.set_random_state(random_state)
+        
     @classmethod
     def parameter_combinations(cls):
         """
@@ -13264,7 +13659,7 @@ class AMSCO(OverSampling):
                                                     'omega': [0.1], 
                                                     'r1': [0.1], 
                                                     'r2': [0.1], 
-                                                    'classifier': [DecisionTreeClassifier()]})
+                                                    'classifier': [DecisionTreeClassifier(random_state= 2)]})
     
     def sample(self, X, y):
         """
@@ -13344,7 +13739,7 @@ class AMSCO(OverSampling):
             
             # initialize particles, first coordinate represents proportion parameter of SMOTE
             # the second coordinate represents the number of neighbors to take into consideration
-            particles= [np.array([np.random.random()/2.0+0.5, np.random.randint(3, 10)]) for _ in range(self.n_pop)]
+            particles= [np.array([self.random_state.random_sample()/2.0+0.5, self.random_state.randint(3, 10)]) for _ in range(self.n_pop)]
             # velocities initialized
             velocities= [np.array([0.1, 1]) for _ in range(self.n_pop)]
             # setting the limits of the search space
@@ -13380,7 +13775,7 @@ class AMSCO(OverSampling):
                 scores= []
                 for i in range(len(particles)):
                     # apply SMOTE
-                    X_samp, y_samp= SMOTE(particles[i][0], int(np.rint(particles[i][1])), n_jobs= self.n_jobs).sample(np.vstack([X_maj, X_min]), np.hstack([np.repeat(self.majority_label, len(X_maj)), np.repeat(self.minority_label, len(X_min))]))
+                    X_samp, y_samp= SMOTE(particles[i][0], int(np.rint(particles[i][1])), n_jobs= self.n_jobs, random_state= self.random_state).sample(np.vstack([X_maj, X_min]), np.hstack([np.repeat(self.majority_label, len(X_maj)), np.repeat(self.minority_label, len(X_min))]))
                     # evaluate
                     scores.append(fitness(X_samp[len(X_maj):], X_samp[:len(X_maj)]))
                     # update scores according to the multiobjective setting
@@ -13411,7 +13806,7 @@ class AMSCO(OverSampling):
                 return X_min, X_maj
             
             # initiate particles
-            particles= [np.random.choice(np.arange(len(X_maj)), np.random.randint(min_num, max_num)) for _ in range(self.n_pop)]
+            particles= [self.random_state.choice(np.arange(len(X_maj)), self.random_state.randint(min_num, max_num)) for _ in range(self.n_pop)]
             scores= [fitness(X_min, X_maj[particles[i]]) for i in range(self.n_pop)]
             best_score= (0.0, 0.0)
             best_dataset= None
@@ -13421,11 +13816,11 @@ class AMSCO(OverSampling):
                 # the way mutation or applying PSO is not described in the paper in details
                 for i in range(self.n_pop):
                     # removing some random elements
-                    to_remove= np.random.choice(np.arange(len(particles[i])), np.random.randint(0, min([10, len(particles[i])])))
+                    to_remove= self.random_state.choice(np.arange(len(particles[i])), self.random_state.randint(0, min([10, len(particles[i])])))
                     mutant= np.delete(particles[i], to_remove)
                     # adding some random elements
                     diff= list(set(np.arange(len(X_maj))).difference(set(particles[i])))
-                    mutant= np.hstack([mutant, np.array(np.random.choice(diff, np.random.randint(0, min([10, len(diff)]))))])
+                    mutant= np.hstack([mutant, np.array(self.random_state.choice(diff, self.random_state.randint(0, min([10, len(diff)]))))])
                     # evaluating the variant
                     score= fitness(X_min, X_maj[mutant])
                     if score[1] > scores[i][1]:
@@ -13471,7 +13866,8 @@ class AMSCO(OverSampling):
                 'r1': self.r1, 
                 'r2': self.r2, 
                 'n_jobs': self.n_jobs, 
-                'classifier': self.classifier}
+                'classifier': self.classifier,
+                'random_state': self._random_state_init}
 
 class SSO(OverSampling):
     """
@@ -13505,7 +13901,7 @@ class SSO(OverSampling):
                  OverSampling.cat_uses_clustering,
                  OverSampling.cat_density_based]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, h= 10, n_iter= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, h= 10, n_iter= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -13517,6 +13913,7 @@ class SSO(OverSampling):
             h (int): number of hidden units
             n_iter (int): optimization steps
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -13530,6 +13927,8 @@ class SSO(OverSampling):
         self.h= h
         self.n_iter= n_iter
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -13572,7 +13971,7 @@ class SSO(OverSampling):
             
             # applying kmeans clustering to find the hidden neurons
             h= min([self.h, len(X_min)])
-            kmeans= KMeans(n_clusters= h, n_jobs= self.n_jobs)
+            kmeans= KMeans(n_clusters= h, n_jobs= self.n_jobs, random_state= self.random_state)
             kmeans.fit(X)
             
             # extracting the hidden center elements
@@ -13655,10 +14054,10 @@ class SSO(OverSampling):
         
             samples= []
             for _ in range(samp_per_iter):
-                idx= np.random.choice(np.arange(len(X_min)), p= weights)
+                idx= self.random_state.choice(np.arange(len(X_min)), p= weights)
                 X_new= X_min[idx].copy()
                 for s in range(len(X_new)):
-                    lam= np.random.random()*(2*(1 - weights[idx])) - (1 - weights[idx])
+                    lam= self.random_state.random_sample()*(2*(1 - weights[idx])) - (1 - weights[idx])
                     X_new[s]= X_new[s] + Q*lam
                 samples.append(X_new)
             
@@ -13677,7 +14076,8 @@ class SSO(OverSampling):
                 'n_neighbors': self.n_neighbors, 
                 'h': self.h, 
                 'n_iter': self.n_iter, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class NDO_sampling(OverSampling):
     """
@@ -13702,7 +14102,7 @@ class NDO_sampling(OverSampling):
                  OverSampling.cat_sample_ordinary,
                  OverSampling.cat_application]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, T= 0.5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, T= 0.5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -13713,6 +14113,7 @@ class NDO_sampling(OverSampling):
             n_neighbors (int): number of neighbors
             T (float): threshold parameter
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -13724,6 +14125,8 @@ class NDO_sampling(OverSampling):
         self.n_neighbors= n_neighbors
         self.T= T
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -13783,18 +14186,18 @@ class NDO_sampling(OverSampling):
         
         # deciding if SMOTE is enough
         if alpha < self.T:
-            return SMOTE(self.proportion).sample(X, y)
+            return SMOTE(self.proportion, random_state= self.random_state).sample(X, y)
         
         # do the sampling
         samples= []
         while len(samples) < num_to_sample:
-            idx= np.random.randint(len(X_min))
-            random_idx= np.random.choice(ind[idx][1:])
+            idx= self.random_state.randint(len(X_min))
+            random_idx= self.random_state.choice(ind[idx][1:])
             # create sample close to the initial minority point
-            samples.append(X_min[idx] + (X[random_idx] - X_min[idx])*np.random.random()/2.0)
+            samples.append(X_min[idx] + (X[random_idx] - X_min[idx])*self.random_state.random_sample()/2.0)
             if y[random_idx] == self.minority_label:
                 # create another sample close to the neighboring minority point
-                samples.append(X[random_idx] + (X_min[idx] - X[random_idx])*np.random.random()/2.0)
+                samples.append(X[random_idx] + (X_min[idx] - X[random_idx])*self.random_state.random_sample()/2.0)
                     
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
 
@@ -13806,13 +14209,14 @@ class NDO_sampling(OverSampling):
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
                 'T': self.T, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
-class RBFNeuron:
+class RBFNeuron(RandomStateMixin):
     """
     This class abstracts a neuron of an RBF network
     """
-    def __init__(self, c, I, O, ranges, range_mins, init_conn_mask, init_conn_weights):
+    def __init__(self, c, I, O, ranges, range_mins, init_conn_mask, init_conn_weights, random_state= None):
         """
         Constructor of the neuron
         
@@ -13824,6 +14228,7 @@ class RBFNeuron:
             range_min (np.array): lower bounds of parameter ranges
             init_conn_mask (np.array): initial input connections
             init_conn_weights (np.array): initial weights of input connections
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         self.d= len(c)
         self.c= c
@@ -13833,10 +14238,13 @@ class RBFNeuron:
         self.init_conn_weights= init_conn_weights
         self.ranges= ranges
         self.range_mins= range_mins
-        self.beta= (np.random.random()-0.5)*O
+        
+        self.set_random_state(random_state)
+        
+        self.beta= (self.random_state.random_sample()-0.5)*O
         self.mask= init_conn_mask
         self.input_weights= init_conn_weights
-        self.r= np.random.random()
+        self.r= self.random_state.random_sample()
     
     def clone(self):
         """
@@ -13845,11 +14253,12 @@ class RBFNeuron:
         Returns:
             RBFNeuron: an identical neuron
         """
-        r= RBFNeuron(self.c, self.I, self.O, self.ranges, self.range_mins, self.init_conn_mask, self.init_conn_weights)
+        r= RBFNeuron(self.c, self.I, self.O, self.ranges, self.range_mins, self.init_conn_mask, self.init_conn_weights, random_state= self.random_state)
         r.beta= self.beta
         r.mask= self.mask.copy()
         r.input_weights= self.input_weights.copy()
         r.r= self.r
+        
         return r
     
     def evaluate(self, X):
@@ -13869,47 +14278,47 @@ class RBFNeuron:
         """
         Mutates the neuron
         """
-        r= np.random.random()
+        r= self.random_state.random_sample()
         if r < 0.2:
             # centre creep
-            self.c= np.random.normal(self.c, self.r)
+            self.c= self.random_state.normal(self.c, self.r)
         elif r < 0.4:
             # radius creep
-            tmp= np.random.normal(self.r, np.var(self.ranges))
+            tmp= self.random_state.normal(self.r, np.var(self.ranges))
             if tmp > 0:
                 self.r= tmp
         elif r < 0.6:
             # randomize centers
-            self.c= np.random.random(size=len(self.c))*self.ranges + self.range_mins
+            self.c= self.random_state.random_sample(size=len(self.c))*self.ranges + self.range_mins
         elif r < 0.8:
             # randomize radii 
-            self.r= np.random.random()*np.mean(self.ranges)
+            self.r= self.random_state.random_sample()*np.mean(self.ranges)
         else:
             # randomize output weight
-            self.beta= np.random.normal(self.beta, self.O)
+            self.beta= self.random_state.normal(self.beta, self.O)
     
     def add_connection(self):
         """
         Adds a random input connection to the neuron
         """
         if len(self.mask) < self.d:
-            self.mask= np.hstack([self.mask, np.array(np.random.choice(list(set(range(self.d)).difference(set(self.mask.tolist())))))])
-            self.input_weights= np.hstack([self.input_weights, (np.random.random()-0.5)*self.I])
+            self.mask= np.hstack([self.mask, np.array(self.random_state.choice(list(set(range(self.d)).difference(set(self.mask.tolist())))))])
+            self.input_weights= np.hstack([self.input_weights, (self.random_state.random_sample()-0.5)*self.I])
             
     def delete_connection(self):
         """
         Deletes a random input connection
         """
         if len(self.mask) > 1:
-            idx= np.random.randint(len(self.mask))
+            idx= self.random_state.randint(len(self.mask))
             self.mask= np.delete(self.mask, idx)
             self.input_weights= np.delete(self.input_weights, idx)
     
-class RBF:
+class RBF(RandomStateMixin):
     """
     RBF network abstraction
     """
-    def __init__(self, X, m_min, m_max, I, O, init_conn_mask, init_conn_weights):
+    def __init__(self, X, m_min, m_max, I, O, init_conn_mask, init_conn_weights, random_state= None):
         """
         Initializes the RBF network
         
@@ -13921,6 +14330,7 @@ class RBF:
             O (float): maximum absolute value of output weights
             init_conn_mask (np.array): initial input connections
             init_conn_weights (np.array): initial input weights
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         self.X= X
         self.m_min= m_min
@@ -13930,16 +14340,18 @@ class RBF:
         self.init_conn_mask= init_conn_mask
         self.init_conn_weights= init_conn_weights
         
+        self.set_random_state(random_state)
+        
         self.neurons= []
         self.range_mins= np.min(X, axis= 0)
         self.ranges= np.max(X, axis= 0) - self.range_mins
         
         # adding initial neurons
-        num_neurons= np.random.randint(m_min, m_max)
+        num_neurons= self.random_state.randint(m_min, m_max)
         for _ in range(num_neurons):
             self.neurons.append(self.create_new_node())
         
-        self.beta_0= (np.random.random()-0.5)*O
+        self.beta_0= (self.random_state.random_sample()-0.5)*O
     
     def clone(self):
         """
@@ -13948,7 +14360,7 @@ class RBF:
         Returns:
             RBF: the cloned network
         """
-        r= RBF(self.X, self.m_min, self.m_max, self.I, self.O, self.init_conn_mask, self.init_conn_weights)
+        r= RBF(self.X, self.m_min, self.m_max, self.I, self.O, self.init_conn_mask, self.init_conn_weights, random_state= self.random_state)
         r.neurons= [n.clone() for n in self.neurons]
         r.range_mins= self.range_mins.copy()
         r.ranges= self.ranges.copy()
@@ -13963,7 +14375,7 @@ class RBF:
         Returns:
             RBFNeuron: a new hidden neuron
         """
-        return RBFNeuron(self.X[np.random.randint(len(self.X))], self.I, self.O, self.ranges, self.range_mins, self.init_conn_mask, self.init_conn_weights)
+        return RBFNeuron(self.X[self.random_state.randint(len(self.X))], self.I, self.O, self.ranges, self.range_mins, self.init_conn_mask, self.init_conn_weights, random_state= self.random_state)
     
     def update_data(self, X):
         """
@@ -13977,7 +14389,7 @@ class RBF:
         """
         Improves the center locations by kmeans clustering
         """
-        kmeans= KMeans(n_clusters=len(self.neurons), init=np.vstack([n.c for n in self.neurons]), n_init= 1, max_iter= 30, n_jobs= 1)
+        kmeans= KMeans(n_clusters=len(self.neurons), init=np.vstack([n.c for n in self.neurons]), n_init= 1, max_iter= 30, n_jobs= 1, random_state= self.random_state)
         kmeans.fit(self.X)
         for i in range(len(self.neurons)):
             self.neurons[i].c= kmeans.cluster_centers_[i]
@@ -14015,15 +14427,15 @@ class RBF:
         # in the binary case the removal of output connections is the same as
         # removing hidden nodes
         rbf= self.clone()
-        r= np.random.random()
+        r= self.random_state.random_sample()
         if r < 0.5:
             if len(rbf.neurons) < rbf.m_max:
                 rbf.neurons.append(rbf.create_new_node())
             elif len(rbf.neurons) > rbf.m_min:
-                del rbf.neurons[np.random.randint(len(rbf.neurons))]
+                del rbf.neurons[self.random_state.randint(len(rbf.neurons))]
         else:
-            rbf.neurons[np.random.randint(len(rbf.neurons))].delete_connection()
-            rbf.neurons[np.random.randint(len(rbf.neurons))].add_connection()
+            rbf.neurons[self.random_state.randint(len(rbf.neurons))].delete_connection()
+            rbf.neurons[self.random_state.randint(len(rbf.neurons))].add_connection()
         
         return rbf
             
@@ -14039,17 +14451,17 @@ class RBF:
         """
         # the order of neurons doesn't matter, so the logic can be simplified
         new= self.clone()
-        if np.random.random() < 0.5:
-            new_neurons_0= np.random.choice(new.neurons, np.random.randint(1, len(new.neurons)))
-            new_neurons_1=np.random.choice(rbf.neurons, np.random.randint(1, len(rbf.neurons)))
+        if self.random_state.random_sample() < 0.5:
+            new_neurons_0= self.random_state.choice(new.neurons, self.random_state.randint(1, len(new.neurons)))
+            new_neurons_1= self.random_state.choice(rbf.neurons, self.random_state.randint(1, len(rbf.neurons)))
             new.neurons= [n.clone() for n in new_neurons_0]
             new.neurons.extend([n.clone() for n in new_neurons_1])
             while len(new.neurons) > self.m_max:
-                del new.neurons[np.random.randint(len(new.neurons))]
+                del new.neurons[self.random_state.randint(len(new.neurons))]
         else:
             for i in range(len(new.neurons)):
-                if np.random.random() < 0.2:
-                    new.neurons[i]= rbf.neurons[np.random.randint(len(rbf.neurons))].clone()
+                if self.random_state.random_sample() < 0.2:
+                    new.neurons[i]= rbf.neurons[self.random_state.randint(len(rbf.neurons))].clone()
         return new
 
 class DSRBF(OverSampling):
@@ -14083,7 +14495,7 @@ class DSRBF(OverSampling):
                  OverSampling.cat_sample_ordinary,
                  OverSampling.cat_memetic]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, m_min= 4, m_max= 10, I= 2, O= 2, n_pop= 500, n_init_pop= 5000, n_iter= 40, n_sampling_epoch= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, m_min= 4, m_max= 10, I= 2, O= 2, n_pop= 500, n_init_pop= 5000, n_iter= 40, n_sampling_epoch= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -14100,6 +14512,7 @@ class DSRBF(OverSampling):
             n_init_pop (int): size of initial population
             n_iter (int): number of iterations
             n_sampling_epoch (int): resampling after this many iterations
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -14125,6 +14538,8 @@ class DSRBF(OverSampling):
         self.n_iter= n_iter
         self.n_sampling_epoch= n_sampling_epoch
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -14172,11 +14587,11 @@ class DSRBF(OverSampling):
         X_orig= X
         y_orig= y
         
-        X, y= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs).sample(X, y)
+        X, y= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs, random_state= self.random_state).sample(X, y)
         
         # generate initial connections and weights randomly
-        init_conn_mask= np.random.choice(np.arange(len(X[0])), int(len(X[0])/2))
-        init_conn_weights= np.random.random(size= len(init_conn_mask))
+        init_conn_mask= self.random_state.choice(np.arange(len(X[0])), int(len(X[0])/2))
+        init_conn_weights= self.random_state.random_sample(size= len(init_conn_mask))
         
         # setting epoch lengths
         epoch_len= int(self.n_iter/self.n_sampling_epoch)
@@ -14186,7 +14601,7 @@ class DSRBF(OverSampling):
         m_max= min(len(X_orig), self.m_max)
         
         # generating initial population
-        population= [RBF(X, self.m_min, m_max, self.I, self.O, init_conn_mask, init_conn_weights) for _ in range(self.n_init_pop)]
+        population= [RBF(X, self.m_min, m_max, self.I, self.O, init_conn_mask, init_conn_weights, random_state= self.random_state) for _ in range(self.n_init_pop)]
         population= [[p, X, y, np.inf] for p in population]
         population= sorted([[p[0], p[1], p[2], p[0].evaluate(p[1], p[2])] for p in population], key= lambda x: x[3])
         population= population[:self.n_pop]
@@ -14223,11 +14638,11 @@ class DSRBF(OverSampling):
             
             # executing recombination
             for p in p_recombination:
-                population.append([p[0].recombine(p_recombination[np.random.choice(len(p_recombination))][0]), p[1], p[2], np.inf])
+                population.append([p[0].recombine(p_recombination[self.random_state.choice(len(p_recombination))][0]), p[1], p[2], np.inf])
             
             # do the sampling
             if iteration % epoch_len == 0:
-                X, y= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs).sample(X_orig, y_orig)
+                X, y= SMOTE(proportion= self.proportion, n_neighbors= self.n_neighbors, n_jobs= self.n_jobs, random_state=self.random_state).sample(X_orig, y_orig)
                 for i in range(self.n_pop):
                     tmp= [population[i][0].clone(), X, y, np.inf]
                     tmp[0].update_data(X)
@@ -14259,7 +14674,8 @@ class DSRBF(OverSampling):
                 'n_init_pop': self.n_init_pop, 
                 'n_iter': self.n_iter, 
                 'n_sampling_epoch': self.n_sampling_epoch, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class Gaussian_SMOTE(OverSampling):
     """
@@ -14278,7 +14694,7 @@ class Gaussian_SMOTE(OverSampling):
     
     categories= [OverSampling.cat_extensive]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, sigma= 1.0, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, sigma= 1.0, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -14289,6 +14705,7 @@ class Gaussian_SMOTE(OverSampling):
             n_neighbors (int): number of neighbors
             sigma (float): variance
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -14300,6 +14717,8 @@ class Gaussian_SMOTE(OverSampling):
         self.n_neighbors= n_neighbors
         self.sigma= sigma
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -14351,10 +14770,10 @@ class Gaussian_SMOTE(OverSampling):
         # do the sampling
         samples= []
         while len(samples) < num_to_sample:
-            idx= np.random.randint(len(X_min))
-            random_neighbor= np.random.choice(ind[idx][1:])
+            idx= self.random_state.randint(len(X_min))
+            random_neighbor= self.random_state.choice(ind[idx][1:])
             s0= self.sample_between_points(X_min[idx], X_min[random_neighbor])
-            samples.append(np.random.normal(s0, self.sigma))
+            samples.append(self.random_state.normal(s0, self.sigma))
             
         return np.vstack([X, ss.inverse_transform(np.vstack(samples))]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
 
@@ -14366,7 +14785,8 @@ class Gaussian_SMOTE(OverSampling):
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
                 'sigma': self.sigma, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class kmeans_SMOTE(OverSampling):
     """
@@ -14390,7 +14810,7 @@ class kmeans_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_uses_clustering]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_clusters= 10, irt= 2.0, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_clusters= 10, irt= 2.0, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -14402,6 +14822,7 @@ class kmeans_SMOTE(OverSampling):
             n_clusters (int): number of clusters
             irt (float): imbalanced ratio threshold
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -14415,6 +14836,8 @@ class kmeans_SMOTE(OverSampling):
         self.n_clusters= n_clusters
         self.irt= irt
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -14452,7 +14875,7 @@ class kmeans_SMOTE(OverSampling):
         
         # applying kmeans clustering to all data
         n_clusters= min([self.n_clusters, len(X)])
-        kmeans= KMeans(n_clusters= n_clusters, n_jobs= self.n_jobs)
+        kmeans= KMeans(n_clusters= n_clusters, n_jobs= self.n_jobs, random_state= self.random_state)
         kmeans.fit(X)
         
         # extracting clusters
@@ -14491,11 +14914,11 @@ class kmeans_SMOTE(OverSampling):
         samples= []
         while len(samples) < num_to_sample:
             # choose random cluster index and random minority element
-            clust_ind= np.random.choice(np.arange(len(weights)), p= weights)
-            idx= np.random.randint(len(cluster_minority_ind[clust_ind]))
+            clust_ind= self.random_state.choice(np.arange(len(weights)), p= weights)
+            idx= self.random_state.randint(len(cluster_minority_ind[clust_ind]))
             base_idx= cluster_minority_ind[clust_ind][idx]
             # choose random neighbor
-            neighbor_idx= np.random.choice(cluster_minority_ind[clust_ind][nearest_neighbors[clust_ind][1][idx][1:]])
+            neighbor_idx= self.random_state.choice(cluster_minority_ind[clust_ind][nearest_neighbors[clust_ind][1][idx][1:]])
             # sample
             samples.append(self.sample_between_points(X[base_idx], X[neighbor_idx]))
             
@@ -14510,7 +14933,8 @@ class kmeans_SMOTE(OverSampling):
                 'n_neighbors': self.n_neighbors, 
                 'n_clusters': self.n_clusters, 
                 'irt': self.irt, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class Supervised_SMOTE(OverSampling):
     """
@@ -14538,7 +14962,7 @@ class Supervised_SMOTE(OverSampling):
                  OverSampling.cat_uses_classifier,
                  OverSampling.cat_application]
     
-    def __init__(self, proportion= 1.0, th_lower= 0.5, th_upper= 1.0, classifier= RandomForestClassifier(n_estimators= 50, n_jobs= 1), n_jobs= 1):
+    def __init__(self, proportion= 1.0, th_lower= 0.5, th_upper= 1.0, classifier= RandomForestClassifier(n_estimators= 50, n_jobs= 1, random_state=5), n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -14550,6 +14974,7 @@ class Supervised_SMOTE(OverSampling):
             th_upper (float): upper bound of the confidence interval
             classifier (obj): classifier used to estimate class memberships
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -14563,6 +14988,8 @@ class Supervised_SMOTE(OverSampling):
         self.classifier= classifier
         self.n_jobs= n_jobs
         
+        self.set_random_state(random_state)
+        
     @classmethod
     def parameter_combinations(cls):
         """
@@ -14574,7 +15001,7 @@ class Supervised_SMOTE(OverSampling):
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'th_lower': [0.3, 0.5, 0.8], 
                                                     'th_upper': [1.0], 
-                                                    'classifier': [RandomForestClassifier(n_estimators= 50, n_jobs= 1)]})
+                                                    'classifier': [RandomForestClassifier(n_estimators= 50, n_jobs= 1, random_state= 5)]})
     
     def sample(self, X, y):
         """
@@ -14615,7 +15042,7 @@ class Supervised_SMOTE(OverSampling):
         while len(samples) < num_to_sample:
             n_trials= n_trials + 1
             
-            x0, x1= X_min[np.random.choice(np.arange(len(X_min)), 2, replace= False)]
+            x0, x1= X_min[self.random_state.choice(np.arange(len(X_min)), 2, replace= False)]
             sample= self.sample_between_points(x0, x1)
             probs= self.classifier.predict_proba(sample.reshape(1, -1))
             # extract probability
@@ -14641,7 +15068,8 @@ class Supervised_SMOTE(OverSampling):
                 'th_lower': self.th_lower, 
                 'th_upper': self.th_upper,
                 'classifier': self.classifier,
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class SN_SMOTE(OverSampling):
     """
@@ -14671,7 +15099,7 @@ class SN_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_sample_ordinary]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 5, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -14681,6 +15109,7 @@ class SN_SMOTE(OverSampling):
                                     samples will be equal to the number of majority samples
             n_neighbors (float): number of neighbors
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -14690,6 +15119,8 @@ class SN_SMOTE(OverSampling):
         self.proportion= proportion
         self.n_neighbors= n_neighbors
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -14767,8 +15198,8 @@ class SN_SMOTE(OverSampling):
         # generating samples
         samples= []
         while len(samples) < num_to_sample:
-            random_idx= np.random.randint(len(X_min))
-            random_neighbor_idx= np.random.choice(ncn[random_idx][:ncn_nums[random_idx]])
+            random_idx= self.random_state.randint(len(X_min))
+            random_neighbor_idx= self.random_state.choice(ncn[random_idx][:ncn_nums[random_idx]])
             samples.append(self.sample_between_points(X_min[random_idx], X_min[random_neighbor_idx]))
             
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
@@ -14780,7 +15211,8 @@ class SN_SMOTE(OverSampling):
         """
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class CCR(OverSampling):
     """
@@ -14803,7 +15235,7 @@ class CCR(OverSampling):
     
     categories= [OverSampling.cat_extensive]
     
-    def __init__(self, proportion= 1.0, energy= 1.0, scaling= 0.0, n_jobs= 1):
+    def __init__(self, proportion= 1.0, energy= 1.0, scaling= 0.0, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -14814,6 +15246,7 @@ class CCR(OverSampling):
             energy (float): energy parameter
             scaling (float): scaling factor
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -14825,6 +15258,8 @@ class CCR(OverSampling):
         self.energy= energy
         self.scaling= scaling
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -14864,9 +15299,9 @@ class CCR(OverSampling):
         
             for _ in range(n):
                 spread = r - np.sum([np.abs(x) for x in sample])
-                sample.append(spread * (2 * np.random.rand() - 1))
+                sample.append(spread * (2 * self.random_state.rand() - 1))
         
-            return np.random.permutation(sample)
+            return self.random_state.permutation(sample)
         
         minority= X[y == self.minority_label]
         majority= X[y == self.majority_label]
@@ -14918,7 +15353,7 @@ class CCR(OverSampling):
                 d = distances[i, sorted_distances[j]]
 
                 if d < 1e-20:
-                    majority_point+= (1e-6 * np.random.rand(len(majority_point)) + 1e-6) * np.random.choice([-1.0, 1.0], len(majority_point))
+                    majority_point+= (1e-6 * self.random_state.rand(len(majority_point)) + 1e-6) * self.random_state.choice([-1.0, 1.0], len(majority_point))
                     d = np.sum(np.abs(minority_point - majority_point))
 
                 translation = (r - d) / d * (majority_point - minority_point)
@@ -14949,7 +15384,8 @@ class CCR(OverSampling):
         return {'proportion': self.proportion, 
                 'energy': self.energy, 
                 'scaling': self.scaling, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class ANS(OverSampling):
     """
@@ -14974,7 +15410,7 @@ class ANS(OverSampling):
                  OverSampling.cat_sample_ordinary,
                  OverSampling.cat_density_based]
     
-    def __init__(self, proportion= 1.0, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -14983,6 +15419,7 @@ class ANS(OverSampling):
                                     e.g. 1.0 means that after sampling the number of minority
                                     samples will be equal to the number of majority samples
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -14990,6 +15427,8 @@ class ANS(OverSampling):
         
         self.proportion= proportion
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -15097,11 +15536,11 @@ class ANS(OverSampling):
         # generating samples
         samples= []
         while len(samples) < num_to_sample:
-            random_idx= np.random.choice(np.arange(len(Pused)), p= distribution)
+            random_idx= self.random_state.choice(np.arange(len(Pused)), p= distribution)
             if len(ind[random_idx]) > 1:
-                random_neighbor_idx= np.random.choice(ind[random_idx])
+                random_neighbor_idx= self.random_state.choice(ind[random_idx])
                 while random_neighbor_idx == random_idx:
-                    random_neighbor_idx= np.random.choice(ind[random_idx])
+                    random_neighbor_idx= self.random_state.choice(ind[random_idx])
                 samples.append(self.sample_between_points(X_min[Pused[random_idx]], X_min[Pused[random_neighbor_idx]]))
             
         return np.vstack([X, np.vstack(samples)]), np.hstack([y, np.repeat(self.minority_label, len(samples))])
@@ -15112,7 +15551,8 @@ class ANS(OverSampling):
             dict: the parameters of the current sampling object
         """
         return {'proportion': self.proportion, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class cluster_SMOTE(OverSampling):
     """
@@ -15136,7 +15576,7 @@ class cluster_SMOTE(OverSampling):
     categories= [OverSampling.cat_extensive,
                  OverSampling.cat_uses_clustering]
     
-    def __init__(self, proportion= 1.0, n_neighbors= 3, n_clusters= 3, n_jobs= 1):
+    def __init__(self, proportion= 1.0, n_neighbors= 3, n_clusters= 3, n_jobs= 1, random_state= None):
         """
         Constructor of the sampling object
         
@@ -15147,6 +15587,7 @@ class cluster_SMOTE(OverSampling):
             n_neighbors (int): number of neighbors in SMOTE
             n_clusters (int): number of clusters
             n_jobs (int): number of parallel jobs
+            random_state (int/RandomState/None): initializer of random_state, like in sklearn
         """
         super().__init__()
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -15158,6 +15599,8 @@ class cluster_SMOTE(OverSampling):
         self.n_neighbors= n_neighbors
         self.n_clusters= n_clusters
         self.n_jobs= n_jobs
+        
+        self.set_random_state(random_state)
         
     @classmethod
     def parameter_combinations(cls):
@@ -15195,7 +15638,7 @@ class cluster_SMOTE(OverSampling):
             _logger.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
             return X.copy(), y.copy()
         
-        kmeans= KMeans(n_clusters= min([len(X_min), self.n_clusters]), n_jobs= self.n_jobs)
+        kmeans= KMeans(n_clusters= min([len(X_min), self.n_clusters]), n_jobs= self.n_jobs, random_state= self.random_state)
         kmeans.fit(X_min)
         cluster_labels= kmeans.labels_
         unique_labels= np.unique(cluster_labels)
@@ -15211,13 +15654,13 @@ class cluster_SMOTE(OverSampling):
         # generating the samples
         samples= []
         while len(samples) < num_to_sample:
-            cluster_idx= np.random.randint(len(cluster_indices))
+            cluster_idx= self.random_state.randint(len(cluster_indices))
             if len(cluster_indices[cluster_idx]) <= 1:
                 continue
-            random_idx= np.random.randint(len(cluster_indices[cluster_idx]))
+            random_idx= self.random_state.randint(len(cluster_indices[cluster_idx]))
             sample_a= X_min[cluster_indices[cluster_idx]][random_idx]
             dist, indices= cluster_nns[cluster_idx].kneighbors(sample_a.reshape(1, -1))
-            sample_b_idx= np.random.choice(cluster_indices[cluster_idx][indices[0][1:]])
+            sample_b_idx= self.random_state.choice(cluster_indices[cluster_idx][indices[0][1:]])
             sample_b= X_min[sample_b_idx]
             samples.append(self.sample_between_points(sample_a, sample_b))
             
@@ -15231,7 +15674,8 @@ class cluster_SMOTE(OverSampling):
         return {'proportion': self.proportion, 
                 'n_neighbors': self.n_neighbors, 
                 'n_clusters': self.n_clusters, 
-                'n_jobs': self.n_jobs}
+                'n_jobs': self.n_jobs,
+                'random_state': self._random_state_init}
 
 class MulticlassOversampling(StatisticsMixin):
     """
@@ -15249,7 +15693,7 @@ class MulticlassOversampling(StatisticsMixin):
         X_samp, y_samp= oversampler.sample(dataset['data'], dataset['target'])
     """
     
-    def __init__(self, oversampler= SMOTE(), strategy= "equalize_1_vs_many_successive"):
+    def __init__(self, oversampler= SMOTE(random_state= 2), strategy= "equalize_1_vs_many_successive"):
         """
         Constructor of the multiclass oversampling object
         
@@ -15322,7 +15766,7 @@ class MulticlassOversampling(StatisticsMixin):
             X_samp, y_samp= oversampler.sample(X_training, y_training)
             
             # registaring the newly oversampled minority class in the output set
-            results[class_labels[i]]= X_samp[len(X_training):][y_samp[len(X_training):] == 1]
+            results[class_labels[i]]= X_samp[len(X_training):][y_samp == 1]
         
         # constructing the output set
         X_final= results[class_labels[1]]
@@ -15521,11 +15965,11 @@ class OversamplingClassifier(BaseEstimator, ClassifierMixin):
             
         return self
 
-class MLPClassifierWrapper():
+class MLPClassifierWrapper:
     """
     Wrapper over MLPClassifier of sklearn to provide easier parameterization
     """
-    def __init__(self, activation= 'relu', hidden_layer_fraction= 0.1, alpha= 0.0001):
+    def __init__(self, activation= 'relu', hidden_layer_fraction= 0.1, alpha= 0.0001, random_state= None):
         """
         Constructor of the MLPClassifier
         
@@ -15533,10 +15977,12 @@ class MLPClassifierWrapper():
             activation (str): name of the activation function
             hidden_layer_fraction (float): fraction of the hidden neurons of the number of input dimensions
             alpha (float): alpha parameter of the MLP classifier
+            random_state (int/np.random.RandomState/None): initializer of the random state
         """
         self.activation= activation
         self.hidden_layer_fraction= hidden_layer_fraction
         self.alpha= alpha
+        self.random_state= random_state
     
     def fit(self, X, y):
         """
@@ -15552,7 +15998,8 @@ class MLPClassifierWrapper():
         hidden_layer_size= max([1, int(len(X[0])*self.hidden_layer_fraction)])
         self.model= MLPClassifier(activation= self.activation, 
                                   hidden_layer_sizes= (hidden_layer_size,),
-                                  alpha= self.alpha).fit(X, y)
+                                  alpha= self.alpha,
+                                  random_state= self.random_state).fit(X, y)
         return self
         
     def predict(self, X):
@@ -15586,7 +16033,7 @@ class MLPClassifierWrapper():
         Returns:
             dict: the parameters of the object
         """
-        return {'activation': self.activation, 'hidden_layer_fraction': self.hidden_layer_fraction, 'alpha': self.alpha}
+        return {'activation': self.activation, 'hidden_layer_fraction': self.hidden_layer_fraction, 'alpha': self.alpha, 'random_state': self.random_state}
     
     def copy(self):
         """
@@ -15601,7 +16048,7 @@ class Folding():
     """
     Cache-able folding of dataset for cross-validation
     """
-    def __init__(self, dataset, validator, cache_path= None):
+    def __init__(self, dataset, validator, cache_path= None, random_state= None):
         """
         Constructor of Folding object
         
@@ -15609,6 +16056,7 @@ class Folding():
             dataset (dict): dataset dictionary with keys 'data', 'target' and 'DESCR'
             validator (obj): cross-validator object
             cache_path (str): path to cache directory
+            random_state (int/np.random.RandomState/None): initializer of the random state
         """
         self.dataset= dataset
         self.db_name= self.dataset['name']
@@ -15618,6 +16066,7 @@ class Folding():
         self.db_size= len(dataset['data'])
         self.db_n_attr= len(dataset['data'][0])
         self.imbalanced_ratio= np.sum(self.dataset['target'] == 0)/np.sum(self.dataset['target'] == 1)
+        self.random_state= random_state
     
     def do_folding(self):
         """
@@ -15626,6 +16075,9 @@ class Folding():
         Returns:
             list(tuple): list of tuples of X_train, y_train, X_test, y_test objects
         """
+        
+        self.validator.random_state= self.random_state
+        
         if not hasattr(self, 'folding'):
             if (self.cache_path is None) or (not self.cache_path is None) and (not os.path.isfile(os.path.join(self.cache_path, self.filename))):
                 _logger.info(self.__class__.__name__ + (" doing folding %s" % self.filename))
@@ -15658,7 +16110,7 @@ class Sampling():
     """
     Cache-able sampling of dataset folds
     """
-    def __init__(self, folding, sampler, sampler_parameters):
+    def __init__(self, folding, sampler, sampler_parameters, scaler, random_state= None):
         """
         Constructor of the sampling object
         
@@ -15666,13 +16118,17 @@ class Sampling():
             folding (obj): Folding object
             sampler (class): class of a sampler object
             sampler_parameters (dict): a parameter combination for the sampler object
+            scaler (obj): scaler object
+            random_state (int/np.random.RandomState/None): initializer of the random state
         """
         self.folding= folding
         self.db_name= folding.db_name
         self.sampler= sampler
         self.sampler_parameters= sampler_parameters
+        self.scaler= scaler
         self.cache_path= folding.cache_path
         self.filename= self.standardized_filename('sampling')
+        self.random_state= random_state
         
     def standardized_filename(self, prefix, db_name= None, sampler= None, sampler_parameters= None):
         """
@@ -15735,13 +16191,24 @@ class Sampling():
                 begin= time.time()
                 sampling= []
                 folds= self.folding.do_folding()
+                self.sampler_parameters['random_state']= self.random_state
                 for X_train, y_train, X_test, y_test in folds['folding']:
                     s= self.sampler(**self.sampler_parameters)
+                    print('scaler', self.scaler)
+                    #if not self.scaler is None and not hasattr(s, 'transform'):
+                    if not self.scaler is None:
+                        X_train= self.scaler.fit_transform(X_train, y_train)
                     X_samp, y_samp= s.sample_with_timing(X_train, y_train)
+                    
                     if hasattr(s, 'transform'):
                         X_test_trans= s.transform(X_test)
                     else:
                         X_test_trans= X_test.copy()
+                    
+                    #if not self.scaler is None and not hasattr(s, 'transform'):
+                    if not self.scaler is None:
+                        X_samp= self.scaler.inverse_transform(X_samp)
+                    
                     sampling.append((X_samp, y_samp, X_test_trans, y_test))
                 runtime= time.time() - begin
             else:
@@ -15786,19 +16253,22 @@ class Evaluation():
     """
     Cache-able evaluation of classifier on sampling
     """
-    def __init__(self, sampling, classifiers, n_threads= None):
+    def __init__(self, sampling, classifiers, n_threads= None, random_state= None):
         """
         Constructor of an Evaluation object
         
         Args:
             sampling (obj): Sampling object
             classifiers (list(obj)): classifier objects
+            n_threads (int/None): number of threads
+            random_state (int/np.random.RandomState/None): random state initializer
         """
         self.sampling= sampling
         self.classifiers= classifiers
         self.n_threads= n_threads
         self.cache_path= sampling.cache_path
         self.filename= self.sampling.standardized_filename('eval')
+        self.random_state= random_state
         
         self.labels= []
         for i in range(len(classifiers)):
@@ -15899,6 +16369,7 @@ class Evaluation():
         Returns:
             dict: all metrics
         """
+        
         if not self.n_threads is None:
             try:
                 import mkl
@@ -15917,6 +16388,17 @@ class Evaluation():
             samp= self.sampling.do_sampling()
         else:
             return list(evaluations.values())
+        
+        # setting random states
+        for i in range(len(self.classifiers)):
+            clf_params= self.classifiers[i].get_params()
+            if 'random_state' in clf_params:
+                clf_params['random_state']= self.random_state
+                self.classifiers[i]= self.classifiers[i].__class__(**clf_params)
+            if isinstance(self.classifiers[i], CalibratedClassifierCV):
+                clf_params= self.classifiers[i].base_estimator.get_params()
+                clf_params['random_state']= self.random_state
+                self.classifiers[i].base_estimator= self.classifiers[i].base_estimator.__class__(**clf_params)
         
         for i in range(len(self.classifiers)):
             if not already_evaluated[i]:
@@ -16030,22 +16512,28 @@ def _clone_classifiers(classifiers):
             results.append(c.copy())
         else:
             results.append(clone(c))
+
     return results
     
-def _cache_samplings(folding, samplers, max_n_sampler_par_comb= 35, n_jobs= 1):
+def _cache_samplings(folding, samplers, scaler, max_n_sampler_par_comb= 35, n_jobs= 1, random_state= None):
     """
     
     """
     _logger.info("create sampling objects")
     sampling_objs= []
+    
+    if isinstance(random_state, int):
+        random_state= np.random.RandomState(random_state)
+    elif random_state is None:
+        random_state= np.random
+    
     for s in samplers:
-        np.random.seed(2)
     
         sampling_par_comb= s.parameter_combinations()
-        sampling_par_comb= np.random.choice(sampling_par_comb, min([len(sampling_par_comb), max_n_sampler_par_comb]), replace= False)
+        sampling_par_comb= random_state.choice(sampling_par_comb, min([len(sampling_par_comb), max_n_sampler_par_comb]), replace= False)
         
         for spc in sampling_par_comb:
-            sampling_objs.append(Sampling(folding, s, spc))
+            sampling_objs.append(Sampling(folding, s, spc, scaler, random_state))
             
     # sorting sampling objects to optimize execution
     def key(x):
@@ -16069,7 +16557,7 @@ def _cache_samplings(folding, samplers, max_n_sampler_par_comb= 35, n_jobs= 1):
     
     return sampling_objs
             
-def _cache_evaluations(sampling_objs, classifiers, n_jobs= 1):
+def _cache_evaluations(sampling_objs, classifiers, n_jobs= 1, random_state= None):
     # create evaluation objects
     _logger.info("create classifier jobs")
     evaluation_objs= []
@@ -16077,7 +16565,7 @@ def _cache_evaluations(sampling_objs, classifiers, n_jobs= 1):
     num_threads= None if n_jobs is None or n_jobs is 1 else 1
     
     for s in sampling_objs:
-        evaluation_objs.append(Evaluation(s, _clone_classifiers(classifiers), num_threads))
+        evaluation_objs.append(Evaluation(s, _clone_classifiers(classifiers), num_threads, random_state))
     
     _logger.info("executing %d evaluation jobs in parallel" % (len(evaluation_objs)))
     # execute evaluation in parallel
@@ -16140,10 +16628,12 @@ def evaluate_oversamplers(datasets,
                           classifiers,
                           cache_path,
                           validator= RepeatedStratifiedKFold(n_splits= 5, n_repeats= 3),
+                          scaler= None,
                           all_results= False, 
                           remove_sampling_cache= False, 
                           max_samp_par_comb= 35,
-                          n_jobs= 1):
+                          n_jobs= 1,
+                          random_state= None):
     """
     Evaluates oversampling techniques using various classifiers on various datasets
     
@@ -16153,10 +16643,12 @@ def evaluate_oversamplers(datasets,
         classifiers (list): list of classifier objects
         cache_path (str): path to a cache directory
         validator (obj): validator object
+        scaler (obj): scaler object
         all_results (bool): True to return all results, False to return an aggregation
         remove_sampling_cache (bool): True to remove sampling objects after evaluation
         max_samp_par_comb (int): maximum number of sampler parameter combinations to be tested
         n_jobs (int): number of parallel jobs
+        random_state (int/np.random.RandomState/None): initializer of the random state
         
     Returns:
         pd.DataFrame: all results or the aggregated results if all_results is False
@@ -16231,14 +16723,14 @@ def evaluate_oversamplers(datasets,
             res= _read_db_results(cache_path_db)
         else:
             _logger.info("doing the folding")
-            folding= Folding(dataset, validator, cache_path_db)
+            folding= Folding(dataset, validator, cache_path_db, random_state)
             folding.do_folding()
             
             _logger.info("do the samplings")
-            sampling_objs= _cache_samplings(folding, samplers, max_samp_par_comb, n_jobs)
+            sampling_objs= _cache_samplings(folding, samplers, scaler, max_samp_par_comb, n_jobs, random_state)
             
             _logger.info("do the evaluations")
-            res= _cache_evaluations(sampling_objs, classifiers, n_jobs)
+            res= _cache_evaluations(sampling_objs, classifiers, n_jobs, random_state)
         
         dataset['target']= dataset_original_target
         
@@ -16280,7 +16772,8 @@ def model_selection(dataset,
                       validator= RepeatedStratifiedKFold(n_splits= 5, n_repeats= 3),
                       remove_sampling_cache= False, 
                       max_samp_par_comb= 35,
-                      n_jobs= 1):
+                      n_jobs= 1,
+                      random_state= None):
     """
     Evaluates oversampling techniques on various classifiers and a dataset
     and returns the oversampling and classifier objects giving the best performance
@@ -16296,6 +16789,7 @@ def model_selection(dataset,
         remove_sampling_cache (bool): True to remove sampling objects after evaluation
         max_samp_par_comb (int): maximum number of sampler parameter combinations to be tested
         n_jobs (int): number of parallel jobs
+        random_state (int/np.random.RandomState/None): initializer of the random state
         
     Returns:
         obj, obj: the best performing sampler object and the best performing classifier object
@@ -16333,7 +16827,8 @@ def model_selection(dataset,
                                    validator= validator,
                                    remove_sampling_cache= remove_sampling_cache,
                                    max_samp_par_comb= max_samp_par_comb,
-                                   n_jobs= n_jobs)
+                                   n_jobs= n_jobs,
+                                   random_state= random_state)
     
     # extracting the best performing classifier and oversampler parameters regarding AUC
     highest_score= results[score].idxmax()
@@ -16354,7 +16849,8 @@ def cross_validate(dataset,
                    sampler,
                    classifier,
                    validator= RepeatedStratifiedKFold(n_splits= 5, n_repeats= 3),
-                   scaler= StandardScaler()):
+                   scaler= StandardScaler(),
+                   random_state= None):
     """
     Evaluates oversampling techniques on various classifiers and a dataset
     and returns the oversampling and classifier objects giving the best performance
@@ -16365,6 +16861,7 @@ def cross_validate(dataset,
         classifiers (list): list of classifier objects
         validator (obj): validator object
         scaler (obj): scaler object
+        random_state (int/np.random.RandomState/None): initializer of the random state
         
     Returns:
         pd.DataFrame: the cross-validation scores
@@ -16499,4 +16996,4 @@ def cross_validate(dataset,
         results['class_label_mapping']= mapping
         print(results['confusion_matrix'])
 
-    return pd.DataFrame({'value': list(results.values())}, index= results.keys())
+    return pd.DataFrame(list(results.values()), index= results.keys(), columns= ['value'])
