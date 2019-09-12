@@ -15768,7 +15768,7 @@ class MulticlassOversampling(StatisticsMixin):
             X_samp, y_samp= oversampler.sample(X_training, y_training)
             
             # registaring the newly oversampled minority class in the output set
-            results[class_labels[i]]= X_samp[len(X_training):][y_samp == 1]
+            results[class_labels[i]]= X_samp[len(X_training):][y_samp[len(X_training):] == 1]
         
         # constructing the output set
         X_final= results[class_labels[1]]
