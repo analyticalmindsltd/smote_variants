@@ -8,11 +8,15 @@ python:
 install:
 - pip install -r requirements.txt
 - pip install codecov
+- pip install coverage
+- pip install coveralls
 - python setup.py install
 script:
-- nosetests --with-coverage tests/tests.py
+#- nosetests --with-coverage tests/tests.py
+- coverage run --source smote_variants tests
 after_success:
-- codecov
+#- codecov
+- coveralls
 deploy:
   provider: pypi
   user: gykovacs
