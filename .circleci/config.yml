@@ -34,7 +34,7 @@ jobs:
             . venv/bin/activate
             pip install -r requirements.txt
             pip install coverage coveralls
-            pip install smote_variants/.
+            pip install .
 
       - save_cache:
           paths:
