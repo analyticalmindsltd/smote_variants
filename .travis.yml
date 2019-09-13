@@ -13,7 +13,7 @@ install:
 - python setup.py install
 script:
 #- nosetests --with-coverage tests/tests.py
-- coverage run --source smote_variants tests
+- coverage run --source smote_variants tests/tests.py
 after_success:
 #- codecov
 - coveralls
