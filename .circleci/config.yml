@@ -51,7 +51,7 @@ jobs:
             . venv/bin/activate
             #python manage.py test
             #nosetests
-            coverage run --source smote_variants tests
+            coverage run --source smote_variants tests/tests.py
 
       - store_artifacts:
           path: test-reports
