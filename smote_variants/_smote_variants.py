@@ -2843,9 +2843,12 @@ class Stefanowski(OverSampling):
         X_noise_removed= np.delete(X, to_remove, axis= 0)
         y_noise_removed= np.delete(y, to_remove, axis= 0)
         
-        if len(samples) == 0:
+        if len(samples) == 0 and len(X_noise_removed) > 10:
             _logger.warning(self.__class__.__name__ + ": " + "no samples added")
             return X_noise_removed, y_noise_removed
+        elif len(samples) == 0:
+            _logger.warning(self.__class__.__name__ + ": " + "all samples removed as noise, returning the original dataset")
+            return X.copy(), y.copy()
         
         return np.vstack([X_noise_removed, np.vstack(samples)]), np.hstack([y_noise_removed, np.repeat(self.minority_label, len(samples))])
     
@@ -17016,4 +17019,4 @@ def cross_validate(dataset,
         results['class_label_mapping']= mapping
         print(results['confusion_matrix'])
 
-    return pd.DataFrame(list(results.values()), index= results.keys(), columns= ['value'])
+    return pd.DataFrame({'value': list(results.values())}, index= results.keys())
