@@ -7068,7 +7068,10 @@ class DEAGO(OverSampling):
             random.seed(self._random_state_init)
             #from tensorflow import set_random_seed
             import tensorflow
-            tensorflow.set_random_seed(self._random_state_init)
+            try:
+                tensorflow.set_random_seed(self._random_state_init)
+            except:
+                tensorflow.set_seed(self._random_state_init)
         else:
             seed= 127
             import os
@@ -7079,7 +7082,10 @@ class DEAGO(OverSampling):
             random.seed(seed)
             #from tensorflow import set_random_seed
             import tensorflow
-            tensorflow.set_random_seed(seed)
+            try:
+                tensorflow.set_random_seed(seed)
+            except:
+                tensorflow.set_seed(self._random_state_init)
         
         from keras import backend as K
         import tensorflow as tf
