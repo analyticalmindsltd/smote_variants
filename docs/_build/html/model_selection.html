@@ -91,6 +91,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#caching">Caching</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#parallelization">Parallelization</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#querying-and-filtering-oversamplers">Querying and filtering oversamplers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cross-validation">Cross validation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#evaluation-and-validation">Evaluation and validation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#model-selection">Model selection</a></li>
 </ul>
@@ -112,6 +113,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="competition.html">About the competition</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ranking.html">Ranking</a></li>
+<li class="toctree-l1"><a class="reference internal" href="downloads.html">Downloads</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Additional Information</span></p>
 <ul>
@@ -248,11 +250,58 @@ the imbalanced_databases package.</p>
 </dd></dl>
 
 </div>
+<div class="section" id="cross-validation">
+<h2>Cross validation<a class="headerlink" href="#cross-validation" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="smote_variants.cross_validate">
+<code class="descclassname">smote_variants.</code><code class="descname">cross_validate</code><span class="sig-paren">(</span><em>dataset</em>, <em>sampler</em>, <em>classifier</em>, <em>validator=&lt;sklearn.model_selection._split.RepeatedStratifiedKFold object&gt;</em>, <em>scaler=StandardScaler(copy=True</em>, <em>with_mean=True</em>, <em>with_std=True)</em>, <em>random_state=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#cross_validate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.cross_validate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Evaluates oversampling techniques on various classifiers and a dataset
+and returns the oversampling and classifier objects giving the best performance</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>dataset</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.7)"><em>dict</em></a>) – a dataset is a dict with ‘data’, ‘target’ and ‘name’ keys</li>
+<li><strong>samplers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – list of oversampling classes/objects</li>
+<li><strong>classifiers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – list of classifier objects</li>
+<li><strong>validator</strong> (<em>obj</em>) – validator object</li>
+<li><strong>scaler</strong> (<em>obj</em>) – scaler object</li>
+<li><strong>random_state</strong> (<em>int/np.random.RandomState/None</em>) – initializer of the random state</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">the cross-validation scores</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">pd.DataFrame</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">smote_variants</span> <span class="k">as</span> <span class="nn">sv</span>
+<span class="kn">import</span> <span class="nn">imbalanced_datasets</span> <span class="k">as</span> <span class="nn">imbd</span>
+
+<span class="kn">from</span> <span class="nn">sklearn.neighbors</span> <span class="k">import</span> <span class="n">KNeighborsClassifier</span>
+
+<span class="n">dataset</span><span class="o">=</span> <span class="n">imbd</span><span class="o">.</span><span class="n">load_glass2</span><span class="p">()</span>
+<span class="n">sampler</span><span class="o">=</span> <span class="n">sv</span><span class="o">.</span><span class="n">SMOTE_ENN</span>
+<span class="n">classifier</span><span class="o">=</span> <span class="n">KNeighborsClassifier</span><span class="p">(</span><span class="n">n_neighbors</span><span class="o">=</span> <span class="mi">3</span><span class="p">)</span>
+
+<span class="n">sampler</span><span class="p">,</span> <span class="n">classifier</span><span class="o">=</span> <span class="n">model_selection</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span>
+                                     <span class="n">oversampler</span><span class="p">,</span>
+                                     <span class="n">classifier</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</div>
 <div class="section" id="evaluation-and-validation">
 <h2>Evaluation and validation<a class="headerlink" href="#evaluation-and-validation" title="Permalink to this headline">¶</a></h2>
 <dl class="function">
 <dt id="smote_variants.evaluate_oversamplers">
-<code class="descclassname">smote_variants.</code><code class="descname">evaluate_oversamplers</code><span class="sig-paren">(</span><em>datasets</em>, <em>samplers</em>, <em>classifiers</em>, <em>cache_path</em>, <em>validator=&lt;sklearn.model_selection._split.RepeatedStratifiedKFold object&gt;</em>, <em>all_results=False</em>, <em>remove_sampling_cache=False</em>, <em>max_n_sampler_parameters=35</em>, <em>n_jobs=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#evaluate_oversamplers"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.evaluate_oversamplers" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">smote_variants.</code><code class="descname">evaluate_oversamplers</code><span class="sig-paren">(</span><em>datasets</em>, <em>samplers</em>, <em>classifiers</em>, <em>cache_path</em>, <em>validator=&lt;sklearn.model_selection._split.RepeatedStratifiedKFold object&gt;</em>, <em>scaler=None</em>, <em>all_results=False</em>, <em>remove_sampling_cache=False</em>, <em>max_samp_par_comb=35</em>, <em>n_jobs=1</em>, <em>random_state=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#evaluate_oversamplers"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.evaluate_oversamplers" title="Permalink to this definition">¶</a></dt>
 <dd><p>Evaluates oversampling techniques using various classifiers on various datasets</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -264,10 +313,12 @@ the imbalanced_databases package.</p>
 <li><strong>classifiers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – list of classifier objects</li>
 <li><strong>cache_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – path to a cache directory</li>
 <li><strong>validator</strong> (<em>obj</em>) – validator object</li>
+<li><strong>scaler</strong> (<em>obj</em>) – scaler object</li>
 <li><strong>all_results</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – True to return all results, False to return an aggregation</li>
 <li><strong>remove_sampling_cache</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – True to remove sampling objects after evaluation</li>
-<li><strong>max_n_sampler_parameters</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – maximum number of sampler parameter combinations to be tested</li>
+<li><strong>max_samp_par_comb</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – maximum number of sampler parameter combinations to be tested</li>
 <li><strong>n_jobs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of parallel jobs</li>
+<li><strong>random_state</strong> (<em>int/np.random.RandomState/None</em>) – initializer of the random state</li>
 </ul>
 </td>
 </tr>
@@ -307,15 +358,15 @@ the imbalanced_databases package.</p>
 <h2>Model selection<a class="headerlink" href="#model-selection" title="Permalink to this headline">¶</a></h2>
 <dl class="function">
 <dt id="smote_variants.model_selection">
-<code class="descclassname">smote_variants.</code><code class="descname">model_selection</code><span class="sig-paren">(</span><em>datasets</em>, <em>samplers</em>, <em>classifiers</em>, <em>cache_path</em>, <em>score='auc'</em>, <em>validator=&lt;sklearn.model_selection._split.RepeatedStratifiedKFold object&gt;</em>, <em>remove_sampling_cache=False</em>, <em>max_n_sampler_parameters=35</em>, <em>n_jobs=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#model_selection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.model_selection" title="Permalink to this definition">¶</a></dt>
-<dd><p>Evaluates oversampling techniques on various classifiers and dataset
+<code class="descclassname">smote_variants.</code><code class="descname">model_selection</code><span class="sig-paren">(</span><em>dataset</em>, <em>samplers</em>, <em>classifiers</em>, <em>cache_path</em>, <em>score='auc'</em>, <em>validator=&lt;sklearn.model_selection._split.RepeatedStratifiedKFold object&gt;</em>, <em>remove_sampling_cache=False</em>, <em>max_samp_par_comb=35</em>, <em>n_jobs=1</em>, <em>random_state=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#model_selection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.model_selection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Evaluates oversampling techniques on various classifiers and a dataset
 and returns the oversampling and classifier objects giving the best performance</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>datasets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – list of datasets and/or dataset loaders - a dataset is a dict with ‘data’, ‘target’ and ‘name’ keys</li>
+<li><strong>dataset</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.7)"><em>dict</em></a>) – a dataset is a dict with ‘data’, ‘target’ and ‘name’ keys</li>
 <li><strong>samplers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – list of oversampling classes/objects</li>
 <li><strong>classifiers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – list of classifier objects</li>
 <li><strong>cache_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – path to a cache directory</li>
@@ -323,8 +374,9 @@ and returns the oversampling and classifier objects giving the best performance<
 <li><strong>validator</strong> (<em>obj</em>) – validator object</li>
 <li><strong>all_results</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – True to return all results, False to return an aggregation</li>
 <li><strong>remove_sampling_cache</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – True to remove sampling objects after evaluation</li>
-<li><strong>max_n_sampler_parameters</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – maximum number of sampler parameter combinations to be tested</li>
+<li><strong>max_samp_par_comb</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – maximum number of sampler parameter combinations to be tested</li>
 <li><strong>n_jobs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of parallel jobs</li>
+<li><strong>random_state</strong> (<em>int/np.random.RandomState/None</em>) – initializer of the random state</li>
 </ul>
 </td>
 </tr>
@@ -343,7 +395,7 @@ and returns the oversampling and classifier objects giving the best performance<
 <span class="kn">from</span> <span class="nn">sklearn.tree</span> <span class="k">import</span> <span class="n">DecisionTreeClassifier</span>
 <span class="kn">from</span> <span class="nn">sklearn.neighbors</span> <span class="k">import</span> <span class="n">KNeighborsClassifier</span>
 
-<span class="n">datasets</span><span class="o">=</span> <span class="p">[</span><span class="n">imbd</span><span class="o">.</span><span class="n">load_glass2</span><span class="p">]</span>
+<span class="n">datasets</span><span class="o">=</span> <span class="n">imbd</span><span class="o">.</span><span class="n">load_glass2</span><span class="p">()</span>
 <span class="n">oversamplers</span><span class="o">=</span> <span class="p">[</span><span class="n">sv</span><span class="o">.</span><span class="n">SMOTE_ENN</span><span class="p">,</span> <span class="n">sv</span><span class="o">.</span><span class="n">NEATER</span><span class="p">,</span> <span class="n">sv</span><span class="o">.</span><span class="n">Lee</span><span class="p">]</span>
 <span class="n">classifiers</span><span class="o">=</span> <span class="p">[</span><span class="n">KNeighborsClassifier</span><span class="p">(</span><span class="n">n_neighbors</span><span class="o">=</span> <span class="mi">3</span><span class="p">),</span>
               <span class="n">KNeighborsClassifier</span><span class="p">(</span><span class="n">n_neighbors</span><span class="o">=</span> <span class="mi">5</span><span class="p">),</span>
@@ -351,7 +403,7 @@ and returns the oversampling and classifier objects giving the best performance<
 
 <span class="n">cache_path</span><span class="o">=</span> <span class="s1">&#39;/home/&lt;user&gt;/smote_validation/&#39;</span>
 
-<span class="n">sampler</span><span class="p">,</span> <span class="n">classifier</span><span class="o">=</span> <span class="n">model_selection</span><span class="p">(</span><span class="n">datasets</span><span class="p">,</span>
+<span class="n">sampler</span><span class="p">,</span> <span class="n">classifier</span><span class="o">=</span> <span class="n">model_selection</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span>
                                      <span class="n">oversamplers</span><span class="p">,</span>
                                      <span class="n">classifiers</span><span class="p">,</span>
                                      <span class="n">cache_path</span><span class="p">,</span>

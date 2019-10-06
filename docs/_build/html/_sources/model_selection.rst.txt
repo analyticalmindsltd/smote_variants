@@ -27,6 +27,11 @@ Querying and filtering oversamplers
 
 .. autofunction:: smote_variants.get_n_quickest_oversamplers
 
+Cross validation
+================
+
+.. autofunction:: smote_variants.cross_validate
+
 Evaluation and validation
 =========================
 

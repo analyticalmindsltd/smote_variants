@@ -82,6 +82,7 @@
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Getting Started</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#what-is-smote-variants">What is <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code>?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#comparison-and-evaluation">Comparison and evaluation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#why-oversampling">Why oversampling?</a></li>
 </ul>
 </li>
@@ -109,6 +110,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="competition.html">About the competition</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ranking.html">Ranking</a></li>
+<li class="toctree-l1"><a class="reference internal" href="downloads.html">Downloads</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Additional Information</span></p>
 <ul>
@@ -186,28 +188,56 @@
 There are more than 85 variants of the classical Synthetic Minority Oversampling Technique (SMOTE) published, but source codes are available for only
 a handful of techniques. In this package we have implemented 85 variants of SMOTE in a common framework, and also supplied some model selection and evaluation codes.</p>
 <p>In order to get an impression on what to expect, an ordinary, imbalanced, 2D dataset can be seen in the left hand side, and the oversampled dataset on the right hand side:</p>
-<img alt="_images/base.png" src="_images/base.png" />
-<img alt="_images/SMOTE_ENN.png" src="_images/SMOTE_ENN.png" />
-<p>If you use this package, please cite the following paper:</p>
-<div class="highlight-Latex notranslate"><div class="highlight"><pre><span></span>@article<span class="nb">{</span>smote<span class="nb">_</span>variants<span class="nb">_</span>comparison,
-        author=<span class="nb">{</span>Gy<span class="k">\&quot;</span>orgy, Kov<span class="k">\&#39;</span>acs<span class="nb">}</span>,
-        title=<span class="nb">{</span>Empirical comparison and evaluation of 85 variants of the Synthetic Minority Oversampling Technique on 104 imbalanced datasets<span class="nb">}</span>,
-        journal=<span class="nb">{}</span>,
-        volume=<span class="nb">{}</span>
-        pages=<span class="nb">{}</span>,
-        year=<span class="nb">{</span>2019<span class="nb">}</span>
-        <span class="nb">}</span>
+<a class="reference internal image-reference" href="_images/base.png"><img alt="_images/base.png" src="_images/base.png" style="width: 40%;" /></a>
+<a class="reference internal image-reference" href="_images/SMOTE_ENN.png"><img alt="_images/SMOTE_ENN.png" src="_images/SMOTE_ENN.png" style="width: 40%;" /></a>
+<p>If you use this package, please consider citing the following papers.</p>
+<p>Preprint for the package: <a class="reference external" href="https://www.researchgate.net/publication/333968087_smote-variants_a_Python_Implementation_of_85_Minority_Oversampling_Techniques">https://www.researchgate.net/publication/333968087_smote-variants_a_Python_Implementation_of_85_Minority_Oversampling_Techniques</a></p>
+<p>BibTex for the package:</p>
+<div class="highlight-BibTex notranslate"><div class="highlight"><pre><span></span><span class="nc">@article</span><span class="p">{</span><span class="nl">smote-variants</span><span class="p">,</span>
+  <span class="na">author</span><span class="p">=</span><span class="s">{Gy\&quot;orgy Kov\&#39;acs}</span><span class="p">,</span>
+  <span class="na">title</span><span class="p">=</span><span class="s">{smote-variants: a Python Implementation of 85 Minority Oversampling Techniques}</span><span class="p">,</span>
+  <span class="na">journal</span><span class="p">=</span><span class="s">{Neurocomputing}</span><span class="p">,</span>
+  <span class="na">note</span><span class="p">=</span><span class="s">{(IF-2019=4.07)}</span><span class="p">,</span>
+  <span class="na">volume</span><span class="p">=</span><span class="s">{366}</span><span class="p">,</span>
+  <span class="na">pages</span><span class="p">=</span><span class="s">{352--354}</span><span class="p">,</span>
+  <span class="na">link</span><span class="p">=</span><span class="s">{https://www.sciencedirect.com/science/article/pii/S0925231219311622}</span><span class="p">,</span>
+  <span class="na">year</span><span class="p">=</span><span class="s">{2019}</span><span class="p">,</span>
+  <span class="na">group</span><span class="p">=</span><span class="s">{journal}</span><span class="p">,</span>
+  <span class="na">code</span><span class="p">=</span> <span class="s">{https://github.com/gykovacs/smote_variants}</span><span class="p">,</span>
+  <span class="na">doi</span><span class="p">=</span><span class="s">{10.1016/j.neucom.2019.06.100}</span>
+<span class="p">}</span>
 </pre></div>
 </div>
+<p>Preprint of the comparative study: <a class="reference external" href="https://www.researchgate.net/publication/334732374_An_empirical_comparison_and_evaluation_of_minority_oversampling_techniques_on_a_large_number_of_imbalanced_datasets">https://www.researchgate.net/publication/334732374_An_empirical_comparison_and_evaluation_of_minority_oversampling_techniques_on_a_large_number_of_imbalanced_datasets</a></p>
+<p>BibTex for the comparison and evaluation:</p>
+<div class="highlight-BibTex notranslate"><div class="highlight"><pre><span></span><span class="nc">@article</span><span class="p">{</span><span class="nl">smote-comparison</span><span class="p">,</span>
+  <span class="na">author</span><span class="p">=</span><span class="s">{Gy\&quot;orgy Kov\&#39;acs}</span><span class="p">,</span>
+  <span class="na">title</span><span class="p">=</span><span class="s">{An empirical comparison and evaluation of minority oversampling techniques on a large number of imbalanced datasets}</span><span class="p">,</span>
+  <span class="na">journal</span><span class="p">=</span><span class="s">{Applied Soft Computing}</span><span class="p">,</span>
+  <span class="na">note</span><span class="p">=</span><span class="s">{(IF-2019=4.873)}</span><span class="p">,</span>
+  <span class="na">year</span><span class="p">=</span><span class="s">{2019}</span><span class="p">,</span>
+  <span class="na">volume</span><span class="p">=</span><span class="s">{83}</span><span class="p">,</span>
+  <span class="na">pages</span><span class="p">=</span><span class="s">{105662}</span><span class="p">,</span>
+  <span class="na">link</span><span class="p">=</span><span class="s">{https://www.sciencedirect.com/science/article/pii/S1568494619304429}</span><span class="p">,</span>
+  <span class="na">group</span><span class="p">=</span><span class="s">{journal}</span><span class="p">,</span>
+  <span class="na">code</span><span class="p">=</span><span class="s">{https://github.com/gykovacs/smote_variants}</span><span class="p">,</span>
+  <span class="na">doi</span><span class="p">=</span><span class="s">{10.1016/j.asoc.2019.105662}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="comparison-and-evaluation">
+<h2>Comparison and evaluation<a class="headerlink" href="#comparison-and-evaluation" title="Permalink to this headline">¶</a></h2>
+<p>For a thorough comparison and evaluation see <a class="reference external" href="https://www.researchgate.net/publication/334732374_An_empirical_comparison_and_evaluation_of_minority_oversampling_techniques_on_a_large_number_of_imbalanced_datasets">https://www.researchgate.net/publication/334732374_An_empirical_comparison_and_evaluation_of_minority_oversampling_techniques_on_a_large_number_of_imbalanced_datasets</a></p>
 </div>
 <div class="section" id="why-oversampling">
 <h2>Why oversampling?<a class="headerlink" href="#why-oversampling" title="Permalink to this headline">¶</a></h2>
 <p>At first glance, oversampling seems to be an empirical heuristic technique to improve classification performance. After all, generating samples somehow and using them for training a classifier seems to be fairly contracitory. However, there are some reasons why the contrary is the case:</p>
 <blockquote>
 <div><ol class="arabic simple">
-<li><em>Data augmentation</em>: sample generation is widely used on nowadays’ flagship field deep learning, but it is called data augmentation. In data augmentation additional images are generated to drive deep learning by applying various geometrical and statistical distortions like skewing or adding noise. In the image domain, it is known that these transformations shouldn’t change the useful content of the image much, but increase the variability of the training set, thus, better models can be expected. Using a general dataset, the set of transformations that keep the content unchanged is unclear, but one can expect that applying some interpolation between close data points of a class is likely to remain in the same class. This is exatly what oversampling does, so, it can be considered as a general analogy of the widely accepted data augmentation process.</li>
-<li><em>Improved regularization</em>: to avoid overfitting, most of the classifiers have some hyperparameters for regularization. Whether it is the coefficient of the L1 or L2 norm of weights in the objective function or it is an upper bound on the depth of decision trees, it’s goal is to reduce overfitting by making a compromise between bias and variance. Training an imbalanced dataset, most of the general purpose classifiers tend to overfit the majority class (since it has a larger contribution to the loss function, or its samples are more dense and dominate some regions in the feature space, etc.). Even though the overfitting caused by imbalance is a decent effect in the training process, we have only those regularization parameters developed for balanced datasets. It becomes extremely hard to prevent overfitting some classes using the standard regularization parameters, especially if the degree of imbalance varies in space. One of the basic principles of machine learning is that the goal of regularization is to fix the lack of data. If we had enough training data, there would be no need for regularization, at all. Thus, generating training data is closely related to the root of the problem, it is a kind of regularization, in which we put artificial sample points to certain positions in the feature space to articulate what we expect about the shape of the class manifold.</li>
-<li><em>Regularization by samples - a Bayesian thought</em>: finally, Bayesian people usually say that one important reason why Bayesian statistics is better than frequentist statistics is that in the lack of infinite data (which is ususally the case), all we can derive is a distribution on any parameter of interest. And, arbitrary distributions can be represented by a bunch of sampels. Analoguosly, in our interpretation, there is no better way to do regularization than generating artificial training sampels according to our expectations on the distribution of the data.</li>
+<li><em>Data augmentation</em>: sample generation is widely used on nowadays’ flagship field deep learning, but it is called data augmentation. In data augmentation additional images are generated to drive deep learning by applying various geometrical and statistical distortions like skewing or adding noise. In the image domain, it is known that these transformations shouldn’t change the useful content of the image much, but increase the variability of the training set, thus, better models can be expected. Using a general dataset, the set of transformations that keep the content unchanged is unclear, but one can expect that applying some interpolation between close data points of a class is likely to remain in the same class. This is exactly what oversampling does, thus, it can be considered as a general analogy of the widely accepted data augmentation process.</li>
+<li><em>Improved regularization</em>: to avoid overfitting, most of the classifiers have some hyperparameters for regularization. Whether it is the coefficient of the L1 or L2 norm of weights in the objective function or it is an upper bound on the depth of decision trees, it’s goal is to reduce overfitting by making a compromise between bias and variance. Training an imbalanced dataset, most of the general purpose classifiers tend to overfit the majority class (since it has a larger contribution to the loss function, or its samples are more dense and dominate some regions in the feature space, etc.). Even though the overfitting caused by imbalance is a decent effect in the training process, we have only the regularization parameters developed for balanced datasets. It becomes extremely hard to prevent overfitting majority classes using the standard regularization parameters, especially if the degree of imbalance varies spatially. One of the basic principles of machine learning is that the goal of regularization is to fix the lack of data. If we had enough training data, there would be no need for regularization, at all. Thus, generating training data is closely related to the root of the problem, it is a kind of regularization, in which we put artificial sample points to certain positions in the feature space to articulate what we expect about the distribution of the minority class(es).</li>
+<li><em>Regularization by samples - a Bayesian thought</em>: finally, Bayesian people usually say that one important reason why Bayesian statistics is better than frequentist statistics is that in the lack of infinite data (which is ususally the case), all we can derive is a distribution on any parameter of interest. And, arbitrary distributions can be represented by a bunch of samples. Analoguosly, in our interpretation, there is no better way to do regularization than generating artificial training sampels according to our expectations on the distribution of the data, thus, regularizing by a set of properly positioned training samples.</li>
 </ol>
 </div></blockquote>
 </div>

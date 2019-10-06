@@ -43,7 +43,8 @@ Welcome to smote_variants's documentation!
    
    competition
    ranking
-   
+   downloads
+
 .. toctree::
    :maxdepth: 1
    :caption: Additional Information

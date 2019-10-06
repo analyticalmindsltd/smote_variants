@@ -28,9 +28,13 @@ BibTex for the package:
       title={smote-variants: a Python Implementation of 85 Minority Oversampling Techniques},
       journal={Neurocomputing},
       note={(IF-2019=4.07)},
+      volume={366},
+      pages={352--354},
+      link={https://www.sciencedirect.com/science/article/pii/S0925231219311622},
       year={2019},
       group={journal},
-      code= {https://github.com/gykovacs/smote_variants}
+      code= {https://github.com/gykovacs/smote_variants},
+      doi={10.1016/j.neucom.2019.06.100}
     }
 
 Preprint of the comparative study: https://www.researchgate.net/publication/334732374_An_empirical_comparison_and_evaluation_of_minority_oversampling_techniques_on_a_large_number_of_imbalanced_datasets

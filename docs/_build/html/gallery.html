@@ -110,6 +110,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="competition.html">About the competition</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ranking.html">Ranking</a></li>
+<li class="toctree-l1"><a class="reference internal" href="downloads.html">Downloads</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Additional Information</span></p>
 <ul>
@@ -181,42 +182,8 @@
             
   <div class="section" id="gallery">
 <h1>Gallery<a class="headerlink" href="#gallery" title="Permalink to this headline">¶</a></h1>
-<p>In this page we demonstrate the output of various oversampling                     and noise removal techniques, using default parameters.</p>
-<p>For binary oversampling and noise removal, the figures can be reproduced by the <code class="docutils literal notranslate"><span class="pre">ballpark_sample</span></code> function using                     a built-in or user definied dataset:</p>
-<dl class="function">
-<dt id="smote_variants.ballpark_sample">
-<code class="descclassname">smote_variants.</code><code class="descname">ballpark_sample</code><span class="sig-paren">(</span><em>sampler_nf, img_file_base=None, img_file_sampled=None, use_built_in=1, data_maj_user=None, data_min_user=None, center_min=array([[ 4. ,  0. ],        [ 3. ,  0.5],        [ 3. , -1. ]]), var_min=array([[[1. , 0. ],         [0. , 1. ]],         [[0.5, 0. ],         [0. , 0.5]],         [[1. , 0. ],         [0. , 0.5]]]), num_min=array([4, 8, 8]), center_maj=array([[0., 0.]]), var_maj=array([[[1., 0.],         [0., 1.]]]), num_maj=array([60])</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#ballpark_sample"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.ballpark_sample" title="Permalink to this definition">¶</a></dt>
-<dd><p>Execute ballpark example sampling or noise removal with plotting</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>sampler_nf</strong> (<em>SamplerBase/NoiseFilter</em>) – sampling or noise filtering object</li>
-<li><strong>img_file_base</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – filename to save the plot of the base data</li>
-<li><strong>img_file_sampled</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – filename to save the plot of the sampled data</li>
-<li><strong>use_built_in</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – id of the built in data to be used - 0/1, data
-will be generated if no user proveded data is specified</li>
-<li><strong>data_maj_user</strong> (<em>np.matrix</em>) – user provided majority data</li>
-<li><strong>data_min_user</strong> (<em>np.matrix</em>) – user provided minority data</li>
-<li><strong>center_min</strong> (<em>np.matrix</em>) – centers of minority concepts with Gaussian distribution</li>
-<li><strong>var_min</strong> (<em>np.matrix</em>) – variances of minority concepts</li>
-<li><strong>num_min</strong> (<em>np.array</em>) – number of samples to generate from minority concepts</li>
-<li><strong>center_maj</strong> (<em>np.matrix</em>) – center of majority concept</li>
-<li><strong>var_maj</strong> (<em>np.matrix</em>) – variance of majority concept</li>
-<li><strong>num_maj</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of samples to generate from the majority concept</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-<p>Example:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ballpark_sample</span><span class="p">(</span><span class="n">SMOTE_ENN</span><span class="p">(),</span> <span class="n">img_file_base</span><span class="o">=</span> <span class="s1">&#39;base.png&#39;</span><span class="p">,</span> <span class="n">img_file_sampled</span><span class="o">=</span> <span class="s1">&#39;SMOTE_ENN.png&#39;</span><span class="p">)</span>
-<span class="n">ballpark_sample</span><span class="p">(</span><span class="n">EditedNearestNeighbors</span><span class="p">(),</span> <span class="n">img_file_base</span><span class="o">=</span> <span class="s1">&#39;base.png&#39;</span><span class="p">,</span> <span class="n">img_file_sampled</span><span class="o">=</span> <span class="s1">&#39;ENN.png&#39;</span><span class="p">)</span>
-</pre></div>
-</div>
-</dd></dl>
-
+<p>In this page, we demonstrate the output of various oversampling                     and noise removal techniques, using default parameters.</p>
+<p>For binary oversampling and nosie removal, an artificial database was used, available in the <a href="#id1"><span class="problematic" id="id2">``</span></a>utils` directory of the github repository.</p>
 <p>For multiclass oversampling we have used the ‘wine’ dataset from                     <code class="docutils literal notranslate"><span class="pre">sklearn.datasets</span></code>, which has 3 classes and many features, out                     which the first two coordinates have been used for visualization.</p>
 <div class="section" id="oversampling-sample-results">
 <h2>Oversampling sample results<a class="headerlink" href="#oversampling-sample-results" title="Permalink to this headline">¶</a></h2>
@@ -362,6 +329,7 @@ will be generated if no user proveded data is specified</li>
 <img alt="_images/multiclass-ProWSyn.png" src="_images/multiclass-ProWSyn.png" />
 <img alt="_images/multiclass-SL_graph_SMOTE.png" src="_images/multiclass-SL_graph_SMOTE.png" />
 <img alt="_images/multiclass-NRSBoundary_SMOTE.png" src="_images/multiclass-NRSBoundary_SMOTE.png" />
+<img alt="_images/multiclass-LVQ_SMOTE.png" src="_images/multiclass-LVQ_SMOTE.png" />
 <img alt="_images/multiclass-SOI_CJ.png" src="_images/multiclass-SOI_CJ.png" />
 <img alt="_images/multiclass-ROSE.png" src="_images/multiclass-ROSE.png" />
 <img alt="_images/multiclass-SMOTE_OUT.png" src="_images/multiclass-SMOTE_OUT.png" />

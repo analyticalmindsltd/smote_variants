@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Using smote_variants in Julia &mdash; smote_variants 0.1.0 documentation</title>
+  <title>Downloads &mdash; smote_variants 0.1.0 documentation</title>
   
 
   
@@ -28,8 +28,8 @@
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="About the competition" href="competition.html" />
-    <link rel="prev" title="Using smote_variants in R" href="use_in_r.html" /> 
+    <link rel="next" title="Contribute" href="contribute.html" />
+    <link rel="prev" title="Ranking" href="ranking.html" /> 
 
   
   <script src="_static/js/modernizr.min.js"></script>
@@ -97,15 +97,15 @@
 <li class="toctree-l1"><a class="reference internal" href="gallery.html">Gallery</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Interfaces</span></p>
-<ul class="current">
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="use_in_r.html">Using <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> in R</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Using <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> in Julia</a></li>
+<li class="toctree-l1"><a class="reference internal" href="use_in_julia.html">Using <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> in Julia</a></li>
 </ul>
 <p class="caption"><span class="caption-text">The competition</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="competition.html">About the competition</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ranking.html">Ranking</a></li>
-<li class="toctree-l1"><a class="reference internal" href="downloads.html">Downloads</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Downloads</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Additional Information</span></p>
 <ul>
@@ -156,13 +156,13 @@
     
       <li><a href="index.html">Docs</a> &raquo;</li>
         
-      <li>Using <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> in Julia</li>
+      <li>Downloads</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
-            <a href="_sources/use_in_julia.rst.txt" rel="nofollow"> View page source</a>
+            <a href="_sources/downloads.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
@@ -175,50 +175,13 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="using-smote-variants-in-julia">
-<h1>Using <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> in Julia<a class="headerlink" href="#using-smote-variants-in-julia" title="Permalink to this headline">¶</a></h1>
-<p>Similarly to R using <code class="docutils literal notranslate"><span class="pre">reticulate</span></code>, Python packages can be called from Julia using the package <code class="docutils literal notranslate"><span class="pre">PyCall</span></code> given that some python installation with <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> is available.</p>
-<p>Suppose, there is an Anaconda3 install available at ‘/home/&lt;user&gt;/anaconda3’ and <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> and <code class="docutils literal notranslate"><span class="pre">imbalanced_databases</span></code> are installed on the base conda environment.</p>
-<p>The following steps are needed to run oversampler codes from the <code class="docutils literal notranslate"><span class="pre">smote_variants</span></code> package:</p>
-<blockquote>
-<div><ul class="simple">
-<li>Start the Julia interpreter:</li>
-</ul>
-<div class="highlight-Julia notranslate"><div class="highlight"><pre><span></span><span class="n">julia</span>
-</pre></div>
-</div>
+  <div class="section" id="downloads">
+<h1>Downloads<a class="headerlink" href="#downloads" title="Permalink to this headline">¶</a></h1>
 <ul class="simple">
-<li>In the Julia prompt, set the Python path to that of the Anaconda install:</li>
+<li>Database foldings: <a class="reference external" href="https://drive.google.com/open?id=1PKw1vETVUzaToomio1-RGzJ9_-buYjOW">https://drive.google.com/open?id=1PKw1vETVUzaToomio1-RGzJ9_-buYjOW</a></li>
+<li>Raw results: <a class="reference external" href="https://drive.google.com/open?id=12CfB3184nchLIwStaHhrjcQK7Ari18Mo">https://drive.google.com/open?id=12CfB3184nchLIwStaHhrjcQK7Ari18Mo</a></li>
+<li>Aggregated results: <a class="reference external" href="https://drive.google.com/open?id=19JGikRYXQ6-eOxaFVrqkF64zOCiSdT-j">https://drive.google.com/open?id=19JGikRYXQ6-eOxaFVrqkF64zOCiSdT-j</a></li>
 </ul>
-<div class="highlight-Julia notranslate"><div class="highlight"><pre><span></span><span class="nb">ENV</span><span class="p">[</span><span class="s">&quot;PYTHON&quot;</span><span class="p">]</span><span class="o">=</span> <span class="s">&quot;/home/&lt;user&gt;/anaconda3/bin/python3&quot;</span>
-</pre></div>
-</div>
-<ul class="simple">
-<li>Add the <code class="docutils literal notranslate"><span class="pre">PyCall</span></code> package:</li>
-</ul>
-<div class="highlight-Julia notranslate"><div class="highlight"><pre><span></span><span class="k">import</span> <span class="n">Pkg</span>
-
-<span class="n">Pkg</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&quot;PyCall&quot;</span><span class="p">)</span>
-
-<span class="n">Pkg</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="s">&quot;PyCall&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-<ul class="simple">
-<li>Restart the Julia interpreter.</li>
-<li>The following code should work:</li>
-</ul>
-<div class="highlight-Julia notranslate"><div class="highlight"><pre><span></span><span class="k">using</span> <span class="n">PyCall</span>
-
-<span class="nd">@pyimport</span> <span class="n">imbalanced_databases</span> <span class="n">as</span> <span class="n">imbd</span>
-<span class="nd">@pyimport</span> <span class="n">smote_variants</span> <span class="n">as</span> <span class="n">sv</span>
-
-<span class="n">dataset</span><span class="o">=</span> <span class="n">imbd</span><span class="o">.</span><span class="n">load_iris0</span><span class="p">()</span>
-<span class="n">oversampler</span><span class="o">=</span> <span class="n">sv</span><span class="o">.</span><span class="n">SMOTE_ENN</span><span class="p">()</span>
-
-<span class="n">X_samp</span><span class="p">,</span> <span class="n">y_samp</span><span class="o">=</span> <span class="n">oversampler</span><span class="p">[</span><span class="o">:</span><span class="n">sample</span><span class="p">](</span><span class="n">dataset</span><span class="p">[</span><span class="s">&quot;data&quot;</span><span class="p">],</span> <span class="n">dataset</span><span class="p">[</span><span class="s">&quot;target&quot;</span><span class="p">])</span>
-</pre></div>
-</div>
-</div></blockquote>
 </div>
 
 
@@ -229,10 +192,10 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="competition.html" class="btn btn-neutral float-right" title="About the competition" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="contribute.html" class="btn btn-neutral float-right" title="Contribute" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="use_in_r.html" class="btn btn-neutral" title="Using smote_variants in R" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="ranking.html" class="btn btn-neutral" title="Ranking" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   

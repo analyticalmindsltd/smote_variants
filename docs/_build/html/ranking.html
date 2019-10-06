@@ -28,7 +28,7 @@
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Contribute" href="contribute.html" />
+    <link rel="next" title="Downloads" href="downloads.html" />
     <link rel="prev" title="About the competition" href="competition.html" /> 
 
   
@@ -105,6 +105,7 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="competition.html">About the competition</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Ranking</a></li>
+<li class="toctree-l1"><a class="reference internal" href="downloads.html">Downloads</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Additional Information</span></p>
 <ul>
@@ -176,20 +177,20 @@
             
   <div class="section" id="ranking">
 <h1>Ranking<a class="headerlink" href="#ranking" title="Permalink to this headline">¶</a></h1>
-<p>Based on a thorough evaluation using 104 imbalanced datasets, the following 10 techniques provide the highest performance in terms of the AUC, GAcc, F1 and P20 scores, in nearest neighbors, support vector machine, decision tree and multilayer perceptron based classification scenarios:</p>
-<p>For more details on the evaluation methodology, see our paper on the comparative study.</p>
+<p>Based on a thorough evaluation using 104 imbalanced datasets, the following 10 techniques provide the highest performance in terms of the AUC, GAcc, F1 and P20 scores, in nearest neighbors, support vector machine, decision tree and multilayer perceptron based classification scenarios.
+For more details on the evaluation methodology, see our paper on the comparative study.</p>
 <table border="1" class="docutils">
 <colgroup>
-<col width="40%" />
-<col width="6%" />
-<col width="6%" />
-<col width="7%" />
-<col width="6%" />
-<col width="8%" />
-<col width="6%" />
-<col width="6%" />
-<col width="6%" />
+<col width="17%" />
 <col width="9%" />
+<col width="8%" />
+<col width="10%" />
+<col width="8%" />
+<col width="11%" />
+<col width="8%" />
+<col width="9%" />
+<col width="9%" />
+<col width="13%" />
 </colgroup>
 <thead valign="bottom">
 <tr class="row-odd"><th class="head">sampler</th>
@@ -205,10 +206,10 @@
 </tr>
 </thead>
 <tbody valign="top">
-<tr class="row-even"><td>polynom-fit-SMOTE cite(polynomial_fit_smote))</td>
-<td>2.25</td>
+<tr class="row-even"><td>polynom-fit-SMOTE</td>
+<td>2.5</td>
 <td>0.902538</td>
-<td>5</td>
+<td>6</td>
 <td>0.870753</td>
 <td>1</td>
 <td>0.695154</td>
@@ -216,104 +217,104 @@
 <td>0.992496</td>
 <td>2</td>
 </tr>
-<tr class="row-odd"><td>ProWSyn cite(prowsyn))</td>
-<td>3.5</td>
+<tr class="row-odd"><td>ProWSyn</td>
+<td>4.5</td>
 <td>0.904389</td>
 <td>1</td>
 <td>0.868449</td>
-<td>2</td>
+<td>4</td>
 <td>0.690284</td>
 <td>3</td>
 <td>0.991112</td>
-<td>8</td>
+<td>10</td>
 </tr>
-<tr class="row-even"><td>Lee cite(lee))</td>
-<td>7</td>
-<td>0.902318</td>
-<td>6</td>
-<td>0.868324</td>
+<tr class="row-even"><td>SMOTE-IPF</td>
+<td>7.5</td>
+<td>0.902565</td>
+<td>5</td>
+<td>0.868715</td>
 <td>3</td>
+<td>0.687935</td>
+<td>9</td>
+<td>0.990904</td>
+<td>13</td>
+</tr>
+<tr class="row-odd"><td>Lee</td>
+<td>8</td>
+<td>0.902318</td>
+<td>7</td>
+<td>0.868324</td>
+<td>5</td>
 <td>0.688082</td>
 <td>8</td>
 <td>0.991008</td>
-<td>11</td>
+<td>12</td>
 </tr>
-<tr class="row-odd"><td>SMOBD cite(smobd))</td>
-<td>8</td>
+<tr class="row-even"><td>SMOBD</td>
+<td>9.25</td>
 <td>0.902247</td>
-<td>7</td>
+<td>8</td>
 <td>0.86766</td>
-<td>4</td>
+<td>6</td>
 <td>0.688885</td>
 <td>4</td>
 <td>0.990583</td>
-<td>17</td>
+<td>19</td>
 </tr>
-<tr class="row-even"><td>G-SMOTE cite(g_smote))</td>
-<td>10.75</td>
+<tr class="row-odd"><td>G-SMOTE</td>
+<td>13.5</td>
 <td>0.901916</td>
-<td>9</td>
+<td>10</td>
 <td>0.865103</td>
-<td>11</td>
+<td>18</td>
 <td>0.686613</td>
-<td>11</td>
+<td>12</td>
 <td>0.990846</td>
-<td>12</td>
+<td>14</td>
 </tr>
-<tr class="row-odd"><td>CCR cite(ccr))</td>
-<td>11.75</td>
+<tr class="row-even"><td>CCR</td>
+<td>14.25</td>
 <td>0.902112</td>
-<td>8</td>
-<td>0.861994</td>
-<td>23</td>
-<td>0.687886</td>
 <td>9</td>
+<td>0.861994</td>
+<td>30</td>
+<td>0.687886</td>
+<td>10</td>
 <td>0.991254</td>
-<td>7</td>
+<td>8</td>
 </tr>
-<tr class="row-even"><td>LVQ-SMOTE cite(lvq_smote))</td>
-<td>12</td>
+<tr class="row-odd"><td>LVQ-SMOTE</td>
+<td>14.75</td>
 <td>0.902799</td>
 <td>3</td>
 <td>0.862295</td>
-<td>22</td>
+<td>29</td>
 <td>0.683646</td>
-<td>20</td>
+<td>24</td>
 <td>0.992211</td>
 <td>3</td>
 </tr>
-<tr class="row-odd"><td>Random-SMOTE cite(random_smote))</td>
+<tr class="row-even"><td>Assembled-SMOTE</td>
+<td>15.5</td>
+<td>0.902691</td>
+<td>4</td>
+<td>0.866914</td>
+<td>7</td>
+<td>0.688614</td>
+<td>5</td>
+<td>0.982685</td>
+<td>46</td>
+</tr>
+<tr class="row-odd"><td>SMOTE-TomekLinks</td>
+<td>15.75</td>
+<td>0.901016</td>
 <td>14</td>
-<td>0.900703</td>
-<td>16</td>
-<td>0.864615</td>
-<td>12</td>
-<td>0.685186</td>
-<td>15</td>
-<td>0.990608</td>
-<td>13</td>
-</tr>
-<tr class="row-even"><td>CE-SMOTE cite(ce_smote))</td>
-<td>15.25</td>
-<td>0.903073</td>
-<td>2</td>
-<td>0.862568</td>
-<td>19</td>
-<td>0.687163</td>
-<td>10</td>
-<td>0.990165</td>
-<td>30</td>
-</tr>
-<tr class="row-odd"><td>SMOTE-Cosine cite(smote_out_smote_cosine_selected_smote))</td>
-<td>15.25</td>
-<td>0.900688</td>
-<td>17</td>
-<td>0.864603</td>
-<td>13</td>
-<td>0.686279</td>
-<td>12</td>
-<td>0.990536</td>
-<td>19</td>
+<td>0.866174</td>
+<td>9</td>
+<td>0.684708</td>
+<td>20</td>
+<td>0.990573</td>
+<td>20</td>
 </tr>
 </tbody>
 </table>
@@ -327,7 +328,7 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="contribute.html" class="btn btn-neutral float-right" title="Contribute" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="downloads.html" class="btn btn-neutral float-right" title="Downloads" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
         <a href="competition.html" class="btn btn-neutral" title="About the competition" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>

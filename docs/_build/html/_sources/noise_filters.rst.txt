@@ -1,5 +1,5 @@
 Noise filters and prototype selection
--------------------------------------
+*************************************
 
 TomekLinkRemoval
 ================
@@ -47,8 +47,6 @@ References:
                  publisher = {ACM},
                  address = {New York, NY, USA}
                 } 
-
-    * URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
 CondensedNearestNeighbors
 =========================
 
@@ -78,7 +76,7 @@ References:
     * BibTex::
         
         @ARTICLE{condensed_nn, 
-                    author={P. Hart}, 
+                    author={Hart, P.}, 
                     journal={IEEE Transactions on Information Theory}, 
                     title={The condensed nearest neighbor rule (Corresp.)}, 
                     year={1968}, 
@@ -133,8 +131,6 @@ References:
                  publisher = {ACM},
                  address = {New York, NY, USA}
                 } 
-        
-    * URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
 CNNTomekLinks
 =============
 
@@ -179,8 +175,6 @@ References:
                  publisher = {ACM},
                  address = {New York, NY, USA}
                 } 
-        
-    * URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
 NeighborhoodCleaningRule
 ========================
 
@@ -225,8 +219,6 @@ References:
                  publisher = {ACM},
                  address = {New York, NY, USA}
                 } 
-        
-    * URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx
 EditedNearestNeighbors
 ======================
 
@@ -271,5 +263,3 @@ References:
                  publisher = {ACM},
                  address = {New York, NY, USA}
                 } 
-        
-    * URL: https://drive.google.com/open?id=1-AckPO4e4R3e3P3Zrsh6dVoFwRhL5Obx

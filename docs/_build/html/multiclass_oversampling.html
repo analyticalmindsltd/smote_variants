@@ -105,6 +105,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="competition.html">About the competition</a></li>
 <li class="toctree-l1"><a class="reference internal" href="ranking.html">Ranking</a></li>
+<li class="toctree-l1"><a class="reference internal" href="downloads.html">Downloads</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Additional Information</span></p>
 <ul>
@@ -179,13 +180,13 @@
 <p>Multiclass oversampling is highly ambiguous task, as balancing various classes might be optimal with various oversampling techniques. The multiclass oversampling goes on by selecting minority classes one-by-one and oversampling them to the same cardinality as the original majority class, using the union of the original majority class and all already oversampled classes as the majority class in the binary oversampling process. This technique works only with those binary oversampling techniques which do not change the majority class and have a <code class="docutils literal notranslate"><span class="pre">proportion</span></code> parameter to explicitly specify the number of samples to be generated. Suitable oversampling techniques can be queried by the <code class="docutils literal notranslate"><span class="pre">get_all_oversamplers_multiclass</span></code> function:</p>
 <dl class="function">
 <dt id="smote_variants.get_all_oversamplers_multiclass">
-<code class="descclassname">smote_variants.</code><code class="descname">get_all_oversamplers_multiclass</code><span class="sig-paren">(</span><em>strategy='equalize'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#get_all_oversamplers_multiclass"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.get_all_oversamplers_multiclass" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">smote_variants.</code><code class="descname">get_all_oversamplers_multiclass</code><span class="sig-paren">(</span><em>strategy='equalize_1_vs_many_successive'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#get_all_oversamplers_multiclass"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.get_all_oversamplers_multiclass" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns all oversampling classes which can be used with the multiclass strategy specified</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>strategy</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – the multiclass oversampling strategy</td>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>strategy</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – the multiclass oversampling strategy - ‘equalize_1_vs_many_successive’/’equalize_1_vs_many’</td>
 </tr>
 <tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">list of all oversampling classes which can be used with the multiclass strategy specified</td>
 </tr>
@@ -203,7 +204,7 @@
 
 <dl class="function">
 <dt id="smote_variants.get_n_quickest_oversamplers_multiclass">
-<code class="descclassname">smote_variants.</code><code class="descname">get_n_quickest_oversamplers_multiclass</code><span class="sig-paren">(</span><em>n</em>, <em>strategy='equalize'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#get_n_quickest_oversamplers_multiclass"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.get_n_quickest_oversamplers_multiclass" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">smote_variants.</code><code class="descname">get_n_quickest_oversamplers_multiclass</code><span class="sig-paren">(</span><em>n</em>, <em>strategy='equalize_1_vs_many_successive'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#get_n_quickest_oversamplers_multiclass"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.get_n_quickest_oversamplers_multiclass" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the n quickest oversamplers based on testing on the datasets of
 the imbalanced_databases package, and suitable for using the multiclass strategy specified.</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -212,7 +213,7 @@ the imbalanced_databases package, and suitable for using the multiclass strategy
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>n</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of oversamplers to return</li>
-<li><strong>strategy</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – the multiclass oversampling strategy</li>
+<li><strong>strategy</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – the multiclass oversampling strategy - ‘equalize_1_vs_many_successive’/’equalize_1_vs_many’</li>
 </ul>
 </td>
 </tr>
@@ -234,10 +235,10 @@ the imbalanced_databases package, and suitable for using the multiclass strategy
 
 <dl class="class">
 <dt id="smote_variants.MulticlassOversampling">
-<em class="property">class </em><code class="descclassname">smote_variants.</code><code class="descname">MulticlassOversampling</code><span class="sig-paren">(</span><em>oversampler=&lt;smote_variants._smote_variants.SMOTE object&gt;</em>, <em>strategy='equalize'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#MulticlassOversampling"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.MulticlassOversampling" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">smote_variants.</code><code class="descname">MulticlassOversampling</code><span class="sig-paren">(</span><em>oversampler=&lt;smote_variants._smote_variants.SMOTE object&gt;</em>, <em>strategy='equalize_1_vs_many_successive'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#MulticlassOversampling"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.MulticlassOversampling" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="method">
 <dt id="smote_variants.MulticlassOversampling.__init__">
-<code class="descname">__init__</code><span class="sig-paren">(</span><em>oversampler=&lt;smote_variants._smote_variants.SMOTE object&gt;</em>, <em>strategy='equalize'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#MulticlassOversampling.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.MulticlassOversampling.__init__" title="Permalink to this definition">¶</a></dt>
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>oversampler=&lt;smote_variants._smote_variants.SMOTE object&gt;</em>, <em>strategy='equalize_1_vs_many_successive'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#MulticlassOversampling.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.MulticlassOversampling.__init__" title="Permalink to this definition">¶</a></dt>
 <dd><p>Constructor of the multiclass oversampling object</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -245,7 +246,7 @@ the imbalanced_databases package, and suitable for using the multiclass strategy
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
 <li><strong>oversampler</strong> (<em>obj</em>) – an oversampling object</li>
-<li><strong>strategy</strong> (<em>str/obj</em>) – a multiclass oversampling strategy, currently ‘equalize’</li>
+<li><strong>strategy</strong> (<em>str/obj</em>) – a multiclass oversampling strategy, currently ‘equalize_1_vs_many_successive’/’equalize_1_vs_many’</li>
 </ul>
 </td>
 </tr>
@@ -255,7 +256,7 @@ the imbalanced_databases package, and suitable for using the multiclass strategy
 
 <dl class="method">
 <dt id="smote_variants.MulticlassOversampling.get_params">
-<code class="descname">get_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#MulticlassOversampling.get_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.MulticlassOversampling.get_params" title="Permalink to this definition">¶</a></dt>
+<code class="descname">get_params</code><span class="sig-paren">(</span><em>deep=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#MulticlassOversampling.get_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.MulticlassOversampling.get_params" title="Permalink to this definition">¶</a></dt>
 <dd><table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -293,10 +294,36 @@ the imbalanced_databases package, and suitable for using the multiclass strategy
 </dd></dl>
 
 <dl class="method">
-<dt id="smote_variants.MulticlassOversampling.sample_equalize">
-<code class="descname">sample_equalize</code><span class="sig-paren">(</span><em>X</em>, <em>y</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#MulticlassOversampling.sample_equalize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.MulticlassOversampling.sample_equalize" title="Permalink to this definition">¶</a></dt>
+<dt id="smote_variants.MulticlassOversampling.sample_equalize_1_vs_many">
+<code class="descname">sample_equalize_1_vs_many</code><span class="sig-paren">(</span><em>X</em>, <em>y</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#MulticlassOversampling.sample_equalize_1_vs_many"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.MulticlassOversampling.sample_equalize_1_vs_many" title="Permalink to this definition">¶</a></dt>
 <dd><p>Does the sample generation by oversampling each minority class to the
-cardinality of the majority class.</p>
+cardinality of the majority class using all original samples in each run.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>X</strong> (<em>np.ndarray</em>) – training set</li>
+<li><strong>y</strong> (<em>np.array</em>) – target labels</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">the extended training set and target labels</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">(np.ndarray, np.array)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="smote_variants.MulticlassOversampling.sample_equalize_1_vs_many_successive">
+<code class="descname">sample_equalize_1_vs_many_successive</code><span class="sig-paren">(</span><em>X</em>, <em>y</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/smote_variants/_smote_variants.html#MulticlassOversampling.sample_equalize_1_vs_many_successive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#smote_variants.MulticlassOversampling.sample_equalize_1_vs_many_successive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Does the sample generation by oversampling each minority class successively to the
+cardinality of the majority class, incorporating the results of previous
+oversamplings.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
