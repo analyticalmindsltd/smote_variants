@@ -7096,7 +7096,7 @@ class DEAGO(OverSampling):
         except:
             session_conf= tf.compat.v1.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
             sess= tf.compat.v1.Session(graph=tf.compat.v1.get_default_graph(), config=session_conf)
-            K.tensorflow_backend.set_session(sess)
+            tf.compat.v1.keras.backend.set_session(sess)
         
         
         if not hasattr(self, 'Input'):
