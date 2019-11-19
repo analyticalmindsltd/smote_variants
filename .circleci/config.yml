@@ -42,7 +42,8 @@ jobs:
             pip install -r requirements.txt
             pip install coverage coveralls
             pip install .
-
+      - store_artifacts:
+          path: /tmp/artifacts
       - save_cache:
           paths:
             - ./venv
