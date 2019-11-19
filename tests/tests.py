@@ -39,7 +39,7 @@ class TestBenchmark(unittest.TestCase):
         sv.get_all_oversamplers()
         results= sv.evaluate_oversamplers([data], sv.get_all_oversamplers(), [KNeighborsClassifier(), DecisionTreeClassifier()], '.')
         import json
-        with open('/tmp/artifacts/results.json', 'w') as file
+        with open('/tmp/artifacts/results.json', 'w') as file:
             json.dump(results, file)
         self.assertTrue(len(results) > 0)
 
