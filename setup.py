@@ -37,7 +37,7 @@ EXTRAS_REQUIRE= {'tests': ['nose'],
                  'docs': ['sphinx', 'sphinx-gallery', 'sphinx_rtd_theme', 'matplotlib', 'pandas']}
 PYTHON_REQUIRES= '>=3.5'
 TEST_SUITE='nose.collector'
-TEST_REQUIRES=['imbalanced-databases']
+TEST_REQUIRES=['imbalanced_databases']
 PACKAGE_DIR= {'smote_variants': 'smote_variants'}
 
 setup(name=DISTNAME,
