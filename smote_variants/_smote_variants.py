@@ -2778,9 +2778,7 @@ class Stefanowski(OverSampling):
         nn5= NearestNeighbors(n_neighbors= min(6, len(X)), n_jobs= self.n_jobs)
         nn5.fit(X)
         distance5, indices5= nn5.kneighbors(X)
-        
-        print('a0', np.sum(y))
-        
+                
         # determining noisy and safe flags
         flags= []
         for i in range(len(indices)):
@@ -2789,8 +2787,6 @@ class Stefanowski(OverSampling):
             else:
                 flags.append('noisy')
         flags= np.array(flags)
-        
-        print('a1', len(flags), np.sum(flags == 'noisy'))
         
         D= (y == self.majority_label) & (flags == 'noisy')
         minority_indices= np.where(y == self.minority_label)[0]
@@ -2802,7 +2798,6 @@ class Stefanowski(OverSampling):
             for i in minority_indices:
                 if flags[i] == 'noisy':
                     k= np.sum(np.logical_and(y[indices[i][1:]] == self.majority_label, flags[indices[i][1:]] == 'safe'))
-                    print('a', k)
                     for _ in range(k):
                         samples.append(X[i])
         if self.strategy == 'weak_amp_relabel':
@@ -2819,7 +2814,6 @@ class Stefanowski(OverSampling):
             for i in minority_indices:
                 if flags[i] == 'safe':
                     k= np.sum(np.logical_and(y[indices[i][1:]] == self.majority_label, flags[indices[i][1:]] == 'safe'))
-                    print('b', k)
                     for _ in range(k):
                         samples.append(X[i])
             # if classified correctly by knn(5), noisy minority samples are amplified 
@@ -2831,14 +2825,11 @@ class Stefanowski(OverSampling):
                         k= np.sum(np.logical_and(y[indices[i][1:]] == self.majority_label, flags[indices[i][1:]] == 'safe'))
                     else:
                         k= np.sum(np.logical_and(y[indices5[i][1:]] == self.majority_label, flags[indices5[i][1:]] == 'safe'))
-                    print('c', k)
                     for _ in range(k):
                         samples.append(X[i])
 
 
         to_remove= np.where(D)[0]
-        
-        print(len(X), len(to_remove), len(samples), self.strategy)
         
         X_noise_removed= np.delete(X, to_remove, axis= 0)
         y_noise_removed= np.delete(y, to_remove, axis= 0)
@@ -15319,10 +15310,14 @@ class CCR(OverSampling):
         
         def taxicab_sample(n, r):
             sample = []
+            random_numbers= self.random_state.rand(n)
         
-            for _ in range(n):
-                spread = r - np.sum([np.abs(x) for x in sample])
-                sample.append(spread * (2 * self.random_state.rand() - 1))
+            for i in range(n):
+                #spread = r - np.sum(np.abs(sample))
+                spread= r
+                if len(sample) > 0:
+                    spread-= abs(sample[-1])
+                sample.append(spread * (2 * random_numbers[i] - 1))
         
             return self.random_state.permutation(sample)
         
@@ -15344,6 +15339,9 @@ class CCR(OverSampling):
             current_majority= 0
 
             while True:
+                if current_majority > len(majority):
+                    break
+
                 if current_majority == len(majority):
                     if current_majority == 0:
                         radius_change= remaining_energy / (current_majority + 1.0)
@@ -15397,6 +15395,7 @@ class CCR(OverSampling):
         if len(appended) == 0:
             _logger.info("No samples were added")
             return X.copy(), y.copy()
+
         return np.vstack([X, np.vstack(appended)]), np.hstack([y, np.repeat(self.minority_label, len(appended))])
 
     def get_params(self, deep=False):
@@ -16169,6 +16168,9 @@ class Sampling():
         
         sampler= (sampler or self.sampler.__name__)
         sampler_parameters= sampler_parameters or self.sampler_parameters
+        sampler_parameters= sampler_parameters.copy()
+        if 'random_state' in sampler_parameters:
+            del sampler_parameters['random_state']
         sampler_parameter_str= hashlib.md5(str(sampler_parameters).encode('utf-8')).hexdigest()
         
         filename= '_'.join([prefix, db_name, sampler, sampler_parameter_str]) + '.pickle'
@@ -16203,7 +16205,7 @@ class Sampling():
                 for p in all_proportions:
                     tmp_par= self.sampler_parameters.copy()
                     tmp_par['proportion']= p
-                    tmp_filename= self.standardized_filename('sampling', self.db_name, str(self.sampler.__name__), str(tmp_par))
+                    tmp_filename= self.standardized_filename('sampling', self.db_name, str(self.sampler.__name__), tmp_par)
                     
                     if os.path.isfile(os.path.join(self.cache_path, tmp_filename)):
                         higher_prop_sampling_available= (p, tmp_filename)
@@ -16217,7 +16219,7 @@ class Sampling():
                 self.sampler_parameters['random_state']= self.random_state
                 for X_train, y_train, X_test, y_test in folds['folding']:
                     s= self.sampler(**self.sampler_parameters)
-                    print('scaler', self.scaler)
+
                     #if not self.scaler is None and not hasattr(s, 'transform'):
                     if not self.scaler is None:
                         X_train= self.scaler.fit_transform(X_train, y_train)
@@ -16298,7 +16300,7 @@ class Evaluation():
             label= str((self.sampling.get_params(), classifiers[i].__class__.__name__, classifiers[i].get_params()))
             self.labels.append(label)
     
-    def calculate_metrics(self, all_pred, all_test):
+    def calculate_metrics(self, all_pred, all_test, all_folds):
         """
         Calculates metrics of binary classifiction
         
@@ -16344,6 +16346,9 @@ class Evaluation():
             results['markedness']= results['ppv'] + results['npv'] - 1.0
             results['log_loss']= log_loss(all_test, all_pred)
             results['auc']= roc_auc_score(all_test, all_pred[:,1])
+            aucs= [roc_auc_score(all_test[all_folds == i], all_pred[all_folds == i, 1]) for i in range(np.max(all_folds)+1)]
+            results['auc_mean']= np.mean(aucs)
+            results['auc_std']= np.std(aucs)
             test_labels, preds= zip(*sorted(zip(all_test, all_pred[:,1]), key= lambda x: -x[1]))
             test_labels= np.array(test_labels)
             th= int(0.2*len(test_labels))
@@ -16380,6 +16385,8 @@ class Evaluation():
             results['markedness']= 0
             results['log_loss']= np.nan
             results['auc']= 0
+            results['auc_mean']= 0
+            results['auc_std']= 0
             results['p_top20']= 0
             results['brier']= 1
         
@@ -16426,10 +16433,18 @@ class Evaluation():
         for i in range(len(self.classifiers)):
             if not already_evaluated[i]:
                 _logger.info(self.__class__.__name__ + " do the evaluation %s %s %s" % (self.sampling.db_name, self.sampling.sampler.__name__, self.classifiers[i].__class__.__name__))
-                all_preds, all_tests= [], []
+                all_preds, all_tests, all_folds= [], [], []
                 minority_class_label= None
                 majority_class_label= None
+                fold_idx= -1
                 for X_train, y_train, X_test, y_test in samp['sampling']:
+                    fold_idx+= 1
+
+                    #X_train[X_train == np.inf]= 0
+                    #X_train[X_train == -np.inf]= 0
+                    #X_test[X_test == np.inf]= 0
+                    #X_test[X_test == -np.inf]= 0
+
                     class_labels= np.unique(y_train)
                     min_class_size= np.min([np.sum(y_train == c) for c in class_labels])
                     
@@ -16464,14 +16479,16 @@ class Evaluation():
                         
                         self.classifiers[i].fit(X_train_trans[:,nonzero_var_idx], y_train)
                         all_preds.append(self.classifiers[i].predict_proba(X_test_trans[:,nonzero_var_idx]))
+                        all_folds.append(np.repeat(fold_idx, len(all_preds[-1])))
                 
                 if len(all_tests) > 0:
                     all_preds= np.vstack(all_preds)
                     all_tests= np.hstack(all_tests)
+                    all_folds= np.hstack(all_folds)
                     
-                    evaluations[self.labels[i]]= self.calculate_metrics(all_preds, all_tests)
+                    evaluations[self.labels[i]]= self.calculate_metrics(all_preds, all_tests, all_folds)
                 else:
-                    evaluations[self.labels[i]]= self.calculate_metrics(None, None)
+                    evaluations[self.labels[i]]= self.calculate_metrics(None, None, None)
                     
                 evaluations[self.labels[i]]['runtime']= samp['runtime']
                 evaluations[self.labels[i]]['sampler']= self.sampling.sampler.__name__
@@ -16498,6 +16515,8 @@ def trans(X):
         X (pd.DataFrame): a grouping of a data frame containing evaluation results
     """
     return pd.DataFrame({'auc': np.max(X['auc']), 
+                         'auc_mean': np.max(X['auc_mean']),
+                         'auc_std': X.iloc[np.argmax(X['auc_mean'].values), 'auc_std'],
                          'brier': np.min(X['brier']), 
                          'acc': np.max(X['acc']), 
                          'f1': np.max(X['f1']),
@@ -17017,6 +17036,5 @@ def cross_validate(dataset,
         results['confusion_matrix']= confusion_matrix(all_tests, all_pred_labels)
         results['gacc']= gmean(np.diagonal(results['confusion_matrix'])/np.sum(results['confusion_matrix'], axis= 0))
         results['class_label_mapping']= mapping
-        print(results['confusion_matrix'])
 
     return pd.DataFrame({'value': list(results.values())}, index= results.keys())
