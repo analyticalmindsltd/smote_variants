@@ -1689,7 +1689,7 @@ class Borderline_SMOTE1(OverSampling):
             elif mode(y[indices[i][1:]]) == self.majority_label:
                 danger.append(i)
         X_danger= X_min[danger]
-        X_min= np.delete(X_min, np.array(noise), axis= 0)
+        X_min= np.delete(X_min, np.array(noise).astype(int), axis= 0)
         
         if self.class_stats[self.minority_label] < 2:
             _logger.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
@@ -1835,7 +1835,7 @@ class Borderline_SMOTE2(OverSampling):
             elif mode(y[indices[i][1:]]) == self.majority_label:
                 danger.append(i)
         X_danger= X_min[danger]
-        X_min= np.delete(X_min, np.array(noise), axis= 0)
+        X_min= np.delete(X_min, np.array(noise).astype(int), axis= 0)
         
         if len(X_min) < 2:
             _logger.warning(self.__class__.__name__ + ": " + "The number of minority samples (%d) is not enough for sampling" % self.class_stats[self.minority_label])
@@ -1978,9 +1978,10 @@ class ADASYN(OverSampling):
         for i in range(len(indices)):
             r.append(sum(y[indices[i][1:]] == self.majority_label)/self.n_neighbors)
         r= np.array(r)
-        r= r/sum(r)
+        if sum(r) > 0:
+            r= r/sum(r)
         
-        if any(np.isnan(r)):
+        if any(np.isnan(r)) or sum(r) == 0:
             _logger.warning(self.__class__.__name__ + ": " + "not enough non-noise samples for oversampling")
             return X.copy(), y.copy()
         
@@ -6892,6 +6893,7 @@ class NEATER(OverSampling):
         
         # computing distances
         dm= pairwise_distances(X_syn, X_all)
+        dm[dm == 0]= 1e-8
         dm= 1.0/dm
         dm[dm > self.alpha]= self.alpha
         
@@ -7077,15 +7079,15 @@ class DEAGO(OverSampling):
             #from tensorflow import set_random_seed
             import tensorflow
             try:
-                tensorflow.set_random_seed(seed)
+                tensorflow.compat.v1.set_random_seed(seed)
             except:
                 tensorflow.random.set_seed(self._random_state_init)
         
         from keras import backend as K
         import tensorflow as tf
         try:
-            session_conf= tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
-            sess= tf.Session(graph=tf.get_default_graph(), config=session_conf)
+            session_conf= tf.compat.v1.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
+            sess= tf.compat.v1.Session(graph=tf.compat.v1.get_default_graph(), config=session_conf)
             K.set_session(sess)
         except:
             session_conf= tf.compat.v1.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
@@ -7352,7 +7354,10 @@ class MCT(OverSampling):
         # having continuous variables, the mode is replaced by median
         x_med= np.median(X_min, axis= 0)
         distances= np.array([np.linalg.norm(x_med - x) for x in X_min])
-        distances= distances/np.sum(distances)
+        sums= np.sum(distances)
+        if sums != 0:
+            distances= distances/sums
+
         # distribution of copies is determined (Euclidean distance is a dissimilarity measure
         # which is changed to similarity by subtracting from 1.0)
         distribution= (1.0 - distances)/(np.sum(1.0 - distances))
@@ -8706,7 +8711,10 @@ class SMOTE_D(OverSampling):
         # extracting standard deviations of distances
         stds= np.std(dist[:,1:], axis= 1)
         # estimating sampling density
-        p_i= stds/np.sum(stds)
+        if np.sum(stds) > 0:
+            p_i= stds/np.sum(stds)
+        else:
+            _logger.warning(self.__class__.__name__ + ": " + "zero distribution")
         
         # the other component of sampling density
         p_ij= dist[:,1:]/np.sum(dist[:,1:], axis= 1)[:,None]
@@ -10987,7 +10995,7 @@ class DSMOTE(OverSampling):
             _logger.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
             return X.copy(), y.copy()
         
-        mms= MinMaxScaler()
+        mms= MinMaxScaler(feature_range=(1e-6, 1.0 - 1e-6))
         X= mms.fit_transform(X)
         
         X_min= X[y == self.minority_label]
@@ -14403,10 +14411,11 @@ class RBF(RandomStateMixin):
         """
         Improves the center locations by kmeans clustering
         """
-        kmeans= KMeans(n_clusters=len(self.neurons), init=np.vstack([n.c for n in self.neurons]), n_init= 1, max_iter= 30, n_jobs= 1, random_state= self.random_state)
-        kmeans.fit(self.X)
-        for i in range(len(self.neurons)):
-            self.neurons[i].c= kmeans.cluster_centers_[i]
+        if np.unique(self.X, axis=0) > len(self.neurons):
+            kmeans= KMeans(n_clusters=len(self.neurons), init=np.vstack([n.c for n in self.neurons]), n_init= 1, max_iter= 30, n_jobs= 1, random_state= self.random_state)
+            kmeans.fit(self.X)
+            for i in range(len(self.neurons)):
+                self.neurons[i].c= kmeans.cluster_centers_[i]
     
     def evaluate(self, X, y):
         """
