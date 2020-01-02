@@ -8208,9 +8208,9 @@ class MOT2LD(OverSampling):
             _logger.warning(self.__class__.__name__ + ": " + "Sampling is not needed")
             return X.copy(), y.copy()
         
-        _logger.info(self.__class__.__name__ + ": " + "starting TSNE")
+        _logger.info(self.__class__.__name__ + ": " + ("starting TSNE n: %d d: %d" % (len(X), len(X[0]))))
         # do the stochastic embedding
-        X_tsne= TSNE(self.n_components, random_state= self.random_state).fit_transform(X)
+        X_tsne= TSNE(self.n_components, random_state= self.random_state, preplexity=10, n_iter_without_progress=100, n_iter=500, verbose=3).fit_transform(X)
         X_min= X_tsne[y == self.minority_label]
         _logger.info(self.__class__.__name__ + ": " + "TSNE finished")
         
