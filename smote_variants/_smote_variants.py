@@ -548,21 +548,17 @@ class ParameterCombinationsMixin:
     """
     
     @classmethod
-    def generate_parameter_combinations(cls, dictionary, num= None):
+    def generate_parameter_combinations(cls, dictionary):
         """
         Generates reasonable paramter combinations
         Args:
             dictionary (dict): dictionary of paramter ranges
             num (int): maximum number of combinations to generate
         """
-        combinations= [dict(zip(list(dictionary.keys()), p)) for p in list(itertools.product(*list(dictionary.values())))]
-        if num is None:
-            return combinations
-        else:
-            if hasattr(cls, 'random_state'):
-                return cls.random_state.choice(combinations, num, replace= False)
-            else:
-                return np.random.choice(combinations, num, replace= False)
+        keys= sorted(list(dictionary.keys()))
+        values= [dictionary[k] for k in keys]
+        combinations= [dict(zip(keys, p)) for p in list(itertools.product(*values))]
+        return combinations
 
 class NoiseFilter(StatisticsMixin, ParameterCheckingMixin, ParameterCombinationsMixin):
     """
@@ -16157,6 +16153,7 @@ class Sampling():
         self.db_name= folding.db_name
         self.sampler= sampler
         self.sampler_parameters= sampler_parameters
+        self.sampler_parameters['random_state']= random_state
         self.scaler= scaler
         self.cache_path= folding.cache_path
         self.filename= self.standardized_filename('sampling')
@@ -16175,13 +16172,19 @@ class Sampling():
         import hashlib
         
         db_name= (db_name or self.db_name)
-        
-        sampler= (sampler or self.sampler.__name__)
+
+        sampler= (sampler or self.sampler)
+        sampler= sampler.__name__
         sampler_parameters= sampler_parameters or self.sampler_parameters
-        sampler_parameters= sampler_parameters.copy()
-        if 'random_state' in sampler_parameters:
-            del sampler_parameters['random_state']
-        sampler_parameter_str= hashlib.md5(str(sampler_parameters).encode('utf-8')).hexdigest()
+        _logger.info(str(sampler_parameters))
+        from collections import OrderedDict
+        sampler_parameters_ordered= OrderedDict()
+        for k in sorted(list(sampler_parameters.keys())):
+            sampler_parameters_ordered[k]= sampler_parameters[k]
+        #if 'random_state' in sampler_parameters:
+        #    del sampler_parameters['random_state']
+        _logger.info(self.__class__.__name__ + " sampler parameter string " + str(sampler_parameters_ordered))
+        sampler_parameter_str= hashlib.md5(str(sampler_parameters_ordered).encode('utf-8')).hexdigest()
         
         filename= '_'.join([prefix, db_name, sampler, sampler_parameter_str]) + '.pickle'
         filename= re.sub('["\\,:(){}]', '', filename)
@@ -16197,8 +16200,9 @@ class Sampling():
             import mkl
             mkl.set_num_threads(1)
             _logger.info(self.__class__.__name__ + (" mkl thread number set to 1 successfully"))
-        except:
+        except Exception as e:
             _logger.info(self.__class__.__name__ + (" setting mkl thread number didn't succeed"))
+            _logger.info(str(e))
         
         if not os.path.isfile(os.path.join(self.cache_path, self.filename)):
             # if the sampled dataset does not exist
@@ -16215,7 +16219,7 @@ class Sampling():
                 for p in all_proportions:
                     tmp_par= self.sampler_parameters.copy()
                     tmp_par['proportion']= p
-                    tmp_filename= self.standardized_filename('sampling', self.db_name, str(self.sampler.__name__), tmp_par)
+                    tmp_filename= self.standardized_filename('sampling', self.db_name, self.sampler, tmp_par)
                     
                     if os.path.isfile(os.path.join(self.cache_path, tmp_filename)):
                         higher_prop_sampling_available= (p, tmp_filename)
@@ -16226,7 +16230,6 @@ class Sampling():
                 begin= time.time()
                 sampling= []
                 folds= self.folding.do_folding()
-                self.sampler_parameters['random_state']= self.random_state
                 for X_train, y_train, X_test, y_test in folds['folding']:
                     s= self.sampler(**self.sampler_parameters)
 
@@ -16307,8 +16310,19 @@ class Evaluation():
         
         self.labels= []
         for i in range(len(classifiers)):
-            label= str((self.sampling.get_params(), classifiers[i].__class__.__name__, classifiers[i].get_params()))
+            from collections import OrderedDict
+            sampling_parameters= OrderedDict()
+            sp= self.sampling.sampler_parameters
+            for k in sorted(list(sp.keys())):
+                sampling_parameters[k]= sp[k]
+            cp= classifiers[i].get_params()
+            classifier_parameters= OrderedDict()
+            for k in sorted(list(cp.keys())):
+                classifier_parameters[k]= cp[k]
+            #label= str((self.sampling.get_params(), classifiers[i].__class__.__name__, classifiers[i].get_params()))
+            label= str((self.sampling.db_name, sampling_parameters, classifiers[i].__class__.__name__, classifier_parameters))
             self.labels.append(label)
+        print(self.labels)
     
     def calculate_metrics(self, all_pred, all_test, all_folds):
         """
@@ -16503,7 +16517,10 @@ class Evaluation():
                 evaluations[self.labels[i]]['runtime']= samp['runtime']
                 evaluations[self.labels[i]]['sampler']= self.sampling.sampler.__name__
                 evaluations[self.labels[i]]['classifier']= self.classifiers[i].__class__.__name__
-                evaluations[self.labels[i]]['sampler_parameters']= str(self.sampling.sampler_parameters)
+                sampler_parameters= self.sampling.sampler_parameters.copy()
+                #if 'random_state' in sampler_parameters:
+                #    del sampler_parameters['random_state']
+                evaluations[self.labels[i]]['sampler_parameters']= str(sampler_parameters)
                 evaluations[self.labels[i]]['classifier_parameters']= str(self.classifiers[i].get_params())
                 evaluations[self.labels[i]]['sampler_categories']= str(self.sampling.sampler.categories)
                 evaluations[self.labels[i]]['db_name']= self.sampling.folding.db_name
@@ -16526,7 +16543,7 @@ def trans(X):
     """
     return pd.DataFrame({'auc': np.max(X['auc']), 
                          'auc_mean': np.max(X['auc_mean']),
-                         'auc_std': X.iloc[np.argmax(X['auc_mean'].values), 'auc_std'],
+                         'auc_std': X.iloc[np.argmax(X['auc_mean'].values)]['auc_std'],
                          'brier': np.min(X['brier']), 
                          'acc': np.max(X['acc']), 
                          'f1': np.max(X['f1']),
@@ -16571,21 +16588,23 @@ def _cache_samplings(folding, samplers, scaler, max_n_sampler_par_comb= 35, n_jo
     """
     
     """
-    _logger.info("create sampling objects")
+    _logger.info("create sampling objects, random_state: %s" % str(random_state or ""))
     sampling_objs= []
+
+    random_state_init= random_state
+    random_state= np.random.RandomState(random_state_init)
     
-    if isinstance(random_state, int):
-        random_state= np.random.RandomState(random_state)
-    elif random_state is None:
-        random_state= np.random
-    
+    _logger.info("samplers: %s" % str(samplers))
     for s in samplers:
-    
         sampling_par_comb= s.parameter_combinations()
-        sampling_par_comb= random_state.choice(sampling_par_comb, min([len(sampling_par_comb), max_n_sampler_par_comb]), replace= False)
+        _logger.info(sampling_par_comb)
+        random_indices= random_state.choice(np.array(list(range(len(sampling_par_comb)))), min([len(sampling_par_comb), max_n_sampler_par_comb]), replace=False)
+        _logger.info("random_indices: %s" % random_indices)
+        sampling_par_comb= [sampling_par_comb[i] for i in random_indices]
+        _logger.info(sampling_par_comb)
         
         for spc in sampling_par_comb:
-            sampling_objs.append(Sampling(folding, s, spc, scaler, random_state))
+            sampling_objs.append(Sampling(folding, s, spc, scaler, random_state_init))
             
     # sorting sampling objects to optimize execution
     def key(x):
