@@ -14412,7 +14412,7 @@ class RBF(RandomStateMixin):
         """
         Improves the center locations by kmeans clustering
         """
-        if np.unique(self.X, axis=0) > len(self.neurons):
+        if len(np.unique(self.X, axis=0)) > len(self.neurons):
             kmeans= KMeans(n_clusters=len(self.neurons), init=np.vstack([n.c for n in self.neurons]), n_init= 1, max_iter= 30, n_jobs= 1, random_state= self.random_state)
             kmeans.fit(self.X)
             for i in range(len(self.neurons)):
