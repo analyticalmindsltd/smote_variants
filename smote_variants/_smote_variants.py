@@ -8715,6 +8715,7 @@ class SMOTE_D(OverSampling):
             p_i= stds/np.sum(stds)
         else:
             _logger.warning(self.__class__.__name__ + ": " + "zero distribution")
+            return X.copy(), y.copy()
         
         # the other component of sampling density
         p_ij= dist[:,1:]/np.sum(dist[:,1:], axis= 1)[:,None]
