@@ -22,7 +22,7 @@ import smote_variants as sv
 import unittest
 
 _logger= logging.getLogger('smote_variants')
-_logger.setLevel(logging.ERROR)
+_logger.setLevel(logging.INFO)
 
 def validation(smote, X, y):
     return smote.sample(X, y)
