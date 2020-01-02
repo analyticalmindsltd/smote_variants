@@ -28,11 +28,11 @@ jobs:
       - checkout
 
       # Download and cache dependencies
-      - restore_cache:
-          keys:
-          - v1-dependencies-{{ checksum "requirements.txt" }}
-          # fallback to using the latest cache if no exact match is found
-          - v1-dependencies-
+      # - restore_cache:
+      #     keys:
+      #     - v1-dependencies-{{ checksum "requirements.txt" }}
+      #     # fallback to using the latest cache if no exact match is found
+      #     - v1-dependencies-
 
       - run:
           name: install dependencies
@@ -43,10 +43,10 @@ jobs:
             pip install coverage coveralls
             pip install .
 
-      - save_cache:
-          paths:
-            - ./venv
-          key: v1-dependencies-{{ checksum "requirements.txt" }}
+      # - save_cache:
+      #     paths:
+      #       - ./venv
+      #     key: v1-dependencies-{{ checksum "requirements.txt" }}
         
       # run tests!
       # this example uses Django's built-in test-runner
