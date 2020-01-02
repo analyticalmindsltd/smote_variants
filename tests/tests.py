@@ -178,6 +178,7 @@ class TestBasicOperationAndEdgeCases(unittest.TestCase):
             self.assertTrue(len(X_nf) > 0)
     
     def test_high_dim(self):
+        np.random.seed(42)
         X= np.random.normal(size=(20, 40))
         y= np.hstack([np.repeat(1, 7), np.repeat(0, 13)])
         
@@ -217,6 +218,7 @@ class TestBasicOperationAndEdgeCases(unittest.TestCase):
             self.assertTrue(len(X_nf) > 0)
     
     def test_parameters(self):
+        np.random.seed(42)
         samplers= sv.get_all_oversamplers()
         
         for s in samplers:
