@@ -8,6 +8,7 @@ def readme():
         return f.read()
 
 version_file= os.path.join('smote_variants', '_version.py')
+__version__= "0.0.0"
 with open(version_file) as f:
     exec(f.read())
 
