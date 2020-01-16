@@ -1,4 +1,4 @@
-name: ml4chem
+name: smote-variants
 
 channels:
     - anaconda
