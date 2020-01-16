@@ -33,7 +33,11 @@ CLASSIFIERS= [  'Intended Audience :: Science/Research',
                 'Operating System :: POSIX',
                 'Operating System :: Unix',
                 'Operating System :: MacOS']
-INSTALL_REQUIRES= ['numpy>=1.13.0', 'scipy', 'scikit-learn', 'joblib', 'minisom', 'statistics', 'tensorflow', 'keras', 'pandas', 'mkl']
+on_rtd = os.environ.get('READTHEDOCS') == 'True'
+if on_rtd:
+    INSTALL_REQUIRES = []
+else:
+    INSTALL_REQUIRES= ['numpy>=1.13.0', 'scipy', 'scikit-learn', 'joblib', 'minisom', 'statistics', 'tensorflow', 'keras', 'pandas', 'mkl']
 EXTRAS_REQUIRE= {'tests': ['nose'],
                  'docs': ['sphinx', 'sphinx-gallery', 'sphinx_rtd_theme', 'matplotlib', 'pandas']}
 PYTHON_REQUIRES= '>=3.5'
