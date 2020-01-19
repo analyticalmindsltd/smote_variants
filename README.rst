@@ -5,8 +5,8 @@
 .. |TravisCI| image:: https://travis-ci.org/gykovacs/smote_variants.svg?branch=master
 .. _TravisCI: https://travis-ci.org/gykovacs/smote_variants
 
-.. |CircleCI| image:: https://circleci.com/gh/gykovacs/smote_variants.svg?style=svg
-.. _CircleCI: https://circleci.com/gh/gykovacs/smote_variants
+.. |CircleCI| image:: https://circleci.com/gh/analyticalmindsltd/smote_variants.svg?style=svg
+.. _CircleCI: https://circleci.com/gh/analyticalmindsltd/smote_variants
 
 .. |Codecov| image:: https://codecov.io/gh/gykovacs/smote_variants/branch/master/graph/badge.svg
 .. _Codecov: https://codecov.io/gh/gykovacs/smote_variants
