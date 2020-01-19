@@ -548,13 +548,15 @@ class ParameterCombinationsMixin:
     """
     
     @classmethod
-    def generate_parameter_combinations(cls, dictionary):
+    def generate_parameter_combinations(cls, dictionary, raw):
         """
         Generates reasonable paramter combinations
         Args:
             dictionary (dict): dictionary of paramter ranges
             num (int): maximum number of combinations to generate
         """
+        if raw:
+            return dictionary
         keys= sorted(list(dictionary.keys()))
         values= [dictionary[k] for k in keys]
         combinations= [dict(zip(keys, p)) for p in list(itertools.product(*values))]
@@ -1232,7 +1234,7 @@ class NoSMOTE(OverSampling):
         super().__init__()
     
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         Returns:
@@ -1308,7 +1310,7 @@ class SMOTE(OverSampling):
         self.set_random_state(random_state)
     
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -1316,7 +1318,7 @@ class SMOTE(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
-                                                    'n_neighbors': [3, 5, 7]})
+                                                    'n_neighbors': [3, 5, 7]}, raw)
                 
     def sample(self, X, y):
         """
@@ -1430,7 +1432,7 @@ class SMOTE_TomekLinks(OverSampling):
         self.set_random_state(random_state)
 
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -1534,14 +1536,14 @@ class SMOTE_ENN(OverSampling):
         self.set_random_state(random_state)
     
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return SMOTE.parameter_combinations()
+        return SMOTE.parameter_combinations(raw)
     
     def sample(self, X, y):
         """
@@ -1632,7 +1634,7 @@ class Borderline_SMOTE1(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -1641,7 +1643,7 @@ class Borderline_SMOTE1(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
-                                                    'k_neighbors': [3, 5, 7]})
+                                                    'k_neighbors': [3, 5, 7]}, raw)
     
     def sample(self, X, y):
         """
@@ -1778,7 +1780,7 @@ class Borderline_SMOTE2(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -1787,7 +1789,7 @@ class Borderline_SMOTE2(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
-                                                    'k_neighbors': [3, 5, 7]})
+                                                    'k_neighbors': [3, 5, 7]}, raw)
     
     def sample(self, X, y):
         """
@@ -1917,7 +1919,7 @@ class ADASYN(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -1926,7 +1928,7 @@ class ADASYN(OverSampling):
         """
         return cls.generate_parameter_combinations({'n_neighbors': [3, 5, 7, 9], 
                                                     'd_th': [0.9], 
-                                                    'beta': [1.0, 0.75, 0.5, 0.25]})
+                                                    'beta': [1.0, 0.75, 0.5, 0.25]}, raw)
     
     def sample(self, X, y):
         """
@@ -2055,14 +2057,14 @@ class AHC(OverSampling):
         self.set_random_state(random_state)
     
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'strategy': ['min', 'maj', 'minmaj']})
+        return cls.generate_parameter_combinations({'strategy': ['min', 'maj', 'minmaj']}, raw)
     
     def sample_majority(self, X, n_clusters):
         """
@@ -2219,7 +2221,7 @@ class LLE_SMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -2228,7 +2230,7 @@ class LLE_SMOTE(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
-                                                    'n_components': [2, 3, 5]})
+                                                    'n_components': [2, 3, 5]}, raw)
     
     def sample(self, X, y):
         """
@@ -2358,7 +2360,7 @@ class distance_SMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -2366,7 +2368,7 @@ class distance_SMOTE(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
-                                                    'n_neighbors': [3, 5, 7]})
+                                                    'n_neighbors': [3, 5, 7]}, raw)
     
     def sample(self, X, y):
         """
@@ -2474,7 +2476,7 @@ class SMMO(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -2483,7 +2485,7 @@ class SMMO(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
-                                                    'ensemble': [[QuadraticDiscriminantAnalysis(), DecisionTreeClassifier(random_state= 2), GaussianNB()]]})
+                                                    'ensemble': [[QuadraticDiscriminantAnalysis(), DecisionTreeClassifier(random_state= 2), GaussianNB()]]}, raw)
     
     def sample(self, X, y):
         """
@@ -2598,7 +2600,7 @@ class polynom_fit_SMOTE(OverSampling):
         self.set_random_state(random_state)
     
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -2606,7 +2608,7 @@ class polynom_fit_SMOTE(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
-                                                    'topology': ['star', 'bus', 'mesh', 'poly_1', 'poly_2', 'poly_3']})
+                                                    'topology': ['star', 'bus', 'mesh', 'poly_1', 'poly_2', 'poly_3']}, raw)
     
     def sample(self, X, y):
         """
@@ -2734,14 +2736,17 @@ class Stefanowski(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return [{'strategy': 'weak_amp'}, {'strategy': 'weak_amp_relabel'}, {'strategy': 'strong_amp'},]
+        if not raw:
+            return [{'strategy': 'weak_amp'}, {'strategy': 'weak_amp_relabel'}, {'strategy': 'strong_amp'},]
+        else:
+            return {'strategy': ['weak_amp', 'weak_amp_relabel', 'strong_amp']}
     
     def sample(self, X, y):
         """
@@ -2894,7 +2899,7 @@ class ADOMS(OverSampling):
         self.set_random_state(random_state)
        
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -2902,7 +2907,7 @@ class ADOMS(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
-                                                    'n_neighbors': [3, 5, 7]})
+                                                    'n_neighbors': [3, 5, 7]}, raw)
     
     def sample(self, X, y):
         """
@@ -3024,7 +3029,7 @@ class Safe_Level_SMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -3032,7 +3037,7 @@ class Safe_Level_SMOTE(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
-                                                    'n_neighbors': [3, 5, 7]})
+                                                    'n_neighbors': [3, 5, 7]}, raw)
         
     def sample(self, X, y):
         """
@@ -3173,7 +3178,7 @@ class MSMOTE(OverSampling):
         self.set_random_state(random_state)
        
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -3181,7 +3186,7 @@ class MSMOTE(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
-                                                    'n_neighbors': [3, 5, 7]})
+                                                    'n_neighbors': [3, 5, 7]}, raw)
         
     def sample(self, X, y):
         """
@@ -3308,7 +3313,7 @@ class DE_oversampling(OverSampling):
         self.set_random_state(random_state)
 
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -3319,7 +3324,7 @@ class DE_oversampling(OverSampling):
                                                     'n_neighbors': [3, 5, 7],
                                                     'crossover_rate': [0.1, 0.5, 0.9],
                                                     'similarity_threshold': [0.5, 0.9],
-                                                    'n_clusters': [10, 20, 50]})
+                                                    'n_clusters': [10, 20, 50]}, raw)
     
     def sample(self, X, y):
         """
@@ -3629,7 +3634,7 @@ class SMOBD(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -3640,7 +3645,7 @@ class SMOBD(OverSampling):
                                                     'eta1': [0.1, 0.5, 0.9], 
                                                     't': [1.5, 2.5], 
                                                     'min_samples': [5], 
-                                                    'max_eps': [0.1, 0.5, 1.0, 2.0]})
+                                                    'max_eps': [0.1, 0.5, 1.0, 2.0]}, raw)
     
     def sample(self, X, y):
         """
@@ -3771,7 +3776,7 @@ class SUNDO(OverSampling):
         self.set_random_state(random_state)
     
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -3917,7 +3922,7 @@ class MSYN(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -3925,7 +3930,7 @@ class MSYN(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'pressure': [2.5, 2.0, 1.5], 
-                                                    'n_neighbors': [3, 5, 7]})
+                                                    'n_neighbors': [3, 5, 7]}, raw)
 
     def sample(self, X, y):
         """
@@ -4069,7 +4074,7 @@ class SVM_balance(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -4077,7 +4082,7 @@ class SVM_balance(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
-                                                    'n_neighbors': [3, 5, 7]})
+                                                    'n_neighbors': [3, 5, 7]}, raw)
     
     def sample(self, X, y):
         """
@@ -4187,7 +4192,7 @@ class TRIM_SMOTE(OverSampling):
         self.set_random_state(random_state)
     
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -4196,7 +4201,7 @@ class TRIM_SMOTE(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
-                                                    'min_precision': [0.3]})
+                                                    'min_precision': [0.3]}, raw)
     
     def trim(self, y):
         """
@@ -4469,7 +4474,7 @@ class SMOTE_RSB(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -4477,7 +4482,7 @@ class SMOTE_RSB(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
-                                                    'n_neighbors': [3, 5, 7]})
+                                                    'n_neighbors': [3, 5, 7]}, raw)
     
     def sample(self, X, y):
         """
@@ -4614,7 +4619,7 @@ class ProWSyn(OverSampling):
         self.set_random_state(random_state)
     
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -4624,7 +4629,7 @@ class ProWSyn(OverSampling):
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
                                                     'L': [3, 5, 7], 
-                                                    'theta': [0.1, 1.0, 2.0]})
+                                                    'theta': [0.1, 1.0, 2.0]}, raw)
     
     def sample(self, X, y):
         """
@@ -4761,7 +4766,7 @@ class SL_graph_SMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -4769,7 +4774,7 @@ class SL_graph_SMOTE(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
-                                                    'n_neighbors': [3, 5, 7]})
+                                                    'n_neighbors': [3, 5, 7]}, raw)
     
     def sample(self, X, y):
         """
@@ -4866,7 +4871,7 @@ class NRSBoundary_SMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -4875,7 +4880,7 @@ class NRSBoundary_SMOTE(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
-                                                    'w': [0.005, 0.01, 0.05]})
+                                                    'w': [0.005, 0.01, 0.05]}, raw)
     
     def sample(self, X, y):
         """
@@ -5020,7 +5025,7 @@ class LVQ_SMOTE(OverSampling):
         self.set_random_state(random_state)
 
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -5029,7 +5034,7 @@ class LVQ_SMOTE(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
-                                                    'n_clusters': [4, 8, 12]})
+                                                    'n_clusters': [4, 8, 12]}, raw)
     
     def sample(self, X, y):
         """
@@ -5151,7 +5156,7 @@ class SOI_CJ(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -5160,7 +5165,7 @@ class SOI_CJ(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
-                                                    'method': ['interpolation', 'jittering']})
+                                                    'method': ['interpolation', 'jittering']}, raw)
     
     def clustering(self, X, y):
         """
@@ -5350,14 +5355,14 @@ class ROSE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]}, raw)
     
     def sample(self, X, y):
         """
@@ -5444,7 +5449,7 @@ class SMOTE_OUT(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -5452,7 +5457,7 @@ class SMOTE_OUT(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
-                                                    'n_neighbors': [3, 5, 7]})
+                                                    'n_neighbors': [3, 5, 7]}, raw)
     
     def sample(self, X, y):
         """
@@ -5558,7 +5563,7 @@ class SMOTE_Cosine(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -5566,7 +5571,7 @@ class SMOTE_Cosine(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
-                                                    'n_neighbors': [3, 5, 7]})
+                                                    'n_neighbors': [3, 5, 7]}, raw)
     
     def sample(self, X, y):
         """
@@ -5688,7 +5693,7 @@ class Selected_SMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -5697,7 +5702,7 @@ class Selected_SMOTE(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
-                                                    'perc_sign_attr': [0.3, 0.5, 0.8]})
+                                                    'perc_sign_attr': [0.3, 0.5, 0.8]}, raw)
     
     def sample(self, X, y):
         """
@@ -5826,7 +5831,7 @@ class LN_SMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -5834,7 +5839,7 @@ class LN_SMOTE(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
-                                                    'n_neighbors': [3, 5, 7]})
+                                                    'n_neighbors': [3, 5, 7]}, raw)
     
     def sample(self, X, y):
         """
@@ -6034,7 +6039,7 @@ class MWMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -6047,7 +6052,7 @@ class MWMOTE(OverSampling):
                                                     'k3': [5, 9], 
                                                     'M': [4, 10], 
                                                     'cf_th': [5.0], 
-                                                    'cmax': [10.0]})
+                                                    'cmax': [10.0]}, raw)
     
     def sample(self, X, y):
         """
@@ -6222,14 +6227,14 @@ class PDFOS(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]}, raw)
     
     def _sample_by_kernel_density_estimation(self, X, num_to_sample, n_optimize= 100):
         """
@@ -6438,7 +6443,7 @@ class IPADE_ID(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -6452,7 +6457,7 @@ class IPADE_ID(OverSampling):
                                                     'OT': [30], 
                                                     'max_it': [40], 
                                                     'dt_classifier': [DecisionTreeClassifier(random_state= 2)], 
-                                                    'base_classifier': [DecisionTreeClassifier(random_state= 2)]})
+                                                    'base_classifier': [DecisionTreeClassifier(random_state= 2)]}, raw)
     
     def sample(self, X, y):
         """
@@ -6715,14 +6720,14 @@ class RWO_sampling(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]}, raw)
     
     def sample(self, X, y):
         """
@@ -6822,7 +6827,7 @@ class NEATER(OverSampling):
         self.set_random_state(random_state)
 
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -6833,7 +6838,7 @@ class NEATER(OverSampling):
                                                     'smote_n_neighbors': [3, 5, 7], 
                                                     'b': [3, 5, 7], 
                                                     'alpha': [0.1], 
-                                                    'h': [20]})
+                                                    'h': [20]}, raw)
     
     def sample(self, X, y):
         """
@@ -7018,7 +7023,7 @@ class DEAGO(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -7029,7 +7034,7 @@ class DEAGO(OverSampling):
                                                     'n_neighbors': [3, 5, 7], 
                                                     'e': [40], 
                                                     'h': [0.1, 0.2, 0.3, 0.4, 0.5], 
-                                                    'sigma': [0.05, 0.1, 0.2]})
+                                                    'sigma': [0.05, 0.1, 0.2]}, raw)
     
     def sample(self, X, y):
         """
@@ -7211,7 +7216,7 @@ class Gazzah(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -7219,7 +7224,7 @@ class Gazzah(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
-                                                    'n_components': [2, 3, 4, 5]})
+                                                    'n_components': [2, 3, 4, 5]}, raw)
     
     def sample(self, X, y):
         """
@@ -7315,14 +7320,14 @@ class MCT(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]}, raw)
     
     def sample(self, X, y):
         """
@@ -7446,7 +7451,7 @@ class ADG(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -7458,7 +7463,7 @@ class ADG(OverSampling):
                                                    'lam': [1.0, 2.0], 
                                                    'mu': [1.0, 2.0], 
                                                    'k': [12], 
-                                                   'gamma': [1.0, 2.0]})
+                                                   'gamma': [1.0, 2.0]}, raw)
     
     def sample(self, X, y):
         """
@@ -7832,7 +7837,7 @@ class SMOTE_IPF(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -7845,7 +7850,7 @@ class SMOTE_IPF(OverSampling):
                                                     'k': [3], 
                                                     'p': [0.01], 
                                                     'voting': ['majority', 'consensus'], 
-                                                    'classifier': [DecisionTreeClassifier(random_state= 2)]})
+                                                    'classifier': [DecisionTreeClassifier(random_state= 2)]}, raw)
     
     def sample(self, X, y):
         """
@@ -7975,7 +7980,7 @@ class KernelADASYN(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -7984,7 +7989,7 @@ class KernelADASYN(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'k': [5, 7, 9], 
-                                                    'h': [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 10.0]})
+                                                    'h': [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 10.0]}, raw)
     
     def sample(self, X, y):
         """
@@ -8167,7 +8172,7 @@ class MOT2LD(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -8177,7 +8182,7 @@ class MOT2LD(OverSampling):
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_components': [2], 
                                                     'k': [3, 5, 7], 
-                                                    'd_cut': ['auto']})
+                                                    'd_cut': ['auto']}, raw)
     
     def sample(self, X, y):
         """
@@ -8391,7 +8396,7 @@ class V_SYNTH(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -8399,7 +8404,7 @@ class V_SYNTH(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
-                                                    'n_components': [3]})
+                                                    'n_components': [3]}, raw)
     
     def sample(self, X, y):
         """
@@ -8543,14 +8548,14 @@ class OUPS(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]}, raw)
     
     def sample(self, X, y):
         """
@@ -8666,7 +8671,7 @@ class SMOTE_D(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -8674,7 +8679,7 @@ class SMOTE_D(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
-                                                    'k': [3, 5, 7]})
+                                                    'k': [3, 5, 7]}, raw)
     
     def sample(self, X, y):
         """
@@ -8811,7 +8816,7 @@ class SMOTE_PSO(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -8824,7 +8829,7 @@ class SMOTE_PSO(OverSampling):
                                                     'w': [0.5, 1.0], 
                                                     'c1': [1.0, 2.0], 
                                                     'c2': [1.0, 2.0], 
-                                                    'num_it': [5]})
+                                                    'num_it': [5]}, raw)
     
     def sample(self, X, y):
         """
@@ -9056,7 +9061,7 @@ class CURE_SMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -9065,7 +9070,7 @@ class CURE_SMOTE(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_clusters': [5, 10, 15], 
-                                                    'noise_th': [1, 3]})
+                                                    'noise_th': [1, 3]}, raw)
     
     def sample(self, X, y):
         """
@@ -9229,7 +9234,7 @@ class SOMO(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -9240,7 +9245,7 @@ class SOMO(OverSampling):
                                                     'n_grid': [5, 9, 13], 
                                                     'sigma': [0.4], 
                                                     'learning_rate': [0.3, 0.5], 
-                                                    'n_iter': [100]})
+                                                    'n_iter': [100]}, raw)
     
     def sample(self, X, y):
         """
@@ -9429,7 +9434,7 @@ class ISOMAP_Hybrid(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -9439,7 +9444,7 @@ class ISOMAP_Hybrid(OverSampling):
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
                                                     'n_components': [2, 3, 4], 
-                                                    'smote_n_neighbors': [3, 5, 7]})
+                                                    'smote_n_neighbors': [3, 5, 7]}, raw)
     
     def sample(self, X, y):
         """
@@ -9544,7 +9549,7 @@ class CE_SMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -9554,7 +9559,7 @@ class CE_SMOTE(OverSampling):
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'h': [5, 10, 15], 
                                                     'k': [3, 5, 7], 
-                                                    'alpha': [0.2, 0.5, 0.8]})
+                                                    'alpha': [0.2, 0.5, 0.8]}, raw)
     
     def sample(self, X, y):
         """
@@ -9691,7 +9696,7 @@ class Edge_Det_SMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -9699,7 +9704,7 @@ class Edge_Det_SMOTE(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
-                                                    'k': [3, 5, 7]})
+                                                    'k': [3, 5, 7]}, raw)
     
     def sample(self, X, y):
         """
@@ -9823,7 +9828,7 @@ class CBSO(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -9832,7 +9837,7 @@ class CBSO(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
-                                                    'C_p': [0.8, 1.0, 1.3, 1.6]})
+                                                    'C_p': [0.8, 1.0, 1.3, 1.6]}, raw)
     
     def sample(self, X, y):
         """
@@ -9995,7 +10000,7 @@ class E_SMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -10004,7 +10009,7 @@ class E_SMOTE(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
-                                                    'min_features': [1, 2, 3]})
+                                                    'min_features': [1, 2, 3]}, raw)
     
     def sample(self, X, y):
         """
@@ -10186,7 +10191,7 @@ class DBSMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -10195,7 +10200,7 @@ class DBSMOTE(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'eps': [0.5, 0.8, 1.2], 
-                                                    'min_samples': [1, 3, 5]})
+                                                    'min_samples': [1, 3, 5]}, raw)
     
     def sample(self, X, y):
         """
@@ -10436,7 +10441,7 @@ class ASMOBD(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -10452,7 +10457,7 @@ class ASMOBD(OverSampling):
                                                    't_1': [4.0],
                                                    't_2': [4.0],
                                                    'a': [0.05, 0.1],
-                                                   'smoothing': ['sigmoid', 'linear']})
+                                                   'smoothing': ['sigmoid', 'linear']}, raw)
     
     def sample(self, X, y):
         """
@@ -10633,7 +10638,7 @@ class Assembled_SMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -10643,7 +10648,7 @@ class Assembled_SMOTE(OverSampling):
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
                                                     'pop': [2, 4, 5], 
-                                                    'thres': [0.1, 0.3, 0.5]})
+                                                    'thres': [0.1, 0.3, 0.5]}, raw)
     
     def sample(self, X, y):
         """
@@ -10821,7 +10826,7 @@ class SDSMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -10829,7 +10834,7 @@ class SDSMOTE(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
-                                                    'n_neighbors': [3, 5, 7]})
+                                                    'n_neighbors': [3, 5, 7]}, raw)
     
     def sample(self, X, y):
         """
@@ -10955,7 +10960,7 @@ class DSMOTE(OverSampling):
         self.set_random_state(random_state)
     
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -10965,7 +10970,7 @@ class DSMOTE(OverSampling):
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
                                                     'rate': [0.1, 0.2], 
-                                                    'n_step': [50]})
+                                                    'n_step': [50]}, raw)
     
     def sample(self, X, y):
         """
@@ -11186,7 +11191,7 @@ class G_SMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -11195,7 +11200,7 @@ class G_SMOTE(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
-                                                    'method': ['linear', 'non-linear_0.1', 'non-linear_1.0', 'non-linear_2.0']})
+                                                    'method': ['linear', 'non-linear_0.1', 'non-linear_1.0', 'non-linear_2.0']}, raw)
     
     def sample(self, X, y):
         """
@@ -11327,14 +11332,14 @@ class NT_SMOTE(OverSampling):
         self.set_random_state(random_state)
     
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]}, raw)
     
     def sample(self, X, y):
         """
@@ -11448,7 +11453,7 @@ class Lee(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -11457,7 +11462,7 @@ class Lee(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
-                                                    'rejection_level': [0.3, 0.5, 0.7]})
+                                                    'rejection_level': [0.3, 0.5, 0.7]}, raw)
     
     def sample(self, X, y):
         """
@@ -11577,7 +11582,7 @@ class SPY(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -11585,7 +11590,7 @@ class SPY(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'n_neighbors': [3, 5, 7], 
-                                                    'threshold': [0.3, 0.5, 0.7]})
+                                                    'threshold': [0.3, 0.5, 0.7]}, raw)
     
     def sample(self, X, y):
         """
@@ -11699,7 +11704,7 @@ class SMOTE_PSOBAT(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -11709,13 +11714,16 @@ class SMOTE_PSOBAT(OverSampling):
         bat_pc= cls.generate_parameter_combinations({'maxit': [50], 
                                                      'alpha': [0.7, 0.9], 
                                                      'gamma': [0.7, 0.9], 
-                                                     'method': ['bat']})
+                                                     'method': ['bat']}, raw)
         pso_pc= cls.generate_parameter_combinations({'maxit': [50], 
                                                      'c1': [0.2, 0.5], 
                                                      'c2': [0.1, 0.2], 
                                                      'c3': [0.1, 0.2], 
-                                                     'method': ['pso']})
-        bat_pc.extend(pso_pc)
+                                                     'method': ['pso']}, raw)
+        if not raw:
+            bat_pc.extend(pso_pc)
+        else:
+            bat_pc= {**bat_pc, **pso_pc}
         return bat_pc
     
     def sample(self, X, y):
@@ -12026,7 +12034,7 @@ class MDO(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -12035,7 +12043,7 @@ class MDO(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'K2': [3, 5, 7], 
-                                                    'K1_frac': [0.3, 0.5, 0.7]})
+                                                    'K1_frac': [0.3, 0.5, 0.7]}, raw)
     
     def sample(self, X, y):
         """
@@ -12195,7 +12203,7 @@ class Random_SMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -12203,7 +12211,7 @@ class Random_SMOTE(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
-                                                    'n_neighbors': [3, 5, 7]})
+                                                    'n_neighbors': [3, 5, 7]}, raw)
     
     def sample(self, X, y):
         """
@@ -12304,7 +12312,7 @@ class ISMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -12312,7 +12320,7 @@ class ISMOTE(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'n_neighbors': [3, 5, 7], 
-                                                    'minority_weight': [0.2, 0.5, 0.8]})
+                                                    'minority_weight': [0.2, 0.5, 0.8]}, raw)
     
     def sample(self, X, y):
         """
@@ -12434,7 +12442,7 @@ class VIS_RST(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -12442,7 +12450,7 @@ class VIS_RST(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
-                                                    'n_neighbors': [3, 5, 7]})
+                                                    'n_neighbors': [3, 5, 7]}, raw)
     
     def sample(self, X, y):
         """
@@ -12632,7 +12640,7 @@ class GASMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -12645,7 +12653,7 @@ class GASMOTE(OverSampling):
                                                     'popl3': [4], 
                                                     'pm': [0.3], 
                                                     'pr': [0.2], 
-                                                    'Ge': [10]})
+                                                    'Ge': [10]}, raw)
     
     def sample(self, X, y):
         """
@@ -12875,7 +12883,7 @@ class A_SUWO(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -12885,7 +12893,7 @@ class A_SUWO(OverSampling):
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
                                                     'n_clus_maj': [5, 7, 9], 
-                                                    'c_thres': [0.5, 0.8]})
+                                                    'c_thres': [0.5, 0.8]}, raw)
     
     def sample(self, X, y):
         """
@@ -13137,7 +13145,7 @@ class SMOTE_FRST_2T(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -13146,7 +13154,7 @@ class SMOTE_FRST_2T(OverSampling):
         """
         return cls.generate_parameter_combinations({'n_neighbors': [3, 5, 7], 
                                                     'gamma_S': [0.8, 1.0], 
-                                                    'gamma_M': [0.03, 0.05, 0.1]})
+                                                    'gamma_M': [0.03, 0.05, 0.1]}, raw)
     
     def sample(self, X, y):
         """
@@ -13330,7 +13338,7 @@ class AND_SMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -13338,7 +13346,7 @@ class AND_SMOTE(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
-                                                    'K': [9, 15, 21]})
+                                                    'K': [9, 15, 21]}, raw)
     
     def sample(self, X, y):
         """
@@ -13504,7 +13512,7 @@ class NRAS(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -13513,7 +13521,7 @@ class NRAS(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [5, 7, 9], 
-                                                    't': [0.3, 0.5, 0.8]})
+                                                    't': [0.3, 0.5, 0.8]}, raw)
     
     def sample(self, X, y):
         """
@@ -13664,7 +13672,7 @@ class AMSCO(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -13678,7 +13686,7 @@ class AMSCO(OverSampling):
                                                     'omega': [0.1], 
                                                     'r1': [0.1], 
                                                     'r2': [0.1], 
-                                                    'classifier': [DecisionTreeClassifier(random_state= 2)]})
+                                                    'classifier': [DecisionTreeClassifier(random_state= 2)]}, raw)
     
     def sample(self, X, y):
         """
@@ -13950,7 +13958,7 @@ class SSO(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -13960,7 +13968,7 @@ class SSO(OverSampling):
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5], 
                                                     'h': [2, 5, 10, 20], 
-                                                    'n_iter': [5]})
+                                                    'n_iter': [5]}, raw)
     
     def sample(self, X, y):
         """
@@ -14148,7 +14156,7 @@ class NDO_sampling(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -14157,7 +14165,7 @@ class NDO_sampling(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
-                                                    'T': [0.5]})
+                                                    'T': [0.5]}, raw)
     
     def sample(self, X, y):
         """
@@ -14562,7 +14570,7 @@ class DSRBF(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -14580,7 +14588,7 @@ class DSRBF(OverSampling):
                                                     'n_pop': [100], 
                                                     'n_init_pop': [1000], 
                                                     'n_iter': [40], 
-                                                    'n_sampling_epoch': [8]})
+                                                    'n_sampling_epoch': [8]}, raw)
     
     def sample(self, X, y):
         """
@@ -14741,7 +14749,7 @@ class Gaussian_SMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -14750,7 +14758,7 @@ class Gaussian_SMOTE(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
-                                                    'sigma': [0.5, 1.0, 2.0]})
+                                                    'sigma': [0.5, 1.0, 2.0]}, raw)
     
     def sample(self, X, y):
         """
@@ -14860,7 +14868,7 @@ class kmeans_SMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -14870,7 +14878,7 @@ class kmeans_SMOTE(OverSampling):
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
                                                     'n_clusters': [2, 5, 10, 20, 50], 
-                                                    'irt': [0.5, 0.8, 1.0, 1.5]})
+                                                    'irt': [0.5, 0.8, 1.0, 1.5]}, raw)
     
     def sample(self, X, y):
         """
@@ -15011,7 +15019,7 @@ class Supervised_SMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -15021,7 +15029,7 @@ class Supervised_SMOTE(OverSampling):
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'th_lower': [0.3, 0.5, 0.8], 
                                                     'th_upper': [1.0], 
-                                                    'classifier': [RandomForestClassifier(n_estimators= 50, n_jobs= 1, random_state= 5)]})
+                                                    'classifier': [RandomForestClassifier(n_estimators= 50, n_jobs= 1, random_state= 5)]}, raw)
     
     def sample(self, X, y):
         """
@@ -15143,7 +15151,7 @@ class SN_SMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -15151,7 +15159,7 @@ class SN_SMOTE(OverSampling):
             list(dict): a list of meaningful paramter combinations
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
-                                                    'n_neighbors': [3, 5, 7]})
+                                                    'n_neighbors': [3, 5, 7]}, raw)
     
     def sample(self, X, y):
         """
@@ -15282,7 +15290,7 @@ class CCR(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -15291,7 +15299,7 @@ class CCR(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'energy': [0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 25.0, 50.0, 100.0], 
-                                                    'scaling': [0.0]})
+                                                    'scaling': [0.0]}, raw)
     
     def sample(self, X, y):
         """
@@ -15459,13 +15467,13 @@ class ANS(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]})
+        return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]}, raw)
     
     def sample(self, X, y):
         """
@@ -15631,7 +15639,7 @@ class cluster_SMOTE(OverSampling):
         self.set_random_state(random_state)
         
     @classmethod
-    def parameter_combinations(cls):
+    def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
         
@@ -15640,7 +15648,7 @@ class cluster_SMOTE(OverSampling):
         """
         return cls.generate_parameter_combinations({'proportion': [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0], 
                                                     'n_neighbors': [3, 5, 7], 
-                                                    'n_clusters': [3, 5, 7, 9]})
+                                                    'n_clusters': [3, 5, 7, 9]}, raw)
     
     def sample(self, X, y):
         """
