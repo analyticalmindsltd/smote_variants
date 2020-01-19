@@ -8,6 +8,7 @@ def readme():
         return f.read()
 
 version_file= os.path.join('smote_variants', '_version.py')
+__version__= "0.0.0"
 with open(version_file) as f:
     exec(f.read())
 
@@ -17,9 +18,9 @@ LONG_DESCRIPTION= readme()
 LONG_DESCRIPTION_CONTENT_TYPE='text/x-rst'
 MAINTAINER= 'Gyorgy Kovacs'
 MAINTAINER_EMAIL= 'gyuriofkovacs@gmail.com'
-URL= 'https://github.com/gykovacs/smote-variants'
+URL= 'https://github.com/analyticalmindsltd/smote_variants'
 LICENSE= 'MIT'
-DOWNLOAD_URL= 'https://github.com/gykovacs/smote-variants'
+DOWNLOAD_URL= 'https://github.com/analyticalmindsltd/smote_variants'
 VERSION= __version__
 CLASSIFIERS= [  'Intended Audience :: Science/Research',
                 'Intended Audience :: Developers',
@@ -32,7 +33,11 @@ CLASSIFIERS= [  'Intended Audience :: Science/Research',
                 'Operating System :: POSIX',
                 'Operating System :: Unix',
                 'Operating System :: MacOS']
-INSTALL_REQUIRES= ['numpy>=1.13.0', 'scipy', 'scikit-learn', 'joblib', 'minisom', 'statistics', 'tensorflow', 'keras', 'pandas', 'mkl']
+on_rtd = os.environ.get('READTHEDOCS') == 'True'
+if on_rtd:
+    INSTALL_REQUIRES = []
+else:
+    INSTALL_REQUIRES= ['numpy>=1.13.0', 'scipy', 'scikit-learn', 'joblib', 'minisom', 'statistics', 'tensorflow', 'keras', 'pandas', 'mkl']
 EXTRAS_REQUIRE= {'tests': ['nose'],
                  'docs': ['sphinx', 'sphinx-gallery', 'sphinx_rtd_theme', 'matplotlib', 'pandas']}
 PYTHON_REQUIRES= '>=3.5'

@@ -16641,7 +16641,7 @@ def _cache_evaluations(sampling_objs, classifiers, n_jobs= 1, random_state= None
     _logger.info("create classifier jobs")
     evaluation_objs= []
     
-    num_threads= None if n_jobs is None or n_jobs is 1 else 1
+    num_threads= None if n_jobs is None or n_jobs == 1 else 1
     
     for s in sampling_objs:
         evaluation_objs.append(Evaluation(s, _clone_classifiers(classifiers), num_threads, random_state))
