@@ -1240,7 +1240,7 @@ class NoSMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return cls.generate_parameter_combinations({})
+        return cls.generate_parameter_combinations({}, raw=False)
                 
     def sample(self, X, y):
         """
@@ -1439,7 +1439,7 @@ class SMOTE_TomekLinks(OverSampling):
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
-        return SMOTE.parameter_combinations()
+        return SMOTE.parameter_combinations(raw)
 
     def sample(self, X, y):
         """
