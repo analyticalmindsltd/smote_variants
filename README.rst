@@ -61,7 +61,7 @@ BibTex for the package:
     pages={352--354},
     year={2019},
     group={journal},
-    code= {https://github.com/gykovacs/smote_variants},
+    code= {https://github.com/analyticalmindsltd/smote_variants},
     doi= {10.1016/j.neucom.2019.06.100}
   }
 
@@ -81,7 +81,7 @@ BibTex for the comparison and evaluation:
     year={2019},
     link={https://www.sciencedirect.com/science/article/pii/S1568494619304429},
     group={journal},
-    code={https://github.com/gykovacs/smote_variants},
+    code={https://github.com/analyticalmindsltd/smote_variants},
     doi={10.1016/j.asoc.2019.105662}
   }
 
