@@ -16130,7 +16130,9 @@ class Folding():
                     self.folding['folding'].append((X[train], y[train], X[test], y[test]))
                 if not self.cache_path is None:
                     _logger.info(self.__class__.__name__ + (" dumping to file %s" % self.filename))
-                    pickle.dump(self.folding, open(os.path.join(self.cache_path, self.filename), "wb"))
+                    random_filename= os.path.join(self.cache_path, str(np.random.randint(1000000)) + '.pickle')
+                    pickle.dump(self.folding, open(random_filename, "wb"))
+                    os.rename(random_filename, os.path.join(self.cache_path, self.filename))
             else:
                 _logger.info(self.__class__.__name__ + (" reading from file %s" % self.filename))
                 self.folding= pickle.load(open(os.path.join(self.cache_path, self.filename), "rb"))
@@ -16282,7 +16284,10 @@ class Sampling():
             results['imbalanced_ratio']= folds['imbalanced_ratio']
             
             _logger.info(self.__class__.__name__ + (" dumping to file %s" % self.filename))
-            pickle.dump(results, open(os.path.join(self.cache_path, self.filename), "wb"))
+
+            random_filename= os.path.join(self.cache_path, str(np.random.randint(1000000)) + '.pickle')
+            pickle.dump(results, open(random_filename, "wb"))
+            os.rename(random_filename, os.path.join(self.cache_path, self.filename))
         
     def do_sampling(self):
         self.cache_sampling()
@@ -16538,7 +16543,9 @@ class Evaluation():
 
         if not np.all(already_evaluated):
             _logger.info(self.__class__.__name__ + (" dumping to file %s" % self.filename))
-            pickle.dump(evaluations, open(os.path.join(self.cache_path, self.filename), "wb"))
+            random_filename= os.path.join(self.cache_path, str(np.random.randint(1000000)) + '.pickle')
+            pickle.dump(evaluations, open(random_filename, "wb"))
+            os.rename(random_filename, os.path.join(self.cache_path, self.filename))
 
         return list(evaluations.values())
 
@@ -16833,7 +16840,9 @@ def evaluate_oversamplers(datasets,
         
         #db_res= db_res[db_res['classifier_parameters'].apply(lambda x: filter_results(x))]
         
-        pickle.dump(db_res, open(os.path.join(cache_path_db, 'results.pickle'), 'wb'))
+        random_filename= os.path.join(cache_path_db, str(np.random.randint(1000000)) + '.pickle')
+        pickle.dump(db_res, open(random_filename, "wb"))
+        os.rename(random_filename, os.path.join(cache_path_db, 'results.pickle'))
         
         _logger.info("aggregating the results")
         if all_results == False:
