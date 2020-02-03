@@ -236,6 +236,11 @@ All the numerical results are reproducible by the 005_evaluation example script,
 
 * Database foldings: `https://drive.google.com/open?id=1PKw1vETVUzaToomio1-RGzJ9_-buYjOW <https://drive.google.com/open?id=1PKw1vETVUzaToomio1-RGzJ9_-buYjOW>`__
 
+Contribution
+------------
+
+Feel free to implement any further oversampling techniques and let's discuss the codes as soon as the pull request is ready!
+
 Other downloads
 ---------------
 
