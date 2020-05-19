@@ -85,6 +85,15 @@ BibTex for the comparison and evaluation:
     doi={10.1016/j.asoc.2019.105662}
   }
 
+Installation
+------------
+
+The package can be cloned from GitHub in the usual way, and the latest stable version is also available in the PyPI repository:
+
+.. code-block:: bash
+
+  pip install smote-variants
+
 Documentation
 -------------
 
