@@ -6622,7 +6622,7 @@ class SMOTE_Cosine(OverSampling):
         # majority data using two different metrics for the minority
         nn_min_euc = NearestNeighbors(n_neighbors=len(X_min),
                                       n_jobs=self.n_jobs)
-        nn_min_auc.fit(X_min)
+        nn_min_euc.fit(X_min)
         nn_min_euc_dist, nn_min_euc_ind = nn_min_euc.kneighbors(X_min)
 
         nn_min_cos = NearestNeighbors(n_neighbors=len(X_min),
