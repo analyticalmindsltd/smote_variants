@@ -1911,7 +1911,8 @@ class Borderline_SMOTE1(OverSampling):
         # fitting model
         X_min = X[y == self.min_label]
 
-        nn = NearestNeighbors(self.n_neighbors+1, n_jobs=self.n_jobs)
+        n_neighbors = min([len(X), self.n_neighbors + 1])
+        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=self.n_jobs)
         nn.fit(X)
         distances, indices = nn.kneighbors(X_min)
 
@@ -1933,7 +1934,7 @@ class Borderline_SMOTE1(OverSampling):
 
         # fitting nearest neighbors model to minority samples
         k_neigh = min([len(X_min), self.k_neighbors + 1])
-        nn = NearestNeighbors(k_neigh, n_jobs=self.n_jobs)
+        nn = NearestNeighbors(n_neighbors=k_neigh, n_jobs=self.n_jobs)
         nn.fit(X_min)
         # extracting neighbors of samples in danger
         distances, indices = nn.kneighbors(X_danger)
@@ -2076,7 +2077,8 @@ class Borderline_SMOTE2(OverSampling):
         # fitting nearest neighbors model
         X_min = X[y == self.min_label]
 
-        nn = NearestNeighbors(self.n_neighbors+1, n_jobs=self.n_jobs)
+        n_neighbors = min([self.n_neighbors+1, len(X)])
+        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=self.n_jobs)
         nn.fit(X)
         distances, indices = nn.kneighbors(X_min)
 
@@ -2105,7 +2107,8 @@ class Borderline_SMOTE2(OverSampling):
 
         # fitting nearest neighbors model to minority samples
         k_neigh = self.k_neighbors + 1
-        nn = NearestNeighbors(k_neigh, n_jobs=self.n_jobs)
+        k_neigh = min([kneigh, len(X)])
+        nn = NearestNeighbors(n_neighbors=k_neigh, n_jobs=self.n_jobs)
         nn.fit(X)
         distances, indices = nn.kneighbors(X_danger)
 
@@ -2244,8 +2247,8 @@ class ADASYN(OverSampling):
             return X.copy(), y.copy()
 
         # fitting nearest neighbors model to all samples
-        nn = NearestNeighbors(
-            min([len(X_min), self.n_neighbors+1]), n_jobs=self.n_jobs)
+        n_neighbors = min([len(X_min), self.n_neighbors+1])
+        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=self.n_jobs)
         nn.fit(X)
         distances, indices = nn.kneighbors(X_min)
 
@@ -2265,7 +2268,7 @@ class ADASYN(OverSampling):
 
         # fitting nearest neighbors models to minority samples
         n_neigh = min([len(X_min), self.n_neighbors + 1])
-        nn = NearestNeighbors(n_neigh, n_jobs=self.n_jobs)
+        nn = NearestNeighbors(n_neighbors=n_neigh, n_jobs=self.n_jobs)
         nn.fit(X_min)
         distances, indices = nn.kneighbors(X_min)
 
@@ -2607,7 +2610,8 @@ class LLE_SMOTE(OverSampling):
         X_min_transformed = lle.transform(X_min)
 
         # fitting the nearest neighbors model for sampling
-        nn = NearestNeighbors(self.n_neighbors+1,
+        n_neighbors = min([self.n_neighbors+1, len(X_min_transformed)])
+        nn = NearestNeighbors(n_neighbors=n_neighbors,
                               n_jobs=self.n_jobs).fit(X_min_transformed)
         dist, ind = nn.kneighbors(X_min_transformed)
 
@@ -2927,8 +2931,8 @@ class SMMO(OverSampling):
         X_min_to_sample = X[mask_to_sample]
 
         # fitting nearest neighbors model for sampling
-        nn = NearestNeighbors(n_neighbors=min(
-            [len(X_min), self.n_neighbors + 1]), n_jobs=self.n_jobs)
+        n_neighbors = min([len(X_min), self.n_neighbors + 1])
+        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=self.n_jobs)
         nn.fit(X_min)
         dist, ind = nn.kneighbors(X_min_to_sample)
 
@@ -3437,8 +3441,8 @@ class ADOMS(OverSampling):
         X_min = X[y == self.min_label]
 
         # fitting nearest neighbors model
-        nn = NearestNeighbors(n_neighbors=min(
-            [len(X_min), self.n_neighbors+1]), n_jobs=self.n_jobs)
+        n_neighbors = min([len(X_min), self.n_neighbors+1])
+        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=self.n_jobs)
         nn.fit(X_min)
         distance, indices = nn.kneighbors(X_min)
 
@@ -3588,8 +3592,8 @@ class Safe_Level_SMOTE(OverSampling):
             return X.copy(), y.copy()
 
         # fitting nearest neighbors model
-        nn = NearestNeighbors(n_neighbors=min(
-            [self.n_neighbors+1, len(X)]), n_jobs=self.n_jobs)
+        n_neighbors = min([self.n_neighbors+1, len(X)])
+        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=self.n_jobs)
         nn.fit(X)
         distance, indices = nn.kneighbors(X)
 
@@ -3767,8 +3771,8 @@ class MSMOTE(OverSampling):
         X_min = X[y == self.min_label]
 
         # fitting the nearest neighbors model
-        nn = NearestNeighbors(n_neighbors=min(
-            [len(X), self.n_neighbors+1]), n_jobs=self.n_jobs)
+        n_neighbors = min([len(X), self.n_neighbors+1])
+        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=self.n_jobs)
         nn.fit(X)
         distance, indices = nn.kneighbors(X_min)
 
@@ -3950,8 +3954,8 @@ class DE_oversampling(OverSampling):
 
         X_min = X[y == self.min_label]
 
-        nn = NearestNeighbors(n_neighbors=min(
-            [len(X_min), self.n_neighbors+1]), n_jobs=self.n_jobs)
+        n_neighbors = min([len(X_min), self.n_neighbors+1])
+        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=self.n_jobs)
         nn.fit(X_min)
         distance, indices = nn.kneighbors(X_min)
 
@@ -4336,8 +4340,8 @@ class SMOBD(OverSampling):
 
         # fitting a nearest neighbor model to be able to find
         # neighbors in radius
-        nn = NearestNeighbors(n_neighbors=min(
-            [len(X_min), self.min_samples+1]), n_jobs=self.n_jobs)
+        n_neighbors = min([len(X_min), self.min_samples+1])
+        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=self.n_jobs)
         nn.fit(X_min)
         distances, indices = nn.kneighbors(X_min)
 
@@ -5166,8 +5170,8 @@ class TRIM_SMOTE(OverSampling):
                             "X_seed_min contains less than 2 samples")
             return X.copy(), y.copy()
 
-        nn = NearestNeighbors(n_neighbors=min(
-            [len(X_seed_min), self.n_neighbors+1]), n_jobs=self.n_jobs)
+        n_neighbors = min([len(X_seed_min), self.n_neighbors+1])
+        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=self.n_jobs)
         nn.fit(X_seed_min)
         distances, indices = nn.kneighbors(X_seed_min)
 
@@ -5496,8 +5500,8 @@ class ProWSyn(OverSampling):
             if len(P) == 0:
                 break
             # Step 3 a
-            nn = NearestNeighbors(n_neighbors=min(
-                [len(P), self.n_neighbors]), n_jobs=self.n_jobs)
+            n_neighbors = min([len(P), self.n_neighbors])
+            nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=self.n_jobs)
             nn.fit(X[P])
             distances, indices = nn.kneighbors(X_maj)
 
@@ -5803,8 +5807,8 @@ class NRSBoundary_SMOTE(OverSampling):
 
         # number of neighbors is not interesting here, as we use the
         # radius_neighbors function to extract the neighbors in a given radius
-        nn = NearestNeighbors(
-            n_neighbors=self.n_neighbors + 1, n_jobs=self.n_jobs)
+        n_neighbors = min([self.n_neighbors + 1, len(X)])
+        nn = NearestNeighbors(n_neighbors, n_jobs=self.n_jobs)
         nn.fit(X)
         for i in range(len(X)):
             indices = nn.radius_neighbors(X[i].reshape(1, -1),
@@ -5827,8 +5831,8 @@ class NRSBoundary_SMOTE(OverSampling):
         # step 4 and 5
         # computing the nearest neighbors of the bound set from the
         # minority set
-        nn = NearestNeighbors(n_neighbors=min(
-            [len(X_min), self.n_neighbors + 1]), n_jobs=self.n_jobs)
+        n_neighbors = min([len(X_min), self.n_neighbors + 1])
+        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=self.n_jobs)
         nn.fit(X_min)
         distances, indices = nn.kneighbors(X[bound_set])
 
@@ -5985,8 +5989,8 @@ class LVQ_SMOTE(OverSampling):
         codebook = kmeans.cluster_centers_
 
         # get nearest neighbors of minority samples to codebook samples
-        nn = NearestNeighbors(n_neighbors=min(
-            [len(X_min), self.n_neighbors]), n_jobs=self.n_jobs)
+        n_neighbors = min([len(X_min), self.n_neighbors])
+        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=self.n_jobs)
         nn.fit(X_min)
         distances, indices = nn.kneighbors(codebook)
 
@@ -6120,7 +6124,7 @@ class SOI_CJ(OverSampling):
 
         # extract nearest neighbors of all samples from the set of
         # minority samples
-        nn = NearestNeighbors(len(X_min), n_jobs=self.n_jobs)
+        nn = NearestNeighbors(n_neighbors=len(X_min), n_jobs=self.n_jobs)
         nn.fit(X)
         distances, indices = nn.kneighbors(X_min)
 
@@ -6480,13 +6484,14 @@ class SMOTE_OUT(OverSampling):
 
         # nearest neighbors among minority points
         n_neighbors = min([len(X_min), self.n_neighbors+1])
-        nn_min = NearestNeighbors(n_neighbors,
+        nn_min = NearestNeighbors(n_neighbors=n_neighbors,
                                   n_jobs=self.n_jobs).fit(X_min)
 
         min_distances, min_indices = nn_min.kneighbors(X_min)
         # nearest neighbors among majority points
+        n_neighbors = min([len(X_maj), self.n_neighbors+1])
         nn_maj = NearestNeighbors(
-            self.n_neighbors, n_jobs=self.n_jobs).fit(X_maj)
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs).fit(X_maj)
         maj_distances, maj_indices = nn_maj.kneighbors(X_min)
 
         # generate samples
@@ -6615,14 +6620,20 @@ class SMOTE_Cosine(OverSampling):
 
         # Fitting the nearest neighbors models to the minority and
         # majority data using two different metrics for the minority
-        nn_min_euc = NearestNeighbors(
-            len(X_min), n_jobs=self.n_jobs).fit(X_min)
+        nn_min_euc = NearestNeighbors(n_neighbors=len(X_min),
+                                      n_jobs=self.n_jobs)
+        nn_min_auc.fit(X_min)
         nn_min_euc_dist, nn_min_euc_ind = nn_min_euc.kneighbors(X_min)
-        nn_min_cos = NearestNeighbors(
-            len(X_min), metric='cosine', n_jobs=self.n_jobs).fit(X_min)
+
+        nn_min_cos = NearestNeighbors(n_neighbors=len(X_min),
+                                      metric='cosine',
+                                      n_jobs=self.n_jobs)
+        nn_min_cos.fit(X_min)
         nn_min_cos_dist, nn_min_cos_ind = nn_min_cos.kneighbors(X_min)
-        nn_maj = NearestNeighbors(
-            self.n_neighbors, n_jobs=self.n_jobs).fit(X_maj)
+
+        nn_maj = NearestNeighbors(n_neighbors=self.n_neighbors,
+                                  n_jobs=self.n_jobs)
+        nn_maj.fit(X_maj)
         nn_maj_dist, nn_maj_ind = nn_maj.kneighbors(X_min)
 
         samples = []
@@ -6777,7 +6788,7 @@ class Selected_SMOTE(OverSampling):
         minority_indices = np.where(y == self.min_label)[0]
 
         n_neighbors = min([len(X_min), self.n_neighbors + 1])
-        nn_min_euc = NearestNeighbors(n_neighbors,
+        nn_min_euc = NearestNeighbors(n_neighbors=n_neighbors,
                                       n_jobs=self.n_jobs).fit(X_min)
 
         nn_min_dist, nn_min_ind = nn_min_euc.kneighbors(X_min)
@@ -7220,8 +7231,8 @@ class MWMOTE(OverSampling):
         border_majority = np.unique(ind2.flatten())
 
         # Step 5 - ind3 needs to be indexed by indices of the length of X_min
-        nn_min = NearestNeighbors(n_neighbors=min(
-            [self.k3, len(X_min)]), n_jobs=self.n_jobs)
+        n_neighbors = min([self.k3, len(X_min)])
+        nn_min = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=self.n_jobs)
         nn_min.fit(X_min)
         dist3, ind3 = nn_min.kneighbors(X_maj[border_majority])
 
@@ -9596,7 +9607,8 @@ class KernelADASYN(OverSampling):
         X_min = X[y == self.min_label]
 
         # fitting the nearest neighbors model
-        nn = NearestNeighbors(min([len(X_min), self.k+1]), n_jobs=self.n_jobs)
+        nn = NearestNeighbors(n_neighbors=min([len(X_min), self.k+1]),
+                              n_jobs=self.n_jobs)
         nn.fit(X)
         distances, indices = nn.kneighbors(X_min)
 
@@ -10668,8 +10680,8 @@ class SMOTE_PSO(OverSampling):
         X_SV_maj = X_scaled[SV_maj]
 
         # finding nearest majority support vectors
-        nn = NearestNeighbors(n_neighbors=min(
-            [len(X_SV_maj), self.k]), n_jobs=self.n_jobs)
+        n_neighbors = min([len(X_SV_maj), self.k])
+        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=self.n_jobs)
         nn.fit(X_SV_maj)
         dist, ind = nn.kneighbors(X_SV_min)
 
@@ -11537,8 +11549,9 @@ class CE_SMOTE(OverSampling):
             return X.copy(), y.copy()
 
         # finding nearest neighbors of boundary samples
-        nn = NearestNeighbors(
-            min([len(P_boundary), self.k]), n_jobs=self.n_jobs)
+        n_neighbors = min([len(P_boundary), self.k])
+        nn = NearestNeighbors(n_neighbors=n_neighbors,
+                              n_jobs=self.n_jobs)
         nn.fit(P_boundary)
         dist, ind = nn.kneighbors(P_boundary)
 
@@ -11690,8 +11703,8 @@ class Edge_Det_SMOTE(OverSampling):
         magnitudes = magnitudes/np.sum(magnitudes)
 
         # fitting nearest neighbors models to minority samples
-        nn = NearestNeighbors(n_neighbors=min(
-            [len(X_min), self.k+1]), n_jobs=self.n_jobs)
+        n_neighbors = min([len(X_min), self.k+1])
+        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=self.n_jobs)
         nn.fit(X_min)
         dist, ind = nn.kneighbors(X_min)
 
@@ -13547,8 +13560,8 @@ class G_SMOTE(OverSampling):
         X_min = X[y == self.min_label]
 
         # fitting nearest neighbors model
-        nn = NearestNeighbors(n_neighbors=min(
-            [len(X_min), self.n_neighbors+1]), n_jobs=self.n_jobs)
+        n_neighbors = min([len(X_min), self.n_neighbors+1])
+        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=self.n_jobs)
         nn.fit(X_min)
         dist, ind = nn.kneighbors(X_min)
 
@@ -14804,8 +14817,8 @@ class Random_SMOTE(OverSampling):
 
         # fitting nearest neighbors model to find closest neighbors of minority
         # points
-        nn = NearestNeighbors(n_neighbors=min(
-            [len(X_min), self.n_neighbors + 1]), n_jobs=self.n_jobs)
+        n_neighbors = min([len(X_min), self.n_neighbors + 1])
+        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=self.n_jobs)
         nn.fit(X_min)
         dist, ind = nn.kneighbors(X_min)
 
@@ -15587,8 +15600,8 @@ class A_SUWO(OverSampling):
         X_orig, y_orig = X, y
 
         # fitting nearest neighbors to find neighbors of all samples
-        nn = NearestNeighbors(n_neighbors=min(
-            [len(X), self.n_neighbors + 1]), n_jobs=self.n_jobs)
+        n_neighbors = min([len(X), self.n_neighbors + 1])
+        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=self.n_jobs)
         nn.fit(X)
         dist, ind = nn.kneighbors(X)
 
@@ -15745,8 +15758,8 @@ class A_SUWO(OverSampling):
         # extracting within cluster neighbors
         within_cluster_neighbors = []
         for c in min_clusters:
-            nn = NearestNeighbors(n_neighbors=min(
-                [len(c), self.n_neighbors]), n_jobs=self.n_jobs)
+            n_neighbors = min([len(c), self.n_neighbors])
+            nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=self.n_jobs)
             nn.fit(X_min[c])
             within_cluster_neighbors.append(nn.kneighbors(X_min[c])[1])
 
