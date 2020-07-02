@@ -8,14 +8,17 @@
 .. |CircleCI| image:: https://circleci.com/gh/analyticalmindsltd/smote_variants.svg?style=svg
 .. _CircleCI: https://circleci.com/gh/analyticalmindsltd/smote_variants
 
+.. |GitHub| image:: https://github.com/analyticalmindsltd/smote_variants/workflows/Python%20package/badge.svg
+.. _GitHub: https://github.com/analyticalmindsltd/smote_variants/workflows/Python%20package/badge.svg
+
 .. |Codecov| image:: https://codecov.io/gh/gykovacs/smote_variants/branch/master/graph/badge.svg
 .. _Codecov: https://codecov.io/gh/gykovacs/smote_variants
 
 .. |ReadTheDocs| image:: https://readthedocs.org/projects/smote-variants/badge/?version=latest
 .. _ReadTheDocs: https://smote-variants.readthedocs.io/en/latest/?badge=latest
 
-.. |PythonVersion| image:: https://img.shields.io/badge/python-3.5%20%7C%203.6%20%7C%203.7-green.svg
-.. _PythonVersion: https://img.shields.io/badge/python-3.5%20%7C%203.6%20%7C%203.7-green.svg
+.. |PythonVersion| image:: https://img.shields.io/badge/python-3.5%20%7C%203.6%20%7C%203.7%20%7C%203.8-green
+.. _PythonVersion: https://img.shields.io/badge/python-3.5%20%7C%203.6%20%7C%203.7%20%7C%203.8-green
 
 .. |PyPi| image:: https://badge.fury.io/py/smote-variants.svg
 .. _PyPi: https://badge.fury.io/py/smote-variants
