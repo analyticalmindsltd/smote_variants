@@ -2,7 +2,6 @@ setuptools>=41.0.0
 joblib
 numpy>=1.16.0
 pandas
-scipy
 sklearn
 minisom==2.1.4
 statistics
