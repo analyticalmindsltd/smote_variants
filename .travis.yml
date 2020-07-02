@@ -8,6 +8,7 @@ python:
 - 3.7
 - 3.8
 install:
+- pip install --update pip
 - pip install -r requirements.txt
 - pip install codecov
 - pip install coverage
