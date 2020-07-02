@@ -5,6 +5,6 @@ pandas
 sklearn
 minisom==2.1.4
 statistics
-tensorflow==2.2.0
-keras==2.4.3
+tensorflow
+keras
 mkl
