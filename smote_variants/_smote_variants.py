@@ -2367,7 +2367,7 @@ class AHC(OverSampling):
         Returns:
             np.ndarray: downsampled vectors
         """
-        kmeans = KMeans(n_clusters=n_clusters, n_jobs=self.n_jobs,
+        kmeans = KMeans(n_clusters=n_clusters,
                         random_state=self.random_state)
         kmeans.fit(X)
         return kmeans.cluster_centers_
@@ -3989,7 +3989,6 @@ class DE_oversampling(OverSampling):
         # cleansing based on clustering
         n_clusters = min([len(X), self.n_clusters])
         kmeans = KMeans(n_clusters=n_clusters,
-                        n_jobs=self.n_jobs,
                         random_state=self.random_state)
         kmeans.fit(X)
         unique_labels = np.unique(kmeans.labels_)
@@ -5981,7 +5980,6 @@ class LVQ_SMOTE(OverSampling):
         # clustering X_min to extract codebook
         n_clusters = min([len(X_min), self.n_clusters])
         kmeans = KMeans(n_clusters=n_clusters,
-                        n_jobs=self.n_jobs,
                         random_state=self.random_state)
         kmeans.fit(X_min)
         codebook = kmeans.cluster_centers_
@@ -7281,7 +7279,6 @@ class MWMOTE(OverSampling):
         _logger.info(self.__class__.__name__ + ": " + 'do clustering')
         n_clusters = min([len(X_min), self.M])
         kmeans = KMeans(n_clusters=n_clusters,
-                        n_jobs=self.n_jobs,
                         random_state=self.random_state)
         kmeans.fit(X_min)
         imin_labels = kmeans.labels_[informative_minority]
@@ -9021,7 +9018,7 @@ class ADG(OverSampling):
 
             # do clustering for all n_clusters in the specified range
             for k in range(r[0], min([r[1], len(X)])):
-                kmeans = KMeans(n_clusters=k, n_jobs=self.n_jobs,
+                kmeans = KMeans(n_clusters=k,
                                 random_state=self.random_state).fit(X)
 
                 bic = bic_score(kmeans, X)
@@ -11498,7 +11495,6 @@ class CE_SMOTE(OverSampling):
             features = self.random_state.choice(np.arange(d), f)
             n_clusters = min([len(X), self.k])
             kmeans = KMeans(n_clusters=n_clusters,
-                            n_jobs=self.n_jobs,
                             random_state=self.random_state)
             kmeans.fit(X[:, features])
             labels.append(kmeans.labels_)
@@ -16882,7 +16878,7 @@ class SSO(OverSampling):
 
             # applying kmeans clustering to find the hidden neurons
             h = min([self.h, len(X_min)])
-            kmeans = KMeans(n_clusters=h, n_jobs=self.n_jobs,
+            kmeans = KMeans(n_clusters=h,
                             random_state=self.random_state)
             kmeans.fit(X)
 
@@ -17396,7 +17392,6 @@ class RBF(RandomStateMixin):
                             init=cluster_init,
                             n_init=1,
                             max_iter=30,
-                            n_jobs=1,
                             random_state=self.random_state)
             kmeans.fit(self.X)
             for i in range(len(self.neurons)):
@@ -17984,7 +17979,6 @@ class kmeans_SMOTE(OverSampling):
         # applying kmeans clustering to all data
         n_clusters = min([self.n_clusters, len(X)])
         kmeans = KMeans(n_clusters=n_clusters,
-                        n_jobs=self.n_jobs,
                         random_state=self.random_state)
         kmeans.fit(X)
 
@@ -18895,7 +18889,6 @@ class cluster_SMOTE(OverSampling):
 
         n_clusters = min([len(X_min), self.n_clusters])
         kmeans = KMeans(n_clusters=n_clusters,
-                        n_jobs=self.n_jobs,
                         random_state=self.random_state)
         kmeans.fit(X_min)
         cluster_labels = kmeans.labels_
