@@ -6,7 +6,6 @@ scipy
 sklearn
 minisom==2.1.4
 statistics
-tensorflow
-keras
-nose
+tensorflow==2.2.0
+keras==2.4.3
 mkl

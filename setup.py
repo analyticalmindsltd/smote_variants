@@ -12,6 +12,24 @@ __version__= "0.0.0"
 with open(version_file) as f:
     exec(f.read())
 
+class PyTest(TestCommand):
+    user_options = [('pytest-args=', 'a', "Arguments to pass to py.test")]
+
+    def initialize_options(self):
+        TestCommand.initialize_options(self)
+        self.pytest_args = []
+
+    def finalize_options(self):
+        TestCommand.finalize_options(self)
+        self.test_args = []
+        self.test_suite = True
+
+    def run_tests(self):
+        #import here, cause outside the eggs aren't loaded
+        import pytest
+        errno = pytest.main(self.pytest_args)
+        sys.exit(errno)
+
 DISTNAME= 'smote_variants'
 DESCRIPTION= 'Variants of the synthetic minority oversampling technique (SMOTE) for imbalanced learning'
 LONG_DESCRIPTION= readme()
@@ -38,10 +56,10 @@ if on_rtd:
     INSTALL_REQUIRES = []
 else:
     INSTALL_REQUIRES= ['numpy>=1.13.0', 'scipy', 'scikit-learn', 'joblib', 'minisom', 'statistics', 'tensorflow', 'keras', 'pandas', 'mkl']
-EXTRAS_REQUIRE= {'tests': ['nose'],
+EXTRAS_REQUIRE= {'tests': ['pytest'],
                  'docs': ['sphinx', 'sphinx-gallery', 'sphinx_rtd_theme', 'matplotlib', 'pandas']}
 PYTHON_REQUIRES= '>=3.5'
-TEST_SUITE='nose.collector'
+CMDCLASS = {'test': PyTest}
 PACKAGE_DIR= {'smote_variants': 'smote_variants'}
 
 setup(name=DISTNAME,
@@ -61,38 +79,6 @@ setup(name=DISTNAME,
       install_requires=INSTALL_REQUIRES,
       extras_require=EXTRAS_REQUIRE,
       python_requires=PYTHON_REQUIRES,
-      test_suite=TEST_SUITE,
+      cmdclass=CMDCLASS,
       package_dir=PACKAGE_DIR,
       packages=find_packages(exclude=[]))
-
-#setup(name='smote_variants',
-#      version=getversion(),
-#      description='smote_variants',
-#      long_description=readme(),
-#      classifiers=[
-#              'Development Status :: 3 - Alpha',
-#              'License :: OSI Approved :: MIT License',
-#              'Programming Language :: Python',
-#              'Topic :: Scientific/Engineering :: Artificial Intelligence'],
-#      url='http://github.com/analyticalmindsltd/smote_variants',
-#      author='Gyorgy Kovacs',
-#      author_email='gyuriofkovacs@gmail.com',
-#      license='MIT',
-#      packages=['smote_variants'],
-#      install_requires=[
-#              'joblib',
-#              'numpy',
-#              'pandas',
-#              'scipy',
-#              'sklearn',
-#              'minisom',
-#              'statistics',
-#              ],
-#      py_modules=['smote_variants'],
-#      python_requires='>=3.5',
-#      zip_safe=False,
-#      package_dir= {'smote_variants': 'smote_variants'},
-#      package_data= {},
-#      tests_require= ['nose'],
-#      test_suite= 'nose.collector'
-#      )
