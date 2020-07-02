@@ -1,6 +1,6 @@
 .. -*- mode: rst -*-
 
-|TravisCI|_ |CircleCI|_ |Codecov|_ |ReadTheDocs|_ |PythonVersion|_ |PyPi|_ |Gitter|_
+|TravisCI|_ |CircleCI|_ |GitHub|_ |Codecov|_ |ReadTheDocs|_ |PythonVersion|_ |PyPi|_ |Gitter|_
 
 .. |TravisCI| image:: https://travis-ci.org/gykovacs/smote_variants.svg?branch=master
 .. _TravisCI: https://travis-ci.org/gykovacs/smote_variants
