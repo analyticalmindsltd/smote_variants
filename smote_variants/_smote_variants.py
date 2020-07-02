@@ -19614,7 +19614,7 @@ class Sampling():
                     offset = nums[i] + new_num
                     X_offset = X_train[:offset]
                     y_offset = y_train[:offset]
-                    sampling.append((X_offset, y__offset, X_test, y_test))
+                    sampling.append((X_offset, y_offset, X_test, y_test))
                     i = i + 1
                 runtime = tmp_runtime/p*proportion
 
