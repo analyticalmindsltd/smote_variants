@@ -2107,7 +2107,7 @@ class Borderline_SMOTE2(OverSampling):
 
         # fitting nearest neighbors model to minority samples
         k_neigh = self.k_neighbors + 1
-        k_neigh = min([kneigh, len(X)])
+        k_neigh = min([k_neigh, len(X)])
         nn = NearestNeighbors(n_neighbors=k_neigh, n_jobs=self.n_jobs)
         nn.fit(X)
         distances, indices = nn.kneighbors(X_danger)
