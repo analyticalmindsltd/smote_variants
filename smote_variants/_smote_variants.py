@@ -20182,7 +20182,7 @@ def read_oversampling_results(datasets, cache_path=None, all_results=False):
         _logger.info("aggregating the results")
         if all_results is False:
             db_res = db_res.groupby(by=['db_name', 'classifier', 'sampler'])
-            ds_res.apply(trans).reset_index().drop('level_3', axis=1)
+            db_res.apply(trans).reset_index().drop('level_3', axis=1)
 
         results.append(db_res)
 
