@@ -10,6 +10,7 @@ workflows:
       - test-3.5
       - test-3.6
       - test-3.7
+      - test-3.8
 jobs:
   test-3.6: &test-template
     docker:
@@ -39,6 +40,7 @@ jobs:
           command: |
             python3 -m venv venv
             . venv/bin/activate
+            pip install --update pip
             pip install -r requirements.txt
             pip install coverage coveralls
             pip install .
@@ -74,3 +76,9 @@ jobs:
     <<: *test-template
     docker:
       - image: circleci/python:3.7
+
+  test-3.8:
+    <<: *test-template
+    docker:
+      - image: circleci/python:3.8
+ 
