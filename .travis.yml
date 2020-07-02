@@ -6,18 +6,18 @@ python:
 - 3.5
 - 3.6
 - 3.7
+- 3.8
 install:
+- pip install --upgrade pip
 - pip install -r requirements.txt
 - pip install codecov
 - pip install coverage
 - pip install coveralls
 - python setup.py install
 script:
-#- nosetests --with-coverage tests/tests.py
 - coverage run --source smote_variants tests/tests.py
 after_success:
 - codecov
-#- coveralls
 deploy:
   provider: pypi
   user: gykovacs
