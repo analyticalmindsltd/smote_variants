@@ -13,6 +13,7 @@ with open(version_file) as f:
     exec(f.read())
 
 from setuptools.command.test import test as TestCommand
+import sys
 
 class PyTest(TestCommand):
     user_options = [('pytest-args=', 'a', "Arguments to pass to py.test")]
