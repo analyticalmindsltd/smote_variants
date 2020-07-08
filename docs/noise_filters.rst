@@ -28,10 +28,12 @@ Tomek link removal
 
 References:
     * BibTex::
-        
+
         @article{smoteNoise0,
-                 author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
-                 title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
+                 author = {Batista, Gustavo E. A. P. A. and Prati,
+                            Ronaldo C. and Monard, Maria Carolina},
+                 title = {A Study of the Behavior of Several Methods for
+                            Balancing Machine Learning Training Data},
                  journal = {SIGKDD Explor. Newsl.},
                  issue_date = {June 2004},
                  volume = {6},
@@ -46,7 +48,7 @@ References:
                  acmid = {1007735},
                  publisher = {ACM},
                  address = {New York, NY, USA}
-                } 
+                }
 CondensedNearestNeighbors
 =========================
 
@@ -74,18 +76,18 @@ Condensed nearest neighbors
 
 References:
     * BibTex::
-        
-        @ARTICLE{condensed_nn, 
-                    author={Hart, P.}, 
-                    journal={IEEE Transactions on Information Theory}, 
-                    title={The condensed nearest neighbor rule (Corresp.)}, 
-                    year={1968}, 
-                    volume={14}, 
-                    number={3}, 
-                    pages={515-516}, 
-                    keywords={Pattern classification}, 
-                    doi={10.1109/TIT.1968.1054155}, 
-                    ISSN={0018-9448}, 
+
+        @ARTICLE{condensed_nn,
+                    author={Hart, P.},
+                    journal={IEEE Transactions on Information Theory},
+                    title={The condensed nearest neighbor rule (Corresp.)},
+                    year={1968},
+                    volume={14},
+                    number={3},
+                    pages={515-516},
+                    keywords={Pattern classification},
+                    doi={10.1109/TIT.1968.1054155},
+                    ISSN={0018-9448},
                     month={May}}
 OneSidedSelection
 =================
@@ -112,10 +114,12 @@ Example
 
 References:
     * BibTex::
-        
+
         @article{smoteNoise0,
-                 author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
-                 title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
+                 author = {Batista, Gustavo E. A. P. A. and Prati,
+                            Ronaldo C. and Monard, Maria Carolina},
+                 title = {A Study of the Behavior of Several Methods
+                            for Balancing Machine Learning Training Data},
                  journal = {SIGKDD Explor. Newsl.},
                  issue_date = {June 2004},
                  volume = {6},
@@ -130,7 +134,7 @@ References:
                  acmid = {1007735},
                  publisher = {ACM},
                  address = {New York, NY, USA}
-                } 
+                }
 CNNTomekLinks
 =============
 
@@ -156,10 +160,12 @@ Example
 
 References:
     * BibTex::
-        
+
         @article{smoteNoise0,
-                 author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
-                 title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
+                 author = {Batista, Gustavo E. A. P. A. and Prati,
+                            Ronaldo C. and Monard, Maria Carolina},
+                 title = {A Study of the Behavior of Several Methods
+                            for Balancing Machine Learning Training Data},
                  journal = {SIGKDD Explor. Newsl.},
                  issue_date = {June 2004},
                  volume = {6},
@@ -174,7 +180,7 @@ References:
                  acmid = {1007735},
                  publisher = {ACM},
                  address = {New York, NY, USA}
-                } 
+                }
 NeighborhoodCleaningRule
 ========================
 
@@ -200,10 +206,12 @@ Example
 
 References:
     * BibTex::
-        
+
         @article{smoteNoise0,
-                 author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
-                 title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
+                 author = {Batista, Gustavo E. A. P. A. and Prati,
+                            Ronaldo C. and Monard, Maria Carolina},
+                 title = {A Study of the Behavior of Several Methods for
+                            Balancing Machine Learning Training Data},
                  journal = {SIGKDD Explor. Newsl.},
                  issue_date = {June 2004},
                  volume = {6},
@@ -218,7 +226,7 @@ References:
                  acmid = {1007735},
                  publisher = {ACM},
                  address = {New York, NY, USA}
-                } 
+                }
 EditedNearestNeighbors
 ======================
 
@@ -244,10 +252,12 @@ Example
 
 References:
     * BibTex::
-        
+
         @article{smoteNoise0,
-                 author = {Batista, Gustavo E. A. P. A. and Prati, Ronaldo C. and Monard, Maria Carolina},
-                 title = {A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data},
+                 author = {Batista, Gustavo E. A. P. A. and Prati,
+                            Ronaldo C. and Monard, Maria Carolina},
+                 title = {A Study of the Behavior of Several Methods for
+                            Balancing Machine Learning Training Data},
                  journal = {SIGKDD Explor. Newsl.},
                  issue_date = {June 2004},
                  volume = {6},
@@ -262,4 +272,4 @@ References:
                  acmid = {1007735},
                  publisher = {ACM},
                  address = {New York, NY, USA}
-                } 
+                }
