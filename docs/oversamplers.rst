@@ -8,7 +8,7 @@ SMOTE
 API
 ^^^
 
-.. autoclass:: smote_variants.SMOTE
+.. autoclass:: smote_variants::SMOTE
     :members:
 
     .. automethod:: __init__
