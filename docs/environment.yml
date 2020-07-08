@@ -5,3 +5,11 @@ channels:
 
 dependencies:
     - python==3.7
+    - joblib
+    - numpy>=1.16.0
+    - pandas
+    - sklearn
+    - minisom==2.1.4
+    - statistics
+    - keras
+    - mkl
