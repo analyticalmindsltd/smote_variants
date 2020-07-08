@@ -30,113 +30,113 @@ In the captions of the images some abbreviations                     referring t
 .. figure:: figures/base.png
 
 
+.. image:: figures/NoSMOTE.png
 .. image:: figures/SMOTE.png
 .. image:: figures/SMOTE_TomekLinks.png
 .. image:: figures/SMOTE_ENN.png
-.. image:: figures/Borderline_SMOTE1.png
 
+.. image:: figures/Borderline_SMOTE1.png
 .. image:: figures/Borderline_SMOTE2.png
 .. image:: figures/ADASYN.png
 .. image:: figures/AHC.png
-.. image:: figures/LLE_SMOTE.png
 
+.. image:: figures/LLE_SMOTE.png
 .. image:: figures/distance_SMOTE.png
 .. image:: figures/SMMO.png
 .. image:: figures/polynom_fit_SMOTE.png
-.. image:: figures/Stefanowski.png
 
+.. image:: figures/Stefanowski.png
 .. image:: figures/ADOMS.png
 .. image:: figures/Safe_Level_SMOTE.png
 .. image:: figures/MSMOTE.png
-.. image:: figures/DE_oversampling.png
 
+.. image:: figures/DE_oversampling.png
 .. image:: figures/SMOBD.png
 .. image:: figures/SUNDO.png
 .. image:: figures/MSYN.png
-.. image:: figures/SVM_balance.png
 
+.. image:: figures/SVM_balance.png
 .. image:: figures/TRIM_SMOTE.png
 .. image:: figures/SMOTE_RSB.png
 .. image:: figures/ProWSyn.png
-.. image:: figures/SL_graph_SMOTE.png
 
+.. image:: figures/SL_graph_SMOTE.png
 .. image:: figures/NRSBoundary_SMOTE.png
 .. image:: figures/LVQ_SMOTE.png
 .. image:: figures/SOI_CJ.png
-.. image:: figures/ROSE.png
 
+.. image:: figures/ROSE.png
 .. image:: figures/SMOTE_OUT.png
 .. image:: figures/SMOTE_Cosine.png
 .. image:: figures/Selected_SMOTE.png
-.. image:: figures/LN_SMOTE.png
 
+.. image:: figures/LN_SMOTE.png
 .. image:: figures/MWMOTE.png
 .. image:: figures/PDFOS.png
 .. image:: figures/IPADE_ID.png
-.. image:: figures/RWO_sampling.png
 
+.. image:: figures/RWO_sampling.png
 .. image:: figures/NEATER.png
 .. image:: figures/DEAGO.png
 .. image:: figures/Gazzah.png
-.. image:: figures/MCT.png
 
+.. image:: figures/MCT.png
 .. image:: figures/ADG.png
 .. image:: figures/SMOTE_IPF.png
 .. image:: figures/KernelADASYN.png
-.. image:: figures/MOT2LD.png
 
+.. image:: figures/MOT2LD.png
 .. image:: figures/V_SYNTH.png
 .. image:: figures/OUPS.png
 .. image:: figures/SMOTE_D.png
-.. image:: figures/SMOTE_PSO.png
 
+.. image:: figures/SMOTE_PSO.png
 .. image:: figures/CURE_SMOTE.png
 .. image:: figures/SOMO.png
 .. image:: figures/ISOMAP_Hybrid.png
-.. image:: figures/CE_SMOTE.png
 
+.. image:: figures/CE_SMOTE.png
 .. image:: figures/Edge_Det_SMOTE.png
 .. image:: figures/CBSO.png
 .. image:: figures/E_SMOTE.png
-.. image:: figures/DBSMOTE.png
 
+.. image:: figures/DBSMOTE.png
 .. image:: figures/ASMOBD.png
 .. image:: figures/Assembled_SMOTE.png
 .. image:: figures/SDSMOTE.png
-.. image:: figures/DSMOTE.png
 
+.. image:: figures/DSMOTE.png
 .. image:: figures/G_SMOTE.png
 .. image:: figures/NT_SMOTE.png
 .. image:: figures/Lee.png
-.. image:: figures/SPY.png
 
+.. image:: figures/SPY.png
 .. image:: figures/SMOTE_PSOBAT.png
 .. image:: figures/MDO.png
 .. image:: figures/Random_SMOTE.png
-.. image:: figures/ISMOTE.png
 
+.. image:: figures/ISMOTE.png
 .. image:: figures/VIS_RST.png
 .. image:: figures/GASMOTE.png
 .. image:: figures/A_SUWO.png
-.. image:: figures/SMOTE_FRST_2T.png
 
+.. image:: figures/SMOTE_FRST_2T.png
 .. image:: figures/AND_SMOTE.png
 .. image:: figures/NRAS.png
 .. image:: figures/AMSCO.png
-.. image:: figures/SSO.png
 
+.. image:: figures/SSO.png
 .. image:: figures/NDO_sampling.png
 .. image:: figures/DSRBF.png
 .. image:: figures/Gaussian_SMOTE.png
-.. image:: figures/kmeans_SMOTE.png
 
+.. image:: figures/kmeans_SMOTE.png
 .. image:: figures/Supervised_SMOTE.png
 .. image:: figures/SN_SMOTE.png
 .. image:: figures/CCR.png
-.. image:: figures/ANS.png
 
+.. image:: figures/ANS.png
 .. image:: figures/cluster_SMOTE.png
-.. image:: figures/NoSMOTE.png
 Noise removal sample results
 =============================
 

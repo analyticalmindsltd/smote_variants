@@ -198,7 +198,7 @@ def create_documentation_page_os():
         docs= docs + "\n\n"
         docs= docs + "API\n"
         docs= docs + "^"*len("API") + "\n\n"
-        docs= docs + ('.. autoclass:: smote_variants.%s' % o.__name__) + "\n"
+        docs= docs + ('.. autoclass:: smote_variants::%s' % o.__name__) + "\n"
         docs= docs + ('    :members:') + "\n"
         docs= docs + "\n"
         docs= docs + ('    .. automethod:: __init__')
@@ -212,6 +212,7 @@ def create_documentation_page_os():
         docs= docs + ".. image:: figures/base.png" + "\n"
         docs= docs + (".. image:: figures/%s.png" % o.__name__) + "\n\n"
         docs= docs + o.__doc__.replace("\n    ", "\n")
+        docs= docs + "\n\n"
     
     file= open("oversamplers.rst", "w")
     file.write(docs)
@@ -435,8 +436,8 @@ def generate_doc_pages():
     create_documentation_page_os()
     create_documentation_page_nf()
     create_gallery_page()
-    create_ranking_page()
+    #create_ranking_page()
     create_readme_page()
-    create_downloads_page()
+    #create_downloads_page()
 
 generate_doc_pages()
