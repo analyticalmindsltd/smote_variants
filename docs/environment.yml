@@ -8,5 +8,5 @@ dependencies:
     - joblib
     - numpy>=1.16.0
     - pandas
-    - sklearn
+    - scikit-learn
     - statistics
