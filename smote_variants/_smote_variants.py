@@ -54,9 +54,6 @@ import scipy.optimize as soptimize
 import scipy.special as sspecial
 from scipy.stats.mstats import gmean
 
-# self-organizing map implementation
-import minisom
-
 from ._version import __version__
 
 __author__ = "György Kovács"
@@ -11118,6 +11115,8 @@ class SOMO(OverSampling):
 
         N_inter = n_to_sample/2
         N_intra = n_to_sample/2
+
+        import minisom
 
         # training SOM
         som = minisom.MiniSom(self.n_grid,
