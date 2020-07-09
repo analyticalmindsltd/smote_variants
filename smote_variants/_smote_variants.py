@@ -1402,7 +1402,7 @@ class NoSMOTE(OverSampling):
         """
         Constructor of the NoSMOTE object.
 
-        random_state (int/np.random.RandomState/None): dummy parameter for the
+        random_state (int/np.random.RandomState/None): dummy parameter for the \
                         compatibility of interfaces
         """
         super().__init__()
@@ -1411,6 +1411,7 @@ class NoSMOTE(OverSampling):
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable paramter combinations.
+        
         Returns:
             list(dict): a list of meaningful paramter combinations
         """
