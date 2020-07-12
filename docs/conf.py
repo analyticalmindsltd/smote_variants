@@ -19,6 +19,10 @@
 
 # -- Project information -----------------------------------------------------
 
+import os
+import sys
+sys.path.append(os.path.abspath('..'))
+
 project = 'smote_variants'
 copyright = '2018, György Kovács'
 author = 'György Kovács'
