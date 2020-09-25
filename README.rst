@@ -30,7 +30,7 @@
 .. _Gitter: https://gitter.im/smote_variants?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 
 
-SMOTE-variants
+SMOTE-variants for imbalanced learning
 ==============
 
 Introduction
