@@ -181,7 +181,8 @@ __all__ = ['__author__',
            'cluster_SMOTE',
            'NoSMOTE',
            'MulticlassOversampling',
-           'OversamplingClassifier']
+           'OversamplingClassifier',
+          'SYMPROD']
 
 
 def get_all_oversamplers():
@@ -18953,8 +18954,208 @@ class cluster_SMOTE(OverSampling):
                 'n_clusters': self.n_clusters,
                 'n_jobs': self.n_jobs,
                 'random_state': self._random_state_init}
+    
+class SYMPROD(OverSampling):
+    '''
+    References:
+        *Bibtex::
+            @article{kunakorntum2020synthetic,
+              title={A Synthetic Minority Based on Probabilistic Distribution (SyMProD) Oversampling for Imbalanced Datasets},
+              author={Kunakorntum, Intouch and Hinthong, Woranich and Phunchongharn, Phond},
+              journal={IEEE Access},
+              volume={8},
+              pages={114692--114704},
+              year={2020},
+              publisher={IEEE}
+            }
+    
+    '''
+    categories = [OverSampling.cat_noise_removal,
+                  OverSampling.cat_density_based,
+                  OverSampling.cat_sample_componentwise]
+    
+    def __init__(self,
+                 proportion=1.0,
+                 std_outliers=3,
+                 distance_nearest_neighbors=7,
+                 generate_nearest_neighbors=7,
+                 cutoff_threshold=1.25,
+                 random_state=None):
+    
+        """
+        Constructor of the SYMPROD sampling object
+
+        Args:
+            proportion (float): proportion of the difference of n_maj and n_min
+                                to sample e.g. 1.0 means that after sampling
+                                the number of minority samples will be equal to
+                                the number of majority samples
+            std_outliers (int): value for removing outliers based on standard deviation of each point
+            distance_nearest_neighbors (int): number of nearest neighbors for calculating distance, closeness factor of each point
+            generate_nearest_neighbors (int): number of nearest neighbors for generating synthetic instances of each point.
+            cutoff_threshold (float): threshold for removing minority points where locating in majority region
+            random_state (int/RandomState/None): initializer of random_state,
+                                                    like in sklearn
+        """
+        super().__init__()
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(std_outliers, "std_outliers", 1)
+        self.check_greater_or_equal(distance_nearest_neighbors, "distance_nearest_neighbors", 1)
+        self.check_greater_or_equal(generate_nearest_neighbors, "generate_nearest_neighbors", 1)
+        self.check_greater_or_equal(cutoff_threshold, "cutoff_threshold", 0.01)
+    
+        self.proportion = proportion
+        self.std_outliers = std_outliers
+        self.distance_nearest_neighbors = distance_nearest_neighbors
+        self.generate_nearest_neighbors = generate_nearest_neighbors
+        self.cutoff_threshold = cutoff_threshold
+        self.set_random_state(random_state)
+        
+    @ classmethod
+    def parameter_combinations(cls, raw=False):
+        """
+        Generates reasonable paramter combinations.
+        Returns:
+            list(dict): a list of meaningful paramter combinations
+        """
+        parameter_combinations = {  'proportion': [1.0],
+                                    'std_outliers': [3,4],
+                                    'distance_nearest_neighbors' : [5,7],
+                                    'generate_nearest_neighbors' : [5,7],
+                                    'cutoff_threshold' : [1.0,1.25,1.5]}
+        return cls.generate_parameter_combinations(parameter_combinations, raw)
+
+        
+    def sample(self,X,y):
+        self.class_label_statistics(X, y)
+        n_to_sample = self.det_n_to_sample(self.proportion,
+                                       self.class_stats[self.maj_label],
+                                       self.class_stats[self.min_label])
+
+        if n_to_sample == 0:
+            _logger.warning(self.__class__.__name__ +
+                            ": " + "Sampling is not needed")
+            return X.copy(), y.copy()
+
+        ## I. Noise Removal
+        ss = StandardScaler()
+        X_min = X[y==self.min_label]
+        X_min_norm = ss.fit_transform(X_min)
+        X_min = X_min[np.abs(np.max(X_min_norm,axis=1)) < self.std_outliers]
+
+        X_maj = X[y==self.maj_label]
+        X_maj_norm = ss.fit_transform(X_maj)
+        X_maj = X_maj[np.abs(np.max(X_maj_norm,axis=1)) < self.std_outliers]
+
+        ## Create X,y after Noise Removal
+        y_min = np.full(len(X_min),self.min_label)
+        y_maj = np.full(len(X_maj),self.maj_label)
+        y_nr = np.concatenate((y_min,y_maj),axis=0)
+        X_nr = ss.fit_transform(np.concatenate((X_min,X_maj),axis=0))
+
+        X_min = X_nr[y_nr==self.min_label]
+        X_maj = X_nr[y_nr==self.maj_label]
+
+        ## II. Minority point selection
+        def calculate_distance(x1, x2, sorting=False, KNN=50):
+            if(np.array_equal(x1,x2)):
+                result_matrix = sspatial.distance.cdist(x1,x2,metric='euclidean')
+                np.fill_diagonal(result_matrix, np.nan)
+            else:
+                result_matrix = sspatial.distance.cdist(x1,x2,metric='euclidean')
+            if(sorting==False):
+                return (result_matrix)
+            else:
+                result_matrix.sort()
+                return (result_matrix[:,:KNN])
+
+        dist_major_major = calculate_distance(X_maj,X_maj,sorting=True, KNN=len(X_maj))
+        dist_minor_minor = calculate_distance(X_min,X_min,sorting=True, KNN=len(X_min))
+
+        ## Calculate Closeness Factor(CF)
+        cf_minor = 1/np.nansum(dist_minor_minor,axis=1)
+        cf_norm_minor = (cf_minor-cf_minor.min())/(cf_minor.max()-cf_minor.min())
+        cf_minor = cf_minor/cf_minor.sum()
+
+        cf_major = 1/np.nansum(dist_major_major,axis=1)
+        cf_norm_major = (cf_major-cf_major.min())/(cf_major.max()-cf_major.min())
+        cf_major = cf_major/cf_major.sum()           
+
+        ## First, Calculate the distance from minority class to minority class for comparing with majority class
+        dist_minor_minor = calculate_distance(X_min,X_min)
+        dist_minor_minor_sort = np.sort(dist_minor_minor)[:,:self.distance_nearest_neighbors]
+        dist_minor_minor_index = np.argsort(dist_minor_minor)[:,:self.distance_nearest_neighbors]
+
+        cf_norm_minor_index = np.take(cf_norm_minor,dist_minor_minor_index)
+        tau_minor = (cf_norm_minor_index/(dist_minor_minor_sort+1)).mean(axis=1)
+
+        ## Calculate distance from minority to majority
+        dist_minor_major = calculate_distance(X_min,X_maj)
+        dist_minor_major_sort = np.sort(dist_minor_major)[:,:self.distance_nearest_neighbors]
+        dist_minor_major_index = np.argsort(dist_minor_major)[:,:self.distance_nearest_neighbors]
+        cf_norm_major_index = np.take(cf_norm_major,dist_minor_major_index)
+        tau_major = (cf_norm_major_index/(dist_minor_major_sort+1)).mean(axis=1)
+
+        phi = (tau_minor+1)/(tau_major+1)
+        X_min = X_min[tau_minor>=tau_major*self.cutoff_threshold]
+        cf_norm_minor = cf_norm_minor[tau_minor>=tau_major*self.cutoff_threshold]
+        phi = phi[tau_minor>=tau_major*self.cutoff_threshold]
+
+        phi = (phi-phi.min())/(phi.max()-phi.min())
+        prob_dist = phi/phi.sum()
+
+        
+        ## III. Instance Synthesis
+        try:
+            minor_reference = self.random_state.choice(
+                    len(prob_dist),
+                    n_to_sample,
+                    p=prob_dist)
+            dist_minor_minor = calculate_distance(X_min,X_min)
+            dist_minor_minor_index = np.argsort(dist_minor_minor)[:,:self.generate_nearest_neighbors+2]
+            nn_selected = np.array([self.random_state.choice(i,self.generate_nearest_neighbors,replace=False).tolist() for i in dist_minor_minor_index])
+        except Exception as e:
+            raise ValueError('Cutoff value is too high, try to decrease cutoff value')
+            
+        synthetic_points = np.zeros(shape=(n_to_sample,X[0].shape[0]))
+
+        for ind in range(len(minor_reference)):
+            point = minor_reference[ind]
+
+            ## Feature value of reference point
+            feature_reference = X_min[point].reshape(1,X_min[point].shape[0])
+            ## Merge feature value of neighbors and reference point
+            feature_value = np.concatenate((X_min[nn_selected[point]],feature_reference))
+
+            ## closeness factor of reference and neighbors
+            CF_reference = cf_norm_minor[point]
+            CF_neighbor = cf_norm_minor[nn_selected[point]]
+            CF = np.append(CF_neighbor,CF_reference).reshape(self.generate_nearest_neighbors+1,1)
+
+            ## Random value as beta
+            random_beta = np.random.dirichlet(np.ones(self.generate_nearest_neighbors+1)*(self.generate_nearest_neighbors+2),size=1).reshape(self.generate_nearest_neighbors+1,1)
+
+            calculate_CF = random_beta*CF
+            calculate_CF = calculate_CF/calculate_CF.sum()
+            feature_value = feature_value*calculate_CF.reshape(self.generate_nearest_neighbors+1,1)
+            synthetic_points[ind] = np.sum(feature_value,axis=0)
+
+        return (np.vstack([X, np.vstack(synthetic_points)]),
+            np.hstack([y, np.repeat(self.min_label, len(synthetic_points))]))
 
 
+    def get_params(self, deep=False):
+        """
+        Returns:
+            dict: the parameters of the current sampling object
+        """
+        return {'proportion': self.proportion,
+                'std_outliers': self.std_outliers,
+                'distance_nearest_neighbors': self.distance_nearest_neighbors,
+                'generate_nearest_neighbors': self.generate_nearest_neighbors,
+                'cutoff_threshold': self.cutoff_threshold,
+                'random_state': self.random_state}
+    
 class MulticlassOversampling(StatisticsMixin):
     """
     Carries out multiclass oversampling
@@ -20645,3 +20846,4 @@ def cross_validate(dataset,
 
     return pd.DataFrame({'value': list(results.values())},
                         index=results.keys())
+
