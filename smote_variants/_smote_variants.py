@@ -19038,7 +19038,9 @@ class SYMPROD(OverSampling):
             return X.copy(), y.copy()
 
         ## I. Noise Removal
+        tol = 0.0001
         ss = StandardScaler()
+        
         X_min = X[y==self.min_label]
         X_min_norm = ss.fit_transform(X_min)
         X_min = X_min[np.abs(np.max(X_min_norm,axis=1)) < self.std_outliers]
@@ -19046,7 +19048,15 @@ class SYMPROD(OverSampling):
         X_maj = X[y==self.maj_label]
         X_maj_norm = ss.fit_transform(X_maj)
         X_maj = X_maj[np.abs(np.max(X_maj_norm,axis=1)) < self.std_outliers]
-
+        
+        ## Apply the original dataset if the dataset is null
+        if(len(X_min)==0):
+            X_min = X[y==self.min_label]
+        if (len(X[y==self.min_label])<=1):
+            X_min = np.concatenate((X_min,X_min+tol),axis=0)
+        if(len(X_maj)==0):
+            X_maj = X[y==self.maj_label]
+        
         ## Create X,y after Noise Removal
         y_min = np.full(len(X_min),self.min_label)
         y_maj = np.full(len(X_maj),self.maj_label)
@@ -19073,8 +19083,12 @@ class SYMPROD(OverSampling):
         dist_minor_minor = calculate_distance(X_min,X_min,sorting=True, KNN=len(X_min))
 
         ## Calculate Closeness Factor(CF)
+        
         cf_minor = 1/np.nansum(dist_minor_minor,axis=1)
-        cf_norm_minor = (cf_minor-cf_minor.min())/(cf_minor.max()-cf_minor.min())
+        if (cf_minor.max() - cf_minor.min()<=tol):
+            cf_norm_minor = (cf_minor-cf_minor.min()+1)
+        else:
+            cf_norm_minor = (cf_minor-cf_minor.min())/(cf_minor.max()-cf_minor.min())
         cf_minor = cf_minor/cf_minor.sum()
 
         cf_major = 1/np.nansum(dist_major_major,axis=1)
@@ -19087,7 +19101,8 @@ class SYMPROD(OverSampling):
         dist_minor_minor_index = np.argsort(dist_minor_minor)[:,:self.distance_nearest_neighbors]
 
         cf_norm_minor_index = np.take(cf_norm_minor,dist_minor_minor_index)
-        tau_minor = (cf_norm_minor_index/(dist_minor_minor_sort+1)).mean(axis=1)
+#         tau_minor = (cf_norm_minor_index/(dist_minor_minor_sort+1)).mean(axis=1)
+        tau_minor = np.nanmean((cf_norm_minor_index/(dist_minor_minor_sort+1)),axis=1)
 
         ## Calculate distance from minority to majority
         dist_minor_major = calculate_distance(X_min,X_maj)
@@ -19097,13 +19112,17 @@ class SYMPROD(OverSampling):
         tau_major = (cf_norm_major_index/(dist_minor_major_sort+1)).mean(axis=1)
 
         phi = (tau_minor+1)/(tau_major+1)
+        for ind_cutoff_value in (np.linspace(self.cutoff_threshold, 0, num=10)):
+            if len(X_min[tau_minor>=tau_major*ind_cutoff_value]) > 1:
+                self.cutoff_threshold = ind_cutoff_value
+                _logger.info("Cutoff value is changed to %s since the original value removes all instances" %str(ind_cutoff_value))
+                break
+
         X_min = X_min[tau_minor>=tau_major*self.cutoff_threshold]
         cf_norm_minor = cf_norm_minor[tau_minor>=tau_major*self.cutoff_threshold]
         phi = phi[tau_minor>=tau_major*self.cutoff_threshold]
-
         phi = (phi-phi.min())/(phi.max()-phi.min())
         prob_dist = phi/phi.sum()
-
         
         ## III. Instance Synthesis
         try:
@@ -19113,7 +19132,10 @@ class SYMPROD(OverSampling):
                     p=prob_dist)
             dist_minor_minor = calculate_distance(X_min,X_min)
             dist_minor_minor_index = np.argsort(dist_minor_minor)[:,:self.generate_nearest_neighbors+2]
-            nn_selected = np.array([self.random_state.choice(i,self.generate_nearest_neighbors,replace=False).tolist() for i in dist_minor_minor_index])
+            if (len(dist_minor_minor_index[0])>=self.generate_nearest_neighbors):
+                nn_selected = np.array([self.random_state.choice(i,self.generate_nearest_neighbors,replace=False).tolist() for i in dist_minor_minor_index])
+            else:
+                nn_selected = np.array([self.random_state.choice(i,self.generate_nearest_neighbors,replace=True).tolist() for i in dist_minor_minor_index])
         except Exception as e:
             raise ValueError('Cutoff value is too high, try to decrease cutoff value')
             
@@ -19133,8 +19155,7 @@ class SYMPROD(OverSampling):
             CF = np.append(CF_neighbor,CF_reference).reshape(self.generate_nearest_neighbors+1,1)
 
             ## Random value as beta
-            random_beta = np.random.dirichlet(np.ones(self.generate_nearest_neighbors+1)*(self.generate_nearest_neighbors+2),size=1).reshape(self.generate_nearest_neighbors+1,1)
-
+            random_beta = self.random_state.dirichlet(np.ones(self.generate_nearest_neighbors+1)*(self.generate_nearest_neighbors+2),size=1).reshape(self.generate_nearest_neighbors+1,1)
             calculate_CF = random_beta*CF
             calculate_CF = calculate_CF/calculate_CF.sum()
             feature_value = feature_value*calculate_CF.reshape(self.generate_nearest_neighbors+1,1)
@@ -19154,8 +19175,8 @@ class SYMPROD(OverSampling):
                 'distance_nearest_neighbors': self.distance_nearest_neighbors,
                 'generate_nearest_neighbors': self.generate_nearest_neighbors,
                 'cutoff_threshold': self.cutoff_threshold,
-                'random_state': self.random_state}
-    
+                'random_state': self._random_state_init}
+ 
 class MulticlassOversampling(StatisticsMixin):
     """
     Carries out multiclass oversampling
