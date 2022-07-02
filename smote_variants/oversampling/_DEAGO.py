@@ -140,7 +140,8 @@ class DEAGO(OverSampling):
         if isinstance(self._random_state_init, int):
             import os
             os.environ['PYTHONHASHSEED'] = str(self._random_state_init)
-            import keras as K
+            #import keras as K
+            from tensorflow import keras as K
             np.random.seed(self._random_state_init)
             import random
             random.seed(self._random_state_init)
