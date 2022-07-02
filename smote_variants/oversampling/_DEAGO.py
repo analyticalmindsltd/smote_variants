@@ -154,7 +154,8 @@ class DEAGO(OverSampling):
             seed = 127
             import os
             os.environ['PYTHONHASHSEED'] = str(seed)
-            import keras as K
+            #import keras as K
+            from tensorflow import keras as K
             np.random.seed(seed)
             import random
             random.seed(seed)
