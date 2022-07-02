@@ -1,6 +1,6 @@
 setuptools>=41.0.0
 joblib
-numpy>=1.16.0,<1.19.0
+numpy
 pandas
 sklearn
 minisom
