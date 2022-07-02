@@ -167,7 +167,7 @@ class DEAGO(OverSampling):
             except Exception as e:
                 tensorflow.random.set_seed(self._random_state_init)
 
-        from keras import backend as K
+        from tensorflow.keras import backend as K
         import tensorflow as tf
         try:
             session_conf = tf.compat.v1.ConfigProto(
@@ -183,8 +183,8 @@ class DEAGO(OverSampling):
             tf.compat.v1.keras.backend.set_session(sess)
 
         if not hasattr(self, 'Input'):
-            from keras.layers import Input, Dense, GaussianNoise
-            from keras.models import Model
+            from tensorflow.keras.layers import Input, Dense, GaussianNoise
+            from tensorflow.keras.models import Model
             from tensorflow.keras.callbacks import EarlyStopping
 
             self.Input = Input
