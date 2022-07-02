@@ -8,3 +8,4 @@ statistics
 tensorflow
 keras
 mkl
+metric-learn

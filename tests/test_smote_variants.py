@@ -19,7 +19,7 @@ import os
 
 import smote_variants as sv
 
-import unittest
+import pytest
 
 _logger = logging.getLogger('smote_variants')
 _logger.setLevel(logging.WARNING)
@@ -112,7 +112,7 @@ data_maj = np.array([[-1.40972752,  0.07111486],
                      [0.32485141, -0.34609381]])
 
 
-class TestBasicOperationAndEdgeCases(unittest.TestCase):
+class TestBasicOperationAndEdgeCases:
 
     def test_same_num(self):
         X = np.array([[1.0, 1.1],
@@ -131,7 +131,7 @@ class TestBasicOperationAndEdgeCases(unittest.TestCase):
         for s in samplers:
             logging.info("testing %s" % str(s))
             X_samp, y_samp = validation(s(), X, y)
-            self.assertTrue(len(X_samp) > 0)
+            assert len(X_samp) > 0
 
     def test_some_min_some_maj(self):
         X = np.array([[1.0, 1.1],
@@ -149,7 +149,7 @@ class TestBasicOperationAndEdgeCases(unittest.TestCase):
         for s in samplers:
             logging.info("testing %s" % str(s))
             X_samp, y_samp = validation(s(), X, y)
-            self.assertTrue(len(X_samp) > 0)
+            assert len(X_samp) > 0
 
     def test_1_min_some_maj(self):
         X = np.array([[1.0, 1.1],
@@ -166,7 +166,7 @@ class TestBasicOperationAndEdgeCases(unittest.TestCase):
         for s in samplers:
             logging.info("testing %s" % str(s))
             X_samp, y_samp = validation(s(), X, y)
-            self.assertTrue(len(X_samp) > 0)
+            assert len(X_samp) > 0
 
     def test_1_min_1_maj(self):
         X = np.array([[1.0, 1.1],
@@ -191,7 +191,7 @@ class TestBasicOperationAndEdgeCases(unittest.TestCase):
         for s in samplers:
             logging.info("testing %s" % str(s))
             X_samp, y_samp = s().sample(X, y)
-            self.assertTrue(len(X_samp) > 0)
+            assert len(X_samp) > 0
 
         samplers_plus = [sv.polynom_fit_SMOTE(topology='star'),
                          sv.polynom_fit_SMOTE(topology='bus'),
@@ -212,14 +212,14 @@ class TestBasicOperationAndEdgeCases(unittest.TestCase):
         for s in samplers_plus:
             logging.info("testing %s" % str(s.__class__.__name__))
             X_samp, y_samp = s.sample(X, y)
-            self.assertTrue(len(X_samp) > 0)
+            assert len(X_samp) > 0
 
         nf = sv.get_all_noisefilters()
 
         for n in nf:
             logging.info("testing %s" % str(n))
             X_nf, y_nf = n().remove_noise(X, y)
-            self.assertTrue(len(X_nf) > 0)
+            assert len(X_samp) > 0
 
     def test_high_dim(self):
         np.random.seed(42)
@@ -231,7 +231,7 @@ class TestBasicOperationAndEdgeCases(unittest.TestCase):
         for s in samplers:
             logging.info("testing %s" % str(s))
             X_samp, y_samp = s().sample(X, y)
-            self.assertTrue(len(X_samp) > 0)
+            assert len(X_samp) > 0
 
         samplers_plus = [sv.polynom_fit_SMOTE(topology='star'),
                          sv.polynom_fit_SMOTE(topology='bus'),
@@ -252,14 +252,14 @@ class TestBasicOperationAndEdgeCases(unittest.TestCase):
         for s in samplers_plus:
             logging.info("testing %s" % str(s.__class__.__name__))
             X_samp, y_samp = s.sample(X, y)
-            self.assertTrue(len(X_samp) > 0)
+            assert len(X_samp) > 0
 
         nf = sv.get_all_noisefilters()
 
         for n in nf:
             logging.info("testing %s" % str(n))
             X_nf, y_nf = n().remove_noise(X, y)
-            self.assertTrue(len(X_nf) > 0)
+            assert len(X_samp) > 0
 
     def test_parameters(self):
         np.random.seed(42)
@@ -274,10 +274,10 @@ class TestBasicOperationAndEdgeCases(unittest.TestCase):
                 parameters = sampler.get_params()
 
                 for x in original_parameters:
-                    self.assertTrue(parameters[x] == original_parameters[x])
+                    assert parameters[x] == original_parameters[x]
 
 
-class TestModelSelection(unittest.TestCase):
+class TestModelSelection:
     def model_selection(self):
         X = np.vstack([data_min, data_maj])
         y = np.hstack([np.repeat(1, len(data_min)),
@@ -303,16 +303,16 @@ class TestModelSelection(unittest.TestCase):
                                               classifiers=classifiers,
                                               cache_path=cache_path,
                                               n_jobs=1)
-
-        self.assertTrue((samp_obj is not None) and (cl_obj is not None))
+        
+        assert (samp_obj is not None) and (cl_obj is not None)
 
         results = sv.read_oversampling_results(
             datasets=[dataset], cache_path=cache_path)
 
-        self.assertTrue(len(results) > 0)
+        assert len(results) > 0
 
 
-class TestMultiClass(unittest.TestCase):
+class TestMultiClass:
     def test_multiclass(self):
         dataset = datasets.load_wine()
 
@@ -320,35 +320,35 @@ class TestMultiClass(unittest.TestCase):
 
         X_samp, y_samp = oversampler.sample(dataset['data'], dataset['target'])
 
-        self.assertTrue(len(X_samp) > 0)
+        assert len(X_samp) > 0
 
         oversampler = sv.MulticlassOversampling(
             sv.distance_SMOTE(), strategy='equalize_1_vs_many')
 
         X_samp, y_samp = oversampler.sample(dataset['data'], dataset['target'])
 
-        self.assertTrue(len(X_samp) > 0)
+        assert len(X_samp) > 0
 
 
-class TestQueries(unittest.TestCase):
+class TestQueries:
     def test_queries(self):
-        self.assertTrue(len(sv.get_all_oversamplers()) > 0)
-        self.assertTrue(len(sv.get_all_noisefilters()) > 0)
-        self.assertTrue(len(sv.get_n_quickest_oversamplers(5)) == 5)
-        self.assertTrue(len(sv.get_all_oversamplers_multiclass()) > 0)
-        self.assertTrue(len(sv.get_n_quickest_oversamplers_multiclass(5)) == 5)
+        assert len(sv.get_all_oversamplers()) > 0
+        assert len(sv.get_all_noisefilters()) > 0
+        assert len(sv.get_n_quickest_oversamplers(5)) == 5
+        assert len(sv.get_all_oversamplers_multiclass()) > 0
+        assert len(sv.get_n_quickest_oversamplers_multiclass(5)) == 5
 
 
-class TestMLPWrapper(unittest.TestCase):
+class TestMLPWrapper:
     def test_mlp_wrapper(self):
         dataset = datasets.load_wine()
         classifier = sv.MLPClassifierWrapper()
         classifier.fit(dataset['data'], dataset['target'])
 
-        self.assertTrue(classifier is not None)
+        assert classifier is not None
 
 
-class TestCrossValidation(unittest.TestCase):
+class TestCrossValidation:
 
     def test_cross_validate(self):
         X = np.vstack([data_min, data_maj])
@@ -371,7 +371,7 @@ class TestCrossValidation(unittest.TestCase):
                                     sampler=sv.SMOTE(),
                                     classifier=knn_classifier)
 
-        self.assertTrue(len(results) > 0)
+        assert len(results) > 0
 
         dataset = datasets.load_wine()
 
@@ -379,10 +379,10 @@ class TestCrossValidation(unittest.TestCase):
                                     sampler=sv.SMOTE(),
                                     classifier=knn_classifier)
 
-        self.assertTrue(len(results) > 0)
+        assert len(results) > 0
 
 
-class TestReproducibility(unittest.TestCase):
+class TestReproducibility:
 
     def test_reproducibility(self):
         X = np.vstack([data_min, data_maj])
@@ -402,9 +402,9 @@ class TestReproducibility(unittest.TestCase):
             X_samp_b, y_samp_b = sampler.sample(X, y)
             X_samp_c, y_samp_c = s(**sampler.get_params()).sample(X, y)
 
-            self.assertTrue(np.array_equal(X_samp_a, X_samp_b))
-            self.assertTrue(np.array_equal(X_samp_a, X_samp_c))
-            self.assertTrue(np.array_equal(X_orig, X))
+            assert np.array_equal(X_samp_a, X_samp_b)
+            assert np.array_equal(X_samp_a, X_samp_c)
+            assert np.array_equal(X_orig, X)
 
         samplers_plus = [sv.polynom_fit_SMOTE(topology='star', random_state=5),
                          sv.polynom_fit_SMOTE(topology='bus', random_state=5),
@@ -434,8 +434,8 @@ class TestReproducibility(unittest.TestCase):
 
             X_samp_b, y_samp_b = sc.sample(X, y)
 
-            self.assertTrue(np.array_equal(X_samp_a, X_samp_b))
-            self.assertTrue(np.array_equal(X_orig, X))
+            assert np.array_equal(X_samp_a, X_samp_b)
+            assert np.array_equal(X_orig, X)
 
         nf = sv.get_all_noisefilters()
 
@@ -448,9 +448,9 @@ class TestReproducibility(unittest.TestCase):
             nf_b = n(**nf.get_params())
             X_nf_b, y_nf_b = nf_b.remove_noise(X, y)
 
-            self.assertTrue(np.array_equal(X_nf_a, X_nf_b))
-            self.assertTrue(np.array_equal(X_orig, X))
+            assert np.array_equal(X_nf_a, X_nf_b)
+            assert np.array_equal(X_orig, X)
 
 
-if __name__ == '__main__':
-    unittest.main()
+#if __name__ == '__main__':
+#    unittest.main()

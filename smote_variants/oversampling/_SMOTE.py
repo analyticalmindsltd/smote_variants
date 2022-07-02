@@ -3,6 +3,8 @@ import numpy as np
 from .._NearestNeighborsWithClassifierDissimilarity import (NearestNeighborsWithClassifierDissimilarity, 
                                                             MetricTensor, generate_samples,
                                                             AdditionalItems)
+from sklearn.neighbors import NearestNeighbors
+
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -116,13 +118,15 @@ class SMOTE(OverSampling):
         # fitting the model
         n_neigh = min([len(X_min), self.n_neighbors+1])
 
-        ai= AdditionalItems(self.nn_params, self.sampling_params)
-        ai.fit(X, y)
+        metric_tensor= MetricTensor(**self.nn_params).tensor(X, y)
+        nn_params = self.nn_params.copy()
+        if 'metric_tensor' not in self.nn_params:
+            nn_params['metric_tensor']= metric_tensor
 
         nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neigh, 
                                                         n_jobs=self.n_jobs, 
-                                                        **(ai.nn_params), 
-                                                        X=X, 
+                                                        **(self.nn_params),
+                                                        X=X,
                                                         y=y)
         nn.fit(X_min)
         ind= nn.kneighbors(X_min, return_distance=False)
@@ -139,11 +143,8 @@ class SMOTE(OverSampling):
         X_base = X_min[base_indices]
         X_neighbors = X_min[ind[base_indices, neighbor_indices]]
         random_offsets= self.random_state.rand(n_to_sample)
-        
-        samples= generate_samples(X_base=X_base,
-                                  X_neighbors=X_neighbors,
-                                  random_offsets=random_offsets,
-                                  **ai.sampling_params)
+
+        samples= X_base + random_offsets[:,None]*(X_neighbors - X_base)
         
         return (np.vstack([X, samples]),
                 np.hstack([y, np.hstack([self.min_label]*n_to_sample)]))
