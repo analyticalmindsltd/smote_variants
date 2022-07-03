@@ -60,7 +60,7 @@ jobs:
           name: run tests
           command: |
             . venv/bin/activate
-            coverage run --source smote_variants tests/tests.py
+            coverage run --source smote_variants tests/smote_variants_test.py
 
       - store_artifacts:
           path: test-reports
