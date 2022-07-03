@@ -9,7 +9,7 @@ jobs:
     steps:
     - uses: checkout@v2
       with:
-        fetch-depth: ‘2’
+        fetch-depth: '2'
 
     - name: Setup Python
       uses: actions/setup-python@master
@@ -18,6 +18,6 @@ jobs:
     - name: Generate Report
       run: |
         pip install coverage
-        coverage run -m unittest
+        coverage --source smote_variants run -m pytest tests
     - name: Upload Coverage to Codecov
       uses: codecov/codecov-action@v2
