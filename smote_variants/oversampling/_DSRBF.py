@@ -482,10 +482,12 @@ class DSRBF(OverSampling):
 
         # Standardizing the data to let the network work with comparable
         # attributes
+        X_orig0, y_orig0 = X, y
+
         ss = StandardScaler()
         X = ss.fit_transform(X)
-        X_orig = X
-        y_orig = y
+
+        X_orig, y_orig = X, y
 
         nn_params= self.nn_params.copy()
         if not 'metric_tensor' in self.nn_params:
@@ -501,8 +503,6 @@ class DSRBF(OverSampling):
         # generate initial connections and weights randomly
         domain = np.arange(len(X[0]))
         n_random = int(len(X[0])/2)
-        init_conn_mask = self.random_state.choice(domain, n_random)
-        init_conn_weights = self.random_state.random_sample(size=n_random)
 
         # setting epoch lengths
         epoch_len = int(self.n_iter/self.n_sampling_epoch)
@@ -511,8 +511,16 @@ class DSRBF(OverSampling):
             return X_orig.copy(), y_orig.copy()
         m_max = min(len(X_orig), self.m_max)
 
+        if self.m_min >= m_max:
+            _logger.warning(self.__class__.__name__ + ": " +
+                     "Range of the number of hidden units to small %s" % self.descriptor())
+            return X_orig0.copy(), y_orig0.copy()
+
         # generating initial population
         def init_pop():
+            init_conn_mask = self.random_state.choice(domain, n_random)
+            init_conn_weights = self.random_state.random_sample(size=n_random)
+
             return RBF(X,
                        self.m_min,
                        m_max,
