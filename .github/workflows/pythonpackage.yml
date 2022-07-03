@@ -35,6 +35,16 @@ jobs:
         pip install pytest coverage
         coverage run --source smote_variants -m pytest tests/*
     
+    - name: CodeCov
+      uses: codecov/codecov-action@v3
+      with:
+        #token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
+        #files: ./coverage1.xml,./coverage2.xml # optional
+        flags: unittests # optional
+        name: codecov-umbrella # optional
+        fail_ci_if_error: true # optional (default = false)
+        verbose: true # optional (default = false)
+
     #- name: Coverage comment
     #  id: coverage_comment
     #  uses: ewjoachim/python-coverage-comment-action@v2
