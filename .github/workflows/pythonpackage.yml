@@ -42,8 +42,12 @@ jobs:
         #files: ./coverage1.xml,./coverage2.xml # optional
         flags: unittests # optional
         name: codecov-umbrella # optional
-        fail_ci_if_error: true # optional (default = false)
+        fail_ci_if_error: false # optional (default = false)
         verbose: true # optional (default = false)
+        gcov_ignore:
+        - "*test*"
+        - "tests/*"
+
 
     #- name: Coverage comment
     #  id: coverage_comment
