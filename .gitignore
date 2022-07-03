@@ -1,3 +1,6 @@
 smote_variants/__pycache__/*
 smote_variants.egg-info/*
 tests/__pycache__/*
+*.pyc
+.coverage
+*.log

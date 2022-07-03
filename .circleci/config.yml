@@ -7,16 +7,16 @@ workflows:
   version: 2
   build:
     jobs:
-      - test-3.5
-      - test-3.6
-      - test-3.7
+      #- test-3.7
       - test-3.8
+      - test-3.9
+      - test-3.10
 jobs:
-  test-3.6: &test-template
+  test-3.8: &test-template
     docker:
       # specify the version you desire here
       # use `-browsers` prefix for selenium tests, e.g. `3.6.1-browsers`
-      - image: circleci/python:3.6.1
+      - image: cimg/python:3.8
       
       # Specify service dependencies here if necessary
       # CircleCI maintains a library of pre-built images
@@ -42,7 +42,7 @@ jobs:
             . venv/bin/activate
             pip install --upgrade pip
             pip install -r requirements.txt
-            pip install coverage coveralls
+            pip install coverage coveralls pytest
             pip install .
 
       # - save_cache:
@@ -59,24 +59,24 @@ jobs:
           name: run tests
           command: |
             . venv/bin/activate
-            coverage run --source smote_variants tests/tests.py
+            coverage run --source smote_variants -m pytest tests
 
       - store_artifacts:
           path: test-reports
           destination: test-reports
-          
-  test-3.5:
-    <<: *test-template
-    docker:
-      - image: circleci/python:3.5
-  
-  test-3.7:
-    <<: *test-template
-    docker:
-      - image: circleci/python:3.7
 
-  test-3.8:
+  #test-3.8:
+  #  <<: *test-template
+  #  docker:
+  #    - image: cimg/python:3.8
+  
+  test-3.9:
     <<: *test-template
     docker:
-      - image: circleci/python:3.8
+      - image: cimg/python:3.9
+  
+  test-3.10:
+    <<: *test-template
+    docker:
+      - image: cimg/python:3.10
  
