@@ -12,7 +12,7 @@ workflows:
       - test-3.9
       - test-3.10
 jobs:
-  test-3.7: &test-template
+  test-3.8: &test-template
     docker:
       # specify the version you desire here
       # use `-browsers` prefix for selenium tests, e.g. `3.6.1-browsers`
