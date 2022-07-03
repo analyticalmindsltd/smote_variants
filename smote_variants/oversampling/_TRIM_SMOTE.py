@@ -1,6 +1,6 @@
 import numpy as np
 
-from .._metric_tensor import NearestNeighborsWithMetricTensor
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from ._SMOTE import SMOTE
 
