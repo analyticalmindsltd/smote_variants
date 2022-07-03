@@ -4,7 +4,6 @@ from sklearn.metrics import roc_auc_score, accuracy_score
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.preprocessing import MinMaxScaler
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity
 from ._OverSampling import OverSampling
 from .._base import mode
 

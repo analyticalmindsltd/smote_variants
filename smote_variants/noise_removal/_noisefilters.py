@@ -2,8 +2,9 @@ import numpy as np
 
 from sklearn.neighbors import NearestNeighbors, KNeighborsClassifier
 
-from .._base import StatisticsMixin, ParameterCheckingMixin, ParameterCombinationsMixin, mode
-from .._NearestNeighborsWithClassifierDissimilarity import *
+from .._base import (StatisticsMixin, ParameterCheckingMixin, 
+                        ParameterCombinationsMixin, mode)
+from .._metric_tensor import *
 
 from .._logger import logger
 _logger= logger
@@ -133,7 +134,7 @@ class TomekLinkRemoval(NoiseFilter):
         self.class_label_statistics(X, y)
 
         # using 2 neighbors because the first neighbor is the point itself
-        nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=2, n_jobs=self.n_jobs, **self.nn_params, X=X, y=y)
+        nn= NearestNeighborsWithMetricTensor(n_neighbors=2, n_jobs=self.n_jobs, **self.nn_params, X=X, y=y)
         indices= nn.fit(X).kneighbors(X, return_distance=False)
 
         # identify links
@@ -429,11 +430,9 @@ class NeighborhoodCleaningRule(NoiseFilter):
         # fitting nearest neighbors with proposed parameter
         # using 4 neighbors because the first neighbor is the point itself
         #nn = NearestNeighbors(n_neighbors=4, n_jobs=self.n_jobs)
-        nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=4, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **(self.nn_params), 
-                                                        X=X, 
-                                                        y=y)
+        nn= NearestNeighborsWithMetricTensor(n_neighbors=4, 
+                                                n_jobs=self.n_jobs, 
+                                                **(self.nn_params))
         nn.fit(X)
         indices = nn.kneighbors(X, return_distance=False)
 
@@ -530,11 +529,9 @@ class EditedNearestNeighbors(NoiseFilter):
                          "Not enough samples for noise removal")
             return X.copy(), y.copy()
 
-        nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=4, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **self.nn_params, 
-                                                        X=X, 
-                                                        y=y)
+        nn= NearestNeighborsWithMetricTensor(n_neighbors=4, 
+                                                n_jobs=self.n_jobs, 
+                                                **self.nn_params)
         indices= nn.fit(X).kneighbors(X, return_distance=False)
 
         to_remove = []

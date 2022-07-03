@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import OPTICS
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -180,18 +180,15 @@ class ASMOBD(OverSampling):
         # identifying noise
         noise = np.logical_and(cd > self.T_1, r > self.T_2)
 
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
 
         # fitting nearest neighbors models to identify the number of majority
         # samples in local environments
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=self.min_samples, 
-                                                            n_jobs=self.n_jobs, 
-                                                            **(nn_params),
-                                                            X=X, 
-                                                            y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=self.min_samples, 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X_ss)
         n_majs = []
         ratio = []
@@ -270,11 +267,9 @@ class ASMOBD(OverSampling):
 
         # fitting nearest neighbors model to non-noise minority samples
         n_neighbors = min([len(X_min_not_noise), self.min_samples + 1])
-        nn_not_noise = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                                n_jobs=self.n_jobs, 
-                                                                **(nn_params), 
-                                                                X=X, 
-                                                                y=y)
+        nn_not_noise = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                        n_jobs=self.n_jobs, 
+                                                        **(nn_params))
         nn_not_noise.fit(X_min_not_noise)
         ind = nn_not_noise.kneighbors(X_min_not_noise, return_distance=False)
 

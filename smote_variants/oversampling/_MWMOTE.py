@@ -2,7 +2,7 @@ import numpy as np
 
 from sklearn.cluster import KMeans
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -160,16 +160,15 @@ class MWMOTE(OverSampling):
 
         minority = np.where(y == self.min_label)[0]
 
-        metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
 
         # Step 1
         n_neighbors = min([len(X), self.k1 + 1])
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **(self.nn_params), 
-                                                        metric_tensor=metric_tensor,
-                                                        X=X, 
-                                                        y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X)
         ind1 = nn.kneighbors(X, return_distance=False)
 
@@ -183,12 +182,9 @@ class MWMOTE(OverSampling):
             return X.copy(), y.copy()
 
         # Step 3 - ind2 needs to be indexed by indices of the lengh of X_maj
-        nn_maj= NearestNeighborsWithClassifierDissimilarity(n_neighbors=self.k2, 
-                                                            n_jobs=self.n_jobs, 
-                                                            **(self.nn_params), 
-                                                            metric_tensor=metric_tensor,
-                                                            X=X, 
-                                                            y=y)
+        nn_maj= NearestNeighborsWithMetricTensor(n_neighbors=self.k2, 
+                                                    n_jobs=self.n_jobs, 
+                                                    **(nn_params))
         nn_maj.fit(X_maj)
         ind2 = nn_maj.kneighbors(X[filtered_minority], return_distance=False)
 
@@ -197,12 +193,9 @@ class MWMOTE(OverSampling):
 
         # Step 5 - ind3 needs to be indexed by indices of the length of X_min
         n_neighbors = min([self.k3, len(X_min)])
-        nn_min = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
+        nn_min = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
                                                             n_jobs=self.n_jobs, 
-                                                            **(self.nn_params), 
-                                                            metric_tensor=metric_tensor,
-                                                            X=X, 
-                                                            y=y)
+                                                            **(nn_params))
         nn_min.fit(X_min)
         ind3 = nn_min.kneighbors(X_maj[border_majority], return_distance=False)
 

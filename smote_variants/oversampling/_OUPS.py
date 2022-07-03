@@ -2,7 +2,6 @@ import numpy as np
 
 from sklearn.linear_model import LogisticRegression
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger

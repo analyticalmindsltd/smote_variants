@@ -1,6 +1,6 @@
 import numpy as np
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from ._SMOTE import SMOTE
 
@@ -134,7 +134,9 @@ class ProWSyn(OverSampling):
         Ps = []
         proximity_levels = []
 
-        metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
 
         # Step 3
         for i in range(self.L):
@@ -142,12 +144,10 @@ class ProWSyn(OverSampling):
                 break
             # Step 3 a
             n_neighbors = min([len(P), self.n_neighbors])
-            nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                            n_jobs=self.n_jobs, 
-                                                            **(self.nn_params), 
-                                                            metric_tensor=metric_tensor,
-                                                            X=X, 
-                                                            y=y)
+
+            nn= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                    n_jobs=self.n_jobs, 
+                                                    **(nn_params))
             nn.fit(X[P])
             indices = nn.kneighbors(X_maj, return_distance=False)
 

@@ -1,6 +1,6 @@
 import numpy as np
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from ._SMOTE import SMOTE
 
@@ -128,11 +128,14 @@ class Safe_Level_SMOTE(OverSampling):
 
         # fitting nearest neighbors model
         n_neighbors = min([self.n_neighbors+1, len(X)])
-        nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **(self.nn_params), 
-                                                        X=X, 
-                                                        y=y)
+
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+
+        nn= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X)
         indices = nn.kneighbors(X, return_distance=False)
 

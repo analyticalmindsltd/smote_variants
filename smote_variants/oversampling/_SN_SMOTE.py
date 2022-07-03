@@ -1,6 +1,6 @@
 import numpy as np
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -119,26 +119,20 @@ class SN_SMOTE(OverSampling):
         # the search for the k nearest centroid neighbors is limited for the
         # nearest 10*n_neighbors neighbors
         
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
         
         n_neighbors = min([self.n_neighbors*10, len(X_min)])
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                            n_jobs=self.n_jobs, 
-                                                            **nn_params,
-                                                            X=X, 
-                                                            y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                n_jobs=self.n_jobs, 
+                                                **nn_params)
         nn.fit(X_min)
         ind = nn.kneighbors(X_min, return_distance=False)
 
         # determining k nearest centroid neighbors
         ncn = np.zeros(shape=(len(X_min), self.n_neighbors)).astype(int)
         ncn_nums = np.zeros(len(X_min)).astype(int)
-        
-        if metric_tensor is None:
-            metric_tensor= np.eye(len(X[0]))
 
         # extracting nearest centroid neighbors
         for i in range(len(X_min)):
@@ -150,13 +144,13 @@ class SN_SMOTE(OverSampling):
             n_cent = 1
             centroid = X_min[ncn[i, 0]]
             #cent_dist = np.linalg.norm(centroid - X_min[i])
-            cent_dist = np.sqrt(np.dot(np.dot((centroid - X_min[i]), metric_tensor), (centroid - X_min[i])))
+            cent_dist = np.sqrt(np.dot(np.dot((centroid - X_min[i]), nn_params.get('metric_tensor', np.eye(len(X[0])))), (centroid - X_min[i])))
             j = 2
             while j < len(ind[i]) and n_cent < self.n_neighbors:
                 #new_cent_dist = np.linalg.norm(
                 #    (centroid + X_min[ind[i][j]])/(n_cent + 1) - X_min[i])
                 diff_vect = (centroid + X_min[ind[i][j]])/(n_cent + 1) - X_min[i]
-                new_cent_dist = np.sqrt(np.dot(np.dot(diff_vect, metric_tensor), diff_vect))
+                new_cent_dist = np.sqrt(np.dot(np.dot(diff_vect, nn_params.get('metric_tensor', np.eye(len(X[0])))), diff_vect))
 
                 # checking if new nearest centroid neighbor found
                 if new_cent_dist < cent_dist:

@@ -59,7 +59,6 @@ from ._version import __version__
 from ._base import *
 from ._logger import logger
 _logger = logger
-from ._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity
 
 from .oversampling._OverSampling import OverSampling
 from .oversampling._SMOTE import SMOTE

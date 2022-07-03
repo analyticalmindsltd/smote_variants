@@ -2,7 +2,7 @@ import numpy as np
 
 from sklearn.preprocessing import StandardScaler
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -125,16 +125,13 @@ class VIS_RST(OverSampling):
         # fitting nearest neighbors model to determine boundary region
         n_neighbors = min([len(X), self.n_neighbors + 1])
         
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
         
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                            n_jobs=self.n_jobs, 
-                                                            **nn_params,
-                                                            X=X, 
-                                                            y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                n_jobs=self.n_jobs, 
+                                                **nn_params)
         nn.fit(X)
         ind = nn.kneighbors(X_maj, return_distance=False)
 
@@ -150,11 +147,9 @@ class VIS_RST(OverSampling):
         X_maj = X[y == self.maj_label]
 
         # labeling minority samples
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                            n_jobs=self.n_jobs, 
-                                                            **nn_params, 
-                                                            X=X, 
-                                                            y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                n_jobs=self.n_jobs, 
+                                                **nn_params)
         nn.fit(X)
         ind = nn.kneighbors(X_min, return_distance=False)
 
@@ -188,11 +183,9 @@ class VIS_RST(OverSampling):
         # fitting nearest neighbors to find the neighbors of minority elements
         # among minority elements
         n_neighbors_min = min([len(X_min), self.n_neighbors + 1])
-        nn_min = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors_min, 
-                                                                n_jobs=self.n_jobs, 
-                                                                **nn_params,
-                                                                X=X, 
-                                                                y=y)
+        nn_min = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors_min, 
+                                                    n_jobs=self.n_jobs, 
+                                                    **nn_params)
         nn_min.fit(X_min)
         ind_min = nn_min.kneighbors(X_min, return_distance=False)
 
@@ -238,11 +231,9 @@ class VIS_RST(OverSampling):
 
         # final noise removal by removing those minority samples generated
         # and not belonging to the lower approximation
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                            n_jobs=self.n_jobs, 
-                                                            **nn_params,
-                                                            X=X, 
-                                                            y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                n_jobs=self.n_jobs, 
+                                                **nn_params)
         nn.fit(X)
         ind_check = nn.kneighbors(X_samp, return_distance=False)
 

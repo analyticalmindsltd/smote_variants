@@ -5,7 +5,7 @@ from sklearn.manifold import Isomap
 from ._OverSampling import OverSampling
 from ._SMOTE import SMOTE
 from ..noise_removal import NeighborhoodCleaningRule
-from .._NearestNeighborsWithClassifierDissimilarity import MetricTensor
+from .._metric_tensor import MetricTensor
 
 from .._logger import logger
 _logger= logger

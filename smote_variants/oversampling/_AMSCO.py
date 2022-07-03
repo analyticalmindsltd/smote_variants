@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import StratifiedKFold
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import MetricTensor
 from ._OverSampling import OverSampling
 
 from ._SMOTE import SMOTE
@@ -150,7 +150,9 @@ class AMSCO(OverSampling):
 
         n_cross_val = min([4, len(X_min)])
         
-        metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
         
         def fitness(X_min, X_maj):
             """
@@ -265,7 +267,7 @@ class AMSCO(OverSampling):
                     # apply SMOTE
                     smote = SMOTE(particles[i][0],
                                   int(np.rint(particles[i][1])),
-                                  nn_params={**self.nn_params, **{'metric_tensor': metric_tensor}},
+                                  nn_params=nn_params,
                                   n_jobs=self.n_jobs,
                                   random_state=self.random_state)
                     X_to_sample = np.vstack([X_maj, X_min])
@@ -274,7 +276,7 @@ class AMSCO(OverSampling):
                     y_to_sample_min = np.repeat(
                         self.min_label, len(X_min))
                     y_to_sample = np.hstack([y_to_sample_maj, y_to_sample_min])
-                    X_samp, y_samp = smote.sample(X_to_sample, y_to_sample)
+                    X_samp, _ = smote.sample(X_to_sample, y_to_sample)
 
                     # evaluate
                     scores.append(fitness(X_samp[len(X_maj):],

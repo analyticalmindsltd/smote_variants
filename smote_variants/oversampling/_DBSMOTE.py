@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import DBSCAN
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -211,10 +211,9 @@ class DBSMOTE(OverSampling):
                     assert d[v] <= d[u] + graph[u][v]
             return d, p
 
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
 
         # extract graphs and center-like objects
         graphs = []
@@ -229,11 +228,9 @@ class DBSMOTE(OverSampling):
                 graph[i] = {}
 
             # fitting nearest neighbors model to the cluster elements
-            nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=len(cluster), 
-                                                            n_jobs=self.n_jobs, 
-                                                            **(nn_params), 
-                                                            X=X, 
-                                                            y=y)
+            nn = NearestNeighborsWithMetricTensor(n_neighbors=len(cluster), 
+                                                    n_jobs=self.n_jobs, 
+                                                    **(nn_params))
             nn.fit(cluster)
             dist, ind = nn.kneighbors(cluster)
 

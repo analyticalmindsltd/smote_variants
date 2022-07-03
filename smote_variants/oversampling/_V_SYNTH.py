@@ -4,7 +4,6 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import pairwise_distances
 import scipy.spatial as sspatial
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger

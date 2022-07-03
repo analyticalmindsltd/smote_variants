@@ -3,7 +3,8 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics.pairwise import pairwise_distances
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor, pairwise_distances_mahalanobis
+from .._metric_tensor import (NearestNeighborsWithMetricTensor, 
+                                MetricTensor, pairwise_distances_mahalanobis)
 from ._OverSampling import OverSampling
 from ._SMOTE import SMOTE
 
@@ -117,16 +118,13 @@ class SUNDO(OverSampling):
         # generating minority samples
         samples = []
 
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
         
-        nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=1, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **nn_params,
-                                                        X=X, 
-                                                        y=y)
+        nn= NearestNeighborsWithMetricTensor(n_neighbors=1, 
+                                                n_jobs=self.n_jobs, 
+                                                **nn_params)
         nn.fit(X_maj)
 
         stds = np.std(X_min, axis=0)
@@ -157,7 +155,7 @@ class SUNDO(OverSampling):
         X_maj_normalized = mms.fit_transform(X_maj)
 
         # computing the distance matrix
-        dm = pairwise_distances_mahalanobis(X_maj_normalized, X_maj_normalized, nn_params['metric_tensor'])
+        dm = pairwise_distances_mahalanobis(X_maj_normalized, X_maj_normalized, nn_params.get('metric_tensor', None))
 
         # len(X_maj) offsets for the diagonal 0 elements, 2N because
         # every distances appears twice

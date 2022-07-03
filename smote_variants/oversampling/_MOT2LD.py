@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.manifold import TSNE
 import scipy.signal as ssignal
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -157,16 +157,15 @@ class MOT2LD(OverSampling):
         X_min = X_tsne[y == self.min_label]
         _logger.info(self.__class__.__name__ + ": " + "TSNE finished")
 
-        metric_tensor = MetricTensor(**(self.nn_params)).tensor(X_tsne, y)
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X_tsne, y)
 
         # fitting nearest neighbors model for all training data
         n_neighbors = min([len(X_min), self.k + 1])
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **(self.nn_params), 
-                                                        metric_tensor=metric_tensor,
-                                                        X=X_tsne, 
-                                                        y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X_tsne)
         distances, indices = nn.kneighbors(X_min)
 
@@ -176,12 +175,9 @@ class MOT2LD(OverSampling):
             d_cut = np.max(distances[:, 1])
 
         # fitting nearest neighbors model to the minority data
-        nn_min= NearestNeighborsWithClassifierDissimilarity(n_neighbors=len(X_min), 
-                                                            n_jobs=self.n_jobs, 
-                                                            **(self.nn_params), 
-                                                            metric_tensor=metric_tensor,
-                                                            X=X_tsne, 
-                                                            y=y)
+        nn_min= NearestNeighborsWithMetricTensor(n_neighbors=len(X_min), 
+                                                    n_jobs=self.n_jobs, 
+                                                    **(nn_params))
         nn_min.fit(X_min)
         distances_min, indices_min = nn_min.kneighbors(X_min)
 
@@ -227,12 +223,9 @@ class MOT2LD(OverSampling):
 
         # finding closest cluster center to minority points and deriving
         # cluster labels
-        nn_cluster= NearestNeighborsWithClassifierDissimilarity(n_neighbors=1, 
-                                                                n_jobs=self.n_jobs, 
-                                                                **(self.nn_params), 
-                                                                metric_tensor=metric_tensor,
-                                                                X=X_tsne, 
-                                                                y=y)
+        nn_cluster= NearestNeighborsWithMetricTensor(n_neighbors=1, 
+                                                        n_jobs=self.n_jobs, 
+                                                        **(nn_params))
         nn_cluster.fit(cluster_centers)
         ind_cluster = nn_cluster.kneighbors(X_min, return_distance=False)
         cluster_labels = ind_cluster[:, 0]

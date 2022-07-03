@@ -1,6 +1,6 @@
 import numpy as np
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -132,28 +132,23 @@ class Lee(OverSampling):
 
         X_min = X[y == self.min_label]
 
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
 
         # fitting nearest neighbors models to find neighbors of minority
         # samples in the total data and in the minority datasets
         n_neighbors = min([len(X_min), self.n_neighbors + 1])
-        nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **nn_params,
-                                                        X=X, 
-                                                        y=y)
+        nn= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                n_jobs=self.n_jobs, 
+                                                **nn_params)
         nn.fit(X)
         dist, ind = nn.kneighbors(X_min)
 
         n_neighbors = min([len(X_min), self.n_neighbors + 1])
-        nn_min= NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                            n_jobs=self.n_jobs, 
-                                                            **nn_params, 
-                                                            X=X, 
-                                                            y=y)
+        nn_min= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                    n_jobs=self.n_jobs, 
+                                                    **nn_params)
         nn_min.fit(X_min)
         dist_min, ind_min = nn_min.kneighbors(X_min)
 

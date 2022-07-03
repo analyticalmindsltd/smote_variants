@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.model_selection import KFold
 from sklearn.tree import DecisionTreeClassifier
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import MetricTensor
 from ._OverSampling import OverSampling
 from ._SMOTE import SMOTE
 
@@ -159,10 +159,9 @@ class SMOTE_PSOBAT(OverSampling):
         if not self.check_enough_min_samples_for_sampling():
             return X.copy(), y.copy()
 
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
 
         def evaluate(K, proportion):
             """

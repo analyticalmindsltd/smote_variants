@@ -1,6 +1,6 @@
 import numpy as np
 
-from .._NearestNeighborsWithClassifierDissimilarity import (NearestNeighborsWithClassifierDissimilarity, 
+from .._metric_tensor import (NearestNeighborsWithMetricTensor, 
                                                             MetricTensor, generate_samples,
                                                             AdditionalItems)
 from sklearn.neighbors import NearestNeighbors
@@ -116,18 +116,15 @@ class SMOTE(OverSampling):
         X_min = X[y == self.min_label]
 
         # fitting the model
-        n_neigh = min([len(X_min), self.n_neighbors+1])
+        n_neighbors = min([len(X_min), self.n_neighbors+1])
 
-        metric_tensor= MetricTensor(**self.nn_params).tensor(X, y)
-        nn_params = self.nn_params.copy()
-        if 'metric_tensor' not in self.nn_params:
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
 
-        nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neigh, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **(self.nn_params),
-                                                        X=X,
-                                                        y=y)
+        nn= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                n_jobs=self.n_jobs, 
+                                                **nn_params)
         nn.fit(X_min)
         ind= nn.kneighbors(X_min, return_distance=False)
 
@@ -137,7 +134,7 @@ class SMOTE(OverSampling):
         # generating samples
         base_indices = self.random_state.choice(list(range(len(X_min))),
                                                 n_to_sample)
-        neighbor_indices = self.random_state.choice(list(range(1, n_neigh)),
+        neighbor_indices = self.random_state.choice(list(range(1, n_neighbors)),
                                                     n_to_sample)
 
         X_base = X_min[base_indices]

@@ -2,7 +2,6 @@ import numpy as np
 
 from sklearn.cluster import AgglomerativeClustering, KMeans
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity
 from ._OverSampling import OverSampling
 from ._SMOTE import SMOTE
 

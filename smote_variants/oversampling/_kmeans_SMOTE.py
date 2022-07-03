@@ -3,7 +3,8 @@ import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.metrics import pairwise_distances
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor, pairwise_distances_mahalanobis
+from .._metric_tensor import (NearestNeighborsWithMetricTensor, 
+                                MetricTensor, pairwise_distances_mahalanobis)
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -145,7 +146,9 @@ class kmeans_SMOTE(OverSampling):
                             "number of clusters after filtering is 0")
             return X.copy(), y.copy()
 
-        metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
+        nn_params= {**self.nn_params, 'metric_tensor': None}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
 
         # Step 2 in the paper
         sparsity = []
@@ -156,7 +159,7 @@ class kmeans_SMOTE(OverSampling):
             minority_ind = c[y[c] == self.min_label]
             cluster_minority_ind.append(minority_ind)
             # compute distance matrix of minority samples in the cluster
-            dm = pairwise_distances_mahalanobis(X[minority_ind], tensor=metric_tensor)
+            dm = pairwise_distances_mahalanobis(X[minority_ind], tensor=nn_params['metric_tensor'])
             min_count = len(minority_ind)
             # compute the average of distances
             avg_min_dist = (np.sum(dm) - dm.trace()) / \
@@ -165,12 +168,9 @@ class kmeans_SMOTE(OverSampling):
             sparsity.append(avg_min_dist**len(X[0])/min_count)
             # extract the nearest neighbors graph
             n_neighbors = min([len(minority_ind), self.n_neighbors + 1])
-            nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                                n_jobs=self.n_jobs, 
-                                                                **(self.nn_params),
-                                                                metric_tensor=metric_tensor,
-                                                                X=X, 
-                                                                y=y)
+            nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                    n_jobs=self.n_jobs, 
+                                                    **(nn_params))
             nn.fit(X[minority_ind])
             nearest_neighbors.append(nn.kneighbors(X[minority_ind]))
 

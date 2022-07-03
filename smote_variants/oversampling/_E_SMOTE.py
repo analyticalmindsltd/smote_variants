@@ -3,7 +3,6 @@ import numpy as np
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity
 from ._OverSampling import OverSampling
 from ._SMOTE import SMOTE
 

@@ -2,7 +2,7 @@ import numpy as np
 
 from sklearn.metrics import pairwise_distances
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from ..noise_removal import EditedNearestNeighbors
 from .._base import mode
@@ -103,26 +103,21 @@ class SOI_CJ(OverSampling):
         Returns:
             list(set): list of minority clusters
         """
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
         
-        nn_all= NearestNeighborsWithClassifierDissimilarity(n_jobs=self.n_jobs, 
-                                                            **nn_params,
-                                                            X=X, 
-                                                            y=y)
+        nn_all= NearestNeighborsWithMetricTensor(n_jobs=self.n_jobs, 
+                                                    **nn_params)
         nn_all.fit(X)
 
         X_min = X[y == self.min_label]
 
         # extract nearest neighbors of all samples from the set of
         # minority samples
-        nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=len(X_min), 
-                                                        n_jobs=self.n_jobs, 
-                                                        **nn_params,
-                                                        X=X, 
-                                                        y=y)
+        nn= NearestNeighborsWithMetricTensor(n_neighbors=len(X_min), 
+                                                n_jobs=self.n_jobs, 
+                                                **nn_params)
         nn.fit(X)
         indices = nn.kneighbors(X_min, return_distance=False)
 

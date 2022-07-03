@@ -1,6 +1,6 @@
 import numpy as np
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from .._base import mode
 from ._SMOTE import SMOTE
@@ -113,30 +113,25 @@ class Stefanowski(OverSampling):
             _logger.warning(self.__class__.__name__ + ": " + m)
             return X.copy(), y.copy()
 
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
 
         # copying y as its values will change
         y = y.copy()
         # fitting the nearest neighbors model for noise filtering, 4 neighbors
         # instead of 3 as the closest neighbor to a point is itself
-        nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=min(4, len(X)), 
-                                                        n_jobs=self.n_jobs, 
-                                                        **nn_params,
-                                                        X=X, 
-                                                        y=y)
+        nn= NearestNeighborsWithMetricTensor(n_neighbors=min(4, len(X)), 
+                                                n_jobs=self.n_jobs, 
+                                                **nn_params)
         nn.fit(X)
         indices = nn.kneighbors(X, return_distance=False)
 
         # fitting the nearest neighbors model for sample generation,
         # 6 neighbors instead of 5 for the same reason
-        nn5= NearestNeighborsWithClassifierDissimilarity(n_neighbors=min(6, len(X)), 
-                                                        n_jobs=self.n_jobs, 
-                                                        **nn_params,
-                                                        X=X, 
-                                                        y=y)
+        nn5= NearestNeighborsWithMetricTensor(n_neighbors=min(6, len(X)), 
+                                                n_jobs=self.n_jobs, 
+                                                **nn_params)
         nn5.fit(X)
         indices5 = nn5.kneighbors(X, return_distance=False)
 

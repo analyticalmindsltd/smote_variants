@@ -1,6 +1,6 @@
 import numpy as np
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from ._SMOTE import SMOTE
 
@@ -127,10 +127,9 @@ class MSYN(OverSampling):
         min_indices = np.where(y == self.min_label)[0]
         maj_indices = np.where(y == self.maj_label)[0]
 
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
 
         # generating samples
         smote = SMOTE(proportion=self.pressure,
@@ -148,11 +147,9 @@ class MSYN(OverSampling):
             return X.copy(), y.copy()
 
         # Compute nearest hit and miss for both classes
-        nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=len(X), 
-                                                        n_jobs=self.n_jobs, 
-                                                        **nn_params, 
-                                                        X=X, 
-                                                        y=y)
+        nn= NearestNeighborsWithMetricTensor(n_neighbors=len(X), 
+                                                n_jobs=self.n_jobs, 
+                                                **nn_params)
         nn.fit(X)
         dist, ind = nn.kneighbors(X)
 
@@ -168,8 +165,7 @@ class MSYN(OverSampling):
         theta_min = theta_A_sub_alpha[min_indices]
         theta_maj = theta_A_sub_alpha[maj_indices]
 
-        if metric_tensor is None:
-            metric_tensor = np.eye(len(X[0]))
+        metric_tensor = nn_params['metric_tensor'] if 'metric_tensor' in nn_params else np.eye(len(X[0]))
 
         # computing the f_3 score for all new samples
         f_3 = []

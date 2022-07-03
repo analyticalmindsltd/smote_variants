@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import pairwise_distances
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import MetricTensor
 from ._OverSampling import OverSampling
 
 from ._SMOTE import SMOTE
@@ -151,10 +151,9 @@ class SMOTE_FRST_2T(OverSampling):
         gamma_S = self.gamma_S
         gamma_M = self.gamma_M
 
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
 
         # iterating until the dataset becomes balanced
         while (len(X_min) + len(result_synth) + len(result_maj)) < len(X_maj):

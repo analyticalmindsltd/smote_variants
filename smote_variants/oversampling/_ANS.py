@@ -1,6 +1,6 @@
 import numpy as np
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -113,17 +113,14 @@ class ANS(OverSampling):
         # maximum C value
         C_max = int(0.25*len(X))
 
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
 
         # finding the first minority neighbor of minority samples
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=2, 
-                                                            n_jobs=self.n_jobs, 
-                                                            **(nn_params), 
-                                                            X=X, 
-                                                            y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=2, 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X_min)
         dist, ind = nn.kneighbors(X_min)
 
@@ -133,11 +130,9 @@ class ANS(OverSampling):
 
         # fitting another nearest neighbors model to extract majority
         # samples in the neighborhoods of minority samples
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=1, 
-                                                            n_jobs=self.n_jobs, 
-                                                            **(nn_params),
-                                                            X=X, 
-                                                            y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=1, 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X)
 
         # extracting the number of majority samples in the neighborhood of
@@ -180,11 +175,9 @@ class ANS(OverSampling):
 
         # fitting nearest neighbors model to find nearest minority samples in
         # the neighborhoods of minority samples
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=1, 
-                                                            n_jobs=self.n_jobs, 
-                                                            **(nn_params), 
-                                                            X=X, 
-                                                            y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=1, 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X_min[Pused])
         ind = nn.radius_neighbors(X_min[Pused], eps, return_distance=False)
 

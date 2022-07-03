@@ -5,7 +5,8 @@ from sklearn.metrics import pairwise_distances
 from sklearn.model_selection import KFold
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor, pairwise_distances_mahalanobis
+from .._metric_tensor import (NearestNeighborsWithMetricTensor, 
+                                                MetricTensor, pairwise_distances_mahalanobis)
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -129,18 +130,17 @@ class A_SUWO(OverSampling):
 
         X_orig, y_orig = X, y
 
-        metric_tensor= MetricTensor(**self.nn_params).tensor(X, y)
-        nn_params = self.nn_params.copy()
-        if 'metric_tensor' not in self.nn_params:
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        metric_tensor= None
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+            metric_tensor = nn_params['metric_tensor']
 
         # fitting nearest neighbors to find neighbors of all samples
         n_neighbors = min([len(X), self.n_neighbors + 1])
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                            n_jobs=self.n_jobs, 
-                                                            **(nn_params), 
-                                                            X=X, 
-                                                            y=y)
+        nn= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                n_jobs=self.n_jobs, 
+                                                **nn_params)
         nn.fit(X)
         dist, ind = nn.kneighbors(X)
 
@@ -191,11 +191,9 @@ class A_SUWO(OverSampling):
                 dm_maj[i, j] = np.min(pairwd)
 
         # compute threshold
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=len(X_min), 
-                                                            n_jobs=self.n_jobs, 
-                                                            **(nn_params),
-                                                            X=X, 
-                                                            y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=len(X_min), 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X_min)
         dist, ind = nn.kneighbors(X_min)
         d_med = np.median(dist, axis=1)
@@ -283,11 +281,9 @@ class A_SUWO(OverSampling):
         # synthetic instance generation - determining within cluster
         # distribution finding majority neighbor distances of minority
         # samples
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=1, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **(nn_params), 
-                                                        X=X, 
-                                                        y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=1, 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X_maj)
         dist, ind = nn.kneighbors(X_min)
         dist = dist/len(X[0])
@@ -309,11 +305,9 @@ class A_SUWO(OverSampling):
         within_cluster_neighbors = []
         for c in min_clusters:
             n_neighbors = min([len(c), self.n_neighbors])
-            nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                            n_jobs=self.n_jobs, 
-                                                            **(nn_params),
-                                                            X=X, 
-                                                            y=y)
+            nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                    n_jobs=self.n_jobs, 
+                                                    **(nn_params))
             nn.fit(X_min[c])
             within_cluster_neighbors.append(nn.kneighbors(X_min[c])[1])
 

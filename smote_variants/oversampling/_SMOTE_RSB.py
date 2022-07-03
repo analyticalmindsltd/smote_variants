@@ -2,7 +2,6 @@ import numpy as np
 
 from sklearn.metrics import pairwise_distances
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity
 from ._OverSampling import OverSampling
 from ._SMOTE import SMOTE
 

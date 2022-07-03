@@ -2,7 +2,8 @@ import numpy as np
 
 from sklearn.metrics import pairwise_distances
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor, pairwise_distances_mahalanobis
+from .._metric_tensor import (NearestNeighborsWithMetricTensor, 
+                                MetricTensor, pairwise_distances_mahalanobis)
 from ._OverSampling import OverSampling
 from ._SMOTE import SMOTE
 from ._ADASYN import ADASYN
@@ -135,10 +136,9 @@ class NEATER(OverSampling):
         if not self.check_enough_min_samples_for_sampling():
             return X.copy(), y.copy()
 
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
 
         # Applying SMOTE and ADASYN
         X_0, y_0 = SMOTE(proportion=self.proportion,
@@ -178,18 +178,16 @@ class NEATER(OverSampling):
 
         # Finding nearest neighbors, +1 as X_syn is part of X_all and nearest
         # neighbors will be themselves
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=self.b + 1, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **nn_params, 
-                                                        X=X, 
-                                                        y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=self.b + 1, 
+                                                n_jobs=self.n_jobs, 
+                                                **nn_params)
         nn.fit(X_all)
         indices = nn.kneighbors(X_syn, return_distance=False)
 
         # computing distances
         dm = pairwise_distances_mahalanobis(X_all, 
                                             X_syn, 
-                                            nn_params['metric_tensor'])
+                                            nn_params.get('metric_tensor', None))
         dm[dm == 0] = 1e-8
         dm = 1.0/dm
         dm[dm > self.alpha] = self.alpha

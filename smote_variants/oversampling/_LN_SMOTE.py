@@ -1,6 +1,6 @@
 import numpy as np
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -122,12 +122,14 @@ class LN_SMOTE(OverSampling):
         if n_neighbors < 2:
             return X.copy(), y.copy()
 
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+
         # nearest neighbors of each instance to each instance in the dataset
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors + 2,
-                                                            n_jobs=self.n_jobs, 
-                                                            **(self.nn_params), 
-                                                            X=X, 
-                                                            y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors + 2,
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X)
         indices = nn.kneighbors(X, return_distance=False)
 

@@ -2,7 +2,7 @@ import numpy as np
 
 from sklearn.decomposition import PCA
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -143,12 +143,14 @@ class KernelADASYN(OverSampling):
 
         X_min = X[y == self.min_label]
 
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+
         # fitting the nearest neighbors model
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=min([len(X_min), self.k+1]), 
-                                                        n_jobs=self.n_jobs, 
-                                                        **(self.nn_params), 
-                                                        X=X, 
-                                                        y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=min([len(X_min), self.k+1]), 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X)
         indices = nn.kneighbors(X_min, return_distance=False)
 

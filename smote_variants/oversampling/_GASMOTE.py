@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.model_selection import KFold
 from sklearn.tree import DecisionTreeClassifier
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -134,11 +134,14 @@ class GASMOTE(OverSampling):
         # fitting nearest neighbors model to find minority neighbors of
         #  minority samples
         n_neighbors = min([self.n_neighbors + 1, len(X_min)])
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
+
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
                                                         n_jobs=self.n_jobs, 
-                                                        **(self.nn_params), 
-                                                        X=X, 
-                                                        y=y)
+                                                        **(nn_params))
         nn.fit(X_min)
         ind = nn.kneighbors(X_min, return_distance=False)
         kfold = KFold(min([len(X), 5]))

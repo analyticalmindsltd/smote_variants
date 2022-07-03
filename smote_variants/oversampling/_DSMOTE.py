@@ -4,7 +4,8 @@ from sklearn.metrics import pairwise_distances
 from sklearn.preprocessing import MinMaxScaler
 from scipy.stats.mstats import gmean
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor, pairwise_distances_mahalanobis
+from .._metric_tensor import (NearestNeighborsWithMetricTensor, 
+                                MetricTensor, pairwise_distances_mahalanobis)
 from ._OverSampling import OverSampling
 
 from .._logger import logger
@@ -169,17 +170,14 @@ class DSMOTE(OverSampling):
         X_min = X[y == self.min_label]
         X_maj = X[y == self.maj_label]
 
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
 
         # fitting nearest neighbors model
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=len(X_maj), 
-                                                            n_jobs=self.n_jobs, 
-                                                            **(nn_params),
-                                                            X=X, 
-                                                            y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=len(X_maj), 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X_maj)
         dist, ind = nn.kneighbors(X_min)
 

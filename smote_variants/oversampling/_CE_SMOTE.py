@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.cluster import KMeans
 import scipy.optimize as soptimize
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -189,11 +189,14 @@ class CE_SMOTE(OverSampling):
 
         # finding nearest neighbors of boundary samples
         n_neighbors = min([len(P_boundary), self.k])
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **(self.nn_params), 
-                                                        X=X, 
-                                                        y=y)
+
+        nn_params= {**self.nn_params}
+        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
+            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                n_jobs=self.n_jobs, 
+                                                **(self.nn_params))
         nn.fit(P_boundary)
         ind = nn.kneighbors(P_boundary, return_distance=False)
 
