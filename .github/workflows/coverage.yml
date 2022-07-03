@@ -5,7 +5,7 @@ on:
     workflows: ["CI"]
     types:
       - completed
-  workflow_dispatch
+  workflow_dispatch:
 
 jobs:
   test:
