@@ -184,7 +184,7 @@ class DSMOTE(OverSampling):
         # compute mean distances, the D_min is compenstaed for taking into
         # consideration self-distances in the mean
         D_maj = np.mean(dist, axis=1)
-        D_min = np.mean(pairwise_distances_mahalanobis(X_min, tensor=nn_params['metric_tensor']), axis=1) * \
+        D_min = np.mean(pairwise_distances_mahalanobis(X_min, tensor=nn_params.get('metric_tensor', None)), axis=1) * \
             len(X_min)/(len(X_min)-1)
 
         # computing degree of abnormality
