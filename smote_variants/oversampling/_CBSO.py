@@ -161,7 +161,7 @@ class CBSO(OverSampling):
         # initiating clustering
         clusters = [np.array([i]) for i in range(len(X_min))]
         dm = pairwise_distances_mahalanobis(X_min, 
-                                            tensor=nn_params['metric_tensor'])
+                                            tensor=nn_params.get('metric_tensor', None))
 
         # setting the diagonal of the distance matrix to infinity
         for i in range(len(dm)):
