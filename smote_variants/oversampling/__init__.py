@@ -84,3 +84,5 @@ from ._SN_SMOTE import *
 from ._CCR import *
 from ._ANS import *
 from ._cluster_SMOTE import *
+from ._E_SMOTE import *
+from ._ADOMS import *
