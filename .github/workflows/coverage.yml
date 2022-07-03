@@ -1,4 +1,3 @@
-# .github/workflows/coverage.yml
 name: Post coverage comment
 
 on:
