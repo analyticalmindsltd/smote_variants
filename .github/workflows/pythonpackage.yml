@@ -44,7 +44,7 @@ jobs:
         name: codecov-umbrella # optional
         fail_ci_if_error: false # optional (default = false)
         verbose: true # optional (default = false)
-        gcov_ignore: "*tests/*"
+
 
 
     #- name: Coverage comment
