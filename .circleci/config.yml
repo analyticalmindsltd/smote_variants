@@ -43,7 +43,7 @@ jobs:
             . venv/bin/activate
             pip install --upgrade pip
             pip install -r requirements.txt
-            pip install coverage coveralls
+            pip install coverage coveralls pytest
             pip install .
 
       # - save_cache:
