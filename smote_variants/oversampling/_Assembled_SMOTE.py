@@ -181,7 +181,7 @@ class Assembled_SMOTE(OverSampling):
         # initializing clustering
         clusters = [np.array([i]) for i in range(len(X_border))]
         dm = pairwise_distances_mahalanobis(X_border, 
-                                            tensor=nn_params['metric_tensor'])
+                                            tensor=nn_params.get('metric_tensor', None))
         for i in range(len(dm)):
             dm[i, i] = np.inf
 
