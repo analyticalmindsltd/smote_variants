@@ -65,7 +65,6 @@ class SMOTE(OverSampling):
         self.proportion = proportion
         self.n_neighbors = n_neighbors
         self.nn_params= nn_params
-        self.sampling_params= sampling_params
         self.n_jobs = n_jobs
 
         self.set_random_state(random_state)
