@@ -68,10 +68,11 @@ class SSO(OverSampling):
                                 the number of minority samples will be equal to
                                 the number of majority samples
             n_neighbors (int): number of neighbors
-            nn_params (dict): additional parameters for nearest neighbor calculations
-                                use {'metric': 'precomputed'} for random forest induced
-                                metric {'classifier_params': {...}} to set the parameters
-                                of the RandomForestClassifier
+            nn_params (dict): additional parameters for nearest neighbor calculations, any 
+                                parameter NearestNeighbors accepts, and additionally use
+                                {'metric': 'precomputed', 'metric_learning': '<method>', ...}
+                                with <method> in 'ITML', 'LSML' to enable the learning of
+                                the metric to be used for neighborhood calculations
             h (int): number of hidden units
             n_iter (int): optimization steps
             n_jobs (int): number of parallel jobs

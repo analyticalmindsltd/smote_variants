@@ -67,10 +67,11 @@ class NT_SMOTE(OverSampling):
                                 to sample e.g. 1.0 means that after sampling
                                 the number of minority samples will be equal to
                                 the number of majority samples
-            nn_params (dict): additional parameters for nearest neighbor calculations
-                                use {'metric': 'precomputed'} for random forest induced
-                                metric {'classifier_params': {...}} to set the parameters
-                                of the RandomForestClassifier
+            nn_params (dict): additional parameters for nearest neighbor calculations, any 
+                                parameter NearestNeighbors accepts, and additionally use
+                                {'metric': 'precomputed', 'metric_learning': '<method>', ...}
+                                with <method> in 'ITML', 'LSML' to enable the learning of
+                                the metric to be used for neighborhood calculations
             n_jobs (int): number of parallel jobs
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn

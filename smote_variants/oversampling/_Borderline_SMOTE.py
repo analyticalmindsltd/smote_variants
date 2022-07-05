@@ -61,10 +61,11 @@ class Borderline_SMOTE1(OverSampling):
                                     technique for determining the borderline
             k_neighbors (int): control parameter of the nearest neighbor
                                     technique for sampling
-            nn_params (dict): additional parameters for nearest neighbor calculations
-                                use {'metric': 'precomputed'} for random forest induced
-                                metric {'classifier_params': {...}} to set the parameters
-                                of the RandomForestClassifier
+            nn_params (dict): additional parameters for nearest neighbor calculations, any 
+                                parameter NearestNeighbors accepts, and additionally use
+                                {'metric': 'precomputed', 'metric_learning': '<method>', ...}
+                                with <method> in 'ITML', 'LSML' to enable the learning of
+                                the metric to be used for neighborhood calculations
             n_jobs (int): number of parallel jobs
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
@@ -244,10 +245,11 @@ class Borderline_SMOTE2(OverSampling):
                                 technique for determining the borderline
             k_neighbors (int): control parameter of the nearest neighbor
                                 technique for sampling
-            nn_params (dict): additional parameters for nearest neighbor calculations
-                                use {'metric': 'precomputed'} for random forest induced
-                                metric {'classifier_params': {...}} to set the parameters
-                                of the RandomForestClassifier
+            nn_params (dict): additional parameters for nearest neighbor calculations, any 
+                                parameter NearestNeighbors accepts, and additionally use
+                                {'metric': 'precomputed', 'metric_learning': '<method>', ...}
+                                with <method> in 'ITML', 'LSML' to enable the learning of
+                                the metric to be used for neighborhood calculations
             n_jobs (int): number of parallel jobs
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn

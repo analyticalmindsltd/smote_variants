@@ -70,10 +70,11 @@ class MOT2LD(OverSampling):
             n_components (int): number of components for stochastic
                                 neighborhood embedding
             k (int): number of neighbors in the nearest neighbor component
-            nn_params (dict): additional parameters for nearest neighbor calculations
-                                use {'metric': 'precomputed'} for random forest induced
-                                metric {'classifier_params': {...}} to set the parameters
-                                of the RandomForestClassifier
+            nn_params (dict): additional parameters for nearest neighbor calculations, any 
+                                parameter NearestNeighbors accepts, and additionally use
+                                {'metric': 'precomputed', 'metric_learning': '<method>', ...}
+                                with <method> in 'ITML', 'LSML' to enable the learning of
+                                the metric to be used for neighborhood calculations
             d_cut (float/str): distance cut value/'auto' for automated
                                 selection
             n_jobs (int): number of parallel jobs
