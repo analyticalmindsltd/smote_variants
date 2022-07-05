@@ -9,13 +9,13 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Install requirements
-      run: /
+      run: 
         pip install -r requirements.txt
         pip install pytest
     - name: Run tests and collect coverage
       run: pytest --cov .
     - name: Upload coverage reports to Codecov
-      run: |
+      run: 
         # Replace `linux` below with the appropriate OS
         # Options are `alpine`, `linux`, `macos`, `windows`
         curl -Os https://uploader.codecov.io/latest/linux/codecov
