@@ -11,8 +11,8 @@
 .. |GitHub| image:: https://github.com/analyticalmindsltd/smote_variants/workflows/Python%20package/badge.svg?branch=master
 .. _GitHub: https://github.com/analyticalmindsltd/smote_variants/workflows/Python%20package/badge.svg?branch=master
 
-.. |Codecov| image:: https://codecov.io/gh/gykovacs/smote_variants/branch/master/graph/badge.svg
-.. _Codecov: https://codecov.io/gh/gykovacs/smote_variants
+.. |Codecov| image:: https://codecov.io/gh/analyticalmindsltd/smote_variants/branch/master/graph/badge.svg?token=GQNNasvi4z
+.. _Codecov: https://codecov.io/gh/analyticalmindsltd/smote_variants
 
 .. |ReadTheDocs| image:: https://readthedocs.org/projects/smote-variants/badge/?version=latest
 .. _ReadTheDocs: https://smote-variants.readthedocs.io/en/latest/?badge=latest

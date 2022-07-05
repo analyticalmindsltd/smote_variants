@@ -59,10 +59,11 @@ class ProWSyn(OverSampling):
                                 the number of majority samples
             n_neighbors (int): number of neighbors in nearest neighbors
                                 component
-            nn_params (dict): additional parameters for nearest neighbor calculations
-                                use {'metric': 'precomputed'} for random forest induced
-                                metric {'classifier_params': {...}} to set the parameters
-                                of the RandomForestClassifier
+            nn_params (dict): additional parameters for nearest neighbor calculations, any 
+                                parameter NearestNeighbors accepts, and additionally use
+                                {'metric': 'precomputed', 'metric_learning': '<method>', ...}
+                                with <method> in 'ITML', 'LSML' to enable the learning of
+                                the metric to be used for neighborhood calculations
             L (int): number of levels
             theta (float): smoothing factor in weight formula
             n_jobs (int): number of parallel jobs

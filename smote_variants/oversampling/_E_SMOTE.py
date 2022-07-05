@@ -75,10 +75,11 @@ class E_SMOTE(OverSampling):
                                 the number of majority samples
             n_neighbors (int): number of neighbors in the nearest neighbors
                                 component
-            nn_params (dict): additional parameters for nearest neighbor calculations
-                                use {'metric': 'precomputed'} for random forest induced
-                                metric {'classifier_params': {...}} to set the parameters
-                                of the RandomForestClassifier
+            nn_params (dict): additional parameters for nearest neighbor calculations, any 
+                                parameter NearestNeighbors accepts, and additionally use
+                                {'metric': 'precomputed', 'metric_learning': '<method>', ...}
+                                with <method> in 'ITML', 'LSML' to enable the learning of
+                                the metric to be used for neighborhood calculations
             min_features (int): minimum number of features
             n_jobs (int): number of parallel jobs
             random_state (int/RandomState/None): initializer of random_state,
