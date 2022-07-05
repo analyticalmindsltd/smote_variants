@@ -1,9 +1,9 @@
 Gallery
-********
+*******
 
 In this page, we demonstrate the output of various oversampling                     and noise removal techniques, using default parameters.
 
-For binary oversampling and nosie removal, an artificial database was used, available in the ``utils` directory of the github repository.
+For binary oversampling and nosie removal, an artificial database was used, available in the ``utils`` directory of the github repository.
 
 For multiclass oversampling we have used the 'wine' dataset from                     ``sklearn.datasets``, which has 3 classes and many features, out                     which the first two coordinates have been used for visualization.
 
@@ -137,6 +137,7 @@ In the captions of the images some abbreviations                     referring t
 
 .. image:: figures/ANS.png
 .. image:: figures/cluster_SMOTE.png
+
 Noise removal sample results
 =============================
 
@@ -150,6 +151,7 @@ Noise removal sample results
 
 .. image:: figures/NeighborhoodCleaningRule.png
 .. image:: figures/EditedNearestNeighbors.png
+
 Multiclass sample results
 ==========================
 

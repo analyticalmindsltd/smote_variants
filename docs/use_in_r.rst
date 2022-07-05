@@ -1,5 +1,5 @@
 Using ``smote_variants`` in R
-*************************
+*****************************
 
 All the implemented oversampling techniques can be called from R using the ``reticulate`` package. It needs a distinct, working Python installation, which then takes care about the conversion of data back and forth. Supposing that an Anaconda installation is available in the home directory of the user, with ``smote_variants`` and ``imbalanced_databases`` (to load imbalanced datasets easily) installed, the following R code works flawlessly.
 
