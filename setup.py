@@ -64,6 +64,8 @@ EXTRAS_REQUIRE= {'tests': ['pytest'],
 PYTHON_REQUIRES= '>=3.5'
 CMDCLASS = {'test': PyTest}
 PACKAGE_DIR= {'smote_variants': 'smote_variants'}
+SETUP_REQUIRES=['pytest-runner']
+TESTS_REQUIRE=['pytest']
 
 setup(name=DISTNAME,
       maintainer=MAINTAINER,
@@ -82,6 +84,8 @@ setup(name=DISTNAME,
       install_requires=INSTALL_REQUIRES,
       extras_require=EXTRAS_REQUIRE,
       python_requires=PYTHON_REQUIRES,
+      setup_requires=SETUP_REQUIRES,
+      tests_require=TESTS_REQUIRE,
       cmdclass=CMDCLASS,
       package_dir=PACKAGE_DIR,
       packages=find_packages(exclude=[]))
