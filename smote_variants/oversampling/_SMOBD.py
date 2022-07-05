@@ -182,6 +182,9 @@ class SMOBD(OverSampling):
         if abs(max(factor_1)) < 1e-9 or abs(max(factor_2)) < 1e-9:
             return X.copy(), y.copy()
 
+        if np.any(factor_1 != np.inf) or np.any(factor_2 != np.inf):
+            return X.copy(), y.copy()
+
         factor_1[factor_1 == np.inf]= max(factor_1[factor_1 != np.inf])*1.1
         factor_2[factor_2 == np.inf]= max(factor_2[factor_2 != np.inf])*1.1
 
