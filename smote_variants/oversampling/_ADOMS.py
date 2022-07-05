@@ -2,7 +2,7 @@ import numpy as np
 
 from sklearn.decomposition import PCA
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from ._SMOTE import SMOTE
 
@@ -46,7 +46,7 @@ class ADOMS(OverSampling):
 
     categories = [OverSampling.cat_dim_reduction,
                   OverSampling.cat_extensive,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -131,11 +131,13 @@ class ADOMS(OverSampling):
 
         # fitting nearest neighbors model
         n_neighbors = min([len(X_min), self.n_neighbors+1])
-        nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
+
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+
+        nn= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
                                                         n_jobs=self.n_jobs, 
-                                                        **(self.nn_params), 
-                                                        X=X, 
-                                                        y=y)
+                                                        **(nn_params))
         nn.fit(X_min)
         indices = nn.kneighbors(X_min, return_distance=False)
 

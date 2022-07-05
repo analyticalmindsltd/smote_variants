@@ -4,7 +4,8 @@ from sklearn.metrics import pairwise_distances
 from sklearn.preprocessing import MinMaxScaler
 from scipy.stats.mstats import gmean
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor, pairwise_distances_mahalanobis
+from .._metric_tensor import (NearestNeighborsWithMetricTensor, 
+                                MetricTensor, pairwise_distances_mahalanobis)
 from ._OverSampling import OverSampling
 
 from .._logger import logger
@@ -72,7 +73,7 @@ class DSMOTE(OverSampling):
     """
 
     categories = [OverSampling.cat_changes_majority,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -169,24 +170,20 @@ class DSMOTE(OverSampling):
         X_min = X[y == self.min_label]
         X_maj = X[y == self.maj_label]
 
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # fitting nearest neighbors model
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=len(X_maj), 
-                                                            n_jobs=self.n_jobs, 
-                                                            **(nn_params),
-                                                            X=X, 
-                                                            y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=len(X_maj), 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X_maj)
         dist, ind = nn.kneighbors(X_min)
 
         # compute mean distances, the D_min is compenstaed for taking into
         # consideration self-distances in the mean
         D_maj = np.mean(dist, axis=1)
-        D_min = np.mean(pairwise_distances_mahalanobis(X_min, tensor=nn_params['metric_tensor']), axis=1) * \
+        D_min = np.mean(pairwise_distances_mahalanobis(X_min, tensor=nn_params.get('metric_tensor', None)), axis=1) * \
             len(X_min)/(len(X_min)-1)
 
         # computing degree of abnormality

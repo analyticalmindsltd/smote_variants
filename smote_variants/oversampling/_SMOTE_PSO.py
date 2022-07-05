@@ -4,7 +4,7 @@ from sklearn.svm import SVC
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import roc_auc_score
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -54,7 +54,7 @@ class SMOTE_PSO(OverSampling):
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_memetic,
                   OverSampling.cat_uses_classifier,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  k=3,
@@ -156,20 +156,16 @@ class SMOTE_PSO(OverSampling):
         # needed to increase performance
         performance_threshold = 500
 
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X_scaled, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X_scaled, y)
 
         n_maj_to_remove = np.sum(
             y == self.maj_label) - performance_threshold
         if n_maj_to_remove > 0:
             # if majority samples are to be removed
-            nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=1, 
-                                                            n_jobs=self.n_jobs, 
-                                                            **nn_params,
-                                                            X=X_scaled, 
-                                                            y=y)
+            nn= NearestNeighborsWithMetricTensor(n_neighbors=1, 
+                                                    n_jobs=self.n_jobs, 
+                                                    **nn_params)
             nn.fit(X_scaled[y == self.min_label])
             dist, ind = nn.kneighbors(X_scaled)
             di = sorted([(dist[i][0], i)
@@ -190,11 +186,9 @@ class SMOTE_PSO(OverSampling):
             y == self.min_label) - performance_threshold
         if n_min_to_remove > 0:
             # if majority samples are to be removed
-            nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=1, 
-                                                            n_jobs=self.n_jobs, 
-                                                            **nn_params,
-                                                            X=X_scaled, 
-                                                            y=y)
+            nn = NearestNeighborsWithMetricTensor(n_neighbors=1, 
+                                                    n_jobs=self.n_jobs, 
+                                                    **nn_params)
             nn.fit(X_scaled[y == self.maj_label])
             dist, ind = nn.kneighbors(X_scaled)
             di = sorted([(dist[i][0], i)
@@ -213,7 +207,7 @@ class SMOTE_PSO(OverSampling):
 
         # fitting SVM to extract initial support vectors
         svc = SVC(kernel='rbf', probability=True,
-                  gamma='auto', random_state=self.random_state)
+                  gamma='auto', random_state=self._random_state_init)
         svc.fit(X_scaled, y)
 
         # extracting the support vectors
@@ -227,11 +221,9 @@ class SMOTE_PSO(OverSampling):
 
         # finding nearest majority support vectors
         n_neighbors = min([len(X_SV_maj), self.k])
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                            n_jobs=self.n_jobs, 
-                                                            **nn_params,
-                                                            X=X_scaled, 
-                                                            y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                n_jobs=self.n_jobs, 
+                                                **nn_params)
         nn.fit(X_SV_maj)
         dist, ind = nn.kneighbors(X_SV_min)
 

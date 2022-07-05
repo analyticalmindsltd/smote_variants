@@ -2,7 +2,8 @@ import numpy as np
 
 from sklearn.metrics import pairwise_distances
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor, pairwise_distances_mahalanobis
+from .._metric_tensor import (NearestNeighborsWithMetricTensor, 
+                                MetricTensor, pairwise_distances_mahalanobis)
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -40,7 +41,7 @@ class CBSO(OverSampling):
                   OverSampling.cat_density_based,
                   OverSampling.cat_extensive,
                   OverSampling.cat_sample_ordinary,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -126,17 +127,13 @@ class CBSO(OverSampling):
 
         X_min = X[y == self.min_label]
 
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # fitting nearest neighbors model to find neighbors of minority points
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=self.n_neighbors + 1, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **(nn_params), 
-                                                        X=X, 
-                                                        y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=self.n_neighbors + 1, 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X)
         ind = nn.kneighbors(X_min, return_distance=False)
 
@@ -152,14 +149,10 @@ class CBSO(OverSampling):
         # determine distribution of generating data
         weights = weights/np.sum(weights)
         
-        
-
         # do the clustering
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=2, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **(nn_params), 
-                                                        X=X, 
-                                                        y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=2, 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X_min)
         d_avg = np.mean(nn.kneighbors(X_min)[0][:, 1])
         T_h = d_avg*self.C_p
@@ -167,7 +160,7 @@ class CBSO(OverSampling):
         # initiating clustering
         clusters = [np.array([i]) for i in range(len(X_min))]
         dm = pairwise_distances_mahalanobis(X_min, 
-                                            tensor=nn_params['metric_tensor'])
+                                            tensor=nn_params.get('metric_tensor', None))
 
         # setting the diagonal of the distance matrix to infinity
         for i in range(len(dm)):

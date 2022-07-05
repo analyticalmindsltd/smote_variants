@@ -2,7 +2,7 @@ import numpy as np
 
 from sklearn.decomposition import PCA
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -50,7 +50,7 @@ class MDO(OverSampling):
 
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_dim_reduction,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -138,12 +138,13 @@ class MDO(OverSampling):
         K1 = min([self.K1, len(X)])
         K2 = min([self.K2 + 1, len(X)])
 
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+
         # Algorithm 2 - chooseSamples
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=K2, 
-                                                            n_jobs=self.n_jobs, 
-                                                            **(self.nn_params), 
-                                                            X=X, 
-                                                            y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=K2, 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X)
         ind = nn.kneighbors(X_min, return_distance=False)
 

@@ -4,3 +4,9 @@ tests/__pycache__/*
 *.pyc
 .coverage
 *.log
+docs/_build/*
+docs/_build/*/*
+docs/_build/*.doctree
+docs/_build/*/*.doctree
+docs/_build/doctrees/*
+docs/_build/doctrees/*.doctree

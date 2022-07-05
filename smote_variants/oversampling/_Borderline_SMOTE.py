@@ -1,6 +1,6 @@
 import numpy as np
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from .._base import mode
 from ._SMOTE import SMOTE
@@ -38,7 +38,7 @@ class Borderline_SMOTE1(OverSampling):
     categories = [OverSampling.cat_sample_ordinary,
                   OverSampling.cat_extensive,
                   OverSampling.cat_borderline,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -130,19 +130,14 @@ class Borderline_SMOTE1(OverSampling):
         # fitting model
         X_min = X[y == self.min_label]
 
-        metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-        nn_params = self.nn_params.copy()
-        if 'metric_tensor' not in self.nn_params:
-            nn_params['metric_tensor']= metric_tensor
-        nn_params['metric']='minkowski'
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         n_neighbors = min([len(X), self.n_neighbors + 1])
         
-        nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **(nn_params),
-                                                        X=X, 
-                                                        y=y)
+        nn= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X)
         indices= nn.kneighbors(X_min, return_distance=False)
 
@@ -165,11 +160,9 @@ class Borderline_SMOTE1(OverSampling):
         # fitting nearest neighbors model to minority samples
         k_neigh = min([len(X_min), self.k_neighbors + 1])
         
-        nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=k_neigh, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **(nn_params), 
-                                                        X=X, 
-                                                        y=y)
+        nn= NearestNeighborsWithMetricTensor(n_neighbors=k_neigh, 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X_min)
         indices= nn.kneighbors(X_danger, return_distance=False)
 
@@ -182,23 +175,10 @@ class Borderline_SMOTE1(OverSampling):
         X_base = X_danger[base_indices]
         X_neighbor = X_min[indices[base_indices, neighbor_indices]]
         
-        
-        mt= nn_params['metric_tensor']
-        if mt is None:
-            mt= np.ones(len(X[0]))
-        else:
-            mt= np.diag(mt)/np.max(np.diag(mt))
-            mt= 1.0 - mt
-
-        samples= []
-        for i in range(n_to_sample):
-            samples.append(X_base[i] + self.random_state.rand()*mt*(X_neighbor[i] - X_base[i]))
-        samples= np.array(samples)
-        """
         samples = X_base + \
             np.multiply(self.random_state.rand(
                 n_to_sample, 1), X_neighbor - X_base)
-        """
+        
         return (np.vstack([X, samples]),
                 np.hstack([y, np.hstack([self.min_label]*n_to_sample)]))
 
@@ -241,7 +221,7 @@ class Borderline_SMOTE2(OverSampling):
     categories = [OverSampling.cat_sample_ordinary,
                   OverSampling.cat_extensive,
                   OverSampling.cat_borderline,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -330,22 +310,17 @@ class Borderline_SMOTE2(OverSampling):
                             ": " + "Sampling is not needed")
             return X.copy(), y.copy()
 
-        metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-        nn_params = self.nn_params.copy()
-        if 'metric_tensor' not in self.nn_params:
-            nn_params['metric_tensor']= metric_tensor
-        nn_params['metric']='minkowski'
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # fitting nearest neighbors model
         X_min = X[y == self.min_label]
 
         n_neighbors = min([self.n_neighbors+1, len(X)])
         
-        nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **(nn_params), 
-                                                        X=X, 
-                                                        y=y)
+        nn= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X)
         indices= nn.kneighbors(X_min, return_distance=False)
 
@@ -376,11 +351,9 @@ class Borderline_SMOTE2(OverSampling):
         k_neigh = self.k_neighbors + 1
         k_neigh = min([k_neigh, len(X)])
         
-        nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=k_neigh, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **(nn_params), 
-                                                        X=X, 
-                                                        y=y)
+        nn= NearestNeighborsWithMetricTensor(n_neighbors=k_neigh, 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X)
         indices= nn.kneighbors(X_danger, return_distance=False)
 
@@ -397,22 +370,8 @@ class Borderline_SMOTE2(OverSampling):
         mask = y[neighbor_indices] == self.maj_label
         r[mask] = r[mask]*0.5
 
-        
-        mt= nn_params['metric_tensor']
-        if mt is None:
-            mt= np.ones(len(X[0]))
-        else:
-            mt= np.diag(mt)/np.max(np.diag(mt))
-            mt= 1.0 - mt
-
-        samples= []
-        for i in range(n_to_sample):
-            samples.append(X_base[i] + r[i]*mt*(X_neighbor[i] - X_base[i]))
-        samples= np.array(samples)
-        """
-
         samples = X_base + np.multiply(r, diff)
-        """
+        
         return (np.vstack([X, samples]),
                 np.hstack([y, np.hstack([self.min_label]*n_to_sample)]))
 

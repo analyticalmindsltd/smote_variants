@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.model_selection import KFold
 from sklearn.tree import DecisionTreeClassifier
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -39,7 +39,7 @@ class GASMOTE(OverSampling):
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_memetic,
                   OverSampling.cat_sample_ordinary,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  n_neighbors=5,
@@ -134,11 +134,13 @@ class GASMOTE(OverSampling):
         # fitting nearest neighbors model to find minority neighbors of
         #  minority samples
         n_neighbors = min([self.n_neighbors + 1, len(X_min)])
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
+
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
                                                         n_jobs=self.n_jobs, 
-                                                        **(self.nn_params), 
-                                                        X=X, 
-                                                        y=y)
+                                                        **(nn_params))
         nn.fit(X_min)
         ind = nn.kneighbors(X_min, return_distance=False)
         kfold = KFold(min([len(X), 5]))
@@ -170,7 +172,7 @@ class GASMOTE(OverSampling):
             # execute kfold cross validation
             preds, tests = [], []
             for train, test in kfold.split(X_new):
-                dt = DecisionTreeClassifier(random_state=self.random_state)
+                dt = DecisionTreeClassifier(random_state=self._random_state_init)
                 dt.fit(X_new[train], y_new[train])
                 preds.append(dt.predict(X_new[test]))
                 tests.append(y_new[test])

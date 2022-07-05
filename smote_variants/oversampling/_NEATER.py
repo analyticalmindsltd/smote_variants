@@ -2,7 +2,8 @@ import numpy as np
 
 from sklearn.metrics import pairwise_distances
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor, pairwise_distances_mahalanobis
+from .._metric_tensor import (NearestNeighborsWithMetricTensor, 
+                                MetricTensor, pairwise_distances_mahalanobis)
 from ._OverSampling import OverSampling
 from ._SMOTE import SMOTE
 from ._ADASYN import ADASYN
@@ -50,7 +51,7 @@ class NEATER(OverSampling):
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_borderline,
                   OverSampling.cat_changes_majority,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -135,22 +136,20 @@ class NEATER(OverSampling):
         if not self.check_enough_min_samples_for_sampling():
             return X.copy(), y.copy()
 
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # Applying SMOTE and ADASYN
         X_0, y_0 = SMOTE(proportion=self.proportion,
                          n_neighbors=self.smote_n_neighbors,
                          nn_params=nn_params,
                          n_jobs=self.n_jobs,
-                         random_state=self.random_state).sample(X, y)
+                         random_state=self._random_state_init).sample(X, y)
 
         X_1, y_1 = ADASYN(n_neighbors=self.b,
                           nn_params=nn_params,
                           n_jobs=self.n_jobs,
-                          random_state=self.random_state).sample(X, y)
+                          random_state=self._random_state_init).sample(X, y)
 
         X_new = np.vstack([X_0, X_1[len(X):]])
         y_new = np.hstack([y_0, y_1[len(y):]])
@@ -178,18 +177,16 @@ class NEATER(OverSampling):
 
         # Finding nearest neighbors, +1 as X_syn is part of X_all and nearest
         # neighbors will be themselves
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=self.b + 1, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **nn_params, 
-                                                        X=X, 
-                                                        y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=self.b + 1, 
+                                                n_jobs=self.n_jobs, 
+                                                **nn_params)
         nn.fit(X_all)
         indices = nn.kneighbors(X_syn, return_distance=False)
 
         # computing distances
         dm = pairwise_distances_mahalanobis(X_all, 
                                             X_syn, 
-                                            nn_params['metric_tensor'])
+                                            nn_params.get('metric_tensor', None))
         dm[dm == 0] = 1e-8
         dm = 1.0/dm
         dm[dm > self.alpha] = self.alpha

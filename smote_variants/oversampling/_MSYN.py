@@ -1,6 +1,6 @@
 import numpy as np
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from ._SMOTE import SMOTE
 
@@ -51,7 +51,7 @@ class MSYN(OverSampling):
     """
 
     categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  pressure=1.5,
@@ -127,17 +127,15 @@ class MSYN(OverSampling):
         min_indices = np.where(y == self.min_label)[0]
         maj_indices = np.where(y == self.maj_label)[0]
 
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # generating samples
         smote = SMOTE(proportion=self.pressure,
                       n_neighbors=self.n_neighbors,
                       nn_params=nn_params,
                       n_jobs=self.n_jobs,
-                      random_state=self.random_state)
+                      random_state=self._random_state_init)
 
         X_res, y_res = smote.sample(X, y)
         X_new, _ = X_res[len(X):], y_res[len(X):]
@@ -148,11 +146,9 @@ class MSYN(OverSampling):
             return X.copy(), y.copy()
 
         # Compute nearest hit and miss for both classes
-        nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=len(X), 
-                                                        n_jobs=self.n_jobs, 
-                                                        **nn_params, 
-                                                        X=X, 
-                                                        y=y)
+        nn= NearestNeighborsWithMetricTensor(n_neighbors=len(X), 
+                                                n_jobs=self.n_jobs, 
+                                                **nn_params)
         nn.fit(X)
         dist, ind = nn.kneighbors(X)
 
@@ -168,8 +164,8 @@ class MSYN(OverSampling):
         theta_min = theta_A_sub_alpha[min_indices]
         theta_maj = theta_A_sub_alpha[maj_indices]
 
-        if metric_tensor is None:
-            metric_tensor = np.eye(len(X[0]))
+        metric_tensor = nn_params['metric_tensor'] if nn_params.get('metric_tensor', None) is not None\
+                                                    else np.eye(len(X[0]))
 
         # computing the f_3 score for all new samples
         f_3 = []

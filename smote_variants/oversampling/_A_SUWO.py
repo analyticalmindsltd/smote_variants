@@ -5,7 +5,8 @@ from sklearn.metrics import pairwise_distances
 from sklearn.model_selection import KFold
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor, pairwise_distances_mahalanobis
+from .._metric_tensor import (NearestNeighborsWithMetricTensor, 
+                                                MetricTensor, pairwise_distances_mahalanobis)
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -41,7 +42,7 @@ class A_SUWO(OverSampling):
                   OverSampling.cat_uses_clustering,
                   OverSampling.cat_density_based,
                   OverSampling.cat_noise_removal,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -129,18 +130,14 @@ class A_SUWO(OverSampling):
 
         X_orig, y_orig = X, y
 
-        metric_tensor= MetricTensor(**self.nn_params).tensor(X, y)
-        nn_params = self.nn_params.copy()
-        if 'metric_tensor' not in self.nn_params:
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # fitting nearest neighbors to find neighbors of all samples
         n_neighbors = min([len(X), self.n_neighbors + 1])
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                            n_jobs=self.n_jobs, 
-                                                            **(nn_params), 
-                                                            X=X, 
-                                                            y=y)
+        nn= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                n_jobs=self.n_jobs, 
+                                                **nn_params)
         nn.fit(X)
         dist, ind = nn.kneighbors(X)
 
@@ -177,7 +174,7 @@ class A_SUWO(OverSampling):
         min_clusters = [np.array([i]) for i in range(len(X_min))]
 
         # compute minority distance matrix of cluster
-        dm_min = pairwise_distances_mahalanobis(X_min, tensor=metric_tensor)
+        dm_min = pairwise_distances_mahalanobis(X_min, tensor=nn_params['metric_tensor'])
         for i in range(len(dm_min)):
             dm_min[i, i] = np.inf
 
@@ -187,15 +184,13 @@ class A_SUWO(OverSampling):
             for j in range(len(maj_clusters)):
                 pairwd = pairwise_distances_mahalanobis(X_min[min_clusters[i]],
                                                         X_maj[maj_clusters[j]],
-                                                        tensor=metric_tensor)
+                                                        tensor=nn_params['metric_tensor'])
                 dm_maj[i, j] = np.min(pairwd)
 
         # compute threshold
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=len(X_min), 
-                                                            n_jobs=self.n_jobs, 
-                                                            **(nn_params),
-                                                            X=X, 
-                                                            y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=len(X_min), 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X_min)
         dist, ind = nn.kneighbors(X_min)
         d_med = np.median(dist, axis=1)
@@ -230,7 +225,8 @@ class A_SUWO(OverSampling):
                 min_clusters[min_i] = np.hstack([min_clusters[min_i],
                                                  min_clusters[min_j]])
                 # removing one of them
-                min_clusters = np.delete(min_clusters, [min_j], axis=0)
+                #min_clusters = np.delete(min_clusters, [min_j], axis=0)
+                del min_clusters[min_j]
 
                 # updating the minority distance matrix
                 dm_min[min_i] = np.min(np.vstack([dm_min[min_i],
@@ -283,11 +279,9 @@ class A_SUWO(OverSampling):
         # synthetic instance generation - determining within cluster
         # distribution finding majority neighbor distances of minority
         # samples
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=1, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **(nn_params), 
-                                                        X=X, 
-                                                        y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=1, 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X_maj)
         dist, ind = nn.kneighbors(X_min)
         dist = dist/len(X[0])
@@ -309,11 +303,9 @@ class A_SUWO(OverSampling):
         within_cluster_neighbors = []
         for c in min_clusters:
             n_neighbors = min([len(c), self.n_neighbors])
-            nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                            n_jobs=self.n_jobs, 
-                                                            **(nn_params),
-                                                            X=X, 
-                                                            y=y)
+            nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                    n_jobs=self.n_jobs, 
+                                                    **(nn_params))
             nn.fit(X_min[c])
             within_cluster_neighbors.append(nn.kneighbors(X_min[c])[1])
 

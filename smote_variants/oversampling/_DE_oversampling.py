@@ -2,7 +2,7 @@ import numpy as np
 
 from sklearn.cluster import KMeans
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from ._SMOTE import SMOTE
 
@@ -52,7 +52,7 @@ class DE_oversampling(OverSampling):
 
     categories = [OverSampling.cat_changes_majority,
                   OverSampling.cat_uses_clustering,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -154,11 +154,13 @@ class DE_oversampling(OverSampling):
         X_min = X[y == self.min_label]
 
         n_neighbors = min([len(X_min), self.n_neighbors+1])
-        nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **(self.nn_params), 
-                                                        X=X, 
-                                                        y=y)
+
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+
+        nn= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X_min)
         indices = nn.kneighbors(X_min, return_distance=False)
 
@@ -196,7 +198,7 @@ class DE_oversampling(OverSampling):
         # cleansing based on clustering
         n_clusters = min([len(X), self.n_clusters])
         kmeans = KMeans(n_clusters=n_clusters,
-                        random_state=self.random_state)
+                        random_state=self._random_state_init)
         kmeans.fit(X)
         unique_labels = np.unique(kmeans.labels_)
 

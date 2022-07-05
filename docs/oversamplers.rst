@@ -1528,7 +1528,7 @@ Example
 References:
     * BibTex::
 
-    @article{smote_out_smote_cosine_selected_smote,
+        @article{smote_out_smote_cosine_selected_smote,
               title={SMOTE-Out, SMOTE-Cosine, and Selected-SMOTE: An
                         enhancement strategy to handle imbalance in
                         data level},

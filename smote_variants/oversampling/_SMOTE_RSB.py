@@ -2,7 +2,6 @@ import numpy as np
 
 from sklearn.metrics import pairwise_distances
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity
 from ._OverSampling import OverSampling
 from ._SMOTE import SMOTE
 
@@ -51,7 +50,7 @@ class SMOTE_RSB(OverSampling):
 
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_sample_ordinary,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -130,7 +129,7 @@ class SMOTE_RSB(OverSampling):
                       n_neighbors=self.n_neighbors,
                       nn_params=self.nn_params,
                       n_jobs=self.n_jobs,
-                      random_state=self.random_state)
+                      random_state=self._random_state_init)
 
         X_samp, y_samp = smote.sample(X, y)
         X_samp, y_samp = X_samp[len(X):], y_samp[len(X):]

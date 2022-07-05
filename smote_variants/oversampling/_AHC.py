@@ -2,7 +2,6 @@ import numpy as np
 
 from sklearn.cluster import AgglomerativeClustering, KMeans
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity
 from ._OverSampling import OverSampling
 from ._SMOTE import SMOTE
 
@@ -86,7 +85,7 @@ class AHC(OverSampling):
             np.ndarray: downsampled vectors
         """
         kmeans = KMeans(n_clusters=n_clusters,
-                        random_state=self.random_state)
+                        random_state=self._random_state_init)
         kmeans.fit(X)
         return kmeans.cluster_centers_
 

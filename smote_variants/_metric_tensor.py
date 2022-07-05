@@ -11,8 +11,10 @@ from ._logger import logger
 _logger = logger
 
 __all__= ['NearestNeighborsWithClassifierDissimilarity',
+          'NearestNeighborsWithMetricTensor',
           'ClassifierImpliedDissimilarityMatrix',
           'MetricTensor',
+          'MetricLearningMixin',
           'pairwise_distances_mahalanobis',
           'generate_samples',
           'AdditionalItems']
@@ -214,51 +216,148 @@ def estimate_mutual_information(X,
 def n_neighbors_func(X0, X1=None, n_neighbors=5, metric_tensor=None, return_distance=False):
     metric_tensor= metric_tensor if metric_tensor is not None else np.eye(X0.shape[1])
     X1= X1 if X1 is not None else X0
-    
+
     X_diffs= (X0[:,None] - X1)
-    dm= np.sqrt(np.einsum('ijk,ijk -> ij', X_diffs, np.dot(X_diffs, metric_tensor)).T)
-    results_ind= np.apply_along_axis(np.argsort, axis=1, arr=dm)[:,:n_neighbors]
     
+    dm= np.sqrt(np.einsum('ijk,ijk -> ij', 
+                            X_diffs, 
+                            np.dot(X_diffs, metric_tensor)).T)
+
+    results_ind= np.apply_along_axis(np.argsort, axis=1, arr=dm)[:,:(n_neighbors)]
+
     if not return_distance:
         return results_ind
     else:
-        dm[np.arange(dm.shape[0]), results_ind], results_ind
+        return dm[np.arange(dm.shape[0])[:,None], results_ind], results_ind
 
 class MetricTensor:
     def __init__(self,
-                 metric_learning='ITML',
-                 metric=None,
+                 metric_learning_method='ITML',
                  **kwargs):
-        self.metric = metric
-        self.metric_learning = metric_learning
+        """
+        MetricTensor constructor
+
+        Args:
+            metric_learning_method (str): metric learning algorithm
+
+        """
+        self.metric_learning_method = metric_learning_method
     
     def tensor(self, X, y):
         X_mod, index= np.unique(X, axis=0, return_index=True)
         y_mod= y[index]
-        if self.metric == 'precomputed':
-            if self.metric_learning == 'ITML':
-                self.metric_tensor= ITML_Supervised().fit(X_mod, y_mod).get_mahalanobis_matrix()
-            elif self.metric_learning == 'rf':
-                dm= ClassifierImpliedDissimilarityMatrix().fit(X, y).dissimilarity_matrix(X)
-                self.metric_tensor, _ = construct_tensor(X, dm)
-            elif self.metric_learning == 'LSML':
-                self.metric_tensor= LSML_Supervised().fit(X_mod, y_mod).get_mahalanobis_matrix()
-                eigv, eigw = np.linalg.eigh(self.metric_tensor)
-                self.metric_tensor = np.dot(np.dot(eigw, np.diag(sorted(eigv, reverse=True))), eigw.T)
-            elif self.metric_learning == 'cov':
-                cov= np.cov(X.T)
-                self.metric_tensor = np.linalg.inv(cov)
-            elif self.metric_learning == 'cov_min':
-                cov= np.cov(X[y == 1].T)
-                self.metric_tensor = np.linalg.inv(cov)
-            elif self.metric_learning == 'MI_weighted':
-                mi= estimate_mutual_information(X, y)
-                self.metric_tensor= np.diag(mi)
-            else:
-                self.metric_tensor= None
+
+        _logger.info(self.__class__.__name__ + ": " +
+                     "executing metric learning with %s" % self.metric_learning_method)
+
+        if self.metric_learning_method == 'ITML':
+            self.metric_tensor= ITML_Supervised().fit(X_mod, y_mod).get_mahalanobis_matrix()
+        elif self.metric_learning_method == 'rf':
+            dm= ClassifierImpliedDissimilarityMatrix().fit(X, y).dissimilarity_matrix(X)
+            self.metric_tensor, _ = construct_tensor(X, dm)
+        elif self.metric_learning_method == 'LSML':
+            self.metric_tensor= LSML_Supervised().fit(X_mod, y_mod).get_mahalanobis_matrix()
+            eigv, eigw = np.linalg.eigh(self.metric_tensor)
+            self.metric_tensor = np.dot(np.dot(eigw, np.diag(sorted(eigv, reverse=True))), eigw.T)
+        elif self.metric_learning_method == 'cov':
+            cov= np.cov(X.T)
+            self.metric_tensor = np.linalg.inv(cov)
+        elif self.metric_learning_method == 'cov_min':
+            cov= np.cov(X[y == 1].T)
+            self.metric_tensor = np.linalg.inv(cov)
+        elif self.metric_learning_method == 'MI_weighted':
+            mi= estimate_mutual_information(X, y)
+            self.metric_tensor= np.diag(mi)
         else:
             self.metric_tensor= None
+        
         return self.metric_tensor
+
+class MetricLearningMixin:
+    def metric_tensor_from_nn_params(self, nn_params, X, y):
+        if nn_params.get('metric', None) == 'precomputed' and nn_params.get('metric_tensor', None) is None:
+            return MetricTensor(**nn_params).tensor(X, y)
+        elif nn_params.get('metric_tensor', None) is not None:
+            return nn_params['metric_tensor']
+        return None
+
+class NearestNeighborsWithMetricTensor:
+    def __init__(self,
+                 n_neighbors=5, 
+                 radius=1.0, 
+                 algorithm='auto', 
+                 leaf_size=30, 
+                 metric='minkowski', 
+                 p=2, 
+                 metric_params=None, 
+                 metric_tensor=None,
+                 n_jobs=None,
+                 **kwargs):
+        self.n_neighbors= n_neighbors
+        self.radius= radius
+        self.algorithm= algorithm
+        self.leaf_size= leaf_size
+        self.metric= metric
+        self.p= p
+        self.metric_params= metric_params
+        self.metric_tensor= metric_tensor
+        self.n_jobs= n_jobs
+        
+        if metric != 'precomputed':
+            self.nn= NearestNeighbors(n_neighbors=n_neighbors,
+                                        radius=radius,
+                                        algorithm=algorithm,
+                                        leaf_size=leaf_size,
+                                        metric=metric,
+                                        p=p,
+                                        metric_params=metric_params,
+                                        n_jobs=n_jobs)
+            
+    
+    def fit(self, X):
+        _logger.info(self.__class__.__name__ + ": " +
+                     "NN fitting with metric %s" % self.metric)
+        if self.metric != 'precomputed' or self.metric_tensor is None:
+            self.nn.fit(X)
+        else:
+            self.X_fitted= X
+        
+        return self
+    
+    def kneighbors(self, X=None, n_neighbors=None, return_distance=True):
+        _logger.info(self.__class__.__name__ + ": " +
+                     "kneighbors query %s" % self.metric)
+        if self.metric != 'precomputed' or self.metric_tensor is None:
+            return self.nn.kneighbors(X, n_neighbors, return_distance)
+        else:
+            # calculating the distance matrix
+            return n_neighbors_func(self.X_fitted, X, 
+                               metric_tensor=self.metric_tensor, 
+                               n_neighbors=self.n_neighbors,
+                               return_distance=return_distance)
+
+    
+    def radius_neighbors(self, X=None, radius=None, return_distance=True, sort_results=False):
+        _logger.info(self.__class__.__name__ + ": " +
+                     "radius_neighbors query %s" % self.metric)
+        if self.metric != 'precomputed' or self.metric_tensor is None:
+            return self.nn.radius_neighbors(X, radius, return_distance, sort_results)
+        else:
+            # TODO: better implementation needed
+            X= (self.X_fitted[:,None] - X)
+            dm= np.sqrt(np.einsum('ijk,ijk -> ij', X, np.dot(X, self.metric_tensor)).T)
+            results_dist= []
+            results_ind= []
+            
+            for i in range(len(dm)):
+                mask= np.where(dm[i] <= radius)[0]
+                results_dist.append(dm[i][mask])
+                results_ind.append(mask)
+
+            if return_distance:
+                return results_dist, results_ind
+            else:
+                return results_ind
 
 
 

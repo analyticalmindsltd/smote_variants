@@ -2,7 +2,7 @@ import numpy as np
 
 from sklearn.decomposition import PCA
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -59,7 +59,7 @@ class KernelADASYN(OverSampling):
     categories = [OverSampling.cat_density_estimation,
                   OverSampling.cat_extensive,
                   OverSampling.cat_borderline,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -143,12 +143,13 @@ class KernelADASYN(OverSampling):
 
         X_min = X[y == self.min_label]
 
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+
         # fitting the nearest neighbors model
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=min([len(X_min), self.k+1]), 
-                                                        n_jobs=self.n_jobs, 
-                                                        **(self.nn_params), 
-                                                        X=X, 
-                                                        y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=min([len(X_min), self.k+1]), 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X)
         indices = nn.kneighbors(X_min, return_distance=False)
 
@@ -210,7 +211,7 @@ class KernelADASYN(OverSampling):
                               k=self.k,
                               nn_params=self.nn_params,
                               h=self.h,
-                              random_state=self.random_state)
+                              random_state=self._random_state_init)
 
             X_samp, y_samp = ka.sample(X_trans, y)
             return pca.inverse_transform(X_samp), y_samp

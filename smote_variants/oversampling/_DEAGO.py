@@ -50,7 +50,7 @@ class DEAGO(OverSampling):
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_density_estimation,
                   OverSampling.cat_application,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -198,7 +198,7 @@ class DEAGO(OverSampling):
                                n_neighbors=self.n_neighbors,
                                nn_params=self.nn_params,
                                n_jobs=self.n_jobs,
-                               random_state=self.random_state).sample(X, y)
+                               random_state=self._random_state_init).sample(X, y)
 
         # samples to map to the manifold extracted by the autoencoder
         X_init = X_samp[len(X):]

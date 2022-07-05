@@ -2,7 +2,7 @@ import numpy as np
 
 from scipy.stats import skew
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from ._SMOTE import SMOTE
 from ._Safe_Level_SMOTE import Safe_Level_SMOTE
@@ -34,7 +34,7 @@ class SL_graph_SMOTE(OverSampling):
 
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_borderline,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -110,16 +110,12 @@ class SL_graph_SMOTE(OverSampling):
         # Fitting nearest neighbors model
         n_neighbors = min([len(X), self.n_neighbors])
         
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
         
-        nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **nn_params, 
-                                                        X=X, 
-                                                        y=y)
+        nn= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                n_jobs=self.n_jobs, 
+                                                **nn_params)
         nn.fit(X)
         indices = nn.kneighbors(X[y == self.min_label], return_distance=False)
 
@@ -136,14 +132,14 @@ class SL_graph_SMOTE(OverSampling):
                                  n_neighbors=self.n_neighbors,
                                  nn_params=nn_params,
                                  n_jobs=self.n_jobs,
-                                 random_state=self.random_state)
+                                 random_state=self._random_state_init)
         else:
             # right skewed
             s = Borderline_SMOTE1(proportion=self.proportion,
                                   n_neighbors=self.n_neighbors,
                                   nn_params=nn_params,
                                   n_jobs=self.n_jobs,
-                                  random_state=self.random_state)
+                                  random_state=self._random_state_init)
 
         return s.sample(X, y)
 

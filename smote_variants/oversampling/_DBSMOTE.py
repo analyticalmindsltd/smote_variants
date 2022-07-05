@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import DBSCAN
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -43,7 +43,7 @@ class DBSMOTE(OverSampling):
                   OverSampling.cat_noise_removal,
                   OverSampling.cat_uses_clustering,
                   OverSampling.cat_density_based,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -149,7 +149,7 @@ class DBSMOTE(OverSampling):
                                min_samples=self.min_samples-1,
                                nn_params=self.nn_params,
                                n_jobs=self.n_jobs,
-                               random_state=self.random_state).sample(X, y)
+                               random_state=self._random_state_init).sample(X, y)
 
         # determining cluster size distribution
         clusters = [np.where(labels == i)[0] for i in range(num_labels)]
@@ -211,10 +211,8 @@ class DBSMOTE(OverSampling):
                     assert d[v] <= d[u] + graph[u][v]
             return d, p
 
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # extract graphs and center-like objects
         graphs = []
@@ -229,11 +227,9 @@ class DBSMOTE(OverSampling):
                 graph[i] = {}
 
             # fitting nearest neighbors model to the cluster elements
-            nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=len(cluster), 
-                                                            n_jobs=self.n_jobs, 
-                                                            **(nn_params), 
-                                                            X=X, 
-                                                            y=y)
+            nn = NearestNeighborsWithMetricTensor(n_neighbors=len(cluster), 
+                                                    n_jobs=self.n_jobs, 
+                                                    **(nn_params))
             nn.fit(cluster)
             dist, ind = nn.kneighbors(cluster)
 

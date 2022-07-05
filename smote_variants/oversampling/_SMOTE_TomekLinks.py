@@ -1,6 +1,6 @@
 import numpy as np
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import MetricTensor
 from ._OverSampling import OverSampling
 from ..noise_removal import TomekLinkRemoval
 from ._SMOTE import SMOTE
@@ -40,7 +40,7 @@ class SMOTE_TomekLinks(OverSampling):
     categories = [OverSampling.cat_sample_ordinary,
                   OverSampling.cat_noise_removal,
                   OverSampling.cat_changes_majority,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -105,16 +105,14 @@ class SMOTE_TomekLinks(OverSampling):
         _logger.info(self.__class__.__name__ + ": " +
                      "Running sampling via %s" % self.descriptor())
 
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         smote = SMOTE(self.proportion,
                       self.n_neighbors,
                       nn_params=nn_params,
                       n_jobs=self.n_jobs,
-                      random_state=self.random_state)
+                      random_state=self._random_state_init)
         X_new, y_new = smote.sample(X, y)
 
         t = TomekLinkRemoval(strategy='remove_both', 

@@ -49,6 +49,8 @@ References:
                  publisher = {ACM},
                  address = {New York, NY, USA}
                 }
+
+
 CondensedNearestNeighbors
 =========================
 
@@ -89,6 +91,8 @@ References:
                     doi={10.1109/TIT.1968.1054155},
                     ISSN={0018-9448},
                     month={May}}
+
+
 OneSidedSelection
 =================
 
@@ -135,6 +139,8 @@ References:
                  publisher = {ACM},
                  address = {New York, NY, USA}
                 }
+
+
 CNNTomekLinks
 =============
 
@@ -181,6 +187,8 @@ References:
                  publisher = {ACM},
                  address = {New York, NY, USA}
                 }
+
+
 NeighborhoodCleaningRule
 ========================
 
@@ -227,6 +235,8 @@ References:
                  publisher = {ACM},
                  address = {New York, NY, USA}
                 }
+
+
 EditedNearestNeighbors
 ======================
 

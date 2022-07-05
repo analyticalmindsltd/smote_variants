@@ -2,7 +2,6 @@ import numpy as np
 
 from sklearn.linear_model import LogisticRegression
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -110,7 +109,7 @@ class OUPS(OverSampling):
         # extracting propensity scores
         lr = LogisticRegression(solver='lbfgs',
                                 n_jobs=self.n_jobs,
-                                random_state=self.random_state)
+                                random_state=self._random_state_init)
         lr.fit(X, y)
         propensity = lr.predict_proba(X)
         propensity = propensity[:, np.where(

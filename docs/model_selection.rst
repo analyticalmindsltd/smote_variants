@@ -1,5 +1,5 @@
 Model selection, evaluation and validation
-***************
+******************************************
 
 Besides the oversampler implementation, we have prepared some codes for model selection compatible with ``sklearn`` classifier interfaces.
 

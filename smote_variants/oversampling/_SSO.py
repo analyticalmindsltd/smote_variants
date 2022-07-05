@@ -6,7 +6,8 @@ from sklearn.metrics import pairwise_distances
 
 import scipy.special as sspecial
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor, pairwise_distances_mahalanobis
+from .._metric_tensor import (NearestNeighborsWithMetricTensor, 
+                                MetricTensor, pairwise_distances_mahalanobis)
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -47,7 +48,7 @@ class SSO(OverSampling):
                   OverSampling.cat_uses_classifier,
                   OverSampling.cat_uses_clustering,
                   OverSampling.cat_density_based,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -134,10 +135,8 @@ class SSO(OverSampling):
 
         samp_per_iter = max([1, int(n_to_sample/self.n_iter)])
 
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # executing the algorithm
         for _ in range(self.n_iter):
@@ -146,24 +145,22 @@ class SSO(OverSampling):
             # applying kmeans clustering to find the hidden neurons
             h = min([self.h, len(X_min)])
             kmeans = KMeans(n_clusters=h,
-                            random_state=self.random_state)
+                            random_state=self._random_state_init)
             kmeans.fit(X)
 
             # extracting the hidden center elements
             u = kmeans.cluster_centers_
 
             # extracting scale parameters as the distances of closest centers
-            nn_cent = NearestNeighborsWithClassifierDissimilarity(n_neighbors=2, 
-                                                                n_jobs=self.n_jobs, 
-                                                                **nn_params,
-                                                                X=X, 
-                                                                y=y)
+            nn_cent = NearestNeighborsWithMetricTensor(n_neighbors=2, 
+                                                        n_jobs=self.n_jobs, 
+                                                        **nn_params)
             nn_cent.fit(u)
             dist_cent, ind_cent = nn_cent.kneighbors(u)
             v = dist_cent[:, 1]
 
             # computing the response of the hidden units
-            phi = pairwise_distances_mahalanobis(u, X, nn_params['metric_tensor'])
+            phi = pairwise_distances_mahalanobis(u, X, nn_params.get('metric_tensor', None))
             phi = phi**2
             phi = np.exp(-phi/v**2)
 
@@ -208,17 +205,16 @@ class SSO(OverSampling):
                                  (vi2 + vr2))**len(x)
                         norm = np.linalg.norm(u[r] - u[i])
                         tmp_b = np.exp(-0.5 * norm**2/(vi2 + vr2))
+                        
                         res = res + tmp_a*tmp_b*np.prod(tmp_prod)*w[i]*w[r]
 
                 return (np.sqrt(np.pi)/(4*Q))**len(x)*res
 
             # applying nearest neighbors to extract Q values
             n_neighbors = min([self.n_neighbors + 1, len(X)])
-            nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                            n_jobs=self.n_jobs, 
-                                                            **nn_params,
-                                                            X=X, 
-                                                            y=y)
+            nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                    n_jobs=self.n_jobs, 
+                                                    **nn_params)
             nn.fit(X)
             dist, ind = nn.kneighbors(X_min)
 
@@ -234,11 +230,9 @@ class SSO(OverSampling):
             weights = np.abs(stsm)/np.sum(np.abs(stsm))
 
             n_neighbors = min([len(X_min), self.n_neighbors+1])
-            nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                            n_jobs=self.n_jobs, 
-                                                            **nn_params, 
-                                                            X=X, 
-                                                            y=y)
+            nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                    n_jobs=self.n_jobs, 
+                                                    **nn_params)
             nn.fit(X_min)
             dist, ind = nn.kneighbors(X_min)
 

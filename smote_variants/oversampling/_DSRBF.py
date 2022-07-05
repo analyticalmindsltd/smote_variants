@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from .._base import RandomStateMixin
 from ._SMOTE import SMOTE
@@ -71,7 +71,7 @@ class RBFNeuron(RandomStateMixin):
                       self.range_mins,
                       self.init_conn_mask,
                       self.init_conn_weights,
-                      random_state=self.random_state)
+                      random_state=self._random_state_init)
         r.beta = self.beta
         r.mask = self.mask.copy()
         r.input_weights = self.input_weights.copy()
@@ -203,7 +203,7 @@ class RBF(RandomStateMixin):
                 self.Ob,
                 self.init_conn_mask,
                 self.init_conn_weights,
-                random_state=self.random_state)
+                random_state=self._random_state_init)
         r.neurons = [n.clone() for n in self.neurons]
         r.range_mins = self.range_mins.copy()
         r.ranges = self.ranges.copy()
@@ -225,7 +225,7 @@ class RBF(RandomStateMixin):
                          self.range_mins,
                          self.init_conn_mask,
                          self.init_conn_weights,
-                         random_state=self.random_state)
+                         random_state=self._random_state_init)
 
     def update_data(self, X):
         """
@@ -245,7 +245,7 @@ class RBF(RandomStateMixin):
                             init=cluster_init,
                             n_init=1,
                             max_iter=30,
-                            random_state=self.random_state)
+                            random_state=self._random_state_init)
             kmeans.fit(self.X)
             for i in range(len(self.neurons)):
                 self.neurons[i].c = kmeans.cluster_centers_[i]
@@ -368,7 +368,7 @@ class DSRBF(OverSampling):
                   OverSampling.cat_uses_classifier,
                   OverSampling.cat_sample_ordinary,
                   OverSampling.cat_memetic,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -489,16 +489,14 @@ class DSRBF(OverSampling):
 
         X_orig, y_orig = X, y
 
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         X, y = SMOTE(proportion=self.proportion,
                      n_neighbors=self.n_neighbors,
                      nn_params=nn_params,
                      n_jobs=self.n_jobs,
-                     random_state=self.random_state).sample(X, y)
+                     random_state=self._random_state_init).sample(X, y)
 
         # generate initial connections and weights randomly
         domain = np.arange(len(X[0]))
@@ -528,7 +526,7 @@ class DSRBF(OverSampling):
                        self.Ob,
                        init_conn_mask,
                        init_conn_weights,
-                       random_state=self.random_state)
+                       random_state=self._random_state_init)
 
         population = [init_pop() for _ in range(self.n_init_pop)]
         population = [[p, X, y, np.inf] for p in population]
@@ -583,7 +581,7 @@ class DSRBF(OverSampling):
                               n_neighbors=self.n_neighbors,
                               nn_params=nn_params,
                               n_jobs=self.n_jobs,
-                              random_state=self.random_state)
+                              random_state=self._random_state_init)
                 X, y = smote.sample(X_orig, y_orig)
                 for i in range(self.n_pop):
                     tmp = [population[i][0].clone(), X, y, np.inf]

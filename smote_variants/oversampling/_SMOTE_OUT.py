@@ -1,6 +1,6 @@
 import numpy as np
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from ._SMOTE import SMOTE
 
@@ -27,7 +27,7 @@ class SMOTE_OUT(OverSampling):
     """
 
     categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -111,27 +111,21 @@ class SMOTE_OUT(OverSampling):
         minority_indices = np.where(y == self.min_label)[0]
 
         # nearest neighbors among minority points
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
         
         n_neighbors = min([len(X_min), self.n_neighbors+1])
-        nn_min= NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **nn_params,
-                                                        X=X, 
-                                                        y=y)
+        nn_min= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                    n_jobs=self.n_jobs, 
+                                                    **nn_params)
         nn_min.fit(X_min)
 
         min_indices = nn_min.kneighbors(X_min, return_distance=False)
         # nearest neighbors among majority points
         n_neighbors = min([len(X_maj), self.n_neighbors+1])
-        nn_maj= NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **nn_params,
-                                                        X=X, 
-                                                        y=y)
+        nn_maj= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                    n_jobs=self.n_jobs, 
+                                                    **nn_params)
         nn_maj.fit(X_maj)
         maj_indices = nn_maj.kneighbors(X_min, return_distance=False)
 

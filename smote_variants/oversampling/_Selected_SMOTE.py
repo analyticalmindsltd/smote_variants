@@ -1,6 +1,6 @@
 import numpy as np
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -31,7 +31,7 @@ class Selected_SMOTE(OverSampling):
 
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_sample_componentwise,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -121,11 +121,13 @@ class Selected_SMOTE(OverSampling):
         minority_indices = np.where(y == self.min_label)[0]
 
         n_neighbors = min([len(X_min), self.n_neighbors + 1])
-        nn_min_euc= NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                                n_jobs=self.n_jobs, 
-                                                                **(self.nn_params), 
-                                                                X=X, 
-                                                                y=y)
+
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+
+        nn_min_euc= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                        n_jobs=self.n_jobs, 
+                                                        **(nn_params))
         nn_min_euc.fit(X_min)
 
         nn_min_ind = nn_min_euc.kneighbors(X_min, return_distance=False)

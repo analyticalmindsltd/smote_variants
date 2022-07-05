@@ -204,7 +204,7 @@ class ADG(OverSampling):
             # do clustering for all n_clusters in the specified range
             for k in range(r[0], min([r[1], len(X)])):
                 kmeans = KMeans(n_clusters=k,
-                                random_state=self.random_state).fit(X)
+                                random_state=self._random_state_init).fit(X)
 
                 bic = bic_score(kmeans, X)
                 if bic < best_bic:
@@ -232,7 +232,7 @@ class ADG(OverSampling):
             # do model fitting for all n_components in the specified range
             for k in range(r[0], min([r[1], len(X)])):
                 gmm = GaussianMixture(
-                    n_components=k, random_state=self.random_state).fit(X)
+                    n_components=k, random_state=self._random_state_init).fit(X)
                 bic = gmm.bic(X)
                 if bic < best_bic:
                     best_bic = bic
@@ -362,7 +362,7 @@ class ADG(OverSampling):
                               mu=self.mu,
                               k=self.k,
                               gamma=self.gamma,
-                              random_state=self.random_state)
+                              random_state=self._random_state_init)
                     X_samp, y_samp = adg.sample(X_trans, y)
                     if X_samp is not None:
                         return pca.inverse_transform(X_samp), y_samp

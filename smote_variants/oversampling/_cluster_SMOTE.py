@@ -2,7 +2,7 @@ import numpy as np
 
 from sklearn.cluster import KMeans
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 from .._logger import logger
 _logger= logger
@@ -37,7 +37,7 @@ class cluster_SMOTE(OverSampling):
 
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_uses_clustering,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -123,7 +123,7 @@ class cluster_SMOTE(OverSampling):
 
         n_clusters = min([len(X_min), self.n_clusters])
         kmeans = KMeans(n_clusters=n_clusters,
-                        random_state=self.random_state)
+                        random_state=self._random_state_init)
         kmeans.fit(X_min)
         cluster_labels = kmeans.labels_
         unique_labels = np.unique(cluster_labels)
@@ -132,18 +132,14 @@ class cluster_SMOTE(OverSampling):
         cluster_indices = [np.where(cluster_labels == c)[0]
                            for c in unique_labels]
 
-        nn_params= self.nn_params.copy()
-        if not 'metric_tensor' in self.nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         def nneighbors(idx):
             n_neighbors = min([self.n_neighbors, len(cluster_indices[idx])])
-            nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                                n_jobs=self.n_jobs, 
-                                                                **nn_params, 
-                                                                X=X, 
-                                                                y=y)
+            nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                    n_jobs=self.n_jobs, 
+                                                    **nn_params)
             return nn.fit(X_min[cluster_indices[idx]])
 
         cluster_nns = [nneighbors(idx) for idx in range(len(cluster_indices))]

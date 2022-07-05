@@ -2,7 +2,8 @@ import numpy as np
 
 from sklearn.metrics import pairwise_distances
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor, pairwise_distances_mahalanobis
+from .._metric_tensor import (NearestNeighborsWithMetricTensor, 
+                                MetricTensor, pairwise_distances_mahalanobis)
 from ._OverSampling import OverSampling
 from ._SMOTE import SMOTE
 
@@ -30,7 +31,7 @@ class NRSBoundary_SMOTE(OverSampling):
 
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_borderline,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -125,9 +126,10 @@ class NRSBoundary_SMOTE(OverSampling):
         X_min = X[X_min_indices]
 
         # step 3
-        metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
         
-        dm = pairwise_distances_mahalanobis(X, X, metric_tensor)
+        dm = pairwise_distances_mahalanobis(X, X, nn_params['metric_tensor'])
         d_max = np.max(dm, axis=1)
         max_dist = np.max(dm)
         np.fill_diagonal(dm, max_dist)
@@ -138,12 +140,10 @@ class NRSBoundary_SMOTE(OverSampling):
         # number of neighbors is not interesting here, as we use the
         # radius_neighbors function to extract the neighbors in a given radius
         n_neighbors = min([self.n_neighbors + 1, len(X)])
-        nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **(self.nn_params), 
-                                                        metric_tensor=metric_tensor,
-                                                        X=X, 
-                                                        y=y)
+
+        nn= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X)
         for i in range(len(X)):
             indices = nn.radius_neighbors(X[i].reshape(1, -1),
@@ -167,12 +167,9 @@ class NRSBoundary_SMOTE(OverSampling):
         # computing the nearest neighbors of the bound set from the
         # minority set
         n_neighbors = min([len(X_min), self.n_neighbors + 1])
-        nn= NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **(self.nn_params), 
-                                                        metric_tensor=metric_tensor,
-                                                        X=X, 
-                                                        y=y)
+        nn= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X_min)
         indices = nn.kneighbors(X[bound_set], return_distance=False)
 

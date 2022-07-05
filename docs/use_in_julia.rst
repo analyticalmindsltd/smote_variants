@@ -1,5 +1,5 @@
 Using ``smote_variants`` in Julia
-*****************************
+*********************************
 
 Similarly to R using ``reticulate``, Python packages can be called from Julia using the package ``PyCall`` given that some python installation with ``smote_variants`` is available.
 

@@ -1,6 +1,6 @@
 import numpy as np
 
-from .._NearestNeighborsWithClassifierDissimilarity import NearestNeighborsWithClassifierDissimilarity, MetricTensor
+from .._metric_tensor import NearestNeighborsWithMetricTensor, MetricTensor
 from ._OverSampling import OverSampling
 
 from ._SMOTE import SMOTE
@@ -45,7 +45,7 @@ class NDO_sampling(OverSampling):
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_sample_ordinary,
                   OverSampling.cat_application,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -130,15 +130,13 @@ class NDO_sampling(OverSampling):
 
         # fitting nearest neighbors model to find the neighbors of minority
         # samples among all elements
-        metric_tensor = MetricTensor(**self.nn_params).tensor(X, y)
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
         
         n_neighbors = min([len(X), self.n_neighbors+1])
-        nn = NearestNeighborsWithClassifierDissimilarity(n_neighbors=n_neighbors, 
-                                                        n_jobs=self.n_jobs, 
-                                                        **(self.nn_params), 
-                                                        metric_tensor=metric_tensor,
-                                                        X=X, 
-                                                        y=y)
+        nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
+                                                n_jobs=self.n_jobs, 
+                                                **(nn_params))
         nn.fit(X)
         dist, ind = nn.kneighbors(X_min)
 
@@ -162,8 +160,8 @@ class NDO_sampling(OverSampling):
         # deciding if SMOTE is enough
         if alpha < self.T:
             smote = SMOTE(self.proportion, 
-                          nn_params={**self.nn_params, **{'metric_tensor': metric_tensor}},
-                          random_state=self.random_state)
+                          nn_params=nn_params,
+                          random_state=self._random_state_init)
             return smote.sample(X, y)
 
         # do the sampling

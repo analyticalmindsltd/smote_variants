@@ -106,7 +106,7 @@ When facing an imbalanced dataset, model selection is crucial to find the right 
                                             n_jobs= 10,
                                             max_n_sampler_parameters= 15)
 
-Note, that we have also supplied a cache path, it is used to store partial results, samplings and cross validation scores. The ``n_jobs`` parameter specifies the number of oversampling and classification jobs to be executed in parallel, and ``max_n_sampler_parameters` specifies the maximum number of reasonable parameter combinations tested for each oversampler. The function call returns the best performing oversampling object and the corresponding, best performing classifier object, respecting the 'glass2' dataset.
+Note, that we have also supplied a cache path, it is used to store partial results, samplings and cross validation scores. The ``n_jobs`` parameter specifies the number of oversampling and classification jobs to be executed in parallel, and ``max_n_sampler_parameters`` specifies the maximum number of reasonable parameter combinations tested for each oversampler. The function call returns the best performing oversampling object and the corresponding, best performing classifier object, respecting the 'glass2' dataset.
                                              
 Thorough evaluation involving multiple datasets
 ===============================================
