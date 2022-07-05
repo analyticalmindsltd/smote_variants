@@ -33,7 +33,7 @@ class NRAS(OverSampling):
 
     categories = [OverSampling.cat_sample_ordinary,
                   OverSampling.cat_noise_removal,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -122,7 +122,7 @@ class NRAS(OverSampling):
         # determining propensity scores using logistic regression
         lr = LogisticRegression(solver='lbfgs',
                                 n_jobs=self.n_jobs,
-                                random_state=self.random_state)
+                                random_state=self._random_state_init)
         lr.fit(X_trans, y)
         propensity = lr.predict_proba(X_trans)[:, np.where(
             lr.classes_ == self.min_label)[0][0]]
@@ -137,12 +137,12 @@ class NRAS(OverSampling):
         n_neighbors = min([len(X_new), self.n_neighbors+1])
 
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X_new, y)
 
         nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
                                                 n_jobs=self.n_jobs, 
                                                 **(nn_params))
+        print(X_new.shape, X_min_new.shape)
         nn.fit(X_new)
         ind = nn.kneighbors(X_min_new, return_distance=False)
 

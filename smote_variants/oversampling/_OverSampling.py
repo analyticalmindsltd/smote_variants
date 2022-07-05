@@ -2,6 +2,7 @@ import time
 
 from .._base import (StatisticsMixin, ParameterCheckingMixin,
                     ParameterCombinationsMixin, RandomStateMixin)
+from .._metric_tensor import MetricLearningMixin
 from .._logger import logger
 _logger = logger
 
@@ -10,7 +11,8 @@ __all__= ['OverSampling']
 class OverSampling(StatisticsMixin,
                    ParameterCheckingMixin,
                    ParameterCombinationsMixin,
-                   RandomStateMixin):
+                   RandomStateMixin,
+                   MetricLearningMixin):
     """
     Base class of oversampling methods
     """
@@ -31,7 +33,7 @@ class OverSampling(StatisticsMixin,
     cat_uses_clustering = 'Clus'
     cat_borderline = 'BL'
     cat_application = 'A'
-    cat_classifier_distance = 'CD'
+    cat_metric_learning = 'CD'
 
     def __init__(self):
         pass

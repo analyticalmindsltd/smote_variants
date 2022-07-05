@@ -30,7 +30,7 @@ class ADASYN(OverSampling):
                   OverSampling.cat_extensive,
                   OverSampling.cat_borderline,
                   OverSampling.cat_density_based,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  n_neighbors=5,
@@ -126,8 +126,7 @@ class ADASYN(OverSampling):
             return X.copy(), y.copy()
 
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # fitting nearest neighbors model to all samples
         n_neighbors = min([len(X_min), self.n_neighbors+1])

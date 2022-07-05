@@ -51,7 +51,7 @@ class NEATER(OverSampling):
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_borderline,
                   OverSampling.cat_changes_majority,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -137,20 +137,19 @@ class NEATER(OverSampling):
             return X.copy(), y.copy()
 
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # Applying SMOTE and ADASYN
         X_0, y_0 = SMOTE(proportion=self.proportion,
                          n_neighbors=self.smote_n_neighbors,
                          nn_params=nn_params,
                          n_jobs=self.n_jobs,
-                         random_state=self.random_state).sample(X, y)
+                         random_state=self._random_state_init).sample(X, y)
 
         X_1, y_1 = ADASYN(n_neighbors=self.b,
                           nn_params=nn_params,
                           n_jobs=self.n_jobs,
-                          random_state=self.random_state).sample(X, y)
+                          random_state=self._random_state_init).sample(X, y)
 
         X_new = np.vstack([X_0, X_1[len(X):]])
         y_new = np.hstack([y_0, y_1[len(y):]])

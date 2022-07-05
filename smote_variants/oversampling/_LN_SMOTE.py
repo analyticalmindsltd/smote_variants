@@ -37,7 +37,7 @@ class LN_SMOTE(OverSampling):
 
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_sample_componentwise,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -123,8 +123,7 @@ class LN_SMOTE(OverSampling):
             return X.copy(), y.copy()
 
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # nearest neighbors of each instance to each instance in the dataset
         nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors + 2,

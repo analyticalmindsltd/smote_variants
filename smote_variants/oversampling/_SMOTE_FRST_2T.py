@@ -54,7 +54,7 @@ class SMOTE_FRST_2T(OverSampling):
                   OverSampling.cat_noise_removal,
                   OverSampling.cat_sample_ordinary,
                   OverSampling.cat_application,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  n_neighbors=5,
@@ -152,8 +152,7 @@ class SMOTE_FRST_2T(OverSampling):
         gamma_M = self.gamma_M
 
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # iterating until the dataset becomes balanced
         while (len(X_min) + len(result_synth) + len(result_maj)) < len(X_maj):
@@ -175,7 +174,7 @@ class SMOTE_FRST_2T(OverSampling):
                           n_neighbors=self.n_neighbors,
                           nn_params=nn_params,
                           n_jobs=self.n_jobs,
-                          random_state=self.random_state)
+                          random_state=self._random_state_init)
             X_samp, y_samp = smote.sample(X, y)
             X_samp = X_samp[len(X):]
 

@@ -39,7 +39,7 @@ class AND_SMOTE(OverSampling):
 
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_sample_ordinary,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self, 
                  proportion=1.0, 
@@ -119,8 +119,7 @@ class AND_SMOTE(OverSampling):
         X_min = X[y == self.min_label]
 
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         K = min([len(X_min), self.K])
         # find K nearest neighbors of all samples
@@ -196,7 +195,7 @@ class AND_SMOTE(OverSampling):
         # finding nearest minority neighbors of minority samples
         nn = NearestNeighborsWithMetricTensor(n_neighbors=max(kappa) + 1, 
                                                 n_jobs=self.n_jobs, 
-                                                **(self.nn_params))
+                                                **(nn_params))
         nn.fit(X_min)
         ind = nn.kneighbors(X_min, return_distance=False)
 

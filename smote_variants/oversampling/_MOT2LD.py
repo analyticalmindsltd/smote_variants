@@ -48,7 +48,7 @@ class MOT2LD(OverSampling):
 
     categories = [OverSampling.cat_uses_clustering,
                   OverSampling.cat_sample_ordinary,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -154,12 +154,12 @@ class MOT2LD(OverSampling):
                       n_iter_without_progress=100,
                       n_iter=500,
                       verbose=0).fit_transform(X)
+        
         X_min = X_tsne[y == self.min_label]
         _logger.info(self.__class__.__name__ + ": " + "TSNE finished")
 
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X_tsne, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X_tsne, y)
 
         # fitting nearest neighbors model for all training data
         n_neighbors = min([len(X_min), self.k + 1])

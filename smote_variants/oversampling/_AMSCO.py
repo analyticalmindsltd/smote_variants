@@ -56,7 +56,7 @@ class AMSCO(OverSampling):
     categories = [OverSampling.cat_changes_majority,
                   OverSampling.cat_memetic,
                   OverSampling.cat_uses_classifier,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  *,
@@ -151,8 +151,7 @@ class AMSCO(OverSampling):
         n_cross_val = min([4, len(X_min)])
         
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
         
         def fitness(X_min, X_maj):
             """
@@ -269,7 +268,7 @@ class AMSCO(OverSampling):
                                   int(np.rint(particles[i][1])),
                                   nn_params=nn_params,
                                   n_jobs=self.n_jobs,
-                                  random_state=self.random_state)
+                                  random_state=self._random_state_init)
                     X_to_sample = np.vstack([X_maj, X_min])
                     y_to_sample_maj = np.repeat(
                         self.maj_label, len(X_maj))

@@ -5,7 +5,7 @@ from .noise_removal import NoiseFilter
 
 __all__= ['get_all_oversamplers',
           'get_n_quickest_oversamplers',
-          'get_classifier_distance_oversamplers',
+          'get_metric_learning_oversamplers',
           'get_all_oversamplers_multiclass',
           'get_n_quickest_oversamplers_multiclass',
           'get_all_noisefilters']
@@ -82,7 +82,7 @@ def get_n_quickest_oversamplers(n=10):
     return samplers[:n]
 
 
-def get_classifier_distance_oversamplers():
+def get_metric_learning_oversamplers():
     """
     Returns all oversampling classes supporting the use of classifier
     (random forest) induced distance metric for neighborhood calculations
@@ -94,7 +94,7 @@ def get_classifier_distance_oversamplers():
     oversamplers = get_all_oversamplers()
     
     return [o for o in oversamplers if 
-            OverSampling.cat_classifier_distance in o.categories]
+            OverSampling.cat_metric_learning in o.categories]
 
 def get_all_oversamplers_multiclass(strategy="eq_1_vs_many_successive"):
     """

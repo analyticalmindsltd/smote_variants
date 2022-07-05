@@ -44,7 +44,7 @@ class ISOMAP_Hybrid(OverSampling):
                   OverSampling.cat_noise_removal,
                   OverSampling.cat_dim_reduction,
                   OverSampling.cat_changes_majority,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -128,16 +128,14 @@ class ISOMAP_Hybrid(OverSampling):
 
         X_trans = self.isomap.fit_transform(X, y)
 
-        nn_params = self.nn_params.copy()
-        if not 'metric_tensor' in nn_params:
-            metric_tensor = MetricTensor(**self.nn_params).tensor(X_trans, y)
-            nn_params['metric_tensor']= metric_tensor
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X_trans, y)
 
         X_sm, y_sm = SMOTE(proportion=self.proportion,
                            n_neighbors=self.smote_n_neighbors,
                            nn_params=nn_params,
                            n_jobs=self.n_jobs,
-                           random_state=self.random_state).sample(X_trans, y)
+                           random_state=self._random_state_init).sample(X_trans, y)
 
         nc = NeighborhoodCleaningRule(n_jobs=self.n_jobs,
                                       nn_params=nn_params)

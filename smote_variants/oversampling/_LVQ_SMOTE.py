@@ -130,7 +130,7 @@ class LVQ_SMOTE(OverSampling):
         # clustering X_min to extract codebook
         n_clusters = min([len(X_min), self.n_clusters])
         kmeans = KMeans(n_clusters=n_clusters,
-                        random_state=self.random_state)
+                        random_state=self._random_state_init)
         kmeans.fit(X_min)
         codebook = kmeans.cluster_centers_
 
@@ -138,8 +138,7 @@ class LVQ_SMOTE(OverSampling):
         n_neighbors = min([len(X_min), self.n_neighbors])
 
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         nn= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
                                                 n_jobs=self.n_jobs, 

@@ -73,7 +73,7 @@ class DSMOTE(OverSampling):
     """
 
     categories = [OverSampling.cat_changes_majority,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -171,8 +171,7 @@ class DSMOTE(OverSampling):
         X_maj = X[y == self.maj_label]
 
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # fitting nearest neighbors model
         nn = NearestNeighborsWithMetricTensor(n_neighbors=len(X_maj), 

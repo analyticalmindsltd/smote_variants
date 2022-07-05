@@ -50,7 +50,7 @@ class SMOBD(OverSampling):
                   OverSampling.cat_density_based,
                   OverSampling.cat_extensive,
                   OverSampling.cat_noise_removal,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -148,7 +148,6 @@ class SMOBD(OverSampling):
         X_min = X[y == self.min_label]
 
         # running the OPTICS technique based on the sklearn implementation
-        # TODO: replace to sklearn call once it is stable
         min_samples = min([len(X_min)-1, self.min_samples])
         o = OPTICS(min_samples=min_samples,
                    max_eps=self.max_eps,
@@ -167,12 +166,11 @@ class SMOBD(OverSampling):
         n_neighbors = min([len(X_min), self.min_samples+1])
 
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         nn= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
                                                 n_jobs=self.n_jobs, 
-                                                **(self.nn_params))
+                                                **(nn_params))
         nn.fit(X_min)
         indices = nn.kneighbors(X_min, return_distance=False)
 
@@ -181,8 +179,11 @@ class SMOBD(OverSampling):
         factor_2 = np.array([len(x) for x in nn.radius_neighbors(
             X_min, radius=self.max_eps, return_distance=False)])
 
-        if max(factor_1) == 0 or max(factor_2) == 0:
+        if abs(max(factor_1)) < 1e-9 or abs(max(factor_2)) < 1e-9:
             return X.copy(), y.copy()
+
+        factor_1[factor_1 == np.inf]= max(factor_1[factor_1 != np.inf])*1.1
+        factor_2[factor_2 == np.inf]= max(factor_2[factor_2 != np.inf])*1.1
 
         factor_1 = factor_1/max(factor_1)
         factor_2 = factor_2/max(factor_2)

@@ -62,7 +62,7 @@ class SMOTE_PSOBAT(OverSampling):
                   OverSampling.cat_uses_clustering,
                   OverSampling.cat_sample_ordinary,
                   OverSampling.cat_memetic,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  *,
@@ -160,8 +160,7 @@ class SMOTE_PSOBAT(OverSampling):
             return X.copy(), y.copy()
 
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         def evaluate(K, proportion):
             """
@@ -178,7 +177,7 @@ class SMOTE_PSOBAT(OverSampling):
                           n_neighbors=K,
                           nn_params=nn_params,
                           n_jobs=self.n_jobs,
-                          random_state=self.random_state)
+                          random_state=self._random_state_init)
             X_samp, y_samp = smote.sample(X, y)
 
             # doing k-fold cross validation
@@ -186,7 +185,7 @@ class SMOTE_PSOBAT(OverSampling):
             preds = []
             tests = []
             for train, test in kfold.split(X_samp):
-                dt = DecisionTreeClassifier(random_state=self.random_state)
+                dt = DecisionTreeClassifier(random_state=self._random_state_init)
                 dt.fit(X_samp[train], y_samp[train])
                 preds.append(dt.predict(X_samp[test]))
                 tests.append(y_samp[test])
@@ -437,7 +436,7 @@ class SMOTE_PSOBAT(OverSampling):
                      n_neighbors=int(best_combination[0]),
                      nn_params=nn_params,
                      n_jobs=self.n_jobs,
-                     random_state=self.random_state).sample(X, y)
+                     random_state=self._random_state_init).sample(X, y)
 
     def get_params(self, deep=False):
         """

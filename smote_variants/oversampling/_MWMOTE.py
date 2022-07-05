@@ -55,7 +55,7 @@ class MWMOTE(OverSampling):
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_uses_clustering,
                   OverSampling.cat_borderline,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -161,8 +161,7 @@ class MWMOTE(OverSampling):
         minority = np.where(y == self.min_label)[0]
 
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # Step 1
         n_neighbors = min([len(X), self.k1 + 1])
@@ -253,7 +252,7 @@ class MWMOTE(OverSampling):
         _logger.info(self.__class__.__name__ + ": " + 'do clustering')
         n_clusters = min([len(X_min), self.M])
         kmeans = KMeans(n_clusters=n_clusters,
-                        random_state=self.random_state)
+                        random_state=self._random_state_init)
         kmeans.fit(X_min)
         imin_labels = kmeans.labels_[informative_minority]
 

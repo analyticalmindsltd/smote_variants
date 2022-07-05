@@ -36,7 +36,7 @@ class kmeans_SMOTE(OverSampling):
 
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_uses_clustering,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -125,7 +125,7 @@ class kmeans_SMOTE(OverSampling):
         # applying kmeans clustering to all data
         n_clusters = min([self.n_clusters, len(X)])
         kmeans = KMeans(n_clusters=n_clusters,
-                        random_state=self.random_state)
+                        random_state=self._random_state_init)
         kmeans.fit(X)
 
         # extracting clusters
@@ -146,9 +146,8 @@ class kmeans_SMOTE(OverSampling):
                             "number of clusters after filtering is 0")
             return X.copy(), y.copy()
 
-        nn_params= {**self.nn_params, 'metric_tensor': None}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params= {**self.nn_params}
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # Step 2 in the paper
         sparsity = []

@@ -40,7 +40,7 @@ class ASMOBD(OverSampling):
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_noise_removal,
                   OverSampling.cat_uses_clustering,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -181,8 +181,7 @@ class ASMOBD(OverSampling):
         noise = np.logical_and(cd > self.T_1, r > self.T_2)
 
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # fitting nearest neighbors models to identify the number of majority
         # samples in local environments
@@ -244,7 +243,7 @@ class ASMOBD(OverSampling):
                           iteration=self.iteration+1,
                           nn_params=nn_params,
                           n_jobs=self.n_jobs,
-                          random_state=self.random_state).sample(X, y)
+                          random_state=self._random_state_init).sample(X, y)
 
         # removing noise and adjusting the density factors accordingly
         X_min_not_noise = X_min[not_noise]
@@ -255,7 +254,13 @@ class ASMOBD(OverSampling):
                             "no not-noise minority sample remained")
             return X.copy(), y.copy()
 
+        df = np.nan_to_num(df, np.max(df[np.isfinite(df)])*1.1, posinf=True)
+
         df = np.delete(df, np.where(np.logical_not(not_noise))[0])
+
+        if np.sum(df) == 0:
+            df= np.repeat(1.0, len(df))
+
         density = df/np.sum(df)
         
         if np.any(np.isnan(density)):

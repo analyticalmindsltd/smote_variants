@@ -39,7 +39,7 @@ class GASMOTE(OverSampling):
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_memetic,
                   OverSampling.cat_sample_ordinary,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  n_neighbors=5,
@@ -136,8 +136,7 @@ class GASMOTE(OverSampling):
         n_neighbors = min([self.n_neighbors + 1, len(X_min)])
 
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
                                                         n_jobs=self.n_jobs, 
@@ -173,7 +172,7 @@ class GASMOTE(OverSampling):
             # execute kfold cross validation
             preds, tests = [], []
             for train, test in kfold.split(X_new):
-                dt = DecisionTreeClassifier(random_state=self.random_state)
+                dt = DecisionTreeClassifier(random_state=self._random_state_init)
                 dt.fit(X_new[train], y_new[train])
                 preds.append(dt.predict(X_new[test]))
                 tests.append(y_new[test])

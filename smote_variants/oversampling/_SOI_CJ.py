@@ -35,7 +35,7 @@ class SOI_CJ(OverSampling):
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_uses_clustering,
                   OverSampling.cat_sample_componentwise,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -104,8 +104,7 @@ class SOI_CJ(OverSampling):
             list(set): list of minority clusters
         """
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
         
         nn_all= NearestNeighborsWithMetricTensor(n_jobs=self.n_jobs, 
                                                     **nn_params)

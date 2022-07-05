@@ -48,7 +48,7 @@ class SSO(OverSampling):
                   OverSampling.cat_uses_classifier,
                   OverSampling.cat_uses_clustering,
                   OverSampling.cat_density_based,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -136,8 +136,7 @@ class SSO(OverSampling):
         samp_per_iter = max([1, int(n_to_sample/self.n_iter)])
 
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # executing the algorithm
         for _ in range(self.n_iter):
@@ -146,7 +145,7 @@ class SSO(OverSampling):
             # applying kmeans clustering to find the hidden neurons
             h = min([self.h, len(X_min)])
             kmeans = KMeans(n_clusters=h,
-                            random_state=self.random_state)
+                            random_state=self._random_state_init)
             kmeans.fit(X)
 
             # extracting the hidden center elements
@@ -206,6 +205,7 @@ class SSO(OverSampling):
                                  (vi2 + vr2))**len(x)
                         norm = np.linalg.norm(u[r] - u[i])
                         tmp_b = np.exp(-0.5 * norm**2/(vi2 + vr2))
+                        
                         res = res + tmp_a*tmp_b*np.prod(tmp_prod)*w[i]*w[r]
 
                 return (np.sqrt(np.pi)/(4*Q))**len(x)*res

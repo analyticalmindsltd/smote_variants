@@ -109,7 +109,7 @@ class OUPS(OverSampling):
         # extracting propensity scores
         lr = LogisticRegression(solver='lbfgs',
                                 n_jobs=self.n_jobs,
-                                random_state=self.random_state)
+                                random_state=self._random_state_init)
         lr.fit(X, y)
         propensity = lr.predict_proba(X)
         propensity = propensity[:, np.where(

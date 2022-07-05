@@ -43,7 +43,7 @@ class SVM_balance(OverSampling):
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_uses_classifier,
                   OverSampling.cat_changes_majority,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -118,7 +118,7 @@ class SVM_balance(OverSampling):
                      n_neighbors=self.n_neighbors,
                      nn_params=self.nn_params,
                      n_jobs=self.n_jobs,
-                     random_state=self.random_state).sample(X, y)
+                     random_state=self._random_state_init).sample(X, y)
 
         if sum(y == self.min_label) < 2:
             return X.copy(), y.copy()

@@ -14,6 +14,7 @@ __all__= ['NearestNeighborsWithClassifierDissimilarity',
           'NearestNeighborsWithMetricTensor',
           'ClassifierImpliedDissimilarityMatrix',
           'MetricTensor',
+          'MetricLearningMixin',
           'pairwise_distances_mahalanobis',
           'generate_samples',
           'AdditionalItems']
@@ -215,15 +216,19 @@ def estimate_mutual_information(X,
 def n_neighbors_func(X0, X1=None, n_neighbors=5, metric_tensor=None, return_distance=False):
     metric_tensor= metric_tensor if metric_tensor is not None else np.eye(X0.shape[1])
     X1= X1 if X1 is not None else X0
-    
+
     X_diffs= (X0[:,None] - X1)
-    dm= np.sqrt(np.einsum('ijk,ijk -> ij', X_diffs, np.dot(X_diffs, metric_tensor)).T)
-    results_ind= np.apply_along_axis(np.argsort, axis=1, arr=dm)[:,:n_neighbors]
     
+    dm= np.sqrt(np.einsum('ijk,ijk -> ij', 
+                            X_diffs, 
+                            np.dot(X_diffs, metric_tensor)).T)
+
+    results_ind= np.apply_along_axis(np.argsort, axis=1, arr=dm)[:,:(n_neighbors)]
+
     if not return_distance:
         return results_ind
     else:
-        dm[np.arange(dm.shape[0]), results_ind], results_ind
+        return dm[np.arange(dm.shape[0])[:,None], results_ind], results_ind
 
 class MetricTensor:
     def __init__(self,
@@ -268,7 +273,13 @@ class MetricTensor:
         
         return self.metric_tensor
 
-
+class MetricLearningMixin:
+    def metric_tensor_from_nn_params(self, nn_params, X, y):
+        if nn_params.get('metric', None) == 'precomputed' and nn_params.get('metric_tensor', None) is None:
+            return MetricTensor(**nn_params).tensor(X, y)
+        elif nn_params.get('metric_tensor', None) is not None:
+            return nn_params['metric_tensor']
+        return None
 
 class NearestNeighborsWithMetricTensor:
     def __init__(self,

@@ -52,7 +52,7 @@ class DE_oversampling(OverSampling):
 
     categories = [OverSampling.cat_changes_majority,
                   OverSampling.cat_uses_clustering,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -156,8 +156,7 @@ class DE_oversampling(OverSampling):
         n_neighbors = min([len(X_min), self.n_neighbors+1])
 
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         nn= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
                                                 n_jobs=self.n_jobs, 
@@ -199,7 +198,7 @@ class DE_oversampling(OverSampling):
         # cleansing based on clustering
         n_clusters = min([len(X), self.n_clusters])
         kmeans = KMeans(n_clusters=n_clusters,
-                        random_state=self.random_state)
+                        random_state=self._random_state_init)
         kmeans.fit(X)
         unique_labels = np.unique(kmeans.labels_)
 

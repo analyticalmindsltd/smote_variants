@@ -45,7 +45,7 @@ class NDO_sampling(OverSampling):
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_sample_ordinary,
                   OverSampling.cat_application,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -131,8 +131,7 @@ class NDO_sampling(OverSampling):
         # fitting nearest neighbors model to find the neighbors of minority
         # samples among all elements
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
         
         n_neighbors = min([len(X), self.n_neighbors+1])
         nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
@@ -162,7 +161,7 @@ class NDO_sampling(OverSampling):
         if alpha < self.T:
             smote = SMOTE(self.proportion, 
                           nn_params=nn_params,
-                          random_state=self.random_state)
+                          random_state=self._random_state_init)
             return smote.sample(X, y)
 
         # do the sampling

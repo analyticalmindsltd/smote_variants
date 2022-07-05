@@ -118,7 +118,7 @@ class Gazzah(OverSampling):
 
         # do the oversampling
         pf_smote = polynom_fit_SMOTE(proportion=self.proportion,
-                                     random_state=self.random_state)
+                                     random_state=self._random_state_init)
         X_samp, y_samp = pf_smote.sample(X, y)
         X_min_samp = X_samp[len(X):]
 

@@ -34,7 +34,7 @@ class SL_graph_SMOTE(OverSampling):
 
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_borderline,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -111,8 +111,7 @@ class SL_graph_SMOTE(OverSampling):
         n_neighbors = min([len(X), self.n_neighbors])
         
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
         
         nn= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
                                                 n_jobs=self.n_jobs, 
@@ -133,14 +132,14 @@ class SL_graph_SMOTE(OverSampling):
                                  n_neighbors=self.n_neighbors,
                                  nn_params=nn_params,
                                  n_jobs=self.n_jobs,
-                                 random_state=self.random_state)
+                                 random_state=self._random_state_init)
         else:
             # right skewed
             s = Borderline_SMOTE1(proportion=self.proportion,
                                   n_neighbors=self.n_neighbors,
                                   nn_params=nn_params,
                                   n_jobs=self.n_jobs,
-                                  random_state=self.random_state)
+                                  random_state=self._random_state_init)
 
         return s.sample(X, y)
 

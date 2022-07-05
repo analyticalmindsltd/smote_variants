@@ -50,7 +50,7 @@ class MDO(OverSampling):
 
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_dim_reduction,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -139,8 +139,7 @@ class MDO(OverSampling):
         K2 = min([self.K2 + 1, len(X)])
 
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # Algorithm 2 - chooseSamples
         nn = NearestNeighborsWithMetricTensor(n_neighbors=K2, 

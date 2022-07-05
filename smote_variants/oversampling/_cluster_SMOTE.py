@@ -37,7 +37,7 @@ class cluster_SMOTE(OverSampling):
 
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_uses_clustering,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -123,7 +123,7 @@ class cluster_SMOTE(OverSampling):
 
         n_clusters = min([len(X_min), self.n_clusters])
         kmeans = KMeans(n_clusters=n_clusters,
-                        random_state=self.random_state)
+                        random_state=self._random_state_init)
         kmeans.fit(X_min)
         cluster_labels = kmeans.labels_
         unique_labels = np.unique(cluster_labels)
@@ -133,8 +133,7 @@ class cluster_SMOTE(OverSampling):
                            for c in unique_labels]
 
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         def nneighbors(idx):
             n_neighbors = min([self.n_neighbors, len(cluster_indices[idx])])

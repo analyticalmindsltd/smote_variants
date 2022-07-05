@@ -55,7 +55,7 @@ class E_SMOTE(OverSampling):
                   OverSampling.cat_dim_reduction,
                   OverSampling.cat_memetic,
                   OverSampling.cat_changes_majority,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -131,10 +131,10 @@ class E_SMOTE(OverSampling):
         min_features = min(self.min_features, len(X[0]))
 
         if len(X) < 800:
-            classifier = SVC(gamma='auto', random_state=self.random_state)
+            classifier = SVC(gamma='auto', random_state=self._random_state_init)
         else:
             classifier = DecisionTreeClassifier(
-                max_depth=4, random_state=self.random_state)
+                max_depth=4, random_state=self._random_state_init)
 
         # parameters of the evolutionary algorithm
         n_generations = 50
@@ -221,7 +221,7 @@ class E_SMOTE(OverSampling):
                       n_neighbors=self.n_neighbors,
                       nn_params=self.nn_params,
                       n_jobs=self.n_jobs,
-                      random_state=self.random_state)
+                      random_state=self._random_state_init)
 
         return smote.sample(X[:, self.mask], y)
 

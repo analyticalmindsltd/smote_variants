@@ -34,7 +34,7 @@ class SN_SMOTE(OverSampling):
 
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_sample_ordinary,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -120,8 +120,7 @@ class SN_SMOTE(OverSampling):
         # nearest 10*n_neighbors neighbors
         
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
         
         n_neighbors = min([self.n_neighbors*10, len(X_min)])
         nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
@@ -134,6 +133,8 @@ class SN_SMOTE(OverSampling):
         ncn = np.zeros(shape=(len(X_min), self.n_neighbors)).astype(int)
         ncn_nums = np.zeros(len(X_min)).astype(int)
 
+        metric_tensor= nn_params['metric_tensor'] if nn_params.get('metric_tensor', None) is not None else np.eye(len(X[0]))
+
         # extracting nearest centroid neighbors
         for i in range(len(X_min)):
             # the first NCN neighbor is the first neighbor
@@ -144,13 +145,13 @@ class SN_SMOTE(OverSampling):
             n_cent = 1
             centroid = X_min[ncn[i, 0]]
             #cent_dist = np.linalg.norm(centroid - X_min[i])
-            cent_dist = np.sqrt(np.dot(np.dot((centroid - X_min[i]), nn_params.get('metric_tensor', np.eye(len(X[0])))), (centroid - X_min[i])))
+            cent_dist = np.sqrt(np.dot(np.dot((centroid - X_min[i]), metric_tensor), (centroid - X_min[i])))
             j = 2
             while j < len(ind[i]) and n_cent < self.n_neighbors:
                 #new_cent_dist = np.linalg.norm(
                 #    (centroid + X_min[ind[i][j]])/(n_cent + 1) - X_min[i])
                 diff_vect = (centroid + X_min[ind[i][j]])/(n_cent + 1) - X_min[i]
-                new_cent_dist = np.sqrt(np.dot(np.dot(diff_vect, nn_params.get('metric_tensor', np.eye(len(X[0])))), diff_vect))
+                new_cent_dist = np.sqrt(np.dot(np.dot(diff_vect, metric_tensor), diff_vect))
 
                 # checking if new nearest centroid neighbor found
                 if new_cent_dist < cent_dist:

@@ -51,7 +51,7 @@ class SUNDO(OverSampling):
 
     categories = [OverSampling.cat_changes_majority,
                   OverSampling.cat_application,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self, 
                  *,
@@ -119,9 +119,8 @@ class SUNDO(OverSampling):
         samples = []
 
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
-        
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+
         nn= NearestNeighborsWithMetricTensor(n_neighbors=1, 
                                                 n_jobs=self.n_jobs, 
                                                 **nn_params)
@@ -155,7 +154,9 @@ class SUNDO(OverSampling):
         X_maj_normalized = mms.fit_transform(X_maj)
 
         # computing the distance matrix
-        dm = pairwise_distances_mahalanobis(X_maj_normalized, X_maj_normalized, nn_params.get('metric_tensor', None))
+        dm = pairwise_distances_mahalanobis(X_maj_normalized,
+                                             X_maj_normalized, 
+                                             nn_params.get('metric_tensor', None))
 
         # len(X_maj) offsets for the diagonal 0 elements, 2N because
         # every distances appears twice

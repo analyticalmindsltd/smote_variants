@@ -54,7 +54,7 @@ class SMOTE_PSO(OverSampling):
     categories = [OverSampling.cat_extensive,
                   OverSampling.cat_memetic,
                   OverSampling.cat_uses_classifier,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  k=3,
@@ -157,8 +157,7 @@ class SMOTE_PSO(OverSampling):
         performance_threshold = 500
 
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X_scaled, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X_scaled, y)
 
         n_maj_to_remove = np.sum(
             y == self.maj_label) - performance_threshold
@@ -208,7 +207,7 @@ class SMOTE_PSO(OverSampling):
 
         # fitting SVM to extract initial support vectors
         svc = SVC(kernel='rbf', probability=True,
-                  gamma='auto', random_state=self.random_state)
+                  gamma='auto', random_state=self._random_state_init)
         svc.fit(X_scaled, y)
 
         # extracting the support vectors

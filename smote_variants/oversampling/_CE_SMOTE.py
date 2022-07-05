@@ -52,7 +52,7 @@ class CE_SMOTE(OverSampling):
                   OverSampling.cat_borderline,
                   OverSampling.cat_uses_clustering,
                   OverSampling.cat_sample_ordinary,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -146,7 +146,7 @@ class CE_SMOTE(OverSampling):
             features = self.random_state.choice(np.arange(d), f)
             n_clusters = min([len(X), self.k])
             kmeans = KMeans(n_clusters=n_clusters,
-                            random_state=self.random_state)
+                            random_state=self._random_state_init)
             kmeans.fit(X[:, features])
             labels.append(kmeans.labels_)
 
@@ -191,12 +191,11 @@ class CE_SMOTE(OverSampling):
         n_neighbors = min([len(P_boundary), self.k])
 
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
                                                 n_jobs=self.n_jobs, 
-                                                **(self.nn_params))
+                                                **(nn_params))
         nn.fit(P_boundary)
         ind = nn.kneighbors(P_boundary, return_distance=False)
 

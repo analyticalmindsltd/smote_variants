@@ -39,7 +39,7 @@ class SMOTE_IPF(OverSampling):
 
     categories = [OverSampling.cat_changes_majority,
                   OverSampling.cat_uses_classifier,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -139,7 +139,7 @@ class SMOTE_IPF(OverSampling):
                                n_neighbors=self.n_neighbors,
                                nn_params=self.nn_params,
                                n_jobs=self.n_jobs,
-                               random_state=self.random_state).sample(X, y)
+                               random_state=self._random_state_init).sample(X, y)
 
         n_folds = min([self.n_folds, np.sum(y == self.min_label)])
 

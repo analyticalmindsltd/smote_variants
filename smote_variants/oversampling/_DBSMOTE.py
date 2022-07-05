@@ -43,7 +43,7 @@ class DBSMOTE(OverSampling):
                   OverSampling.cat_noise_removal,
                   OverSampling.cat_uses_clustering,
                   OverSampling.cat_density_based,
-                  OverSampling.cat_classifier_distance]
+                  OverSampling.cat_metric_learning]
 
     def __init__(self,
                  proportion=1.0,
@@ -149,7 +149,7 @@ class DBSMOTE(OverSampling):
                                min_samples=self.min_samples-1,
                                nn_params=self.nn_params,
                                n_jobs=self.n_jobs,
-                               random_state=self.random_state).sample(X, y)
+                               random_state=self._random_state_init).sample(X, y)
 
         # determining cluster size distribution
         clusters = [np.where(labels == i)[0] for i in range(num_labels)]
@@ -212,8 +212,7 @@ class DBSMOTE(OverSampling):
             return d, p
 
         nn_params= {**self.nn_params}
-        if ('metric' in nn_params and nn_params['metric'] == 'precomputed'):
-            nn_params['metric_tensor'] = MetricTensor(**nn_params).tensor(X, y)
+        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # extract graphs and center-like objects
         graphs = []
