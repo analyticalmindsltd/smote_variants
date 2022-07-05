@@ -37,8 +37,7 @@ class SMOTE(OverSampling):
                  *,
                  nn_params={},
                  n_jobs=1,
-                 random_state=None,
-                 sampling_params={}):
+                 random_state=None):
         """
         Constructor of the SMOTE object
 
