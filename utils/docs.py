@@ -434,10 +434,10 @@ def create_downloads_page():
 
 def generate_doc_pages():
     create_documentation_page_os()
-    create_documentation_page_nf()
+    #create_documentation_page_nf()
     create_gallery_page()
     #create_ranking_page()
-    create_readme_page()
+    #create_readme_page()
     #create_downloads_page()
 
 generate_doc_pages()

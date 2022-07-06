@@ -217,7 +217,7 @@ class SYMPROD(OverSampling):
         phi = phi - phi.min()
         prob_dist = phi/phi.sum()
 
-        if np.any(np.nan(prob_dist)):
+        if np.any(np.isnan(prob_dist)):
             logger.info(self.__class__.__name__ + \
                 ": NaN values in the phi probability distribution, returning the original dataset")
             return X.copy(), y.copy()
