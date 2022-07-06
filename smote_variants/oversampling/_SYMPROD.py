@@ -89,8 +89,8 @@ class SYMPROD(OverSampling):
         """
         parameter_combinations = {'proportion': [1.0],
                                   'std_outliers': [3, 4],
-                                  'distance_nearest_neighbors': [5, 7],
-                                  'generate_nearest_neighbors': [5, 7],
+                                  'k_neighbors': [5, 7],
+                                  'm_neighbors': [5, 7],
                                   'cutoff_threshold': [1.0, 1.25, 1.5]}
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
@@ -168,7 +168,7 @@ class SYMPROD(OverSampling):
 
         # Calculate Closeness Factor(CF)
         if np.any(np.nansum(d_min_min, axis=1) == 0.0):
-            logger.warning(self.__class__.__name__ + "all minority samples are the same")
+            logger.warning(self.__class__.__name__ + ": all minority samples are the same")
             return X.copy(), y.copy()
         
         cf_min = 1.0/np.nansum(d_min_min, axis=1)
@@ -176,7 +176,7 @@ class SYMPROD(OverSampling):
         cf_norm_min = np.nan_to_num(cf_norm_min, 0.5)
 
         if np.any(np.nansum(d_maj_maj, axis=1) == 0.0):
-            logger.warning(self.__class__.__name__ + "all majority samples are the same")
+            logger.warning(self.__class__.__name__ + ": all majority samples are the same")
             return X.copy(), y.copy()
 
         cf_maj = 1.0/np.nansum(d_maj_maj, axis=1)
@@ -205,7 +205,8 @@ class SYMPROD(OverSampling):
         while not np.sum(tau_min >= tau_maj * cutoff_threshold) > 1:
             cutoff_threshold = cutoff_threshold - self.cutoff_threshold/10.0
 
-        logger.info("Cutoff value updated from %f to %f" % (self.cutoff_threshold, cutoff_threshold))
+        logger.info(self.__class__.__name__ + \
+            ": Cutoff value updated from %f to %f" % (self.cutoff_threshold, cutoff_threshold))
 
         mask = (tau_min >= tau_maj * cutoff_threshold)
 
@@ -215,6 +216,11 @@ class SYMPROD(OverSampling):
         phi = (tau_min[mask] + 1)/(tau_maj[mask] + 1)
         phi = phi - phi.min()
         prob_dist = phi/phi.sum()
+
+        if np.any(np.nan(prob_dist)):
+            logger.info(self.__class__.__name__ + \
+                ": NaN values in the phi probability distribution, returning the original dataset")
+            return X.copy(), y.copy()
 
         ###########################
         # III. Instance Synthesis #
@@ -226,6 +232,12 @@ class SYMPROD(OverSampling):
                                                     replace=True)
         
         m_neighbors = np.min([self.m_neighbors, len(X_min) - 4])
+
+        if m_neighbors < 2:
+            logger.info(self.__class__.__name__ + \
+                ": Not enough samples, for the parameter m_neighbors: %d" % self.m_neighbors)
+            return X.copy(), y.copy()
+
         nn_min_min = NearestNeighborsWithMetricTensor(m_neighbors + 3, 
                                                         n_jobs=self.n_jobs,
                                                         **nn_params).fit(X_min)
