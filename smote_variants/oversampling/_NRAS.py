@@ -143,7 +143,6 @@ class NRAS(OverSampling):
         nn = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors, 
                                                 n_jobs=self.n_jobs, 
                                                 **(nn_params))
-        print(X_new.shape, X_min_new.shape)
         nn.fit(X_new)
         ind = nn.kneighbors(X_min_new, return_distance=False)
 

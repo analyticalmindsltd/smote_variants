@@ -86,3 +86,4 @@ from ._ANS import *
 from ._cluster_SMOTE import *
 from ._E_SMOTE import *
 from ._ADOMS import *
+from ._SYMPROD import *
