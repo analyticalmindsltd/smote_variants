@@ -39,9 +39,8 @@ Latest News
 In the 0.5.0 release:
 
 1) A decent refactoring carried out splitting the individual oversamplers to separate files.
-2) SYMPROD added as the 86th oversampler implemented, thanks to @sakethbachu .
-3) An experimental feature: metric learning to determine the metric to be used for neighborhood 
-estimation added to 69 oversamplers.
+2) SYMPROD added as the 86th oversampler implemented, thanks to @sakethbachu
+3) An experimental feature: metric learning to determine the metric to be used for neighborhood estimation added to 69 oversamplers.
 4) A sample notebook to illustrate metric learning backed oversampling added.
 5) Support and CI pipelines for Python 3.9 and 3.10 added.
 
