@@ -1,4 +1,4 @@
-name: API workflow
+name: CodeCov
 
 on: [push, pull_request]
 
