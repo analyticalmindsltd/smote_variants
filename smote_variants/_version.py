@@ -6,4 +6,4 @@ Created on Fri Dec 28 17:21:13 2018
 @author: gykovacs
 """
 
-__version__= '0.4.0'
+__version__= '0.5.0'
