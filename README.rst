@@ -31,7 +31,7 @@
 
 
 SMOTE-variants for imbalanced learning
-==============
+======================================
 
 Latest News
 -----------
