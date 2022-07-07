@@ -5,7 +5,7 @@ What is ``smote_variants``?
 ===============================
 
 Imbalanced datasets are around. In fact, the synthetic oversampling of the minority class is able to improve classification performance in imbalanced learning scenarios.
-There are more than 85 variants of the classical Synthetic Minority Oversampling Technique (SMOTE) published, but source codes are available for only
+There are more than 86 variants of the classical Synthetic Minority Oversampling Technique (SMOTE) published, but source codes are available for only
 a handful of techniques. In this package we have implemented 85 variants of SMOTE in a common framework, and also supplied some model selection and evaluation codes.
 
 In order to get an impression on what to expect, an ordinary, imbalanced, 2D dataset can be seen in the left hand side, and the oversampled dataset on the right hand side:
