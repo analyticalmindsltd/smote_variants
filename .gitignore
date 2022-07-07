@@ -13,3 +13,5 @@ docs/_build/doctrees/*.doctree
 .eggs/*
 .prettierrc
 build/*
+*.whl
+*.gz
