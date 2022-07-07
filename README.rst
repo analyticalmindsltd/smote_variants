@@ -36,7 +36,7 @@ SMOTE-variants for imbalanced learning
 Latest News
 -----------
 
-In the 0.5.0 release:
+In the 0.5.1 release:
 
 1) A decent refactoring carried out splitting the individual oversamplers to separate files.
 2) SYMPROD added as the 86th oversampler implemented, thanks to @intouchkun
