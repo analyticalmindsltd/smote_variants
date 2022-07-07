@@ -12,3 +12,4 @@ docs/_build/doctrees/*
 docs/_build/doctrees/*.doctree
 .eggs/*
 .prettierrc
+build/*
