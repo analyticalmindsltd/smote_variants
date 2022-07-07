@@ -1,4 +1,4 @@
-setuptools>=41.0.0
+setuptools>=41.0.1
 joblib
 numpy
 pandas
