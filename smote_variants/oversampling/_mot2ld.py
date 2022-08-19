@@ -484,7 +484,7 @@ class MOT2LD(OverSamplingSimplex):
             # do the stochastic embedding
             X_tsne = TSNE(self.n_components, # pylint: disable=invalid-name
                         random_state=self.random_state,
-                        perplexity=10,
+                        perplexity=np.min([10, X.shape[0]-1]),
                         n_iter_without_progress=100,
                         n_iter=500,
                         verbose=0).fit_transform(X)
