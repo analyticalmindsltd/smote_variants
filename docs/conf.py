@@ -43,13 +43,13 @@ release = '0.5.1'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'sphinx.ext.napoleon',
     'sphinx.ext.autodoc',
     'sphinx.ext.intersphinx',
     'sphinx.ext.coverage',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
-    'sphinx.ext.githubpages',
-    'sphinx.ext.napoleon'
+    'sphinx.ext.githubpages'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -192,10 +192,12 @@ def remove_class_docstring(app, what, name, obj, options, lines):
     if what == 'class' and 'members' in options:
         del lines[:]
 
-def setup(app):
-    app.connect("autodoc-process-docstring", remove_class_docstring)
+#def setup(app):
+#    app.connect("autodoc-process-docstring", remove_class_docstring)
 
 # -- Options for intersphinx extension ---------------------------------------
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
+
+coverage_show_missing_items = True

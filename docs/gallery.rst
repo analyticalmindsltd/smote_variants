@@ -1,16 +1,14 @@
 Gallery
 ********
 
-In this page, we demonstrate the output of various oversampling                     and noise removal techniques, using default parameters.
+In this page, we demonstrate the output of various oversampling and noise removal techniques, using default parameters.
 
-For binary oversampling and nosie removal, an artificial database was used, available in the ``utils` directory of the github repository.
-
-For multiclass oversampling we have used the 'wine' dataset from                     ``sklearn.datasets``, which has 3 classes and many features, out                     which the first two coordinates have been used for visualization.
+For binary oversampling and nosie removal, an artificial database was used, available in the `datasets` module.
 
 Oversampling sample results
 ============================
 
-In the captions of the images some abbreviations                     referring to the operating principles are placed. Namely:
+In the captions of the images some abbreviations referring to the operating principles are placed. Namely:
 
     * NR: noise removal is involved
     * DR: dimension reduction is applied
@@ -27,9 +25,6 @@ In the captions of the images some abbreviations                     referring t
     * BL: identifies and samples the neighborhoods of borderline samples
     * A: developed for a specific application
 
-.. figure:: figures/base.png
-
-
 .. image:: figures/NoSMOTE.png
 .. image:: figures/SMOTE.png
 .. image:: figures/SMOTE_TomekLinks.png
@@ -43,7 +38,10 @@ In the captions of the images some abbreviations                     referring t
 .. image:: figures/LLE_SMOTE.png
 .. image:: figures/distance_SMOTE.png
 .. image:: figures/SMMO.png
-.. image:: figures/polynom_fit_SMOTE.png
+.. image:: figures/polynom_fit_SMOTE_bus.png
+.. image:: figures/polynom_fit_SMOTE_mesh.png
+.. image:: figures/polynom_fit_SMOTE_poly.png
+.. image:: figures/polynom_fit_SMOTE_star.png
 
 .. image:: figures/Stefanowski.png
 .. image:: figures/Safe_Level_SMOTE.png
@@ -138,11 +136,9 @@ In the captions of the images some abbreviations                     referring t
 .. image:: figures/E_SMOTE.png
 .. image:: figures/ADOMS.png
 .. image:: figures/SYMPROD.png
+
 Noise removal sample results
 =============================
-
-.. figure:: figures/base.png
-
 
 .. image:: figures/TomekLinkRemoval.png
 .. image:: figures/CondensedNearestNeighbors.png
@@ -151,21 +147,21 @@ Noise removal sample results
 
 .. image:: figures/NeighborhoodCleaningRule.png
 .. image:: figures/EditedNearestNeighbors.png
+
 Multiclass sample results
 ==========================
-
-.. figure:: figures/multiclass-base.png
-
 
 .. image:: figures/multiclass-SMOTE.png
 .. image:: figures/multiclass-Borderline_SMOTE1.png
 .. image:: figures/multiclass-Borderline_SMOTE2.png
 .. image:: figures/multiclass-ADASYN.png
 
-.. image:: figures/multiclass-LLE_SMOTE.png
 .. image:: figures/multiclass-distance_SMOTE.png
 .. image:: figures/multiclass-SMMO.png
-.. image:: figures/multiclass-polynom_fit_SMOTE.png
+.. image:: figures/multiclass-polynom_fit_SMOTE_mesh.png
+.. image:: figures/multiclass-polynom_fit_SMOTE_bus.png
+.. image:: figures/multiclass-polynom_fit_SMOTE_star.png
+.. image:: figures/multiclass-polynom_fit_SMOTE_poly.png
 
 .. image:: figures/multiclass-Safe_Level_SMOTE.png
 .. image:: figures/multiclass-MSMOTE.png
@@ -215,7 +211,6 @@ Multiclass sample results
 .. image:: figures/multiclass-G_SMOTE.png
 .. image:: figures/multiclass-NT_SMOTE.png
 .. image:: figures/multiclass-Lee.png
-.. image:: figures/multiclass-MDO.png
 
 .. image:: figures/multiclass-Random_SMOTE.png
 .. image:: figures/multiclass-A_SUWO.png
@@ -237,3 +232,4 @@ Multiclass sample results
 .. image:: figures/multiclass-ADOMS.png
 .. image:: figures/multiclass-SYMPROD.png
 
+.. image:: figures/multiclass-DE_oversampling.png

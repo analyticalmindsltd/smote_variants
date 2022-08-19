@@ -73,7 +73,7 @@ Multiclass oversampling is highly ambiguous task, as balancing various classes m
     
     dataset= datasets.load_wine()
     
-    oversampler= sv.MulticlassOversampling(sv.distance_SMOTE())
+    oversampler= sv.MulticlassOversampling(sv.distance_SMOTE)
     
     X_samp, y_samp= oversampler.sample(dataset['data'], dataset['target'])
 
@@ -87,26 +87,19 @@ When facing an imbalanced dataset, model selection is crucial to find the right 
     import smote_variants as sv
     import imbalanced_datasets as imbd
     
-    from sklearn.tree import DecisionTreeClassifier
-    from sklearn.neighbors import KNeighborsClassifier
+    datasets = [imbd.load_glass2]
+    oversamplers = sv.get_all_oversamplers(n_quickest=5)
+    oversamplers = sv.generate_parameter_combinations(oversamplers,
+                                                      n_max_comb=5)
+    classifiers = [('sklearn.neighbors', 'KNeighborsClassifier', {'n_neighbors': 3}),
+                  ('sklearn.neighbors', 'KNeighborsClassifier', {'n_neighbors': 5}),
+                  ('sklearn.tree', 'DecisionTreeClassifier', {})]
     
-    datasets= [imbd.load_glass2]
-    oversamplers= [sv.SMOTE_ENN, sv.NEATER, sv.Lee]
-    classifiers= [KNeighborsClassifier(n_neighbors= 3),
-                    KNeighborsClassifier(n_neighbors= 5),
-                    DecisionTreeClassifier()]
-    
-    cache_path= '/home/<user>/smote_validation/'
-    
-    sampler, classifier= model_selection(datasets,
-                                            oversamplers,
-                                            classifiers,
-                                            cache_path,
-                                            'auc',
-                                            n_jobs= 10,
-                                            max_n_sampler_parameters= 15)
+    sampler, classifier= model_selection(datasets=datasets,
+                                         oversamplers=oversamplers,
+                                         classifiers=classifiers)
 
-Note, that we have also supplied a cache path, it is used to store partial results, samplings and cross validation scores. The ``n_jobs`` parameter specifies the number of oversampling and classification jobs to be executed in parallel, and ``max_n_sampler_parameters`` specifies the maximum number of reasonable parameter combinations tested for each oversampler. The function call returns the best performing oversampling object and the corresponding, best performing classifier object, respecting the 'glass2' dataset.
+The function call returns the best performing oversampling object and the corresponding, best performing classifier object, respecting the 'glass2' dataset.
                                              
 Thorough evaluation involving multiple datasets
 ===============================================
@@ -118,87 +111,21 @@ Another scenario is the comparison and evaluation of a new oversampler to conven
     import smote_variants as sv
     import imbalanced_datasets as imbd
     
-    from sklearn.tree import DecisionTreeClassifier
-    from sklearn.neighbors import KNeighborsClassifier
-    
     datasets= [imbd.load_glass2, imbd.load_ecoli4]
-    oversamplers= [sv.SMOTE_ENN, sv.NEATER, sv.Lee]
-    classifiers= [KNeighborsClassifier(n_neighbors= 3),
-                    KNeighborsClassifier(n_neighbors= 5),
-                    DecisionTreeClassifier()]
     
-    cache_path= '/home/<user>/smote_validation/'
+    oversamplers = sv.get_all_oversamplers(n_quickest=5)
     
-    results= evaluate_oversamplers(datasets,
-                                    oversamplers,
-                                    classifiers,
-                                    cache_path,
-                                    n_jobs= 10,
-                                    max_n_sampler_parameters= 10)
+    oversamplers = sv.generate_parameter_combinations(oversamplers,
+                                                      n_max_comb=5)
+                                                      
+    classifiers = [('sklearn.neighbors', 'KNeighborsClassifier', {'n_neighbors': 3}),
+                  ('sklearn.neighbors', 'KNeighborsClassifier', {'n_neighbors': 5}),
+                  ('sklearn.tree', 'DecisionTreeClassifier', {})]
+    
+    results= evaluate_oversamplers(datasets=datasets,
+                                   oversamplers=oversamplers,
+                                   classifiers=classifiers,
+                                   n_jobs= 10)
 
-Again, the function uses 10 parallel jobs to execute oversampling and classification. In the example above, 2 datasets, 3 classifiers and maximum 10 oversampler parameter combinations are specified for 3 oversampling objects, which requires 2x3x10x3 180 cross-validations altogether. In the resulting pandas DataFrame, for each classifier type (KNeighborsClassifier and DecisionTreeClassifier), and for each oversampler the highest performance measures and the corresponding classifier and oversampler parameters are returned. The structure of the DataFrame is self-explaining.
-
-Reproducing the results in the comparative study
-================================================
-
-Although a 5-fold 3 times repeated stratified k-fold cross validation was executed, one might expect that the results still depend slightly on the foldings being used. In order to fully reproduce the results of the comparative study, download the foldings we use, and execute the following script by setting the cache_path to the path containing the downloaded foldings. The folding generator will pick-up and use the foldings supplied:
-
-.. code-block:: Python
-
-    import os, pickle, itertools
-
-    # import classifiers
-    from sklearn.calibration import CalibratedClassifierCV
-    from sklearn.svm import LinearSVC
-    from sklearn.neighbors import KNeighborsClassifier
-    from sklearn.tree import DecisionTreeClassifier
-    from smote_variants import MLPClassifierWrapper
-
-    # import SMOTE variants
-    import smote_variants as sv
-
-    # itertools to derive imbalanced databases
-    import imbalanced_databases as imbd
-
-    # global variables
-    folding_path= '/home/<user>/smote_foldings/'
-    max_sampler_parameter_combinations= 35
-    n_jobs= 5
-
-    # instantiate classifiers
-    sv_classifiers= [CalibratedClassifierCV(LinearSVC(C=1.0, penalty='l1', loss= 'squared_hinge', dual= False)),
-                    CalibratedClassifierCV(LinearSVC(C=1.0, penalty='l2', loss= 'hinge', dual= True)),
-                    CalibratedClassifierCV(LinearSVC(C=1.0, penalty='l2', loss= 'squared_hinge', dual= False)),
-                    CalibratedClassifierCV(LinearSVC(C=10.0, penalty='l1', loss= 'squared_hinge', dual= False)),
-                    CalibratedClassifierCV(LinearSVC(C=10.0, penalty='l2', loss= 'hinge', dual= True)),
-                    CalibratedClassifierCV(LinearSVC(C=10.0, penalty='l2', loss= 'squared_hinge', dual= False))]
-
-    mlp_classifiers= []
-    for x in itertools.product(['relu', 'logistic'], [1.0, 0.5, 0.1]):
-        mlp_classifiers.append(MLPClassifierWrapper(activation= x[0], hidden_layer_fraction= x[1]))
-
-    nn_classifiers= []
-    for x in itertools.product([3, 5, 7], ['uniform', 'distance'], [1, 2, 3]):
-        nn_classifiers.append(KNeighborsClassifier(n_neighbors= x[0], weights= x[1], p= x[2]))
-
-    dt_classifiers= []
-    for x in itertools.product(['gini', 'entropy'], [None, 3, 5]):
-        dt_classifiers.append(DecisionTreeClassifier(criterion= x[0], max_depth= x[1]))
-
-    classifiers= []
-    classifiers.extend(sv_classifiers)
-    classifiers.extend(mlp_classifiers)
-    classifiers.extend(nn_classifiers)
-    classifiers.extend(dt_classifiers)
-
-    datasets= imbd.get_data_loaders('study')
-
-    # instantiate the validation object
-    results= sv.evaluate_oversamplers(datasets,
-                                    samplers= sv.get_all_oversamplers(),
-                                    classifiers= classifiers,
-                                    cache_path= folding_path,
-                                    n_jobs= n_jobs,
-                                    remove_sampling_cache= True,
-                                    max_n_sampler_parameters= max_sampler_parameter_combinations)
+The function uses 10 parallel jobs to execute oversampling and classification. In the example above, 2 datasets, 3 classifiers and maximum 5 oversampler parameter combinations are specified for 3 oversampling objects, which requires 2x3x5x3 90 cross-validations altogether. In the resulting pandas DataFrame, for each classifier type (KNeighborsClassifier and DecisionTreeClassifier), and for each oversampler the highest performance measures and the corresponding classifier and oversampler parameters are returned. The structure of the DataFrame is self-explaining.
 

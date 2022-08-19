@@ -1,6 +1,10 @@
+"""
+This module sets the package level logger.
+"""
+
 import logging
 
-all= ['logger']
+__all__= ['logger']
 
 # setting the _logger format
 logger = logging.getLogger('smote_variants')

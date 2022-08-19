@@ -25,19 +25,14 @@ Querying and filtering oversamplers
 
 .. autofunction:: smote_variants.get_all_oversamplers
 
-.. autofunction:: smote_variants.get_n_quickest_oversamplers
-
-Cross validation
-================
-
-.. autofunction:: smote_variants.cross_validate
+.. autofunction:: smote_variants.queries.get_metric_learning_oversamplers
 
 Evaluation and validation
 =========================
 
-.. autofunction:: smote_variants.evaluate_oversamplers
+.. autofunction:: smote_variants.evaluation.evaluate_oversamplers
 
 Model selection
 ===============
 
-.. autofunction:: smote_variants.model_selection
+.. autofunction:: smote_variants.evaluation.model_selection
