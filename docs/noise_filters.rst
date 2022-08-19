@@ -8,7 +8,7 @@ TomekLinkRemoval
 API
 ^^^
 
-.. autoclass:: smote_variants.TomekLinkRemoval
+.. autoclass:: smote_variants.noise_removal.TomekLinkRemoval
     :members:
 
     .. automethod:: __init__
@@ -16,7 +16,7 @@ API
 Example
 ^^^^^^^
 
-    >>> noise_filter= smote_variants.TomekLinkRemoval()
+    >>> noise_filter= smote_variants.noise_removal.TomekLinkRemoval()
     >>> X_samp, y_samp= noise_filter.remove_noise(X, y)
 
 
@@ -58,7 +58,7 @@ CondensedNearestNeighbors
 API
 ^^^
 
-.. autoclass:: smote_variants.CondensedNearestNeighbors
+.. autoclass:: smote_variants.noise_removal.CondensedNearestNeighbors
     :members:
 
     .. automethod:: __init__
@@ -66,7 +66,7 @@ API
 Example
 ^^^^^^^
 
-    >>> noise_filter= smote_variants.CondensedNearestNeighbors()
+    >>> noise_filter= smote_variants.noise_removal.CondensedNearestNeighbors()
     >>> X_samp, y_samp= noise_filter.remove_noise(X, y)
 
 
@@ -100,7 +100,7 @@ OneSidedSelection
 API
 ^^^
 
-.. autoclass:: smote_variants.OneSidedSelection
+.. autoclass:: smote_variants.noise_removal.OneSidedSelection
     :members:
 
     .. automethod:: __init__
@@ -108,7 +108,7 @@ API
 Example
 ^^^^^^^
 
-    >>> noise_filter= smote_variants.OneSidedSelection()
+    >>> noise_filter= smote_variants.noise_removal.OneSidedSelection()
     >>> X_samp, y_samp= noise_filter.remove_noise(X, y)
 
 
@@ -148,7 +148,7 @@ CNNTomekLinks
 API
 ^^^
 
-.. autoclass:: smote_variants.CNNTomekLinks
+.. autoclass:: smote_variants.noise_removal.CNNTomekLinks
     :members:
 
     .. automethod:: __init__
@@ -156,7 +156,7 @@ API
 Example
 ^^^^^^^
 
-    >>> noise_filter= smote_variants.CNNTomekLinks()
+    >>> noise_filter= smote_variants.noise_removal.CNNTomekLinks()
     >>> X_samp, y_samp= noise_filter.remove_noise(X, y)
 
 
@@ -196,7 +196,7 @@ NeighborhoodCleaningRule
 API
 ^^^
 
-.. autoclass:: smote_variants.NeighborhoodCleaningRule
+.. autoclass:: smote_variants.noise_removal.NeighborhoodCleaningRule
     :members:
 
     .. automethod:: __init__
@@ -204,7 +204,7 @@ API
 Example
 ^^^^^^^
 
-    >>> noise_filter= smote_variants.NeighborhoodCleaningRule()
+    >>> noise_filter= smote_variants.noise_removal.NeighborhoodCleaningRule()
     >>> X_samp, y_samp= noise_filter.remove_noise(X, y)
 
 
@@ -244,7 +244,7 @@ EditedNearestNeighbors
 API
 ^^^
 
-.. autoclass:: smote_variants.EditedNearestNeighbors
+.. autoclass:: smote_variants.noise_removal.EditedNearestNeighbors
     :members:
 
     .. automethod:: __init__
@@ -252,7 +252,7 @@ API
 Example
 ^^^^^^^
 
-    >>> noise_filter= smote_variants.EditedNearestNeighbors()
+    >>> noise_filter= smote_variants.noise_removal.EditedNearestNeighbors()
     >>> X_samp, y_samp= noise_filter.remove_noise(X, y)
 
 

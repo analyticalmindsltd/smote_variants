@@ -20,7 +20,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/NoSMOTE.png
 
 
@@ -48,7 +47,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SMOTE.png
 
 
@@ -85,7 +83,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SMOTE_TomekLinks.png
 
 
@@ -133,7 +130,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SMOTE_ENN.png
 
 
@@ -184,7 +180,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/Borderline_SMOTE1.png
 
 
@@ -228,7 +223,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/Borderline_SMOTE2.png
 
 
@@ -272,7 +266,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/ADASYN.png
 
 
@@ -309,7 +302,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/AHC.png
 
 
@@ -355,7 +347,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/LLE_SMOTE.png
 
 
@@ -419,7 +410,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/distance_SMOTE.png
 
 
@@ -461,7 +451,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SMMO.png
 
 
@@ -490,14 +479,14 @@ Notes:
         samples are classified correctly be the ensemble.
 
 
-polynom_fit_SMOTE
------------------
+polynom_fit_SMOTE_bus
+---------------------
 
 
 API
 ^^^
 
-.. autoclass:: smote_variants::polynom_fit_SMOTE
+.. autoclass:: smote_variants::polynom_fit_SMOTE_bus
     :members:
 
     .. automethod:: __init__
@@ -505,12 +494,195 @@ API
 Example
 ^^^^^^^
 
-    >>> oversampler= smote_variants.polynom_fit_SMOTE()
+    >>> oversampler= smote_variants.polynom_fit_SMOTE_bus()
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
-.. image:: figures/polynom_fit_SMOTE.png
+.. image:: figures/polynom_fit_SMOTE_bus.png
+
+
+References:
+    * BibTex::
+
+        @INPROCEEDINGS{polynomial_fit_smote,
+                        author={Gazzah, S. and Amara, N. E. B.},
+                        booktitle={2008 The Eighth IAPR International
+                                    Workshop on Document Analysis Systems},
+                        title={New Oversampling Approaches Based on
+                                Polynomial Fitting for Imbalanced Data
+                                Sets},
+                        year={2008},
+                        volume={},
+                        number={},
+                        pages={677-684},
+                        keywords={curve fitting;learning (artificial
+                                    intelligence);mesh generation;pattern
+                                    classification;polynomials;sampling
+                                    methods;support vector machines;
+                                    oversampling approach;polynomial
+                                    fitting function;imbalanced data
+                                    set;pattern classification task;
+                                    class-modular strategy;support
+                                    vector machine;true negative rate;
+                                    true positive rate;star topology;
+                                    bus topology;polynomial curve
+                                    topology;mesh topology;Polynomials;
+                                    Topology;Support vector machines;
+                                    Support vector machine classification;
+                                    Pattern classification;Performance
+                                    evaluation;Training data;Text
+                                    analysis;Data engineering;Convergence;
+                                    writer identification system;majority
+                                    class;minority class;imbalanced data
+                                    sets;polynomial fitting functions;
+                                    class-modular strategy},
+                        doi={10.1109/DAS.2008.74},
+                        ISSN={},
+                        month={Sept},}
+
+
+polynom_fit_SMOTE_mesh
+----------------------
+
+
+API
+^^^
+
+.. autoclass:: smote_variants::polynom_fit_SMOTE_mesh
+    :members:
+
+    .. automethod:: __init__
+
+Example
+^^^^^^^
+
+    >>> oversampler= smote_variants.polynom_fit_SMOTE_mesh()
+    >>> X_samp, y_samp= oversampler.sample(X, y)
+
+
+.. image:: figures/polynom_fit_SMOTE_mesh.png
+
+
+References:
+    * BibTex::
+
+        @INPROCEEDINGS{polynomial_fit_smote,
+                        author={Gazzah, S. and Amara, N. E. B.},
+                        booktitle={2008 The Eighth IAPR International
+                                    Workshop on Document Analysis Systems},
+                        title={New Oversampling Approaches Based on
+                                Polynomial Fitting for Imbalanced Data
+                                Sets},
+                        year={2008},
+                        volume={},
+                        number={},
+                        pages={677-684},
+                        keywords={curve fitting;learning (artificial
+                                    intelligence);mesh generation;pattern
+                                    classification;polynomials;sampling
+                                    methods;support vector machines;
+                                    oversampling approach;polynomial
+                                    fitting function;imbalanced data
+                                    set;pattern classification task;
+                                    class-modular strategy;support
+                                    vector machine;true negative rate;
+                                    true positive rate;star topology;
+                                    bus topology;polynomial curve
+                                    topology;mesh topology;Polynomials;
+                                    Topology;Support vector machines;
+                                    Support vector machine classification;
+                                    Pattern classification;Performance
+                                    evaluation;Training data;Text
+                                    analysis;Data engineering;Convergence;
+                                    writer identification system;majority
+                                    class;minority class;imbalanced data
+                                    sets;polynomial fitting functions;
+                                    class-modular strategy},
+                        doi={10.1109/DAS.2008.74},
+                        ISSN={},
+                        month={Sept},}
+
+polynom_fit_SMOTE_star
+----------------------
+
+
+API
+^^^
+
+.. autoclass:: smote_variants::polynom_fit_SMOTE_star
+    :members:
+
+    .. automethod:: __init__
+
+Example
+^^^^^^^
+
+    >>> oversampler= smote_variants.polynom_fit_SMOTE_star()
+    >>> X_samp, y_samp= oversampler.sample(X, y)
+
+
+.. image:: figures/polynom_fit_SMOTE_star.png
+
+
+References:
+    * BibTex::
+
+        @INPROCEEDINGS{polynomial_fit_smote,
+                        author={Gazzah, S. and Amara, N. E. B.},
+                        booktitle={2008 The Eighth IAPR International
+                                    Workshop on Document Analysis Systems},
+                        title={New Oversampling Approaches Based on
+                                Polynomial Fitting for Imbalanced Data
+                                Sets},
+                        year={2008},
+                        volume={},
+                        number={},
+                        pages={677-684},
+                        keywords={curve fitting;learning (artificial
+                                    intelligence);mesh generation;pattern
+                                    classification;polynomials;sampling
+                                    methods;support vector machines;
+                                    oversampling approach;polynomial
+                                    fitting function;imbalanced data
+                                    set;pattern classification task;
+                                    class-modular strategy;support
+                                    vector machine;true negative rate;
+                                    true positive rate;star topology;
+                                    bus topology;polynomial curve
+                                    topology;mesh topology;Polynomials;
+                                    Topology;Support vector machines;
+                                    Support vector machine classification;
+                                    Pattern classification;Performance
+                                    evaluation;Training data;Text
+                                    analysis;Data engineering;Convergence;
+                                    writer identification system;majority
+                                    class;minority class;imbalanced data
+                                    sets;polynomial fitting functions;
+                                    class-modular strategy},
+                        doi={10.1109/DAS.2008.74},
+                        ISSN={},
+                        month={Sept},}
+
+polynom_fit_SMOTE_poly
+----------------------
+
+
+API
+^^^
+
+.. autoclass:: smote_variants::polynom_fit_SMOTE_poly
+    :members:
+
+    .. automethod:: __init__
+
+Example
+^^^^^^^
+
+    >>> oversampler= smote_variants.polynom_fit_SMOTE_poly()
+    >>> X_samp, y_samp= oversampler.sample(X, y)
+
+
+.. image:: figures/polynom_fit_SMOTE_poly.png
 
 
 References:
@@ -572,7 +744,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/Stefanowski.png
 
 
@@ -618,7 +789,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/Safe_Level_SMOTE.png
 
 
@@ -674,7 +844,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/MSMOTE.png
 
 
@@ -730,7 +899,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/DE_oversampling.png
 
 
@@ -790,7 +958,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SMOBD.png
 
 
@@ -846,7 +1013,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SUNDO.png
 
 
@@ -903,7 +1069,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/MSYN.png
 
 
@@ -965,7 +1130,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SVM_balance.png
 
 
@@ -1014,7 +1178,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/TRIM_SMOTE.png
 
 
@@ -1066,7 +1229,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SMOTE_RSB.png
 
 
@@ -1125,7 +1287,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/ProWSyn.png
 
 
@@ -1173,7 +1334,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SL_graph_SMOTE.png
 
 
@@ -1213,7 +1373,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/NRSBoundary_SMOTE.png
 
 
@@ -1251,7 +1410,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/LVQ_SMOTE.png
 
 
@@ -1301,7 +1459,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SOI_CJ.png
 
 
@@ -1341,7 +1498,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/ROSE.png
 
 
@@ -1391,7 +1547,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SMOTE_OUT.png
 
 
@@ -1429,7 +1584,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SMOTE_Cosine.png
 
 
@@ -1467,23 +1621,22 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/Selected_SMOTE.png
 
 
 References:
     * BibTex::
 
-    @article{smote_out_smote_cosine_selected_smote,
-              title={SMOTE-Out, SMOTE-Cosine, and Selected-SMOTE: An
-                        enhancement strategy to handle imbalance in
-                        data level},
-              author={Fajri Koto},
-              journal={2014 International Conference on Advanced
-                        Computer Science and Information System},
-              year={2014},
-              pages={280-284}
-            }
+        @article{smote_out_smote_cosine_selected_smote,
+                title={SMOTE-Out, SMOTE-Cosine, and Selected-SMOTE: An
+                            enhancement strategy to handle imbalance in
+                            data level},
+                author={Fajri Koto},
+                journal={2014 International Conference on Advanced
+                            Computer Science and Information System},
+                year={2014},
+                pages={280-284}
+                }
 
 Notes:
     * Significant attribute selection was not described in the paper,
@@ -1509,7 +1662,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/LN_SMOTE.png
 
 
@@ -1558,7 +1710,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/MWMOTE.png
 
 
@@ -1622,7 +1773,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/PDFOS.png
 
 
@@ -1669,7 +1819,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/IPADE_ID.png
 
 
@@ -1724,7 +1873,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/RWO_sampling.png
 
 
@@ -1762,7 +1910,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/NEATER.png
 
 
@@ -1818,7 +1965,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/DEAGO.png
 
 
@@ -1876,7 +2022,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/Gazzah.png
 
 
@@ -1940,7 +2085,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/MCT.png
 
 
@@ -1983,7 +2127,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/ADG.png
 
 
@@ -2030,7 +2173,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SMOTE_IPF.png
 
 
@@ -2077,7 +2219,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/KernelADASYN.png
 
 
@@ -2145,7 +2286,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/MOT2LD.png
 
 
@@ -2202,7 +2342,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/V_SYNTH.png
 
 
@@ -2259,7 +2398,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/OUPS.png
 
 
@@ -2305,7 +2443,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SMOTE_D.png
 
 
@@ -2353,7 +2490,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SMOTE_PSO.png
 
 
@@ -2414,7 +2550,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/CURE_SMOTE.png
 
 
@@ -2464,7 +2599,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SOMO.png
 
 
@@ -2508,7 +2642,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/CE_SMOTE.png
 
 
@@ -2567,7 +2700,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/ISOMAP_Hybrid.png
 
 
@@ -2616,7 +2748,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/Edge_Det_SMOTE.png
 
 
@@ -2672,7 +2803,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/CBSO.png
 
 
@@ -2720,7 +2850,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/DBSMOTE.png
 
 
@@ -2770,7 +2899,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/ASMOBD.png
 
 
@@ -2818,7 +2946,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/Assembled_SMOTE.png
 
 
@@ -2888,7 +3015,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SDSMOTE.png
 
 
@@ -2948,7 +3074,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/DSMOTE.png
 
 
@@ -3028,7 +3153,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/G_SMOTE.png
 
 
@@ -3092,7 +3216,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/NT_SMOTE.png
 
 
@@ -3155,7 +3278,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/Lee.png
 
 
@@ -3208,7 +3330,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SPY.png
 
 
@@ -3268,7 +3389,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SMOTE_PSOBAT.png
 
 
@@ -3335,7 +3455,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/MDO.png
 
 
@@ -3395,7 +3514,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/Random_SMOTE.png
 
 
@@ -3438,7 +3556,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/ISMOTE.png
 
 
@@ -3483,7 +3600,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/VIS_RST.png
 
 
@@ -3531,7 +3647,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/GASMOTE.png
 
 
@@ -3578,7 +3693,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/A_SUWO.png
 
 
@@ -3624,7 +3738,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SMOTE_FRST_2T.png
 
 
@@ -3682,7 +3795,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/AND_SMOTE.png
 
 
@@ -3733,7 +3845,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/NRAS.png
 
 
@@ -3775,7 +3886,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/AMSCO.png
 
 
@@ -3836,7 +3946,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SSO.png
 
 
@@ -3887,7 +3996,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/DSRBF.png
 
 
@@ -3944,7 +4052,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/NDO_sampling.png
 
 
@@ -3997,7 +4104,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/Gaussian_SMOTE.png
 
 
@@ -4034,7 +4140,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/kmeans_SMOTE.png
 
 
@@ -4078,7 +4183,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/Supervised_SMOTE.png
 
 
@@ -4123,7 +4227,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SN_SMOTE.png
 
 
@@ -4169,7 +4272,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/CCR.png
 
 
@@ -4211,7 +4313,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/ANS.png
 
 
@@ -4255,7 +4356,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/cluster_SMOTE.png
 
 
@@ -4302,7 +4402,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/E_SMOTE.png
 
 
@@ -4363,7 +4462,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/ADOMS.png
 
 
@@ -4417,7 +4515,6 @@ Example
     >>> X_samp, y_samp= oversampler.sample(X, y)
 
 
-.. image:: figures/base.png
 .. image:: figures/SYMPROD.png
 
 
@@ -4433,5 +4530,3 @@ References:
                 year={2020},
                 publisher={IEEE}
             }
-
-
