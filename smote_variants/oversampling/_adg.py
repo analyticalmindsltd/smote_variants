@@ -64,7 +64,8 @@ def bic_score(kmeans, X):
 
         return term_0 - term_1 - term_2 - term_3
 
-    bic = np.sum([bic_comp(idx) for idx in range(n_clusters)]) - const_term
+    bic = np.sum([bic_comp(idx) for idx in range(n_clusters)
+                                if n_in_clusters[idx] > 0]) - const_term
 
     return bic
 
