@@ -46,12 +46,12 @@ SMOTE-variants for imbalanced learning
 Latest News
 -----------
 
-- A decent refactoring carried out splitting the individual oversamplers to separate files.
+- vectorized implementations for most of the techniques to boost performance
+- a refactored and improved evaluation and model selection toolkit
+- 100% test coverage
+- 10.0 PEP8 conformancy (by pylint)
+- polynom_fit_SMOTE split to 4 different techniques
 - SYMPROD added as the 86th oversampler implemented, thanks to @intouchkun
-- An experimental feature: metric learning to determine the metric to be used for neighborhood estimation added to 69 oversamplers.
-- A sample notebook to illustrate metric learning backed oversampling added.
-- Support and CI pipelines for Python 3.9 and 3.10 added.
-
 
 Introduction
 ------------

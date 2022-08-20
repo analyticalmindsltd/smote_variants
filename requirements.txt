@@ -10,3 +10,4 @@ keras
 mkl
 metric-learn
 seaborn
+common-datasets

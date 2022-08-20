@@ -1,6 +1,15 @@
 Release History
 ***************
 
+Version 0.6.0 (2022.08.20.)
+===========================
+
+* vectorized implementations for most of the techniques to boost performance
+* a refactored and improved evaluation and model selection toolkit
+* 100% test coverage
+* 10.0 PEP8 conformancy (by pylint)
+* polynom_fit_SMOTE split to 4 different techniques
+
 Version 0.5.0 (2022.07.05.)
 ===========================
 

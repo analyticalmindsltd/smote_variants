@@ -16,3 +16,4 @@ build/*
 *.whl
 *.gz
 .vscode/*
+.vscode/settings.json

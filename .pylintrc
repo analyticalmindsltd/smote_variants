@@ -1,0 +1,35 @@
+[BASIC]
+
+good-names=X,X_maj,X_min,X_base,X_new,X_neighbors,y,X_test,X_samp,X_train,
+    X_final,X_training,X_vertices,X_joint,X_simp,X_all,X_tu_indices,X_fitted,
+    X_target,X_diff,X_mod,X_a,X_b,X_c,y_a,y_b,y_c,X_orig,Y,X_neighbor,
+    A_SUWO,ADASYN,ADG,ADOMS,AHC,AMSCO,AND_SMOTE,ANS,ASMOBD,Assembled_SMOTE,
+    Borderline_SMOTE1,Borderline_SMOTE2,
+    CBSO,CCR,CE_SMOTE,Cluster_SMOTE,CURE_SMOTE,
+    DBSMOTE,DE_Oversampling,DEAGO,distance_SMOTE,DSMOTE,DSRBF,
+    E_SMOTE,Edge_Det_SMOTE,
+    G_SMOTE,GASMOTE,Gaussian_SMOTE,Gazzah,
+    IPADE_ID,ISMOTE,ISOMAP_Hybrid,
+    KernelADASYN,kmeans_SMOTE,
+    Lee,LLE_SMOTE,LVQ_SMOTE,
+    MCT,MDO,MOT2LD,MSMOTE,MSYN,MWMOTE,
+    NDO_sampling,NEATER,NoSMOTE,NRAS,NRSBoundary_SMOTE,NT_SMOTE,
+    OUPS,
+    PDFOS,polynom_fit_SMOTE,ProWSyn,
+    Random_SMOTE,ROSE,RWO_sampling,
+    Safe_Level_SMOTE,SDSMOTE,Selected_SMOTE,SL_graph_SMOTE,SMMO,SMOBD,
+    SMOTE_Cosine,SMOTE_D,SMOTE_ENN,SMOTE_FRST_2T,SMOTE_IPF,SMOTE_OUT,
+    SMOTE_PSO,SMOTE_PSOBAT,SMOTE_RSB,SMOTE_TomekLinks,SMOTE,SN_SMOTE,
+    SOI_CJ,SOMO,SPY,SSO,Stefanowski,SUNDO,Supervised_SMOTE,SVM_balance,
+    SYMPROD,
+    TRIM_SMOTE,
+    V_SYNTH,VIS_RST
+
+
+disable=duplicate-code
+
+[TYPECHECK]
+
+ignored-modules=numpy,scipy,tensorflow,tensorflow.keras.layers,
+    tensorflow.keras.models,tensorflow.keras.callbacks,tensorflow.keras,
+    scipy.special
