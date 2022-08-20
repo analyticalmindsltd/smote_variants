@@ -9,4 +9,3 @@ tensorflow
 keras
 mkl
 metric-learn
-seaborn
