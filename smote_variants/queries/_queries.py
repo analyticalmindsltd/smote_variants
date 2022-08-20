@@ -50,7 +50,7 @@ def determine_n_quickest(oversamplers, n_quickest):
     pairs = [(osampler, runtimes[osampler.__name__])
                                 for osampler in oversamplers]
 
-    sorted_pairs = list(reversed(sorted(pairs, key=lambda x: x[1])))
+    sorted_pairs = sorted(pairs, key=lambda x: x[1])
 
     n_quickest = np.min([n_quickest, len(oversamplers)])
 
