@@ -214,6 +214,56 @@ def do_parse_results(results, parse_results, serialization):
         return pdf_avg
     return results
 
+def cached_evaluation(*, folding,
+                        oversamplers,
+                        classifiers,
+                        scaler,
+                        cache_path,
+                        serialization,
+                        n_jobs,
+                        clean_up):
+    """
+    Executes cached evaluation
+
+    Args:
+        folding (obj): a folding object
+        oversamplers (list): list of oversampling classes/objects
+        classifiers (list): list of classifier objects
+        scaler (tuple): scaler object
+        cache_path (str): path to a cache directory
+        serialization (str): serialization method 'json'/'pickle'
+        n_jobs (int): number of parallel jobs
+        clean_up (str): 'oversamplings'/'all'
+
+    Returns:
+        list: the results
+    """
+    folding.cache_foldings()
+
+    cache_path_tmp = os.path.join(cache_path, folding.properties['name'])
+
+    results_os = Parallel(n_jobs=n_jobs,
+                        batch_size=1)(delayed(execute_1_os)(fold,
+                                                    oversamplers,
+                                                    scaler,
+                                                    cache_path_tmp,
+                                                    serialization)
+                                for fold in folding.folding_files())
+
+    results = []
+    for result in results_os:
+        results.extend(result)
+
+    results = Parallel(n_jobs=n_jobs,
+                        batch_size=1)(delayed(execute_1_eval)(overs,
+                                                            classifiers,
+                                                            cache_path_tmp,
+                                                            serialization)
+                                    for overs in results)
+
+    do_clean_up(cache_path_tmp, clean_up)
+
+    return results
 
 def evaluate_oversamplers(datasets,
                             oversamplers,
@@ -244,7 +294,6 @@ def evaluate_oversamplers(datasets,
         clean_up (str): 'oversamplings'/'all'
         n_jobs (int): number of parallel jobs
         parse_results (bool): whether to parse the results when caching happens
-        asf (bool): asdf
 
     Returns:
         pd.DataFrame: the evaluation results
@@ -281,9 +330,9 @@ def evaluate_oversamplers(datasets,
 
     for dataset in datasets:
         folding = Folding(dataset,
-                    cache_path=cache_path,
-                    validator_params=validator_params,
-                    serialization=serialization)
+                            cache_path=cache_path,
+                            validator_params=validator_params,
+                            serialization=serialization)
 
         if cache_path is None:
             results = Parallel(n_jobs=n_jobs,
@@ -294,36 +343,18 @@ def evaluate_oversamplers(datasets,
                                                                 serialization)
                                                 for fold in folding.fold())
 
-            for result in results:
-                all_results.extend(result)
         else:
-            folding.cache_foldings()
+            results = cached_evaluation(folding=folding,
+                                        oversamplers=oversamplers,
+                                        classifiers=classifiers,
+                                        scaler=scaler,
+                                        cache_path=cache_path,
+                                        serialization=serialization,
+                                        n_jobs=n_jobs,
+                                        clean_up=clean_up)
 
-            cache_path_tmp = os.path.join(cache_path, folding.properties['name'])
-
-            results_os = Parallel(n_jobs=n_jobs,
-                                batch_size=1)(delayed(execute_1_os)(fold,
-                                                            oversamplers,
-                                                            scaler,
-                                                            cache_path_tmp,
-                                                            serialization)
-                                        for fold in folding.folding_files())
-
-            results = []
-            for result in results_os:
-                results.extend(result)
-
-            results = Parallel(n_jobs=n_jobs,
-                                batch_size=1)(delayed(execute_1_eval)(overs,
-                                                                    classifiers,
-                                                                    cache_path_tmp,
-                                                                    serialization)
-                                            for overs in results)
-
-            for result in results:
-                all_results.extend(result)
-
-            do_clean_up(cache_path_tmp, clean_up)
+        for result in results:
+            all_results.extend(result)
 
     return do_parse_results(all_results, parse_results, serialization)
 
