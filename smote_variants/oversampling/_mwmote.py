@@ -349,7 +349,7 @@ class MWMOTE(OverSamplingSimplex):
         Returns:
             np.array: the cluster probabilities
         """
-        cluster_weights = np.zeros(shape=(len(np.unique(cluster_labels)),))
+        cluster_weights = np.zeros(shape=(np.max(cluster_labels) + 1,))
         for idx, p_idx in enumerate(informative_minority):
             cluster_weights[cluster_labels[p_idx]] += \
                                     selection_probabilities[idx]
