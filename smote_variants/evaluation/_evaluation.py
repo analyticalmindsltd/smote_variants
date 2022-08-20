@@ -77,6 +77,7 @@ class EvaluationJob:
 
         label0 = str(classifier).encode('utf-8')
         label1 = str((oversampling['oversampler'])).encode('utf-8')
+
         hashcode = str(hashlib.md5(label0 + label1).hexdigest())
 
         damaged = False
@@ -90,7 +91,6 @@ class EvaluationJob:
             damaged = check_if_damaged(target_filename, self.serialization)
 
         return target_filename, damaged
-
 
     def do_evaluation(self):
         """

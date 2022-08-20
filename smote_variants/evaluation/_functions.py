@@ -77,6 +77,7 @@ def execute_1_os(fold,
     Returns:
         list: the results
     """
+    results = []
     for oversampler in oversamplers:
         job = SamplingJob(fold,
                             oversampler[1],
@@ -84,8 +85,8 @@ def execute_1_os(fold,
                             scaler=scaler,
                             cache_path=cache_path,
                             serialization=serialization)
-        result = job.do_oversampling()
-    return result
+        results.append(job.do_oversampling())
+    return results
 
 def execute_1_eval(oversampling,
                     classifiers,
@@ -298,27 +299,31 @@ def evaluate_oversamplers(datasets,
         else:
             folding.cache_foldings()
 
-            cache_path = os.path.join(cache_path, folding.properties['name'])
+            cache_path_tmp = os.path.join(cache_path, folding.properties['name'])
 
-            results = Parallel(n_jobs=n_jobs,
+            results_os = Parallel(n_jobs=n_jobs,
                                 batch_size=1)(delayed(execute_1_os)(fold,
                                                             oversamplers,
                                                             scaler,
-                                                            cache_path,
+                                                            cache_path_tmp,
                                                             serialization)
                                         for fold in folding.folding_files())
+
+            results = []
+            for result in results_os:
+                results.extend(result)
 
             results = Parallel(n_jobs=n_jobs,
                                 batch_size=1)(delayed(execute_1_eval)(overs,
                                                                     classifiers,
-                                                                    cache_path,
+                                                                    cache_path_tmp,
                                                                     serialization)
                                             for overs in results)
 
             for result in results:
                 all_results.extend(result)
 
-            do_clean_up(cache_path, clean_up)
+            do_clean_up(cache_path_tmp, clean_up)
 
     return do_parse_results(all_results, parse_results, serialization)
 
