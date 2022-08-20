@@ -54,7 +54,7 @@ def test_execute_1_subjob():
                             cache_path=None)
     assert len(result) > 0
 
-    result = execute_1_eval(result,
+    result = execute_1_eval(result[0],
                             classifiers,
                             serialization='json',
                             cache_path=None)
