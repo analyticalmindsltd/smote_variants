@@ -29,6 +29,16 @@
 .. |Gitter| image:: https://badges.gitter.im/smote_variants.svg
 .. _Gitter: https://gitter.im/smote_variants?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 
+::
+
+                                _                                  _                _
+         ___  _ __ ___    ___  | |_  ___       __   __ __ _  _ __ (_)  __ _  _ __  | |_  ___
+        / __|| '_ ` _ \  / _ \ | __|/ _ \ _____\ \ / // _` || '__|| | / _` || '_ \ | __|/ __|
+        \__ \| | | | | || (_) || |_|  __/|_____|\ V /| (_| || |   | || (_| || | | || |_ \__ \
+        |___/|_| |_| |_| \___/  \__|\___|        \_/  \__,_||_|   |_| \__,_||_| |_| \__||___/
+
+
+
 
 SMOTE-variants for imbalanced learning
 ======================================
@@ -36,13 +46,11 @@ SMOTE-variants for imbalanced learning
 Latest News
 -----------
 
-In the 0.5.1 release:
-
-1) A decent refactoring carried out splitting the individual oversamplers to separate files.
-2) SYMPROD added as the 86th oversampler implemented, thanks to @intouchkun
-3) An experimental feature: metric learning to determine the metric to be used for neighborhood estimation added to 69 oversamplers.
-4) A sample notebook to illustrate metric learning backed oversampling added.
-5) Support and CI pipelines for Python 3.9 and 3.10 added.
+- A decent refactoring carried out splitting the individual oversamplers to separate files.
+- SYMPROD added as the 86th oversampler implemented, thanks to @intouchkun
+- An experimental feature: metric learning to determine the metric to be used for neighborhood estimation added to 69 oversamplers.
+- A sample notebook to illustrate metric learning backed oversampling added.
+- Support and CI pipelines for Python 3.9 and 3.10 added.
 
 
 Introduction
@@ -57,19 +65,19 @@ The implemented techniques: [SMOTE]_ , [SMOTE_TomekLinks]_ , [SMOTE_ENN]_ , [Bor
 Comparison and evaluation
 -------------------------
 
-For a detailed comparison and evaluation of all the implemented techniques see https://www.researchgate.net/publication/334732374_An_empirical_comparison_and_evaluation_of_minority_oversampling_techniques_on_a_large_number_of_imbalanced_datasets
+For a detailed comparison and evaluation of all the implemented techniques see `link_to_comparison_paper <https://www.researchgate.net/publication/334732374_An_empirical_comparison_and_evaluation_of_minority_oversampling_techniques_on_a_large_number_of_imbalanced_datasets>`_
 
 Citation
 --------
 
 If you use this package in your research, please consider citing the below papers.
 
-Preprint describing the package: https://www.researchgate.net/publication/333968087_smote-variants_a_Python_Implementation_of_85_Minority_Oversampling_Techniques
+Preprint describing the package see `link_to_package_paper <https://www.researchgate.net/publication/333968087_smote-variants_a_Python_Implementation_of_85_Minority_Oversampling_Techniques>`_
 
 BibTex for the package:
 
 .. code-block:: BibTex
-  
+
   @article{smote-variants,
     author={Gy\"orgy Kov\'acs},
     title={smote-variants: a Python Implementation of 85 Minority Oversampling Techniques},
@@ -83,12 +91,12 @@ BibTex for the package:
     doi= {10.1016/j.neucom.2019.06.100}
   }
 
-Preprint of the comparative study: https://www.researchgate.net/publication/334732374_An_empirical_comparison_and_evaluation_of_minority_oversampling_techniques_on_a_large_number_of_imbalanced_datasets
+For the preprint of the comparative study, see `link_to_evaluation_paper <https://www.researchgate.net/publication/334732374_An_empirical_comparison_and_evaluation_of_minority_oversampling_techniques_on_a_large_number_of_imbalanced_datasets>`_
 
 BibTex for the comparison and evaluation:
 
 .. code-block:: BibTex
-  
+
   @article{smote-comparison,
     author={Gy\"orgy Kov\'acs},
     title={An empirical comparison and evaluation of minority oversampling techniques on a large number of imbalanced datasets},
@@ -136,22 +144,24 @@ The solution is to apply model selection for the number of samples being generat
 Sample Usage
 ------------
 
-Binary oversampling:
+Binary oversampling
+*******************
 
 .. code-block:: Python
 
   import smote_variants as sv
   import imbalanced_databases as imbd
-  
+
   dataset= imbd.load_iris0()
   X, y= dataset['data'], dataset['target']
-  
+
   oversampler= sv.distance_SMOTE()
-  
+
   # X_samp and y_samp contain the oversampled dataset
   X_samp, y_samp= oversampler.sample(X, y)
 
-Multiclass oversampling:
+Multiclass oversampling
+***********************
 
 .. code-block:: Python
 
@@ -161,46 +171,52 @@ Multiclass oversampling:
   dataset= datasets.load_wine()
   X, y= dataset['data'], dataset['target']
 
-  oversampler= sv.MulticlassOversampling(sv.distance_SMOTE())
-  
+  oversampler= sv.MulticlassOversampling(oversampler='distance_SMOTE',
+                                        oversampler_params={'random_state': 5})
+
   # X_samp and y_samp contain the oversampled dataset
   X_samp, y_samp= oversampler.sample(X, y)
 
-Selection of the best oversampler:
+Selection of the best oversampler
+*********************************
 
 .. code-block:: Python
 
-  import os.path
   from sklearn.neighbors import KNeighborsClassifier
   from sklearn.tree import DecisionTreeClassifier
   import smote_variants as sv
   import sklearn.datasets as datasets
 
-  cache_path= os.path.join(os.path.expanduser('~'), 'smote_test')
-
-  if not os.path.exists(cache_path):
-      os.makedirs(cache_path)
-
   dataset= datasets.load_breast_cancer()
-  dataset= {'data': dataset['data'], 'target': dataset['target'], 'name': 'breast_cancer'}
 
-  knn_classifier= KNeighborsClassifier()
-  dt_classifier= DecisionTreeClassifier()
+  dataset= {'data': dataset['data'],
+            'target': dataset['target'],
+            'name': 'breast_cancer'}
+
+  classifiers = [('sklearn.neighbors', 'KNeighborsClassifier', {}),
+                ('sklearn.tree', 'DecisionTreeClassifier', {})]
+
+  oversamplers = sv.queries.get_all_oversamplers(n_quickest=2)
+
+  os_params = sv.queries.generate_parameter_combinations(oversamplers,
+                                                        n_max_comb=2)
 
   # samp_obj and cl_obj contain the oversampling and classifier objects which give the
   # best performance together
-  samp_obj, cl_obj= sv.model_selection(dataset= dataset,
-                                          samplers= sv.get_n_quickest_oversamplers(5),
-                                          classifiers= [knn_classifier, dt_classifier],
-                                          cache_path= cache_path,
-                                          n_jobs= 5,
-                                          max_samp_par_comb= 35)
-   
+  samp_obj, cl_obj= sv.evaluation.model_selection(dataset=dataset,
+                                                  oversamplers=os_params,
+                                                  classifiers=classifiers,
+                                                  validator_params={'n_splits': 2,
+                                                                    'n_repeats': 1},
+                                                  n_jobs= 5)
+
   # training the best techniques using the entire dataset
-  X_samp, y_samp= samp_obj.sample(dataset['data'], dataset['target'])
+  X_samp, y_samp= samp_obj.sample(dataset['data'],
+                                  dataset['target'])
   cl_obj.fit(X_samp, y_samp)
 
-Integration with sklearn pipelines:
+Integration with sklearn pipelines
+**********************************
 
 .. code-block:: Python
 
@@ -215,15 +231,20 @@ Integration with sklearn pipelines:
   libras= imb_datasets.fetch_datasets()['libras_move']
   X, y= libras['data'], libras['target']
 
-  oversampler= sv.MulticlassOversampling(sv.distance_SMOTE())
-  classifier= KNeighborsClassifier(n_neighbors= 5)
+  oversampler = ('smote_variants', 'MulticlassOversampling',
+                  {'oversampler': 'distance_SMOTE', 'oversampler_params': {}})
 
-  # Constructing a pipeline which contains oversampling and classification as the last step.
-  model= Pipeline([('scale', StandardScaler()), ('clf', sv.OversamplingClassifier(oversampler, classifier))])
+  classifier = ('sklearn.neighbors', 'KNeighborsClassifier', {})
+
+  # Constructing a pipeline which contains oversampling and classification
+  # as the last step.
+  model= Pipeline([('scale', StandardScaler()),
+                  ('clf', sv.classifiers.OversamplingClassifier(oversampler, classifier))])
 
   model.fit(X, y)
 
-Integration with sklearn grid search:
+Integration with sklearn grid search
+************************************
 
 .. code-block:: Python
 
@@ -238,43 +259,53 @@ Integration with sklearn grid search:
   libras= imb_datasets.fetch_datasets()['libras_move']
   X, y= libras['data'], libras['target']
 
-  oversampler= sv.MulticlassOversampling(sv.distance_SMOTE())
-  classifier= KNeighborsClassifier(n_neighbors= 5)
+  oversampler = ('smote_variants', 'MulticlassOversampling',
+                  {'oversampler': 'distance_SMOTE', 'oversampler_params': {}})
+
+  classifier = ('sklearn.neighbors', 'KNeighborsClassifier', {})
 
   # Constructing a pipeline with oversampling and classification as the last step
-  model= Pipeline([('scale', StandardScaler()), ('clf', sv.OversamplingClassifier(oversampler, classifier))])
+  model= Pipeline([('scale', StandardScaler()),
+                  ('clf', sv.classifiers.OversamplingClassifier(oversampler, classifier))])
 
-  param_grid= {'clf__oversampler':[sv.distance_SMOTE(proportion=0.5),
-                                 sv.distance_SMOTE(proportion=1.0),
-                                 sv.distance_SMOTE(proportion=1.5)]}
-  
+  param_grid= {'clf__oversampler':[('smote_variants', 'distance_SMOTE', {'proportion': 0.5}),
+                                  ('smote_variants', 'distance_SMOTE', {'proportion': 1.0}),
+                                  ('smote_variants', 'distance_SMOTE', {'proportion': 1.5})]}
+
   # Specifying the gridsearch for model selection
-  grid= GridSearchCV(model, param_grid= param_grid, cv= 3, n_jobs= 1, verbose= 2, scoring= 'accuracy')
-  
+  grid= GridSearchCV(model,
+                    param_grid=param_grid,
+                    cv=3,
+                    n_jobs=1,
+                    verbose=2,
+                    scoring='accuracy')
+
   # Fitting the pipeline
   grid.fit(X, y)
-  
-The competition
----------------
 
-We have kicked off a competition to find the best general purpose oversampling technique. The competition is ongoing, the preliminary results are available at the page https://smote-variants.readthedocs.io/en/latest/competition.html
+..
+  The competition
+  ---------------
 
-All the numerical results are reproducible by the 005_evaluation example script, downloading the database foldings from the link below and following the instructions in the script. Anyone is open to join the competition by implementing an oversampling technique as part of the smote_variants package. The below database foldings can be used to evaluate the technique, and compare the results to the already implemented ones. Once the code is added to a feature branch, the evaluation will be repeated by the organizers and the results added to the rankings page.
+  We have kicked off a competition to find the best general purpose oversampling technique. The competition is ongoing, the preliminary results are available at the page https://smote-variants.readthedocs.io/en/latest/competition.html
 
-* Database foldings: `https://drive.google.com/open?id=1PKw1vETVUzaToomio1-RGzJ9_-buYjOW <https://drive.google.com/open?id=1PKw1vETVUzaToomio1-RGzJ9_-buYjOW>`__
+  All the numerical results are reproducible by the 005_evaluation example script, downloading the database foldings from the link below and following the instructions in the script. Anyone is open to join the competition by implementing an oversampling technique as part of the smote_variants package. The below database foldings can be used to evaluate the technique, and compare the results to the already implemented ones. Once the code is added to a feature branch, the evaluation will be repeated by the organizers and the results added to the rankings page.
+
+  * Database foldings: `https://drive.google.com/open?id=1PKw1vETVUzaToomio1-RGzJ9_-buYjOW <https://drive.google.com/open?id=1PKw1vETVUzaToomio1-RGzJ9_-buYjOW>`__
 
 Contribution
 ------------
 
 Feel free to implement any further oversampling techniques and let's discuss the codes as soon as the pull request is ready!
 
-Other downloads
----------------
+..
+  Other downloads
+  ---------------
 
-If someone is interested in the results of the evaluation of 85 oversamplers on 104 imbalanced datasets, the raw and aggregated results as structured pickle files are avaialble at the below links:
+  If someone is interested in the results of the evaluation of 85 oversamplers on 104 imbalanced datasets, the raw and aggregated results as structured pickle files are avaialble at the below links:
 
-* Raw results: `https://drive.google.com/open?id=12CfB3184nchLIwStaHhrjcQK7Ari18Mo <https://drive.google.com/open?id=12CfB3184nchLIwStaHhrjcQK7Ari18Mo>`__
-* Aggregated results: `https://drive.google.com/open?id=19JGikRYXQ6-eOxaFVrqkF64zOCiSdT-j <https://drive.google.com/open?id=19JGikRYXQ6-eOxaFVrqkF64zOCiSdT-j>`__
+  * Raw results: `https://drive.google.com/open?id=12CfB3184nchLIwStaHhrjcQK7Ari18Mo <https://drive.google.com/open?id=12CfB3184nchLIwStaHhrjcQK7Ari18Mo>`__
+  * Aggregated results: `https://drive.google.com/open?id=19JGikRYXQ6-eOxaFVrqkF64zOCiSdT-j <https://drive.google.com/open?id=19JGikRYXQ6-eOxaFVrqkF64zOCiSdT-j>`__
 
 References
 ----------
@@ -293,7 +324,7 @@ References
 
 .. [AHC] Gilles Cohen and Mélanie Hilario and Hugo Sax and Stéphane Hugonnet and Antoine Geissbuhler, "Learning from imbalanced data in surveillance of nosocomial infection" , Artificial Intelligence in Medicine, 2006, pp. 7 - 18
 
-.. [LLE_SMOTE] Wang, J. and Xu, M. and Wang, H. and Zhang, J., "Classification of Imbalanced Data by Using the SMOTE Algorithm and Locally Linear Embedding" , 2006 8th international Conference on Signal Processing, 2006, pp. 
+.. [LLE_SMOTE] Wang, J. and Xu, M. and Wang, H. and Zhang, J., "Classification of Imbalanced Data by Using the SMOTE Algorithm and Locally Linear Embedding" , 2006 8th international Conference on Signal Processing, 2006, pp.
 
 .. [distance_SMOTE] de la Calleja, J. and Fuentes, O., "A distance-based over-sampling method for learning from imbalanced data sets" , Proceedings of the Twentieth International Florida Artificial Intelligence, 2007, pp. 634--635
 
@@ -331,7 +362,7 @@ References
 
 .. [LVQ_SMOTE] Munehiro Nakamura and Yusuke Kajiwara and Atsushi Otsuka and Haruhiko Kimura, "LVQ-SMOTE – Learning Vector Quantization based Synthetic Minority Over–sampling Technique for biomedical data" , BioData Mining, 2013
 
-.. [SOI_CJ] Sánchez, Atlántida I. and Morales, Eduardo and Gonzalez, Jesus, "Synthetic Oversampling of Instances Using Clustering" , International Journal of Artificial Intelligence Tools, 2013, pp. 
+.. [SOI_CJ] Sánchez, Atlántida I. and Morales, Eduardo and Gonzalez, Jesus, "Synthetic Oversampling of Instances Using Clustering" , International Journal of Artificial Intelligence Tools, 2013, pp.
 
 .. [ROSE] Menard, "Training and assessing classification rules with imbalanced data" , Data Mining and Knowledge Discovery, 2014, pp. 92--122
 
@@ -349,7 +380,7 @@ References
 
 .. [IPADE_ID] Victoria López and Isaac Triguero and Cristóbal J. Carmona and Salvador García and Francisco Herrera, "Addressing imbalanced classification with instance generation techniques: IPADE-ID" , Neurocomputing, 2014, pp. 15 - 28
 
-.. [RWO_sampling] Zhang, Huaxzhang and Li, Mingfang, "RWO-Sampling: A Random Walk Over-Sampling Approach to Imbalanced Data Classification" , Information Fusion, 2014, pp. 
+.. [RWO_sampling] Zhang, Huaxzhang and Li, Mingfang, "RWO-Sampling: A Random Walk Over-Sampling Approach to Imbalanced Data Classification" , Information Fusion, 2014, pp.
 
 .. [NEATER] Almogahed, B. A. and Kakadiaris, I. A., "NEATER: Filtering of Over-sampled Data Using Non-cooperative Game Theory" , 2014 22nd International Conference on Pattern Recognition, 2014, pp. 1371-1376
 
