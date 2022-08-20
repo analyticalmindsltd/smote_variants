@@ -1,9 +1,6 @@
 .. -*- mode: rst -*-
 
-|TravisCI|_ |CircleCI|_ |GitHub|_ |Codecov|_ |ReadTheDocs|_ |PythonVersion|_ |PyPi|_ |License|_ |Gitter|_
-
-.. |TravisCI| image:: https://travis-ci.org/gykovacs/smote_variants.svg?branch=master
-.. _TravisCI: https://travis-ci.org/gykovacs/smote_variants
+|CircleCI|_ |GitHub|_ |Codecov|_ |pylint|_ |ReadTheDocs|_ |PythonVersion|_ |PyPi|_ |License|_ |Gitter|_
 
 .. |CircleCI| image:: https://circleci.com/gh/analyticalmindsltd/smote_variants.svg?style=svg
 .. _CircleCI: https://circleci.com/gh/analyticalmindsltd/smote_variants
@@ -13,6 +10,9 @@
 
 .. |Codecov| image:: https://codecov.io/gh/analyticalmindsltd/smote_variants/branch/master/graph/badge.svg?token=GQNNasvi4z
 .. _Codecov: https://codecov.io/gh/analyticalmindsltd/smote_variants
+
+.. |pylint| image:: https://img.shields.io/badge/pylint-10.0-brightgreen
+.. _pylint: https://img.shields.io/badge/pylint-10.0-brightgreen
 
 .. |ReadTheDocs| image:: https://readthedocs.org/projects/smote-variants/badge/?version=latest
 .. _ReadTheDocs: https://smote-variants.readthedocs.io/en/latest/?badge=latest
@@ -36,8 +36,6 @@
         / __|| '_ ` _ \  / _ \ | __|/ _ \ _____\ \ / // _` || '__|| | / _` || '_ \ | __|/ __|
         \__ \| | | | | || (_) || |_|  __/|_____|\ V /| (_| || |   | || (_| || | | || |_ \__ \
         |___/|_| |_| |_| \___/  \__|\___|        \_/  \__,_||_|   |_| \__,_||_| |_| \__||___/
-
-
 
 
 SMOTE-variants for imbalanced learning
