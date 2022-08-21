@@ -89,7 +89,7 @@ class ASMOBD(OverSamplingSimplex):
                                                     like in sklearn
         """
         ss_params = coalesce_dict(ss_params, {'n_dim': 2,
-                                            'simplex_sampling': 'uniform',
+                                            'simplex_sampling': 'random',
                                             'within_simplex_sampling': 'random',
                                             'gaussian_component': None})
 

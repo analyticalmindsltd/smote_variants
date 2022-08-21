@@ -85,7 +85,7 @@ class Lee(OverSamplingSimplex):
         """
         nn_params = coalesce(nn_params, {})
 
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'uniform',
+        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
                             'within_simplex_sampling': 'random',
                             'gaussian_component': None}
 

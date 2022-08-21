@@ -97,7 +97,7 @@ class G_SMOTE(OverSamplingSimplex):
         """
         nn_params = coalesce(nn_params, {})
 
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'uniform',
+        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
                             'within_simplex_sampling': 'random',
                             'gaussian_component': None}
         ss_params = coalesce_dict(ss_params, ss_params_default)

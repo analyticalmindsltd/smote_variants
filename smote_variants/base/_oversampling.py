@@ -348,7 +348,7 @@ class OverSamplingSimplex(OverSamplingBase, SimplexSamplingMixin):
     def __init__(self,
                 *,
                 n_dim=2,
-                simplex_sampling='uniform',
+                simplex_sampling='random',
                 within_simplex_sampling='random',
                 gaussian_component=None,
                 random_state=None,

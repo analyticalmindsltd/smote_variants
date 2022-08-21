@@ -336,7 +336,7 @@ class SimplexSamplingMixin(RandomStateMixin):
     def __init__(self,
                 *,
                 n_dim=2,
-                simplex_sampling='uniform',
+                simplex_sampling='random',
                 within_simplex_sampling='deterministic',
                 gaussian_component=None,
                 random_state=None):
@@ -347,7 +347,7 @@ class SimplexSamplingMixin(RandomStateMixin):
             n_dim (int): the dimensions of the simplices
                             (2 for line segments)
             simplex_sampling (str): simplex sampling method
-                                    ('uniform'/'volume'/None)
+                                    ('random'/'volume'/'deterministic'/None)
             within_simplex_sampling (str): within simplex sampling
                                     method ('random'/'deterministic')
         """
@@ -385,11 +385,11 @@ class SimplexSamplingMixin(RandomStateMixin):
         Returns:
             np.array: the distribution for sampling the simplices
         """
-        if self.simplex_sampling == 'uniform':
+        if self.simplex_sampling in ['random', 'deterministic']:
             return np.repeat(1.0/len(simplices), len(simplices))
         if self.simplex_sampling == 'volume':
             return simplex_volumes(X[simplices])
-        raise ValueError(f"simplex sampling with weighting"\
+        raise ValueError(f"simplex sampling with weighting "\
                             f"{self.simplex_sampling} not implemented yet")
 
     def all_simplices_node_weights(self, indices, simplex_weights, n_dim):
@@ -486,7 +486,7 @@ class SimplexSamplingMixin(RandomStateMixin):
 
         choices = np.arange(all_simplices.shape[0])
 
-        if self.simplex_sampling == 'random':
+        if self.simplex_sampling != 'deterministic':
             # sample the simplices
             selected_indices = self.random_state.choice(choices,
                                                         n_to_sample,

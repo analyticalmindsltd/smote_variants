@@ -127,7 +127,7 @@ def test_simplexsamplingmixin_dim2_uniform_deterministic():
     """
     Testing uniform and deterministic sampling in 2D.
     """
-    ssm = SimplexSamplingMixin(simplex_sampling='uniform',
+    ssm = SimplexSamplingMixin(simplex_sampling='random',
                                 within_simplex_sampling='deterministic',
                                 n_dim=2,
                                 random_state=5)
@@ -162,7 +162,7 @@ def test_simplexsamplingmixin_dim2_uniform_random():
     """
     Testing uniform and random sampling in 2D.
     """
-    ssm = SimplexSamplingMixin(simplex_sampling='uniform',
+    ssm = SimplexSamplingMixin(simplex_sampling='random',
                                 within_simplex_sampling='random',
                                 n_dim=2,
                                 random_state=5)
@@ -338,7 +338,7 @@ def test_simplexsamplingmixin_dim2_vertex_weights():
     assert np.all(np.logical_and(samples[:, 1] <= 2.005,
                                     samples[:, 1] >= 2.0))
 
-    ssm = SimplexSamplingMixin(simplex_sampling='uniform',
+    ssm = SimplexSamplingMixin(simplex_sampling='random',
                                 within_simplex_sampling='random',
                                 n_dim=2,
                                 random_state=5)

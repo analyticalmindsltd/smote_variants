@@ -82,7 +82,7 @@ class ISOMAP_Hybrid(OverSampling):
             smote_n_neighbors (int): number of neighbors in SMOTE sampling
             n_jobs (int): number of parallel jobs
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'uniform',
+        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
                             'within_simplex_sampling': 'random',
                             'gaussian_component': None}
 

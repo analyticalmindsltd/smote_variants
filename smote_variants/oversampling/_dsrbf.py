@@ -467,7 +467,7 @@ class DSRBF(OverSampling):
         self.n_neighbors = n_neighbors
         self.nn_params = coalesce(nn_params, {})
         self.ss_params = coalesce_dict(ss_params, {'n_dim': 2,
-                                        'simplex_sampling': 'uniform',
+                                        'simplex_sampling': 'random',
                                         'within_simplex_sampling': 'random',
                                         'gaussian_component': None})
         self.params = {'m_min': hidden_range[0],

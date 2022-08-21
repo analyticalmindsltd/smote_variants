@@ -103,7 +103,7 @@ class SMOTE_PSOBAT(OverSampling):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'uniform',
+        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
                             'within_simplex_sampling': 'random',
                             'gaussian_component': None}
 
