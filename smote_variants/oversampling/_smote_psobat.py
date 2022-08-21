@@ -178,7 +178,7 @@ class SMOTE_PSOBAT(OverSampling):
         Returns:
             np.array, np.array: the predictions and the test labels
         """
-        ss_params = self.ss_params
+        ss_params = self.ss_params.copy()
         ss_params['n_dim'] = np.min([ss_params['n_dim'], int(K)])
 
         X_samp, y_samp = SMOTE(proportion=proportion,
