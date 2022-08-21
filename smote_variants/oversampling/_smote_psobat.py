@@ -775,7 +775,7 @@ class SMOTE_PSOBAT(OverSampling):
         elif self.method == 'bat':
             best_combination = self.bat_vectorized(X, y, nn_params)
 
-        ss_params = self.ss_params
+        ss_params = self.ss_params.copy()
         ss_params['n_dim'] = np.min([ss_params['n_dim'], int(best_combination[0])])
 
         return SMOTE(proportion=best_combination[1],
