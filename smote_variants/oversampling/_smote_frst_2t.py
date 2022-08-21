@@ -272,6 +272,7 @@ class SMOTE_FRST_2T(OverSampling):
         """
         return {'n_neighbors': self.n_neighbors,
                 'nn_params': self.nn_params,
+                'ss_params': self.ss_params,
                 'gamma_S': self.gamma_S,
                 'gamma_M': self.gamma_M,
                 'n_jobs': self.n_jobs,

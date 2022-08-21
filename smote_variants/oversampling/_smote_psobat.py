@@ -798,5 +798,6 @@ class SMOTE_PSOBAT(OverSampling):
                 'gamma': self.params['gamma'],
                 'method': self.method,
                 'nn_params': self.nn_params,
+                'ss_params': self.ss_params,
                 'n_jobs': self.n_jobs,
                 **OverSampling.get_params(self)}

@@ -617,6 +617,7 @@ class AMSCO(OverSampling):
                 'r1': self.params.r1,
                 'r2': self.params.r2,
                 'nn_params': self.nn_params,
+                'ss_params': self.ss_params,
                 'n_jobs': self.n_jobs,
                 'classifier': self.classifier,
                 **OverSampling.get_params(self)}

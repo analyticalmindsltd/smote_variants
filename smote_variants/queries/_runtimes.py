@@ -6,7 +6,7 @@ datasets used for testing and evaluation.
 __all__ = ['runtimes']
 
 runtimes = {
-    'NoSMOTE': 0.0001575469970703125,
+'NoSMOTE': 0.0001575469970703125,
 'polynom_fit_SMOTE_bus': 0.00033428668975830076,
 'polynom_fit_SMOTE_star': 0.00044138431549072265,
 'ROSE': 0.00048253536224365237,
