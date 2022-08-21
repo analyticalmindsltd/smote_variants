@@ -492,9 +492,12 @@ class SimplexSamplingMixin(RandomStateMixin):
                                                         n_to_sample,
                                                         p=weights/np.sum(weights))
         elif self.simplex_sampling == 'deterministic':
-            selected_simplices = deterministic_sample(choices,
-                                                        n_to_sample,
-                                                        p=weights/np.sum(weights))
+            selected_indices = deterministic_sample(choices,
+                                                    n_to_sample,
+                                                    p=weights/np.sum(weights))
+        else:
+            raise ValueError(f"no such simplex sampling strategy: {self.simplex_sampling}")
+
         return all_simplices[selected_indices]
 
     def add_gaussian_noise(self, samples):
