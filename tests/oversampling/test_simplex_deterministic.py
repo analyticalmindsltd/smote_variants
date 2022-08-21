@@ -21,7 +21,8 @@ def test_simplex_deterministic(smote_class):
     Args:
         smote_class (class): an oversampler class.
     """
-    ss_params = {'within_simplex_sampling': 'deterministic'}
+    ss_params = {'within_simplex_sampling': 'deterministic',
+                 'simplex_sampling': 'deterministic'}
     X, y = smote_class(ss_params=ss_params).sample(dataset['data'],
                                                    dataset['target'])
 
