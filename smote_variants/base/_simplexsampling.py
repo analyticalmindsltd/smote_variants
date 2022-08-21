@@ -495,8 +495,6 @@ class SimplexSamplingMixin(RandomStateMixin):
             selected_indices = deterministic_sample(choices,
                                                     n_to_sample,
                                                     p=weights/np.sum(weights))
-        else:
-            raise ValueError(f"no such simplex sampling strategy: {self.simplex_sampling}")
 
         return all_simplices[selected_indices]
 
