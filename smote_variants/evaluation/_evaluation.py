@@ -147,7 +147,9 @@ class EvaluationJob:
                     'classifier_params': classifier[2],
                     'classifier_module': classifier[0],
                     'error': error,
-                    'warning': str(warning_list)}
+                    'warning': str(warning_list),
+                    'oversampling_error': oversampling['error'],
+                    'oversampling_warning': oversampling['warning']}
 
             if self.cache_path is not None:
                 dump_dict(evaluation, target_filename, self.serialization,

@@ -20,6 +20,12 @@ def test_specific():
 
     assert len(X_samp) > 0
 
+    obj.min_precision = 10000.0
+
+    X_samp, _ = obj.sample(dataset['data'], dataset['target'])
+
+    assert len(X_samp) > 0
+
     assert len(obj.parameter_combinations(raw=True)) > 0
 
     X = np.array([[1, 2], [2, 3], [3, 4], [4, 5],

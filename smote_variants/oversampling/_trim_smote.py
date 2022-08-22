@@ -337,12 +337,9 @@ class TRIM_SMOTE(OverSamplingSimplex):
         nnmt.fit(X_seed_min)
         indices = nnmt.kneighbors(X_seed_min, return_distance=False)
 
-        #n_dim_orig = self.n_dim
-        #self.n_dim = np.min([self.n_dim, X_seed_min.shape[0]])
         samples = self.sample_simplex(X=X_seed_min,
                                       indices=indices,
                                       n_to_sample=n_to_sample)
-        #self.n_dim = n_dim_orig
 
         return samples
 
@@ -363,6 +360,9 @@ class TRIM_SMOTE(OverSamplingSimplex):
             return self.return_copies(X, y, "Sampling is not needed")
 
         seeds = self.trimming(X, y)
+
+        if len([s for s in seeds if self.precision(s[1]) > self.min_precision/10.0]) == 0:
+            return self.return_copies(X, y, "no seeds found")
 
         # filtering the resulting set
         filtered_seeds = [s for s in seeds if self.precision(s[1]) > self.min_precision]
