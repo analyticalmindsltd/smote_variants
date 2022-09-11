@@ -12,7 +12,7 @@ from ._smote import SMOTE
 from ..base import instantiate_obj
 
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['SMOTE_IPF']
 

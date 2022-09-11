@@ -15,7 +15,7 @@ from ._safe_level_smote import Safe_Level_SMOTE
 from ._borderline_smote import Borderline_SMOTE1
 
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['SL_graph_SMOTE']
 

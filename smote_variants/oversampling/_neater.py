@@ -13,7 +13,7 @@ from ._smote import SMOTE
 from ._adasyn import ADASYN
 
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['NEATER']
 

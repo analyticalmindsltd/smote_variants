@@ -10,7 +10,7 @@ from sklearn.cluster import AgglomerativeClustering, KMeans
 from ..base import OverSampling
 
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['AHC']
 

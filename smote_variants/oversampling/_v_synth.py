@@ -10,7 +10,7 @@ import scipy.spatial as sspatial
 
 from ..base import OverSampling
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['V_SYNTH']
 

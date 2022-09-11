@@ -11,7 +11,7 @@ from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSampling
 
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['DE_oversampling']
 

@@ -9,7 +9,7 @@ from ..base import OverSamplingSimplex
 from ..base import mode, coalesce_dict, coalesce
 
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['Borderline_SMOTE1',
           'Borderline_SMOTE2']

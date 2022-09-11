@@ -11,7 +11,7 @@ from sklearn.metrics import roc_auc_score
 from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSampling
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['SMOTE_PSO']
 

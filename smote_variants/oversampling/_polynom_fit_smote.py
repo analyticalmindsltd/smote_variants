@@ -8,7 +8,7 @@ from ..base import coalesce_dict
 from ..base import OverSampling, OverSamplingSimplex
 
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['polynom_fit_SMOTE_star',
             'polynom_fit_SMOTE_bus',

@@ -14,7 +14,7 @@ from ..base import OverSampling, coalesce, coalesce_dict # pylint: disable=wrong
 from ._smote import SMOTE # pylint: disable=wrong-import-position
 
 from .._logger import logger # pylint: disable=wrong-import-position
-_logger= logger
+_logger = logger
 
 __all__= ['DEAGO']
 

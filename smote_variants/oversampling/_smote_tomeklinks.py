@@ -8,7 +8,7 @@ from ..noise_removal import TomekLinkRemoval
 from ._smote import SMOTE
 
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['SMOTE_TomekLinks']
 

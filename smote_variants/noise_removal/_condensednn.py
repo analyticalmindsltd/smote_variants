@@ -9,7 +9,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from ._noisefilter import NoiseFilter
 
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['CondensedNearestNeighbors']
 

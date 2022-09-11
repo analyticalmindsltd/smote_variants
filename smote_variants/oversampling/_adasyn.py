@@ -9,7 +9,7 @@ from ..base import OverSamplingSimplex
 from ..base import coalesce, coalesce_dict
 
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['ADASYN']
 

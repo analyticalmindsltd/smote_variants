@@ -10,7 +10,7 @@ from ..base import fix_density, cov
 from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSampling
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['KernelADASYN']
 

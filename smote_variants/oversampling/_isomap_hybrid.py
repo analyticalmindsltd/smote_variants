@@ -14,7 +14,7 @@ from ._smote import SMOTE
 from ..noise_removal import NeighborhoodCleaningRule
 
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['ISOMAP_Hybrid']
 

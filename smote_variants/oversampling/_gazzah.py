@@ -10,7 +10,7 @@ from ..base import OverSampling
 from ._polynom_fit_smote import polynom_fit_SMOTE_star
 
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['Gazzah']
 

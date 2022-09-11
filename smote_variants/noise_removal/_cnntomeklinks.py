@@ -7,7 +7,7 @@ from ._tomeklinkremoval import TomekLinkRemoval
 from ._condensednn import CondensedNearestNeighbors
 
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['CNNTomekLinks']
 

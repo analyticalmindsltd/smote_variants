@@ -9,7 +9,7 @@ from sklearn.linear_model import LogisticRegression
 from ..base import coalesce_dict
 from ..base import OverSamplingSimplex
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['OUPS']
 

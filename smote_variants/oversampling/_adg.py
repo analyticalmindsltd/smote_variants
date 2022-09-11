@@ -14,7 +14,7 @@ from sklearn.metrics import pairwise_distances
 
 from ..base import OverSampling
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['ADG']
 

@@ -10,7 +10,7 @@ from ..noise_removal import EditedNearestNeighbors
 from ._smote import SMOTE
 
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['SMOTE_ENN']
 

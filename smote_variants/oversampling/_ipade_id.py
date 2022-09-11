@@ -12,7 +12,7 @@ from ..base import OverSampling
 from ..base import mode, instantiate_obj
 
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['IPADE_ID']
 

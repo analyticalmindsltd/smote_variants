@@ -6,7 +6,7 @@ from ..base import (StatisticsMixin, ParametersMixin)
 from ..base import MetricLearningMixin
 
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['NoiseFilter']
 

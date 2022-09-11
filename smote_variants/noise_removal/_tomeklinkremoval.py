@@ -8,7 +8,7 @@ from ._noisefilter import NoiseFilter
 from ..base import (NearestNeighborsWithMetricTensor, coalesce)
 
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['TomekLinkRemoval']
 

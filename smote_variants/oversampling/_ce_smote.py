@@ -12,7 +12,7 @@ from ..base import coalesce_dict, coalesce
 from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSamplingSimplex
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['CE_SMOTE']
 

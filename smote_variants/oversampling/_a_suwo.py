@@ -14,7 +14,7 @@ from ..base import OverSamplingSimplex
 from ..base import coalesce_dict
 
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['A_SUWO']
 

@@ -12,7 +12,7 @@ from ..base import (NearestNeighborsWithMetricTensor,
                                 pairwise_distances_mahalanobis)
 from ..base import OverSamplingSimplex
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['kmeans_SMOTE']
 

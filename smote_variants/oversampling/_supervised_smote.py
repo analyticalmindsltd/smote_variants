@@ -9,7 +9,7 @@ from ..base import OverSamplingSimplex
 from ..base import instantiate_obj, coalesce_dict
 
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['Supervised_SMOTE']
 

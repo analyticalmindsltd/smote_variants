@@ -13,7 +13,7 @@ from ..base import RandomStateMixin, coalesce
 from ..base import MetricTensor
 from ..base import OverSampling
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['PDFOS', 'FullRankTransformer', 'PDFOSKDE']
 

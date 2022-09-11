@@ -11,7 +11,7 @@ from ..base import OverSampling
 from ._smote import SMOTE
 
 from .._logger import logger
-_logger= logger
+_logger = logger
 
 __all__= ['SMOTE_RSB']
 
