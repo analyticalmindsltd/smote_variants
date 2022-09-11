@@ -3,6 +3,7 @@
 This module implements all simplex sampling related functionalities.
 """
 
+import os
 import itertools
 
 import numpy as np
@@ -33,10 +34,13 @@ def array_array_index(array, indices):
     Returns:
         array (indices.shape): the sampled values
     """
+    if indices.shape[1] == 1:
+        return array[np.arange(array.shape[0]), indices[:, 0]].reshape(indices.shape)
+
     stride = np.arange(indices.shape[0])*array.shape[1]
     indices_mod = indices + stride[:, None]
-    indices_flat = indices_mod.flatten()
-    return array.flatten()[indices_flat].reshape(indices.shape)
+    indices_flat = indices_mod.ravel()
+    return array.ravel()[indices_flat].reshape(indices.shape).copy()
 
 def base_idx_neighbor_idx_simplices(n_base, n_neighbors=5, n_dim=2):
     """
@@ -57,6 +61,7 @@ def base_idx_neighbor_idx_simplices(n_base, n_neighbors=5, n_dim=2):
     base_indices = np.repeat(np.arange(n_base), len(combinations))
     all_simplices = np.vstack([base_indices,
                                 np.tile(combinations, (n_base, 1)).T]).T
+    #print('simplices', os.getpid(), len(all_simplices), flush=True)
     return all_simplices
 
 def all_neighbor_simplices_real_idx(n_dim, indices):
@@ -75,8 +80,12 @@ def all_neighbor_simplices_real_idx(n_dim, indices):
                                                 n_dim=n_dim)
     base_vector_indices = all_simplices[:, 0]
     neighbors_indices = indices[base_vector_indices]
+    #if debug:
+    #    print(os.getpid(), 'eee', neighbors_indices.shape, all_simplices[:,1:].shape)
     neighbors_indices = array_array_index(neighbors_indices,
                                             all_simplices[:,1:])
+    #if debug:
+    #    print(os.getpid(), 'fff')
     simplices_real_indices = np.vstack([base_vector_indices.T,
                                         neighbors_indices.T]).T
 
@@ -294,7 +303,7 @@ def counts_to_vector(counts):
 
     return np.hstack([np.repeat(idx, count) for idx, count in enumerate(counts)])
 
-def deterministic_sample(choices, n_to_sample, p):
+def deterministic_sample(choices, n_to_sample, p): # pylint: disable=invalid-name
     """
     Take a deterministic sample
 
@@ -316,7 +325,10 @@ def deterministic_sample(choices, n_to_sample, p):
 
     non_zero_mask = sample_counts > 0
 
-    removal_indices = np.floor(np.linspace(0.0, np.sum(non_zero_mask), n_to_remove, endpoint=False)).astype(int)
+    removal_indices = np.floor(np.linspace(0.0,
+                                            np.sum(non_zero_mask),
+                                            n_to_remove,
+                                            endpoint=False)).astype(int)
 
     tmp = sample_counts[non_zero_mask]
     tmp[removal_indices] = tmp[removal_indices] - 1
@@ -404,13 +416,21 @@ class SimplexSamplingMixin(RandomStateMixin):
         Returns:
             np.array, np.array: all simplices and the node weights
         """
+        #if 'ANS' in self.__class__.__name__:
+        #    print(os.getpid(), "zzz", indices.shape, n_dim)
+
         all_simplices = all_neighbor_simplices_real_idx(n_dim, indices)
+
+        #if 'ANS' in self.__class__.__name__:
+        #    print(os.getpid(), "ggg", indices.shape)
+
         if simplex_weights is not None:
             all_simplices_nidx = base_idx_neighbor_idx_simplices(n_base=indices.shape[0],
                                                             n_neighbors=indices.shape[1],
                                                             n_dim=n_dim)
             base_indices = all_simplices_nidx[:,0]
             neighbor_indices = all_simplices_nidx[:,1:]
+            #print(os.getpid(), "hhh", neighbor_indices.shape)
             node_weights = array_array_index(simplex_weights[base_indices], neighbor_indices)
             node_weights = np.prod(node_weights, axis=1)
         else:
@@ -473,8 +493,14 @@ class SimplexSamplingMixin(RandomStateMixin):
                                     vectors
             simplex_weights (np.array): weights of the simplices
         """
+        #if 'ANS' in self.__class__.__name__:
+        #    print(os.getpid(), "ooo")
+
         all_simplices, node_weights = \
             self.all_simplices_node_weights(indices, simplex_weights, n_dim=n_dim)
+
+        #if 'ANS' in self.__class__.__name__:
+        #    print(os.getpid(), "uuu", len(all_simplices))
 
         weights = self.determine_weights(X=X,
                                          base_weights=base_weights,
@@ -483,6 +509,9 @@ class SimplexSamplingMixin(RandomStateMixin):
                                          indices=indices)
 
         weights = weights * node_weights
+
+        #if 'ANS' in self.__class__.__name__:
+        #    print(os.getpid(), "vvv", len(weights))
 
         choices = np.arange(all_simplices.shape[0])
 
@@ -495,6 +524,9 @@ class SimplexSamplingMixin(RandomStateMixin):
             selected_indices = deterministic_sample(choices,
                                                     n_to_sample,
                                                     p=weights/np.sum(weights))
+
+        #if 'ANS' in self.__class__.__name__:
+        #    print(os.getpid(), "www", len(selected_indices))
 
         return all_simplices[selected_indices]
 

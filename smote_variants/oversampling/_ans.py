@@ -1,6 +1,7 @@
 """
 This module implements the ANS method.
 """
+import os
 
 import numpy as np
 
@@ -229,7 +230,7 @@ class ANS(OverSamplingSimplex):
         Returns:
             weights (np.array): the simplex node weights for sampling
         """
-        max_neighbors = np.max([len(row) for i, row in enumerate(ind)])
+        max_neighbors = np.max([len(row) for _, row in enumerate(ind)])
         ind_dense = nearestn.kneighbors(X_min[Pused], max_neighbors, return_distance=False)
 
         weights = ind_dense.copy()
@@ -260,9 +261,9 @@ class ANS(OverSamplingSimplex):
 
         # outcast extraction algorithm
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(
-                                                            nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params['metric_tensor'] = \
+                self.metric_tensor_from_nn_params(nn_params, X, y)
 
         Pused, eps = self.determine_Pused(X, y, X_min, nn_params) # pylint: disable=invalid-name
 

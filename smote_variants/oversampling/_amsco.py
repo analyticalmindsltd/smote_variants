@@ -2,6 +2,7 @@
 This module implements the AMSCO method.
 """
 from dataclasses import dataclass
+import datetime
 
 import numpy as np
 
@@ -97,7 +98,7 @@ class AMSCO(OverSampling):
     def __init__(self,
                  *,
                  n_pop=5,
-                 n_iter=15,
+                 n_iter=12,
                  omega=0.1,
                  r1=0.1,
                  r2=0.1,
@@ -163,7 +164,7 @@ class AMSCO(OverSampling):
                         'DecisionTreeClassifier',
                         {'random_state': 2})]
         parameter_combinations = {'n_pop': [5],
-                                  'n_iter': [15],
+                                  'n_iter': [12],
                                   'omega': [0.1],
                                   'r1': [0.1],
                                   'r2': [0.1],
@@ -214,7 +215,9 @@ class AMSCO(OverSampling):
         Returns:
             float, float: kappa, accuracy
         """
-        kfold = StratifiedKFold(n_splits=np.max([2, np.min([n_cross_val, len(X_min), len(X_maj)])]),
+        kfold = StratifiedKFold(n_splits=np.max([2, np.min([n_cross_val,
+                                                            len(X_min),
+                                                            len(X_maj)])]),
                                 shuffle=False)
 
         # prepare assembled dataset
@@ -384,8 +387,11 @@ class AMSCO(OverSampling):
         # running the optimization
         for _ in range(self.params.n_iter):
             # update velocities
+            #print(str(datetime.datetime.now()), "start iteration")
             self.update_velocities_osmote(ostatus)
+            #print(str(datetime.datetime.now()), "update particles")
             self.update_particles_osmote(ostatus)
+            #print(str(datetime.datetime.now()), "evaluate osmote")
             self.evaluate_osmote(ostatus=ostatus,
                                     X_maj=X_maj,
                                     X_min=X_min,
@@ -393,6 +399,7 @@ class AMSCO(OverSampling):
                                     y=y,
                                     n_cross_val=n_cross_val,
                                     nn_params=nn_params)
+            #print(str(datetime.datetime.now()), "evaluation finished")
 
         return ostatus.best_dataset[0], ostatus.best_dataset[1]
 
@@ -583,24 +590,28 @@ class AMSCO(OverSampling):
         for iteration in range(self.params.n_iter):
             _logger.info("%s starting iteration %d",
                             self.__class__.__name__, iteration)
+            #print(str(datetime.datetime.now()), "OSMOTE")
             new_min, _ = self.osmote(X_min=X_min,
                                         X_maj=current[1],
                                         X=X,
                                         y=y,
                                         n_cross_val=n_cross_val,
                                         nn_params=nn_params)
+            #print(str(datetime.datetime.now()), "SIS")
             _, new_maj = self.sis(X_min=current[0],
                                     X_maj=X_maj,
                                     X=X,
                                     y=y,
                                     n_cross_val=n_cross_val)
 
+            #print(str(datetime.datetime.now()), "evaluation")
             current = self.evaluate(current=current,
                                     new_min=new_min,
                                     new_maj=new_maj,
                                     X=X,
                                     y=y,
                                     n_cross_val=n_cross_val)
+            #print(str(datetime.datetime.now()), "iteration finished")
 
         return (np.vstack([current[1], current[0]]),
                 np.hstack([np.repeat(self.maj_label, len(current[1])),

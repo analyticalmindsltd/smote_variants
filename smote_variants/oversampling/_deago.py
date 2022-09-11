@@ -2,17 +2,12 @@
 This module implements the DEAGO method.
 """
 
+import os
 import warnings
 warnings.simplefilter("ignore", DeprecationWarning)
 
 import numpy as np # pylint: disable=wrong-import-position
 from sklearn.preprocessing import StandardScaler # pylint: disable=wrong-import-position
-
-import tensorflow # pylint: disable=wrong-import-position
-
-from tensorflow.keras.layers import Input, Dense, GaussianNoise # pylint: disable=wrong-import-position,no-name-in-module
-from tensorflow.keras.models import Model # pylint: disable=wrong-import-position,no-name-in-module
-from tensorflow.keras.callbacks import EarlyStopping # pylint: disable=wrong-import-position,no-name-in-module
 
 from ..base import OverSampling, coalesce, coalesce_dict # pylint: disable=wrong-import-position
 from ._smote import SMOTE # pylint: disable=wrong-import-position
@@ -133,6 +128,36 @@ class DEAGO(OverSampling):
                                   'sigma': [0.05, 0.1, 0.2]}
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
+    def get_model(self,
+                    n_dim,
+                    encoding_d):
+        """
+        Return the model
+
+        Args:
+            n_dim (int): the number of dimensions
+            encoding_d (int): the number of encoding dimensions
+
+        Returns:
+            tensorflow.keras.models.Model, list: the model and the callbacks
+        """
+        # this import is here to prevent the heavy importing of tensorflow when not needed
+        from tensorflow.keras.layers import Input, Dense, GaussianNoise # pylint: disable=wrong-import-position,no-name-in-module,import-outside-toplevel
+        from tensorflow.keras.models import Model # pylint: disable=wrong-import-position,no-name-in-module,import-outside-toplevel
+        from tensorflow.keras.callbacks import EarlyStopping # pylint: disable=wrong-import-position,no-name-in-module,import-outside-toplevel
+
+        # constructing the autoencoder
+        callbacks = [EarlyStopping(monitor='val_loss', patience=2)]
+
+        input_layer = Input(shape=(n_dim,))
+        noise = GaussianNoise(self.encoder_params['sigma'])(input_layer)
+        encoded = Dense(encoding_d, activation='relu')(noise)
+        decoded = Dense(n_dim, activation='linear')(encoded)
+
+        dae = Model(input_layer, decoded)
+
+        return dae, callbacks
+
     def execute_autoencoder(self,
                             X_min_normalized, # pylint: disable=invalid-name
                             X_init_normalized # pylint: disable=invalid-name
@@ -154,15 +179,11 @@ class DEAGO(OverSampling):
         _logger.info("%s: Input dimension: %d, encoding dimension: %d",
                     self.__class__.__name__, n_dim, encoding_d)
 
-        # constructing the autoencoder
-        callbacks = [EarlyStopping(monitor='val_loss', patience=2)]
+        warnings.simplefilter("ignore", DeprecationWarning)
 
-        input_layer = Input(shape=(n_dim,))
-        noise = GaussianNoise(self.encoder_params['sigma'])(input_layer)
-        encoded = Dense(encoding_d, activation='relu')(noise)
-        decoded = Dense(n_dim, activation='linear')(encoded)
+        dae, callbacks = self.get_model(n_dim,
+                                        encoding_d)
 
-        dae = Model(input_layer, decoded)
         dae.compile(optimizer='adadelta', loss='mean_squared_error')
         actual_epochs = np.max([self.encoder_params['e'],
                                 int(5000.0/X_min_normalized.shape[0])])
@@ -182,7 +203,7 @@ class DEAGO(OverSampling):
             dae.fit(X_min_normalized, X_min_normalized,
                     epochs=actual_epochs, verbose=0)
 
-        return dae.predict(X_init_normalized)
+        return dae.predict(X_init_normalized, verbose=0)
 
     def sampling_algorithm(self, X, y):
         """
@@ -200,7 +221,21 @@ class DEAGO(OverSampling):
         if n_to_sample == 0:
             return self.return_copies(X, y, "Sampling is not needed.")
 
-        tensorflow.random.set_seed(self._random_state_init)
+        warnings.simplefilter("ignore", DeprecationWarning)
+
+        # this import is here to prevent the heavy importing of tensorflow when not needed
+        import tensorflow as tf # pylint: disable=wrong-import-position,import-outside-toplevel
+
+        os.environ["OMP_NUM_THREADS"] = "1"
+        os.environ["TF_NUM_INTRAOP_THREADS"] = "1"
+        os.environ["TF_NUM_INTEROP_THREADS"] = "1"
+
+        tf.config.threading.set_inter_op_parallelism_threads(self.n_jobs)
+        tf.config.threading.set_intra_op_parallelism_threads(self.n_jobs)
+
+        tf.config.set_soft_device_placement(True)
+
+        tf.random.set_seed(self._random_state_init)
 
         # sampling by smote
         X_samp, _ = SMOTE(proportion=self.proportion,

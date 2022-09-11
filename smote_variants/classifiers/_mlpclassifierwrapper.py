@@ -12,22 +12,26 @@ class MLPClassifierWrapper:
 
     def __init__(self,
                  *,
+                 max_iter=1000,
                  activation='relu',
                  hidden_layer_fraction=0.1,
                  alpha=0.0001,
-                 learning_rate='constant',
+                 learning_rate='adaptive',
                  random_state=None):
         """
         Constructor of the MLPClassifier
 
         Args:
+            max_iter (int): the maximum number of iterations
             activation (str): name of the activation function
             hidden_layer_fraction (float): fraction of the hidden neurons of
                                             the number of input dimensions
             alpha (float): alpha parameter of the MLP classifier
+            learning_rate (str): 'constant'/'invscaling'/'adaptive'
             random_state (int/np.random.RandomState/None): initializer of the
                                                             random state
         """
+        self.max_iter = max_iter
         self.activation = activation
         self.hidden_layer_fraction = hidden_layer_fraction
         self.alpha = alpha
@@ -48,6 +52,7 @@ class MLPClassifierWrapper:
         """
         hidden_layer_size = max([1, int(len(X[0])*self.hidden_layer_fraction)])
         self.model = MLPClassifier(activation=self.activation,
+                                   max_iter=self.max_iter,
                                    hidden_layer_sizes=(hidden_layer_size,),
                                    alpha=self.alpha,
                                    learning_rate=self.learning_rate,

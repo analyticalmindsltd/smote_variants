@@ -2,6 +2,7 @@
 This module implements some basic functionalities.
 """
 
+import os
 import itertools
 import importlib
 import json
@@ -177,17 +178,23 @@ def load_dict(filename,
     if array_to_list_map is None:
         array_to_list_map = []
 
+    if serialization is None:
+        serialization = filename.split('.')[-1]
+
     if serialization == 'json':
         with open(filename, 'rt', encoding='UTF-8') as file:
             obj = json.load(file)
+            file.close()
             for key in array_to_list_map:
                 obj[key] = np.array(obj[key])
-            return obj
-    elif serialization == 'pickle':
+        return obj
+    if serialization == 'pickle':
         with open(filename, 'rb') as file:
-            return pickle.load(file)
-    else:
-        raise ValueError(f"serialization {serialization} is not supported")
+            obj = pickle.load(file)
+            file.close()
+        return obj
+
+    raise ValueError(f"serialization {serialization} is not supported")
 
 def dump_dict(obj,
                 filename,
@@ -205,14 +212,27 @@ def dump_dict(obj,
     if array_to_list_map is None:
         array_to_list_map = []
 
+    if serialization is None:
+        serialization = filename.split('.')[-1]
+
     if serialization == 'json':
         for key in array_to_list_map:
             obj[key] = obj[key].astype(float).tolist()
+        if os.path.exists(filename):
+            os.remove(filename)
+
         with open(filename, 'wt', encoding='UTF-8') as file:
-            json.dump(obj, file)
+            json_string = json.dumps(obj)
+            file.write(json_string)
+            file.flush()
+            os.fsync(file)
+            file.close()
     elif serialization == 'pickle':
         with open(filename, 'wb') as file:
             pickle.dump(obj, file)
+            file.flush()
+            os.fsync(file)
+            file.close()
     else:
         raise ValueError(f"serialization {serialization} is not supported")
 

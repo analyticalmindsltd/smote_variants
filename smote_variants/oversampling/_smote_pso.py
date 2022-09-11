@@ -69,7 +69,7 @@ class SMOTE_PSO(OverSampling):
                  w=1.0,
                  c1=2.0,
                  c2=2.0,
-                 num_it=20,
+                 num_it=15,
                  n_jobs=1,
                  random_state=None,
                  **_kwargs):

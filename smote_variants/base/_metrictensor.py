@@ -14,6 +14,7 @@ from scipy.stats import rankdata
 
 from metric_learn import ITML_Supervised, LSML_Supervised, NCA
 
+from ..config import distance_matrix_max_memory_chunk
 from ._base import instantiate_obj, coalesce
 from .._logger import logger
 _logger = logger
@@ -34,7 +35,7 @@ __all__= ['NearestNeighborsWithMetricTensor',
           'n_neighbors_func',
           'psd_mean']
 
-def pairwise_distances_mahalanobis(X, *, Y=None, tensor=None):
+def pairwise_distances_mahalanobis(X, *, Y=None, tensor=None, optimized=True):
     """
     Returns the pairwise distances of two arrays of vectors using the
     provided metric tensor matrix. If no Y paramter is provided, the
@@ -44,16 +45,44 @@ def pairwise_distances_mahalanobis(X, *, Y=None, tensor=None):
         X (np.array): array of vectors to calculate distances for
         Y (np.array/None): optional second array of vectors
         tensor (np.array): the metric tensor to be used
+        optimized (np.array): optimization for Eulidean tensors
 
     Returns:
         np.array: the distance matrix
     """
+
     if Y is None:
         Y = X
-    if tensor is None:
-        tensor = np.eye(X.shape[1])
-    tmp= (X[:,None] - Y)
-    return np.sqrt(np.einsum('ijk,ijk -> ij', tmp, np.dot(tmp, tensor)))
+
+    max_mem = distance_matrix_max_memory_chunk()
+
+    if X.shape[0] * X.shape[1] * Y.shape[0] > max_mem:
+        row_block_size = int(np.floor(X.shape[0] /
+                            int(np.ceil(X.shape[0] * X.shape[1] * Y.shape[0] / max_mem))))
+        row_block_size = np.max([row_block_size, 1])
+
+        row_blocks = []
+        start = 0
+        while start < X.shape[0]:
+            end = np.min([start + row_block_size, X.shape[0]])
+            row_blocks.append(pairwise_distances_mahalanobis(X[start:end],
+                                                                Y=Y,
+                                                                tensor=tensor,
+                                                                optimized=optimized))
+            start = start + row_block_size
+
+        return np.vstack(row_blocks)
+
+    if tensor is None or np.allclose(tensor, np.eye(X.shape[1])):
+        # this original implementation can become very slow for high dimensional data
+        if optimized:
+            return np.sqrt(np.sum((X[:, None] - Y)**2, axis=-1))
+        else:
+            tensor = np.eye(X.shape[1])
+
+    tmp= X[:,None] - Y
+
+    return np.sqrt(np.einsum('ijk,kl,ijl->ij', tmp, tensor, tmp))
 
 def distances_mahalanobis(X, Y, tensor=None):
     """
@@ -449,11 +478,9 @@ def n_neighbors_func(X_base,
 
     X_neighbors= X_neighbors if X_neighbors is not None else X_base
 
-    X_diff= (X_base[:,None] - X_neighbors)
-
-    distm= np.sqrt(np.einsum('ijk,ijk -> ij',
-                            X_diff,
-                            np.dot(X_diff, metric_tensor)).T).T
+    distm = pairwise_distances_mahalanobis(X_base,
+                                            Y=X_neighbors,
+                                            tensor=metric_tensor)
 
     results_ind= np.apply_along_axis(np.argsort,
                                         axis=1,
@@ -644,7 +671,7 @@ class NearestNeighborsWithMetricTensor:
                  p=2, # pylint: disable=invalid-name
                  metric_params=None,
                  metric_tensor=None,
-                 n_jobs=None,
+                 n_jobs=1,
                  **_kwargs):
         """
         Constructor of the class
@@ -758,11 +785,9 @@ class NearestNeighborsWithMetricTensor:
                                                     return_distance,
                                                     sort_results)
 
-        diffs = (self.X_fitted[:,None] - X)
-        distm = np.einsum('ijk,ijk -> ij',
-                            diffs,
-                            np.dot(diffs, self.metric_tensor)).T
-        distm = np.sqrt(distm)
+        distm = pairwise_distances_mahalanobis(X,
+                                                Y=self.X_fitted,
+                                                tensor=self.metric_tensor)
 
         results_dist= []
         results_ind= []

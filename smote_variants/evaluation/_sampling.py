@@ -2,16 +2,17 @@
 This module implements the parallelizable Sampling Job
 """
 
+import time
 import os
 import hashlib
-import time
 import warnings
 
 from ..base import instantiate_obj, load_dict, dump_dict, check_if_damaged
+from ._parallelization import TimeoutJobBase
 
 __all__= ['SamplingJob']
 
-class SamplingJob:
+class SamplingJob(TimeoutJobBase):
     """
     An oversampling job to be executed in parallel
     """
@@ -90,6 +91,9 @@ class SamplingJob:
 
         return target_filename, damaged
 
+    def execute(self):
+        return self.do_oversampling()
+
     def do_oversampling(self):
         """
         do the oversampling
@@ -102,6 +106,12 @@ class SamplingJob:
         if isinstance(folding, str):
             folding = load_dict(folding, folding.split('.')[-1],
                                 ['X_train', 'y_train', 'X_test', 'y_test'])
+
+        deterministic = 'ss_params' in self.oversampler_params
+        if deterministic:
+            deterministic = self.oversampler_params['ss_params']['within_simplex_sampling']
+
+        #print('starting', os.getpid(), self.oversampler, folding['fold_descriptor']['fold_idx'], deterministic, flush=True)
 
         target_filename, damaged = self.target_filename_damaged(folding)
 
@@ -155,6 +165,56 @@ class SamplingJob:
             oversampling = {**oversampling,
                             'warning': str([(str(warn.category), warn.message)
                                                             for warn in warning])}
+
+        if self.cache_path is not None:
+            dump_dict(oversampling, target_filename, self.serialization,
+                        ['X_train', 'y_train', 'X_test', 'y_test'])
+
+            # I think this can never happen now
+            #if check_if_damaged(target_filename, self.serialization):
+            #    return None
+
+            #print('finishing', os.getpid(), self.oversampler, folding['fold_descriptor']['fold_idx'], flush=True)
+
+            return target_filename
+
+        return oversampling
+
+    def timeout(self):
+        folding = self.folding
+
+        if isinstance(folding, str):
+            folding = load_dict(folding, folding.split('.')[-1],
+                                ['X_train', 'y_train', 'X_test', 'y_test'])
+
+        target_filename, damaged = self.target_filename_damaged(folding)
+
+        if self.cache_path is not None and not damaged and not self.reset:
+            return target_filename
+
+        oversampler_obj = instantiate_obj(('smote_variants',
+                                            self.oversampler,
+                                            self.oversampler_params))
+
+        X_train = folding['X_train']
+        X_test = folding['X_test']
+
+        if self.scaler is not None:
+            scaler = instantiate_obj(self.scaler)
+            X_train = scaler.fit_transform(X_train)
+            X_test = scaler.transform(X_test)
+
+        oversampling = {'fold_descriptor': folding['fold_descriptor'],
+                        'y_test': folding['y_test'],
+                        'oversampler': oversampler_obj.get_params()}
+
+        oversampling = {**oversampling,
+                    'X_train': folding['X_train'],
+                    'y_train': folding['y_train'],
+                    'X_test': folding['X_test'],
+                    'runtime': -1,
+                    'error': 'TimeOutError',
+                    'warning': None}
 
         if self.cache_path is not None:
             dump_dict(oversampling, target_filename, self.serialization,

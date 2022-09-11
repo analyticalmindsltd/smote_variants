@@ -14,7 +14,7 @@ from ..base import calculate_all_scores
 
 __all__ = ['EvaluationJob']
 
-class EvaluationJob:
+class EvaluationJob():
     """
     An evaluation job to be executed in parallel
     """
@@ -137,7 +137,15 @@ class EvaluationJob:
                 warning_list = [(str(warn.category), warn.message) for warn in warning]
 
             evaluation = {'fold_descriptor': oversampling['fold_descriptor'],
-                    'oversampler': oversampling['oversampler'],
+                    'oversampler': oversampling['oversampler']['class_name'],
+                    'oversampler_params': oversampling['oversampler'],
+                    'oversampler_module': 'smote_variants',
+                    'oversampling_error': oversampling['error'],
+                    'oversampling_warning': oversampling['warning'],
+                    'oversampling_runtime': oversampling['runtime'],
+                    'oversampling_filname': self.oversampling \
+                                            if isinstance(self.oversampling, str) \
+                                            else None,
                     'runtime': time.time() - begin_timestamp,
                     'y_pred': y_pred[:, 1],
                     'y_test': oversampling['y_test'],
@@ -147,9 +155,7 @@ class EvaluationJob:
                     'classifier_params': classifier[2],
                     'classifier_module': classifier[0],
                     'error': error,
-                    'warning': str(warning_list),
-                    'oversampling_error': oversampling['error'],
-                    'oversampling_warning': oversampling['warning']}
+                    'warning': str(warning_list)}
 
             if self.cache_path is not None:
                 dump_dict(evaluation, target_filename, self.serialization,

@@ -36,21 +36,35 @@ def test_pairwise_distances_mahalanobis():
     X = np.array([[1.0, 0.0], [0.0, 1.0]])
     Y = np.array([[2.0, 0.0]])
 
-    dmatrix = pairwise_distances_mahalanobis(X, Y=X)
+    dmatrix = pairwise_distances_mahalanobis(X, Y=X, optimized=False)
     assert dmatrix.shape == (2, 2)
     assert dmatrix[0, 0] == 0.0
     np.testing.assert_almost_equal(dmatrix[1, 0], np.sqrt(2))
 
-    dmatrix = pairwise_distances_mahalanobis(X)
+    dmatrix = pairwise_distances_mahalanobis(X, optimized=False)
     assert dmatrix.shape == (2, 2)
     assert dmatrix[0, 0] == 0.0
     np.testing.assert_almost_equal(dmatrix[1, 0], np.sqrt(2))
 
-    dmatrix = pairwise_distances_mahalanobis(X, Y=Y)
+    dmatrix = pairwise_distances_mahalanobis(X, Y=Y, optimized=False)
     assert dmatrix.shape == (2, 1)
 
-    dmatrix_2 = pairwise_distances_mahalanobis(X, Y=Y, tensor=np.eye(2))
+    dmatrix_2 = pairwise_distances_mahalanobis(X, Y=Y, tensor=np.eye(2),
+                                                optimized=False)
     np.testing.assert_array_equal(dmatrix, dmatrix_2)
+
+    random_state = np.random.RandomState(5)
+    X = random_state.random_sample(size=(3000, 20))
+    Y = random_state.random_sample(size=(4000, 20))
+
+    assert pairwise_distances_mahalanobis(X, Y=Y, optimized=False).shape == (3000, 4000)
+
+    dmatrix = pairwise_distances_mahalanobis(X, Y=Y, optimized=False)
+
+    dmatrix_2 = pairwise_distances_mahalanobis(X, Y=Y, optimized=True)
+
+    np.testing.assert_array_almost_equal(dmatrix, dmatrix_2)
+
 
 def test_fix_pd_matrix():
     """

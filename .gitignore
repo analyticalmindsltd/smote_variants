@@ -17,3 +17,4 @@ build/*
 *.gz
 .vscode/*
 .vscode/settings.json
+.coverage*

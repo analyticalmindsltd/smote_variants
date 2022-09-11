@@ -65,6 +65,12 @@ def test_sampling():
         result = sjob.do_oversampling()
         assert os.path.exists(result)
 
+    assert isinstance(sjob.timeout(), str)
+
+    os.remove(result)
+
+    assert isinstance(sjob.timeout(), str)
+
     shutil.rmtree(cache_path)
 
 def test_sampling_warning():
@@ -152,6 +158,12 @@ def test_sampling_cached_folding():
         result = sjob.do_oversampling()
         assert os.path.exists(result)
 
+    assert isinstance(sjob.timeout(), str)
+
+    os.remove(result)
+
+    assert isinstance(sjob.timeout(), str)
+
     shutil.rmtree(cache_path)
 
 def test_sampling_no_caching():
@@ -170,6 +182,8 @@ def test_sampling_no_caching():
 
         result = sjob.do_oversampling()
         assert isinstance(result, dict)
+
+    assert isinstance(sjob.timeout(), dict)
 
 def test_get_params():
     """

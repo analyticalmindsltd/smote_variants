@@ -1,6 +1,7 @@
 """
 This module implements the Supervised_SMOTE method.
 """
+import os
 
 import numpy as np
 
@@ -133,17 +134,22 @@ class Supervised_SMOTE(OverSamplingSimplex):
         X_min = X[y == self.min_label]
 
         th_lower = self.th_lower
+        th_upper = self.th_upper
 
         indices = circulant(np.arange(X_min.shape[0]))
 
         class_column = np.where(self.classifier_obj.classes_ == self.min_label)
         class_column = class_column[0][0]
 
+        #print('aa', os.getpid(), n_to_sample, flush=True)
+
         samples = np.zeros(shape=(0, X.shape[1]))
         n_trials = 1
         n_success = 1
         while len(samples) < n_to_sample:
-            to_sample = np.max([n_to_sample - len(samples), 10])
+            to_sample = np.max([(n_to_sample - len(samples))*4, 100])
+            #print(os.getpid(), n_to_sample, to_sample, len(samples), n_success, n_trials, len(X_min), th_lower, th_upper, flush=True)
+            #print(n_to_sample, to_sample)
 
             n_trials = n_trials + to_sample
 
@@ -155,16 +161,19 @@ class Supervised_SMOTE(OverSamplingSimplex):
             prob = prob[:, class_column]
 
             samples_tmp = samples_tmp[(prob >= th_lower)
-                                    & (prob <= self.th_upper)]
+                                    & (prob <= th_upper)]
 
             samples = np.vstack([samples, samples_tmp])
 
             n_success = n_success + samples_tmp.shape[0]
 
-            if n_success/n_trials < 0.02:
-                th_lower = th_lower * 0.9
+            if n_success/n_trials < 0.1:
+                th_lower = th_lower - 0.1
+                th_upper = th_upper + 0.1
                 n_success = 1
                 n_trials = 1
+
+        #print('bb', os.getpid(), flush=True)
 
         samples = samples[:np.min([samples.shape[0], n_to_sample])]
 

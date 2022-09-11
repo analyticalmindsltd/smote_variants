@@ -10,7 +10,8 @@ from sklearn.linear_model import LinearRegression
 import scipy.special as sspecial
 
 from ..base import (NearestNeighborsWithMetricTensor,
-                                pairwise_distances_mahalanobis)
+                                pairwise_distances_mahalanobis,
+                                fix_density)
 from ..base import OverSampling
 from .._logger import logger
 _logger= logger
@@ -278,7 +279,7 @@ class SSO(OverSampling):
         phi = np.exp(-phi/v**2)
 
         # applying linear regression to find the best weights
-        linreg = LinearRegression()
+        linreg = LinearRegression(n_jobs=self.n_jobs)
         linreg.fit(phi, y)
         f = linreg.predict(phi[np.where(y == self.min_label)[0]]) # pylint: disable=invalid-name
         w = linreg.coef_ # pylint: disable=invalid-name
@@ -357,7 +358,8 @@ class SSO(OverSampling):
         stsm = f**2 - 2*f*I_1 + I_2
 
         # calculating the sampling weights
-        weights = np.abs(stsm)/np.sum(np.abs(stsm))
+        stsm = np.abs(stsm)
+        weights = fix_density(stsm)
 
         return Q, weights
 

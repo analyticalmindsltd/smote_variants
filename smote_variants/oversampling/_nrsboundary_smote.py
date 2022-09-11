@@ -163,7 +163,7 @@ class NRSBoundary_SMOTE(OverSamplingSimplex):
 
     def generate_samples(self, *, X, X_min,
                     indices, bound_set, pos_set,
-                    delta, n_to_sample):
+                    delta, n_to_sample, nn_params):
         """
         Generate samples.
 
@@ -175,6 +175,7 @@ class NRSBoundary_SMOTE(OverSamplingSimplex):
             pos_set (np.array): indices of the positive set
             delta (np.array): delta distances
             n_to_sample (int): the number of samples to generate
+            nn_params (dict): nearest neighbor parameters
 
         Returns:
             np.array: the new samples
@@ -182,20 +183,27 @@ class NRSBoundary_SMOTE(OverSamplingSimplex):
         trials = 0
         samples = np.zeros(shape=(0, X.shape[1]))
 
-        while len(samples) < n_to_sample and trials < n_to_sample:
+        deltas = delta[pos_set]
+        deltas_diff = deltas - deltas*0.1
+
+        while len(samples) < n_to_sample and trials < n_to_sample and np.all(deltas > 0):
             subsample = self.sample_simplex(X=X[bound_set],
                                             indices=indices,
-                                            n_to_sample=(n_to_sample - len(samples))*4,
+                                            n_to_sample=(n_to_sample - len(samples))*10,
                                             X_vertices=X_min)
+
             # checking the conflict
-            dist_from_pos_set = \
-                    np.linalg.norm(subsample - X[pos_set][:, None], axis=2)
-            no_conflict = np.all(dist_from_pos_set.T > delta[pos_set], axis=1)
+            dist_from_pos_set = pairwise_distances_mahalanobis(subsample,
+                                                                Y=X[pos_set],
+                                                                tensor=nn_params.get('metric_tensor', None))
+            no_conflict = np.all(dist_from_pos_set > deltas, axis=1)
             samples = np.vstack([samples, subsample[no_conflict]])
 
             trials = trials + 1
 
-        return np.vstack(samples)[:n_to_sample]
+            deltas = deltas - deltas_diff
+
+        return np.vstack(samples)[:np.min([len(samples), n_to_sample])]
 
     def sampling_algorithm(self, X, y):
         """
@@ -232,6 +240,7 @@ class NRSBoundary_SMOTE(OverSamplingSimplex):
         # step 4 and 5
         # computing the nearest neighbors of the bound set from the
         # minority set
+
         n_neighbors = min([len(X_min), self.n_neighbors + 1])
         nnmt= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
                                                 n_jobs=self.n_jobs,
@@ -241,8 +250,8 @@ class NRSBoundary_SMOTE(OverSamplingSimplex):
 
         samples = self.generate_samples(X=X, X_min=X_min,
                         indices=indices, bound_set=bound_set, pos_set=pos_set,
-                        delta=delta, n_to_sample=n_to_sample)
-
+                        delta=delta, n_to_sample=n_to_sample,
+                        nn_params=nn_params)
 
         # do the sampling
         #samples = []

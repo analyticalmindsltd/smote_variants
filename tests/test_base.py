@@ -109,6 +109,11 @@ def test_load_dump_dict():
 
     np.testing.assert_array_equal(obj['b'], obj_loaded['b'])
 
+    dump_dict(obj, filename, None, ['b'])
+    obj_loaded = load_dict(filename, None, ['b'])
+
+    np.testing.assert_array_equal(obj['b'], obj_loaded['b'])
+
     with pytest.raises(ValueError):
         dump_dict(obj, filename, 'nonsense', ['b'])
 

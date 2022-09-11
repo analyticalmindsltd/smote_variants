@@ -206,6 +206,7 @@ class LLE_SMOTE(OverSamplingSimplex):
         # do the locally linear embedding
         lle = LocallyLinearEmbedding(n_neighbors=n_neighbors,
                                         n_components=n_components,
+                                        eigen_solver='dense',
                                         n_jobs=self.n_jobs)
         lle.fit(X_min)
         X_min_transformed = lle.transform(X_min) # pylint: disable=invalid-name

@@ -1,6 +1,7 @@
 """
 This module implements the MSYN method.
 """
+import os
 
 import numpy as np
 
@@ -97,7 +98,7 @@ class MSYN(OverSampling):
         self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
         self.check_n_jobs(n_jobs, 'n_jobs')
 
-        self.pressure = proportion or pressure
+        self.pressure = coalesce(proportion, pressure)
         self.proportion = self.pressure
         self.n_neighbors = n_neighbors
         self.nn_params = coalesce(nn_params, {})
@@ -209,9 +210,13 @@ class MSYN(OverSampling):
         theta_min = theta_A_sub_alpha[min_indices]
         theta_maj = theta_A_sub_alpha[maj_indices]
 
+        #print('before dist', os.getpid(), flush=True)
+
         distances = pairwise_distances_mahalanobis(X,
                                                     Y=X_new,
                                                     tensor=nn_params['metric_tensor'])
+
+        #print('after dist', os.getpid(), flush=True)
 
         Delta_P, Delta_N = self.determine_Delta_P_N(nearest_hit_dist=nearest_hit_dist,  # pylint: disable=invalid-name
                                                     nearest_miss_dist=nearest_miss_dist,
@@ -233,6 +238,7 @@ class MSYN(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
+        #print('starting', os.getpid(), flush=True)
         n_to_sample = self.det_n_to_sample(self.pressure)
 
         if n_to_sample == 0:
@@ -249,16 +255,22 @@ class MSYN(OverSampling):
                       n_jobs=self.n_jobs,
                       random_state=self._random_state_init)
 
-        X_res, y_res = smote.sample(X, y) # pylint: disable=invalid-name
-        X_new, _ = X_res[len(X):], y_res[len(X):]
+        X_res, _ = smote.sample(X, y) # pylint: disable=invalid-name
+        X_new = X_res[len(X):]
+
+        #print('after smote', os.getpid(), flush=True)
 
         f_3 = self.determine_f_3(X=X, y=y,
                                 X_new=X_new,
                                 nn_params=nn_params)
 
+        #print('after f3', os.getpid(), flush=True)
+
         # determining the elements with the minimum f_3 scores to add
         _, new_ind = zip(*sorted(zip(f_3, np.arange(len(f_3))), key=lambda x: x[0]))
         new_ind = list(new_ind[:n_to_sample])
+
+        #print('finishing', os.getpid(), flush=True)
 
         return (np.vstack([X, X_new[new_ind]]),
                 np.hstack([y, np.repeat(self.min_label, len(new_ind))]))

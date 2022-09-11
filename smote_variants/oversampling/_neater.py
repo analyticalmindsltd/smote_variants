@@ -370,6 +370,7 @@ class NEATER(OverSampling):
         distm = pairwise_distances_mahalanobis(X_syn,
                                             Y=X_all,
                                             tensor=nn_params.get('metric_tensor', None))
+
         distm[distm == 0] = 1e-8
         distm = 1.0/distm
         distm[distm > self.params['alpha']] = self.params['alpha']

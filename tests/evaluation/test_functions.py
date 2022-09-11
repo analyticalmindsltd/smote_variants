@@ -6,13 +6,15 @@ import os
 import shutil
 import glob
 
+import pandas as pd
 from sklearn import datasets
 
 from smote_variants.base import equal_dicts
 
 from smote_variants.evaluation import (evaluate_oversamplers, model_selection,
                                         execute_1_job, execute_1_os, execute_1_eval,
-                                        do_clean_up, do_parse_results, Folding)
+                                        do_clean_up, do_parse_results, Folding,
+                                        _verbose_logging)
 
 dataset_0 = datasets.load_breast_cancer()
 dataset_0['name'] = 'breast_cancer'
@@ -21,7 +23,9 @@ dataset_1['name'] = 'iris'
 dataset_1['target'][dataset_1['target'] == 2] = 1
 
 oversamplers = [('smote_variants', 'SMOTE', {'n_jobs': 1, 'random_state': 5}),
-            ('smote_variants', 'SMOTE', {'n_jobs': 1, 'n_neighbors': 9, 'random_state': 5})]
+                ('smote_variants', 'distance_SMOTE', {'n_jobs': 1,
+                                                        'n_neighbors': 9,
+                                                        'random_state': 5})]
 
 classifiers = [('sklearn.tree', 'DecisionTreeClassifier', {'random_state': 5}),
                 ('sklearn.neighbors', 'KNeighborsClassifier', {'n_jobs': 1})]
@@ -29,6 +33,19 @@ classifiers = [('sklearn.tree', 'DecisionTreeClassifier', {'random_state': 5}),
 cache_path = os.path.join('.', 'test_path')
 
 folding = Folding(dataset_0)
+
+results_baseline = evaluate_oversamplers(
+                                datasets=[dataset_0, dataset_1],
+                                oversamplers=oversamplers,
+                                classifiers=classifiers,
+                                cache_path=None,
+                                validator_params={'n_repeats': 2, 'n_splits': 2, 'random_state': 5},
+                                scaler=('sklearn.preprocessing', 'StandardScaler', {}),
+                                n_jobs=2,
+                                parse_results=True)
+results_baseline = results_baseline\
+                    .sort_values(['dataset', 'oversampler', 'classifier'])\
+                    .reset_index(drop=True)
 
 def test_execute_1_job():
     """
@@ -151,3 +168,227 @@ def test_model_selection():
 
     assert equal_dicts(samp_0.get_params(), samp_1.get_params())
     assert equal_dicts(clas_0.get_params(), clas_1.get_params())
+
+def test_evaluation_1_job_timeout_cache():
+    """
+    Testing the evaluation with 1 job, timeout and cache
+    """
+    shutil.rmtree(cache_path, ignore_errors=True)
+
+    results_tmp = evaluate_oversamplers(
+                                datasets=[dataset_0, dataset_1],
+                                oversamplers=oversamplers,
+                                classifiers=classifiers,
+                                cache_path=cache_path,
+                                validator_params={'n_repeats': 2,
+                                                    'n_splits': 2,
+                                                    'random_state': 5},
+                                scaler=('sklearn.preprocessing',
+                                        'StandardScaler', {}),
+                                n_jobs=1,
+                                timeout=10,
+                                parse_results=True)
+    results_tmp = results_tmp\
+                        .sort_values(['dataset', 'oversampler', 'classifier'])\
+                        .reset_index(drop=True)
+    pd.testing.assert_frame_equal(results_baseline, results_tmp)
+
+    shutil.rmtree(cache_path, ignore_errors=True)
+
+def test_evaluation_1_job_timeout_no_cache():
+    """
+    Testing the evaluation with 1 job, timeout and without cache
+    """
+    results_tmp = evaluate_oversamplers(
+                                datasets=[dataset_0, dataset_1],
+                                oversamplers=oversamplers,
+                                classifiers=classifiers,
+                                cache_path=None,
+                                validator_params={'n_repeats': 2,
+                                                    'n_splits': 2,
+                                                    'random_state': 5},
+                                scaler=('sklearn.preprocessing',
+                                        'StandardScaler', {}),
+                                n_jobs=1,
+                                timeout=10,
+                                parse_results=True)
+    results_tmp = results_tmp\
+                        .sort_values(['dataset', 'oversampler', 'classifier'])\
+                        .reset_index(drop=True)
+    pd.testing.assert_frame_equal(results_baseline, results_tmp)
+
+def test_evaluation_1_job_no_timeout_cache():
+    """
+    Testing the evaluation with 1 job, no timeout and cache
+    """
+    shutil.rmtree(cache_path, ignore_errors=True)
+
+    results_tmp = evaluate_oversamplers(
+                                datasets=[dataset_0, dataset_1],
+                                oversamplers=oversamplers,
+                                classifiers=classifiers,
+                                cache_path=cache_path,
+                                validator_params={'n_repeats': 2,
+                                                    'n_splits': 2,
+                                                    'random_state': 5},
+                                scaler=('sklearn.preprocessing',
+                                        'StandardScaler', {}),
+                                n_jobs=1,
+                                timeout=-1,
+                                parse_results=True)
+    results_tmp = results_tmp\
+                    .sort_values(['dataset', 'oversampler', 'classifier'])\
+                        .reset_index(drop=True)
+    pd.testing.assert_frame_equal(results_baseline, results_tmp)
+
+    shutil.rmtree(cache_path, ignore_errors=True)
+
+def test_evaluation_1_job_no_timeout_no_cache():
+    """
+    Testing the evaluation with 1 job, no timout and without cache
+    """
+    results_tmp = evaluate_oversamplers(
+                                datasets=[dataset_0, dataset_1],
+                                oversamplers=oversamplers,
+                                classifiers=classifiers,
+                                cache_path=None,
+                                validator_params={'n_repeats': 2,
+                                                    'n_splits': 2,
+                                                    'random_state': 5},
+                                scaler=('sklearn.preprocessing',
+                                        'StandardScaler', {}),
+                                n_jobs=1,
+                                timeout=-1,
+                                parse_results=True)
+    results_tmp = results_tmp\
+                    .sort_values(['dataset', 'oversampler', 'classifier'])\
+                    .reset_index(drop=True)
+    pd.testing.assert_frame_equal(results_baseline, results_tmp)
+
+def test_evaluation_2_job_timeout_cache():
+    """
+    Testing the evaluation with 2 jobs, timeout and cache
+    """
+    shutil.rmtree(cache_path, ignore_errors=True)
+
+    results_tmp = evaluate_oversamplers(
+                                datasets=[dataset_0, dataset_1],
+                                oversamplers=oversamplers,
+                                classifiers=classifiers,
+                                cache_path=cache_path,
+                                validator_params={'n_repeats': 2,
+                                                    'n_splits': 2,
+                                                    'random_state': 5},
+                                scaler=('sklearn.preprocessing',
+                                        'StandardScaler', {}),
+                                n_jobs=2,
+                                timeout=10,
+                                parse_results=True)
+    results_tmp = results_tmp\
+                    .sort_values(['dataset', 'oversampler', 'classifier'])\
+                    .reset_index(drop=True)
+    pd.testing.assert_frame_equal(results_baseline, results_tmp)
+
+    shutil.rmtree(cache_path, ignore_errors=True)
+
+def test_evaluation_2_job_timeout_no_cache():
+    """
+    Testing the evaluation with 2 jobs, timeout and without cache
+    """
+    results_tmp = evaluate_oversamplers(
+                                datasets=[dataset_0, dataset_1],
+                                oversamplers=oversamplers,
+                                classifiers=classifiers,
+                                cache_path=None,
+                                validator_params={'n_repeats': 2,
+                                                    'n_splits': 2,
+                                                    'random_state': 5},
+                                scaler=('sklearn.preprocessing',
+                                        'StandardScaler', {}),
+                                n_jobs=2,
+                                timeout=10,
+                                parse_results=True)
+    results_tmp = results_tmp\
+                    .sort_values(['dataset', 'oversampler', 'classifier'])\
+                    .reset_index(drop=True)
+    pd.testing.assert_frame_equal(results_baseline, results_tmp)
+
+def test_evaluation_2_job_no_timeout_cache():
+    """
+    Testing the evaluation with 2 jobs, no timeout and cache
+    """
+    shutil.rmtree(cache_path, ignore_errors=True)
+
+    results_tmp = evaluate_oversamplers(
+                                datasets=[dataset_0, dataset_1],
+                                oversamplers=oversamplers,
+                                classifiers=classifiers,
+                                cache_path=cache_path,
+                                validator_params={'n_repeats': 2,
+                                                    'n_splits': 2,
+                                                    'random_state': 5},
+                                scaler=('sklearn.preprocessing',
+                                        'StandardScaler', {}),
+                                n_jobs=2,
+                                timeout=-1,
+                                parse_results=True)
+    results_tmp = results_tmp\
+                    .sort_values(['dataset', 'oversampler', 'classifier'])\
+                    .reset_index(drop=True)
+    pd.testing.assert_frame_equal(results_baseline, results_tmp)
+
+    shutil.rmtree(cache_path, ignore_errors=True)
+
+def test_evaluation_2_job_no_timeout_no_cache():
+    """
+    Testing the evaluation with 2 jobs, no timeout and no cache
+    """
+    results_tmp = evaluate_oversamplers(
+                                datasets=[dataset_0, dataset_1],
+                                oversamplers=oversamplers,
+                                classifiers=classifiers,
+                                cache_path=None,
+                                validator_params={'n_repeats': 2,
+                                                    'n_splits': 2,
+                                                    'random_state': 5},
+                                scaler=('sklearn.preprocessing',
+                                        'StandardScaler', {}),
+                                n_jobs=2,
+                                timeout=-1,
+                                parse_results=True)
+    results_tmp = results_tmp\
+                    .sort_values(['dataset', 'oversampler', 'classifier'])\
+                    .reset_index(drop=True)
+    pd.testing.assert_frame_equal(results_baseline, results_tmp)
+
+def test_evaluation_explicit_gc():
+    """
+    Testing the evaluation with explicit call to garbage collector
+    """
+    results_tmp = evaluate_oversamplers(
+                                datasets=[dataset_0, dataset_1],
+                                oversamplers=oversamplers,
+                                classifiers=classifiers,
+                                cache_path=None,
+                                validator_params={'n_repeats': 2,
+                                                    'n_splits': 2,
+                                                    'random_state': 5},
+                                scaler=('sklearn.preprocessing',
+                                        'StandardScaler', {}),
+                                n_jobs=2,
+                                timeout=-1,
+                                parse_results=True,
+                                explicit_gc=True)
+    results_tmp = results_tmp\
+                    .sort_values(['dataset', 'oversampler', 'classifier'])\
+                    .reset_index(drop=True)
+    pd.testing.assert_frame_equal(results_baseline, results_tmp)
+
+def test_verbose_logging():
+    """
+    Testing the verbose logging
+    """
+    _verbose_logging("dummy", 0)
+    assert True
+    _verbose_logging("dummy", 1)
+    assert True

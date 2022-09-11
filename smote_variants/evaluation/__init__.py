@@ -6,3 +6,5 @@ from ._folding import *
 from ._sampling import *
 from ._evaluation import *
 from ._functions import *
+from ._processing import *
+from ._parallelization import *

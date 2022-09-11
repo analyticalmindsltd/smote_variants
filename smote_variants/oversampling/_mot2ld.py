@@ -487,7 +487,8 @@ class MOT2LD(OverSamplingSimplex):
                         perplexity=np.min([10, X.shape[0]-1]),
                         n_iter_without_progress=100,
                         n_iter=500,
-                        verbose=0).fit_transform(X)
+                        verbose=0,
+                        n_jobs=self.n_jobs).fit_transform(X)
 
         X_min = X_tsne[y == self.min_label]
         _logger.info("%s: TSNE finished", self.__class__.__name__)

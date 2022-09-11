@@ -6,8 +6,13 @@ import os
 import glob
 from ast import literal_eval
 
+import datetime
+import logging
+import gc
+
 from joblib import Parallel, delayed
 
+import numpy as np
 import pandas as pd
 
 from ..base import load_dict, instantiate_obj
@@ -15,6 +20,8 @@ from ..base import all_scores
 from ._folding import Folding
 from ._sampling import SamplingJob
 from ._evaluation import EvaluationJob
+from .._logger import logger
+from ._parallelization import ThreadTimeoutProcessPool
 
 __all__ = ['evaluate_oversamplers',
             'model_selection',
@@ -23,7 +30,8 @@ __all__ = ['evaluate_oversamplers',
             'execute_1_os',
             'execute_1_eval',
             'do_clean_up',
-            'do_parse_results']
+            'do_parse_results',
+            '_verbose_logging']
 
 def execute_1_job(fold,
                     oversamplers,
@@ -52,6 +60,7 @@ def execute_1_job(fold,
                             cache_path=None,
                             serialization=serialization)
         result = job.do_oversampling()
+
         job = EvaluationJob(result,
                             classifiers,
                             cache_path=None,
@@ -77,6 +86,16 @@ def execute_1_os(fold,
     Returns:
         list: the results
     """
+    #import os
+    #os.environ['OPENBLAS_NUM_THREADS'] = '1'
+    #os.environ['MKL_NUM_THREADS'] = '1'
+    #os.environ['BLIS_NUM_THREADS'] = '1'
+    #os.environ['OMP_NUM_THREADS'] = '1'
+    #os.environ['TF_NUM_INTEROP_THREADS'] = '1'
+    #os.environ['TF_NUM_INTRAOP_THREADS'] = '1'
+
+    logger.setLevel(logging.CRITICAL)
+
     results = []
     for oversampler in oversamplers:
         job = SamplingJob(fold,
@@ -85,7 +104,12 @@ def execute_1_os(fold,
                             scaler=scaler,
                             cache_path=cache_path,
                             serialization=serialization)
-        results.append(job.do_oversampling())
+
+        result = job.do_oversampling()
+
+        results.append(result)
+
+
     return results
 
 def execute_1_eval(oversampling,
@@ -104,6 +128,14 @@ def execute_1_eval(oversampling,
     Returns:
         list: the results
     """
+    #import os
+    #os.environ['OPENBLAS_NUM_THREADS'] = '1'
+    #os.environ['MKL_NUM_THREADS'] = '1'
+    #os.environ['BLIS_NUM_THREADS'] = '1'
+    #os.environ['OMP_NUM_THREADS'] = '1'
+
+    #logger.setLevel(logging.CRITICAL)
+
     job = EvaluationJob(oversampling,
                             classifiers,
                             cache_path=cache_path,
@@ -166,11 +198,9 @@ def _pivot_best_scores(pdf):
 
 def _explode_entries(pdf):
     pdf = pd.concat([pdf, pdf['scores'].apply(pd.Series)], axis=1)
-    pdf['database'] = pdf['fold_descriptor'].apply(lambda x: x['name'])
+    pdf['dataset'] = pdf['fold_descriptor'].apply(lambda x: x['name'])
     pdf['fold_idx'] = pdf['fold_descriptor'].apply(lambda x: x['fold_idx'])
     pdf['repeat_idx'] = pdf['fold_descriptor'].apply(lambda x: x['repeat_idx'])
-    pdf['oversampler_params'] = pdf['oversampler']
-    pdf['oversampler'] = pdf['oversampler_params'].apply(lambda x: x['class_name'])
     pdf['oversampler_params_key'] = pdf['oversampler_params'].apply(str)
     pdf['classifier_params_key'] = pdf['classifier_params'].apply(str)
     return pdf
@@ -201,7 +231,7 @@ def do_parse_results(results, parse_results, serialization):
         aggregations = {**{score + '_mean': (score, 'mean') for score in all_scores},
                         **{score + '_std': (score, 'std') for score in all_scores}}
 
-        pdf_avg = pdf_prep.groupby(['database', 'oversampler',
+        pdf_avg = pdf_prep.groupby(['dataset', 'oversampler_module', 'oversampler',
                                 'classifier', 'oversampler_params_key',
                                 'classifier_module',
                                 'classifier_params_key'])\
@@ -214,6 +244,48 @@ def do_parse_results(results, parse_results, serialization):
         return pdf_avg
     return results
 
+def execute_parallel_oversampling(*, folding,
+                                    oversamplers,
+                                    scaler,
+                                    cache_path_tmp,
+                                    serialization,
+                                    n_jobs,
+                                    timeout):
+    """
+    Execute the oversampling in parallel
+
+    Args:
+        folding (Folding): a folding object
+        oversamplers (list): the list of oversamplers
+        scaler (tuple): the scaler specification
+        cache_path_tmp (str): the cache path
+        serialization (str): the serialization type
+        n_jobs (int): the number of jobs
+        timeout (float): the timeout time (seconds)
+
+    Returns:
+        list: the results
+    """
+    all_folds = folding.folding_files()
+    jobs = []
+
+    for fold in all_folds:
+        for oversampler in oversamplers:
+            jobs.append(SamplingJob(fold,
+                            oversampler[1],
+                            oversampler[2],
+                            scaler=scaler,
+                            cache_path=cache_path_tmp,
+                            serialization=serialization))
+
+    np.random.shuffle(jobs)
+
+    ttpp = ThreadTimeoutProcessPool(n_jobs, timeout)
+
+    results_os = ttpp.execute(jobs=jobs)
+
+    return results_os
+
 def cached_evaluation(*, folding,
                         oversamplers,
                         classifiers,
@@ -221,6 +293,7 @@ def cached_evaluation(*, folding,
                         cache_path,
                         serialization,
                         n_jobs,
+                        timeout,
                         clean_up):
     """
     Executes cached evaluation
@@ -233,6 +306,7 @@ def cached_evaluation(*, folding,
         cache_path (str): path to a cache directory
         serialization (str): serialization method 'json'/'pickle'
         n_jobs (int): number of parallel jobs
+        timeout (float): the timeout in seconds (-1: no timeout)
         clean_up (str): 'oversamplings'/'all'
 
     Returns:
@@ -242,28 +316,121 @@ def cached_evaluation(*, folding,
 
     cache_path_tmp = os.path.join(cache_path, folding.properties['name'])
 
-    results_os = Parallel(n_jobs=n_jobs,
-                        batch_size=1)(delayed(execute_1_os)(fold,
-                                                    oversamplers,
-                                                    scaler,
-                                                    cache_path_tmp,
-                                                    serialization)
-                                for fold in folding.folding_files())
+    if n_jobs > 1:
+        results_os = execute_parallel_oversampling(folding=folding,
+                                                    oversamplers=oversamplers,
+                                                    scaler=scaler,
+                                                    cache_path_tmp=cache_path_tmp,
+                                                    serialization=serialization,
+                                                    n_jobs=n_jobs,
+                                                    timeout=timeout)
+    else:
+        results_os = []
+        for fold in folding.fold():
+            results = execute_1_os(fold,
+                                    oversamplers,
+                                    scaler,
+                                    cache_path_tmp,
+                                    serialization)
+            results_os.extend(results)
 
-    results = []
-    for result in results_os:
-        results.extend(result)
-
-    results = Parallel(n_jobs=n_jobs,
-                        batch_size=1)(delayed(execute_1_eval)(overs,
-                                                            classifiers,
-                                                            cache_path_tmp,
-                                                            serialization)
-                                    for overs in results)
+    if n_jobs > 1:
+        results = Parallel(n_jobs=n_jobs,
+                            batch_size=10)(delayed(execute_1_eval)(overs,
+                                                                classifiers,
+                                                                cache_path_tmp,
+                                                                serialization)
+                                        for overs in results_os)
+    else:
+        results = [execute_1_eval(overs,
+                                    classifiers,
+                                    cache_path_tmp,
+                                    serialization) for overs in results_os]
 
     do_clean_up(cache_path_tmp, clean_up)
 
     return results
+
+def _verbose_logging(message, verbosity):
+    if verbosity == 0:
+        logger.info(message)
+    else:
+        print(f"{str(datetime.datetime.now())}: {message}")
+
+def _unify_lists(list_of_lists):
+    result = []
+    for tmp in list_of_lists:
+        result.extend(tmp)
+
+    return result
+
+def evaluate_oversampler_on_dataset(dataset,
+                                    oversamplers,
+                                    classifiers,
+                                    *,
+                                    cache_path=None,
+                                    validator_params=None,
+                                    scaler=('sklearn.preprocessing',
+                                            'StandardScaler',
+                                            {}),
+                                    serialization='json',
+                                    clean_up='oversamplings',
+                                    n_jobs=1,
+                                    timeout=-1,
+                                    explicit_gc=False):
+    """
+    Evaluates oversampling techniques using various classifiers on one dataset
+
+    Args:
+        datasets (list): list of datasets and/or dataset loaders - a dataset
+                            is a dict with 'data', 'target' and 'name' keys
+        oversamplers (list): list of oversampling classes/objects
+        classifiers (list): list of classifier objects
+        cache_path (str): path to a cache directory
+        validator_params (dict/None): parameters of the validator
+        scaler (tuple): scaler object
+        serialization (str): serialization method 'json'/'pickle'
+        clean_up (str): 'oversamplings'/'all'
+        n_jobs (int): number of parallel jobs
+        timeout (float/None): the timeout for the oversampling jobs, negative
+                                or None means no timeout
+        explicit_gc (bool): whether to run garbage collection expliticlty
+
+    Returns:
+        pd.DataFrame: the evaluation results
+    """
+
+    all_results = []
+    folding = Folding(dataset,
+                        cache_path=cache_path,
+                        validator_params=validator_params,
+                        serialization=serialization)
+
+    if cache_path is None:
+        all_results.extend(Parallel(n_jobs=n_jobs,
+                                    batch_size=1)(delayed(execute_1_job)(fold,
+                                                                    oversamplers,
+                                                                    scaler,
+                                                                    classifiers,
+                                                                    serialization)
+                                                    for fold in folding.fold()))
+
+    else:
+        all_results.extend(cached_evaluation(folding=folding,
+                                            oversamplers=oversamplers,
+                                            classifiers=classifiers,
+                                            scaler=scaler,
+                                            cache_path=cache_path,
+                                            serialization=serialization,
+                                            n_jobs=n_jobs,
+                                            timeout=timeout,
+                                            clean_up=clean_up))
+
+    # optionally explicitly execute garbage collection after each dataset
+    if explicit_gc:
+        gc.collect()
+
+    return all_results
 
 def evaluate_oversamplers(datasets,
                             oversamplers,
@@ -277,7 +444,10 @@ def evaluate_oversamplers(datasets,
                             serialization='json',
                             clean_up='oversamplings',
                             n_jobs=1,
-                            parse_results=True):
+                            timeout=-1,
+                            parse_results=True,
+                            explicit_gc=False,
+                            verbosity=1):
     """
     Evaluates oversampling techniques using various classifiers on
     various datasets
@@ -293,7 +463,11 @@ def evaluate_oversamplers(datasets,
         serialization (str): serialization method 'json'/'pickle'
         clean_up (str): 'oversamplings'/'all'
         n_jobs (int): number of parallel jobs
+        timeout (float/None): the timeout for the oversampling jobs, negative
+                                or None means no timeout
         parse_results (bool): whether to parse the results when caching happens
+        explicit_gc (bool): whether to run garbage collection expliticlty
+        verbosity (int): verbosity level
 
     Returns:
         pd.DataFrame: the evaluation results
@@ -329,33 +503,21 @@ def evaluate_oversamplers(datasets,
     all_results = []
 
     for dataset in datasets:
-        folding = Folding(dataset,
-                            cache_path=cache_path,
-                            validator_params=validator_params,
-                            serialization=serialization)
+        _verbose_logging(f"processing dataset: {dataset['name']}", verbosity)
 
-        if cache_path is None:
-            results = Parallel(n_jobs=n_jobs,
-                                batch_size=1)(delayed(execute_1_job)(fold,
-                                                                oversamplers,
-                                                                scaler,
-                                                                classifiers,
-                                                                serialization)
-                                                for fold in folding.fold())
+        all_results.extend(evaluate_oversampler_on_dataset(dataset=dataset,
+                                                            oversamplers=oversamplers,
+                                                            classifiers=classifiers,
+                                                            cache_path=cache_path,
+                                                            validator_params=validator_params,
+                                                            scaler=scaler,
+                                                            serialization=serialization,
+                                                            clean_up=clean_up,
+                                                            n_jobs=n_jobs,
+                                                            timeout=timeout,
+                                                            explicit_gc=explicit_gc))
 
-        else:
-            results = cached_evaluation(folding=folding,
-                                        oversamplers=oversamplers,
-                                        classifiers=classifiers,
-                                        scaler=scaler,
-                                        cache_path=cache_path,
-                                        serialization=serialization,
-                                        n_jobs=n_jobs,
-                                        clean_up=clean_up)
-
-        for result in results:
-            all_results.extend(result)
-
+    all_results = _unify_lists(all_results)
     return do_parse_results(all_results, parse_results, serialization)
 
 def model_selection(dataset,
@@ -370,9 +532,10 @@ def model_selection(dataset,
                             {}),
                     serialization='json',
                     clean_up='oversamplings',
-                    n_jobs=1):
+                    n_jobs=1,
+                    timeout=-1):
     """
-    Evaluates model selection using various classifiers on
+    Executes model selection using various classifiers on
     various datasets
 
     Args:
@@ -387,7 +550,8 @@ def model_selection(dataset,
         serialization (str): serialization method 'json'/'pickle'
         clean_up (str): 'oversamplings'/'all'
         n_jobs (int): number of parallel jobs
-        parse_results (bool): whether to parse the results when caching happens
+        timeout (float/None): the timeout for the oversampling jobs, negative
+                                or None means no timeout
 
     Returns:
         pd.DataFrame: the evaluation results
@@ -424,18 +588,18 @@ def model_selection(dataset,
                                     serialization=serialization,
                                     clean_up=clean_up,
                                     n_jobs=n_jobs,
-                                    parse_results=True)
+                                    parse_results=True,
+                                    timeout=timeout)
 
-    pdf = pdf.groupby(['database', 'oversampler',
-                                    'classifier', 'classifier_module'])\
+    pdf = pdf.groupby(['dataset', 'oversampler', 'oversampler_module',
+                        'classifier', 'classifier_module'])\
                         .apply(_pivot_best_scores)\
                         .reset_index(drop=False)\
-                        .drop('level_4', axis='columns')
+                        .drop('level_5', axis='columns')
 
-    best_mask = pdf[f'{score}_mean'] == pdf[f'{score}_mean'].max()
-    best_row = pdf[best_mask].iloc[0]
+    best_row = pdf[pdf[f'{score}_mean'] == pdf[f'{score}_mean'].max()].iloc[0]
 
-    oversampler = ('smote_variants',
+    oversampler = (best_row['oversampler_module'],
                     best_row['oversampler'],
                     literal_eval(best_row[f'{score}_oversampler_params']))
     classifier = (best_row['classifier_module'],
