@@ -61,6 +61,7 @@ jobs:
           command: |
             . venv/bin/activate
             coverage run --source smote_variants -m pytest tests
+          no_output_timeout: 60m
 
       - store_artifacts:
           path: test-reports
