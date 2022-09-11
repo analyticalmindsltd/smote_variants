@@ -15,13 +15,32 @@ from smote_variants.base import (mode, StatisticsMixin, RandomStateMixin,
                             ParametersMixin, instantiate_obj, coalesce,
                             load_dict, dump_dict, check_if_damaged,
                             equal_dicts, coalesce_dict, safe_divide,
-                            fix_density, cov)
+                            fix_density, cov, scipy_mode)
 
 def test_mode():
     """
     Testing the mode function.
     """
     assert mode([0, 1, 1, 2]) == 1
+
+def test_scipy_mode():
+    """
+    Testing the scipy_mode function
+    """
+    def mode_old(array, axis, nan_policy='propagate'):
+        _ = array
+        _ = axis
+        _ = nan_policy
+        return 'dummy'
+
+    def mode_new(array, axis, nan_policy='propagate', keepdims=False):
+        _ = array
+        _ = axis
+        _ = nan_policy
+        return 'dummy-' + str(keepdims)
+
+    assert scipy_mode(np.array([1, 2, 3]), mode_func=mode_old) == 'dummy'
+    assert scipy_mode(np.array([1, 2, 3]), mode_func=mode_new) == 'dummy-True'
 
 def test_cov():
     """

@@ -4,9 +4,7 @@ This module implements the Stefanowski method.
 
 import numpy as np
 
-from scipy.stats import mode
-
-from ..base import coalesce
+from ..base import coalesce, scipy_mode
 from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSampling
 
@@ -192,7 +190,7 @@ class Stefanowski(OverSampling):
 
         mask = ~ safe_flag[minority_indices]
         minority_masked = minority_indices[mask]
-        correct_mask = mode(y[indices5[minority_masked, 1:]], keepdims=True).mode[:, 0] \
+        correct_mask = scipy_mode(y[indices5[minority_masked, 1:]]).mode[:, 0] \
                                                         == y[minority_masked] # pylint: disable=unexpected-keyword-arg
 
         k = np.sum((y[indices[minority_masked[correct_mask], 1:]] == self.maj_label) \
@@ -243,7 +241,7 @@ class Stefanowski(OverSampling):
         indices5 = nnmt.kneighbors(X, return_distance=False)
 
         # determining noisy and safe flags
-        safe_flag = mode(y[indices[:, 1:]], axis=1, keepdims=True).mode[:, 0] == y  # pylint: disable=unexpected-keyword-arg
+        safe_flag = scipy_mode(y[indices[:, 1:]], axis=1).mode[:, 0] == y  # pylint: disable=unexpected-keyword-arg
         D = (y == self.maj_label) & (~ safe_flag) # pylint: disable=invalid-name
 
         samples = np.zeros((0, X.shape[1]))
