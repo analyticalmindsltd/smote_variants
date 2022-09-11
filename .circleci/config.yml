@@ -24,7 +24,8 @@ jobs:
       # - image: circleci/postgres:9.4
 
     working_directory: ~/repo
-
+    # setting large resource class
+    resource_class: large
     steps:
       - checkout
 
@@ -65,8 +66,6 @@ jobs:
           path: test-reports
           destination: test-reports
 
-    resource_class: large
-
   #test-3.8:
   #  <<: *test-template
   #  docker:
@@ -76,12 +75,12 @@ jobs:
     <<: *test-template
     docker:
       - image: cimg/python:3.9
-
+    # setting large resource class
     resource_class: large
 
   test-3.10:
     <<: *test-template
     docker:
       - image: cimg/python:3.10
-
+    # setting large resource class
     resource_class: large
