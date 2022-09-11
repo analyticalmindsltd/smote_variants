@@ -107,11 +107,12 @@ class SamplingJob(TimeoutJobBase):
             folding = load_dict(folding, folding.split('.')[-1],
                                 ['X_train', 'y_train', 'X_test', 'y_test'])
 
-        deterministic = 'ss_params' in self.oversampler_params
-        if deterministic:
-            deterministic = self.oversampler_params['ss_params']['within_simplex_sampling']
+        #deterministic = 'ss_params' in self.oversampler_params
+        #if deterministic:
+        #    deterministic = self.oversampler_params['ss_params']['within_simplex_sampling']
 
-        #print('starting', os.getpid(), self.oversampler, folding['fold_descriptor']['fold_idx'], deterministic, flush=True)
+        #print('starting', os.getpid(), self.oversampler,
+        #       folding['fold_descriptor']['fold_idx'], deterministic, flush=True)
 
         target_filename, damaged = self.target_filename_damaged(folding)
 
@@ -174,7 +175,8 @@ class SamplingJob(TimeoutJobBase):
             #if check_if_damaged(target_filename, self.serialization):
             #    return None
 
-            #print('finishing', os.getpid(), self.oversampler, folding['fold_descriptor']['fold_idx'], flush=True)
+            #print('finishing', os.getpid(), self.oversampler,
+            #       folding['fold_descriptor']['fold_idx'], flush=True)
 
             return target_filename
 

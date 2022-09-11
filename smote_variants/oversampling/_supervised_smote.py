@@ -1,8 +1,6 @@
 """
 This module implements the Supervised_SMOTE method.
 """
-import os
-
 import numpy as np
 
 from scipy.linalg import circulant
@@ -141,14 +139,13 @@ class Supervised_SMOTE(OverSamplingSimplex):
         class_column = np.where(self.classifier_obj.classes_ == self.min_label)
         class_column = class_column[0][0]
 
-        #print('aa', os.getpid(), n_to_sample, flush=True)
-
         samples = np.zeros(shape=(0, X.shape[1]))
         n_trials = 1
         n_success = 1
         while len(samples) < n_to_sample:
             to_sample = np.max([(n_to_sample - len(samples))*4, 100])
-            #print(os.getpid(), n_to_sample, to_sample, len(samples), n_success, n_trials, len(X_min), th_lower, th_upper, flush=True)
+            #print(os.getpid(), n_to_sample, to_sample, len(samples), n_success, n_trials,
+            # len(X_min), th_lower, th_upper, flush=True)
             #print(n_to_sample, to_sample)
 
             n_trials = n_trials + to_sample
@@ -172,8 +169,6 @@ class Supervised_SMOTE(OverSamplingSimplex):
                 th_upper = th_upper + 0.1
                 n_success = 1
                 n_trials = 1
-
-        #print('bb', os.getpid(), flush=True)
 
         samples = samples[:np.min([samples.shape[0], n_to_sample])]
 

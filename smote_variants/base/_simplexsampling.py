@@ -3,7 +3,6 @@
 This module implements all simplex sampling related functionalities.
 """
 
-import os
 import itertools
 
 import numpy as np

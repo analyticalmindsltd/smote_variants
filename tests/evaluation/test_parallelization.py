@@ -5,12 +5,14 @@ This module tests the parallelization ecosystem.
 import time
 import threading
 import multiprocessing
+from queue import Empty
 
 import pytest
 
 from smote_variants.evaluation import (TimeoutJobBase,
                                         ThreadTimeoutProcessPool,
-                                        wait_for_lock)
+                                        wait_for_lock,
+                                        queue_get_default)
 
 sleeps = [1, 2, 6, 7]
 
@@ -146,3 +148,39 @@ def test_lock():
     time.sleep(1)
 
     assert not thread.is_alive()
+
+class MockQueue: # pylint: disable=too-few-public-methods
+    """
+    Class mocking the Queue object
+    """
+    def get(self, block):
+        """
+        Mocking the get function of the Queue
+
+        Args:
+            block (bool): whether to block
+
+        Returns:
+            obj: the content of the queue
+        """
+        _ = block
+        raise Empty
+
+class MockJob: # pylint: disable=too-few-public-methods
+    """
+    Class mocking a TimeoutJob object
+    """
+    def timeout(self):
+        """
+        The timeout function
+
+        Returns:
+            int: 1
+        """
+        return 1
+
+def test_queue_get_default():
+    """
+    Testing the queue_get_default functionality.
+    """
+    assert queue_get_default(MockQueue(), MockJob()) == 1

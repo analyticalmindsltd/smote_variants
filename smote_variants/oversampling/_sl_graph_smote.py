@@ -1,6 +1,7 @@
 """
 This module implements the SL_graph_SMOTE method.
 """
+import warnings
 
 import numpy as np
 
@@ -9,6 +10,7 @@ from scipy.stats import skew
 from ..base import coalesce, coalesce_dict
 from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSampling
+from ..config import suppress_external_warnings
 from ._safe_level_smote import Safe_Level_SMOTE
 from ._borderline_smote import Borderline_SMOTE1
 
@@ -131,7 +133,10 @@ class SL_graph_SMOTE(OverSampling):
         safe_level_values = np.sum(y[indices], axis=1)
 
         # Computing skewness
-        skewness = skew(safe_level_values)
+        with warnings.catch_warnings():
+            if suppress_external_warnings():
+                warnings.simplefilter('ignore')
+            skewness = skew(safe_level_values)
 
         if skewness < 0:
             # left skewed

@@ -1,8 +1,6 @@
 """
 This module implements the ANS method.
 """
-import os
-
 import numpy as np
 
 from ..base import coalesce_dict, coalesce

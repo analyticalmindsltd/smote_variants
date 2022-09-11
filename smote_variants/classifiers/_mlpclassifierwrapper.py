@@ -2,6 +2,7 @@
 This module implements a wrapper over the MLPClassifier
 for easier parameterization.
 """
+import numpy as np
 
 from sklearn.neural_network import MLPClassifier
 
@@ -12,9 +13,9 @@ class MLPClassifierWrapper:
 
     def __init__(self,
                  *,
-                 max_iter=1000,
+                 max_iter=10000,
                  activation='relu',
-                 hidden_layer_fraction=0.1,
+                 hidden_layer_fraction='sqrt',
                  alpha=0.0001,
                  learning_rate='adaptive',
                  random_state=None):
@@ -39,6 +40,12 @@ class MLPClassifierWrapper:
         self.random_state = random_state
         self.model = None
 
+    def _determine_hidden_layer_size(self, n_dim):
+        if isinstance(self.hidden_layer_fraction, str):
+            if self.hidden_layer_fraction == 'sqrt':
+                return max([1, int(np.sqrt(n_dim))])
+        return max([1, int(n_dim*self.hidden_layer_fraction)])
+
     def fit(self, X, y):
         """
         Fit the model to the data
@@ -50,7 +57,7 @@ class MLPClassifierWrapper:
         Returns:
             obj: the MLPClassifierWrapper object
         """
-        hidden_layer_size = max([1, int(len(X[0])*self.hidden_layer_fraction)])
+        hidden_layer_size = self._determine_hidden_layer_size(X.shape[1])
         self.model = MLPClassifier(activation=self.activation,
                                    max_iter=self.max_iter,
                                    hidden_layer_sizes=(hidden_layer_size,),

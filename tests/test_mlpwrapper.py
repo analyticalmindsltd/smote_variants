@@ -36,3 +36,9 @@ def test_mlp_wrapper():
     clone = classifier.copy()
 
     assert sv.base.equal_dicts(params, clone.get_params())
+
+    dataset = datasets.load_wine()
+    classifier = sv.classifiers.MLPClassifierWrapper(hidden_layer_fraction=0.33)
+    classifier.fit(dataset['data'], dataset['target'])
+
+    assert classifier is not None

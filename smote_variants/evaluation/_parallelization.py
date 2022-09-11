@@ -2,31 +2,14 @@
 This module implements the process based parallelization with timeout.
 """
 
-#import platform
 import threading
 import multiprocessing
+from queue import Empty
 
 __all__ = ['TimeoutJobBase',
            'ThreadTimeoutProcessPool',
-           'wait_for_lock']
-
-#_start_methods = {'Linux': 'spawn',
-#                  'Windows': 'spawn'}
-
-#class _MPSingleton(object):
-#    """
-#    A singleton object guarding the call to multiprocessing.set_start_method,
-#    ensuring it is called only once.
-#    """
-#    #def __init__(self):
-#    method = _start_methods.get(platform.system(), 'spawn')
-#    multiprocessing.set_start_method(method)
-
-#start_method = _start_methods.get(platform.system(), 'spawn')
-
-#if multiprocessing.get_start_method() != start_method:
-#    print(multiprocessing.get_start_method(), start_method)
-#    multiprocessing.set_start_method(start_method, force=True)
+           'wait_for_lock',
+           'queue_get_default']
 
 class TimeoutJobBase:
     """
@@ -96,6 +79,23 @@ def execute_job_object(job, queue, queue_lock):
     queue.put(result)
     queue_lock.release()
 
+def queue_get_default(queue, job):
+    """
+    Return the content of the queue if available, otherwise return
+    the timeout fallback
+
+    Args:
+        queue (multiprocessing.Queue): a queue
+        job (TimeoutJob): a timeout job object
+
+    Returns:
+        obj: the content of the queue or the default timeout object
+    """
+    try:
+        return queue.get(block=False)
+    except Empty:
+        return job.timeout()
+
 def process_manager(job,
                     idx,
                     results,
@@ -135,10 +135,7 @@ def process_manager(job,
     # if the process finished normally, the result is written into
     # the results output argument
     if not process.is_alive():
-        try:
-            results[idx] = queue.get(block=False)
-        except:
-            results[idx] = job.timeout()
+        results[idx] = queue_get_default(queue, job)
 
         return
 
@@ -146,7 +143,7 @@ def process_manager(job,
     try:
         queue_lock.acquire()
         results[idx] = queue.get(block=False)
-    except:
+    except Empty:
         pass
 
     # if the process is still running, the process is killed and
@@ -182,7 +179,7 @@ def pooling_thread(pool_object):
             break
 
         process_start_lock = threading.Lock()
-        process_start_lock.acquire()
+        process_start_lock.acquire() # pylint: disable=consider-using-with
 
         # creating a new process manager thread to execute the job
         # with timeout
@@ -200,7 +197,7 @@ def pooling_thread(pool_object):
 
         thread.start()
 
-        process_start_lock.acquire()
+        process_start_lock.acquire() # pylint: disable=consider-using-with
         process_start_lock.release()
 
         pool_object.lock.release()

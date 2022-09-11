@@ -77,8 +77,8 @@ def pairwise_distances_mahalanobis(X, *, Y=None, tensor=None, optimized=True):
         # this original implementation can become very slow for high dimensional data
         if optimized:
             return np.sqrt(np.sum((X[:, None] - Y)**2, axis=-1))
-        else:
-            tensor = np.eye(X.shape[1])
+
+        tensor = np.eye(X.shape[1])
 
     tmp= X[:,None] - Y
 

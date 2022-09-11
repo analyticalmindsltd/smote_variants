@@ -1,8 +1,6 @@
 """
 This module implements the MSYN method.
 """
-import os
-
 import numpy as np
 
 from ..base import (NearestNeighborsWithMetricTensor,

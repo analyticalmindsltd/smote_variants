@@ -161,6 +161,23 @@ class NRSBoundary_SMOTE(OverSamplingSimplex):
 
         return bound_set, pos_set, delta
 
+    def determine_no_conflict_flag(self, subsample, X_pos, nn_params, deltas): # pylint: disable=invalid-name
+        """
+        Determine the no-conflict flag for the samples
+
+        Args:
+            subsample (np.array): generated samples
+            X_pos (np.array): the original positive samples
+            nn_params (dict): nearest neighbor parameters
+            deltas (np.array): the delta values
+        """
+        tensor = tensor=nn_params.get('metric_tensor', None)
+        dist_from_pos_set = pairwise_distances_mahalanobis(subsample,
+                                                    Y=X_pos,
+                                                    tensor=tensor)
+        no_conflict = np.all(dist_from_pos_set > deltas, axis=1)
+        return no_conflict
+
     def generate_samples(self, *, X, X_min,
                     indices, bound_set, pos_set,
                     delta, n_to_sample, nn_params):
@@ -193,10 +210,11 @@ class NRSBoundary_SMOTE(OverSamplingSimplex):
                                             X_vertices=X_min)
 
             # checking the conflict
-            dist_from_pos_set = pairwise_distances_mahalanobis(subsample,
-                                                                Y=X[pos_set],
-                                                                tensor=nn_params.get('metric_tensor', None))
-            no_conflict = np.all(dist_from_pos_set > deltas, axis=1)
+            no_conflict = self.determine_no_conflict_flag(subsample,
+                                                            X[pos_set],
+                                                            nn_params,
+                                                            deltas)
+
             samples = np.vstack([samples, subsample[no_conflict]])
 
             trials = trials + 1

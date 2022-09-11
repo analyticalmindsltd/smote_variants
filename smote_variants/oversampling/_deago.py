@@ -3,6 +3,7 @@ This module implements the DEAGO method.
 """
 
 import os
+import random
 import warnings
 warnings.simplefilter("ignore", DeprecationWarning)
 
@@ -226,15 +227,19 @@ class DEAGO(OverSampling):
         # this import is here to prevent the heavy importing of tensorflow when not needed
         import tensorflow as tf # pylint: disable=wrong-import-position,import-outside-toplevel
 
-        os.environ["OMP_NUM_THREADS"] = "1"
-        os.environ["TF_NUM_INTRAOP_THREADS"] = "1"
-        os.environ["TF_NUM_INTEROP_THREADS"] = "1"
+        os.environ["OMP_NUM_THREADS"] = f"{self.n_jobs}"
+        os.environ["TF_NUM_INTRAOP_THREADS"] = f"{self.n_jobs}"
+        os.environ["TF_NUM_INTEROP_THREADS"] = f"{self.n_jobs}"
 
         tf.config.threading.set_inter_op_parallelism_threads(self.n_jobs)
         tf.config.threading.set_intra_op_parallelism_threads(self.n_jobs)
 
         tf.config.set_soft_device_placement(True)
 
+        os.environ['PYTHONHASHSEED'] = f"{self._random_state_init}"
+
+        random.seed(self._random_state_init)
+        np.random.seed(self._random_state_init)
         tf.random.set_seed(self._random_state_init)
 
         # sampling by smote

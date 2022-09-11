@@ -2,7 +2,6 @@
 This module implements the AMSCO method.
 """
 from dataclasses import dataclass
-import datetime
 
 import numpy as np
 
