@@ -17,7 +17,7 @@ jobs:
       # specify the version you desire here
       # use `-browsers` prefix for selenium tests, e.g. `3.6.1-browsers`
       - image: cimg/python:3.8
-      
+
       # Specify service dependencies here if necessary
       # CircleCI maintains a library of pre-built images
       # documented at https://circleci.com/docs/2.0/circleci-images/
@@ -49,7 +49,7 @@ jobs:
       #     paths:
       #       - ./venv
       #     key: v1-dependencies-{{ checksum "requirements.txt" }}
-        
+
       # run tests!
       # this example uses Django's built-in test-runner
       # other common Python testing frameworks include pytest and nose
@@ -64,19 +64,21 @@ jobs:
       - store_artifacts:
           path: test-reports
           destination: test-reports
+    resource_class: large
 
   #test-3.8:
   #  <<: *test-template
   #  docker:
   #    - image: cimg/python:3.8
-  
+
   test-3.9:
     <<: *test-template
     docker:
       - image: cimg/python:3.9
-  
+    resource_class: large
+
   test-3.10:
     <<: *test-template
     docker:
       - image: cimg/python:3.10
- 
+    resource_class: large
