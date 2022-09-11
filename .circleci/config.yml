@@ -64,6 +64,7 @@ jobs:
       - store_artifacts:
           path: test-reports
           destination: test-reports
+
     resource_class: large
 
   #test-3.8:
@@ -75,10 +76,12 @@ jobs:
     <<: *test-template
     docker:
       - image: cimg/python:3.9
+
     resource_class: large
 
   test-3.10:
     <<: *test-template
     docker:
       - image: cimg/python:3.10
+
     resource_class: large
