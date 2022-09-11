@@ -1,6 +1,12 @@
 Release History
 ***************
 
+Version 0.7.0 (2022.09.11.)
+===========================
+
+* optimization of the parallelized evaluation framework
+* final clean-up after refactoring
+
 Version 0.6.0 (2022.08.20.)
 ===========================
 
