@@ -89,7 +89,10 @@ def get_all_oversamplers(n_quickest=-1):
            SN_SMOTE, SOI_CJ, SOMO, SPY, SSO, Stefanowski, SUNDO, Supervised_SMOTE,
            SVM_balance, SYMPROD, TRIM_SMOTE, V_SYNTH, VIS_RST, MSMOTE]
 
-    oversamplers = [distance_SMOTE, DSMOTE, DSRBF, E_SMOTE]
+    oversamplers = [A_SUWO, ADASYN, ADG, ADOMS, AHC, AMSCO, AND_SMOTE,
+            ANS, ASMOBD, Assembled_SMOTE, Borderline_SMOTE1, Borderline_SMOTE2,
+           CBSO, CCR, CE_SMOTE, cluster_SMOTE, CURE_SMOTE, DBSMOTE, DE_oversampling,
+           DEAGO]
 
     return determine_n_quickest(oversamplers, n_quickest)
 
