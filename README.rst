@@ -1,9 +1,13 @@
 .. -*- mode: rst -*-
 
-|CircleCI|_ |GitHub|_ |Codecov|_ |pylint|_ |ReadTheDocs|_ |PythonVersion|_ |PyPi|_ |License|_ |Gitter|_
+..
+  |CircleCI|_
 
-.. |CircleCI| image:: https://circleci.com/gh/analyticalmindsltd/smote_variants.svg?style=svg
-.. _CircleCI: https://circleci.com/gh/analyticalmindsltd/smote_variants
+|GitHub|_ |Codecov|_ |pylint|_ |ReadTheDocs|_ |PythonVersion|_ |PyPi|_ |License|_ |Gitter|_
+
+..
+  .. |CircleCI| image:: https://circleci.com/gh/analyticalmindsltd/smote_variants.svg?style=svg
+  .. _CircleCI: https://circleci.com/gh/analyticalmindsltd/smote_variants
 
 .. |GitHub| image:: https://github.com/analyticalmindsltd/smote_variants/workflows/Python%20package/badge.svg?branch=master
 .. _GitHub: https://github.com/analyticalmindsltd/smote_variants/workflows/Python%20package/badge.svg?branch=master
