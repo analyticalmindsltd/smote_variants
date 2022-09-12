@@ -26,6 +26,7 @@ jobs:
     working_directory: ~/repo
     # setting large resource class
     resource_class: large
+    parallelism: 2
     steps:
       - checkout
 
