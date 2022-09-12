@@ -5,6 +5,7 @@
 
 |GitHub|_ |Codecov|_ |pylint|_ |ReadTheDocs|_ |PythonVersion|_ |PyPi|_ |License|_ |Gitter|_
 
+
 ..
   .. |CircleCI| image:: https://circleci.com/gh/analyticalmindsltd/smote_variants.svg?style=svg
   .. _CircleCI: https://circleci.com/gh/analyticalmindsltd/smote_variants
