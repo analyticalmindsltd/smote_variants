@@ -89,8 +89,6 @@ def get_all_oversamplers(n_quickest=-1):
            SN_SMOTE, SOI_CJ, SOMO, SPY, SSO, Stefanowski, SUNDO, Supervised_SMOTE,
            SVM_balance, SYMPROD, TRIM_SMOTE, V_SYNTH, VIS_RST, MSMOTE]
 
-    oversamplers = [DSRBF]
-
     return determine_n_quickest(oversamplers, n_quickest)
 
 def get_metric_learning_oversamplers(n_quickest=-1):
