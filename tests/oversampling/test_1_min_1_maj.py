@@ -9,6 +9,11 @@ import smote_variants as sv
 from smote_variants.datasets import load_1_min_1_maj
 from .additional_objs import additional_objs
 
+# disabling smote-variants logging
+import logging
+logger = logging.getLogger('smote_variants')
+logger.setLevel(logging.CRITICAL)
+
 dataset = load_1_min_1_maj()
 
 @pytest.mark.parametrize("smote_class", sv.get_all_oversamplers())

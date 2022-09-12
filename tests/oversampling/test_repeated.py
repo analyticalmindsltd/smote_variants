@@ -9,6 +9,11 @@ import smote_variants as sv
 
 from smote_variants.datasets import load_repeated
 
+# disabling smote-variants logging
+import logging
+logger = logging.getLogger('smote_variants')
+logger.setLevel(logging.CRITICAL)
+
 dataset = load_repeated()
 
 @pytest.mark.parametrize("smote_class", sv.get_all_oversamplers())

@@ -25,6 +25,11 @@ from smote_variants.datasets import (load_1_dim,
                                      load_alternating,
                                      load_high_dim)
 
+# disabling smote-variants logging
+import logging
+logger = logging.getLogger('smote_variants')
+logger.setLevel(logging.CRITICAL)
+
 oversamplers = [sv.SMOTE()]
 
 @pytest.mark.parametrize("smote_obj", oversamplers)
