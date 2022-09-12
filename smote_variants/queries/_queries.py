@@ -89,11 +89,7 @@ def get_all_oversamplers(n_quickest=-1):
            SN_SMOTE, SOI_CJ, SOMO, SPY, SSO, Stefanowski, SUNDO, Supervised_SMOTE,
            SVM_balance, SYMPROD, TRIM_SMOTE, V_SYNTH, VIS_RST, MSMOTE]
 
-    oversamplers = [DEAGO, distance_SMOTE, DSMOTE, DSRBF, E_SMOTE, Edge_Det_SMOTE, G_SMOTE,
-           GASMOTE, Gaussian_SMOTE, polynom_fit_SMOTE_star, polynom_fit_SMOTE_bus,
-           polynom_fit_SMOTE_poly, polynom_fit_SMOTE_mesh, Gazzah, IPADE_ID, ISMOTE,
-           ISOMAP_Hybrid, KernelADASYN, kmeans_SMOTE, Lee, LLE_SMOTE, LN_SMOTE,
-           LVQ_SMOTE, MCT, MDO, MOT2LD, MSYN, MWMOTE, NDO_sampling, NEATER]
+    oversamplers = [distance_SMOTE, DSMOTE, DSRBF, E_SMOTE]
 
     return determine_n_quickest(oversamplers, n_quickest)
 
