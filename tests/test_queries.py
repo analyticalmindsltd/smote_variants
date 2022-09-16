@@ -11,6 +11,7 @@ def test_queries():
     assert len(sv.get_all_oversamplers()) >= 0
     assert len(sv.get_all_oversamplers(n_quickest=2)) == 2
     assert len(sv.get_all_noisefilters()) >= 0
+    assert len(sv.get_proportion_oversamplers()) >= 0
     assert len(sv.get_multiclass_oversamplers()) >= 0
     assert len(sv.get_multiclass_oversamplers(n_quickest=2)) == 2
     assert len(sv.get_metric_learning_oversamplers()) >= 0

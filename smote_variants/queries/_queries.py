@@ -29,6 +29,7 @@ __all__= ['get_all_oversamplers',
           'get_metric_learning_oversamplers',
           'get_simplex_sampling_oversamplers',
           'get_multiclass_oversamplers',
+          'get_proportion_oversamplers',
           'get_all_noisefilters',
           'generate_parameter_combinations']
 
@@ -88,6 +89,25 @@ def get_all_oversamplers(n_quickest=-1):
            SMOTE_OUT, SMOTE_PSO, SMOTE_PSOBAT, SMOTE_RSB, SMOTE_TomekLinks, SMOTE,
            SN_SMOTE, SOI_CJ, SOMO, SPY, SSO, Stefanowski, SUNDO, Supervised_SMOTE,
            SVM_balance, SYMPROD, TRIM_SMOTE, V_SYNTH, VIS_RST, MSMOTE]
+
+    return determine_n_quickest(oversamplers, n_quickest)
+
+def get_proportion_oversamplers(n_quickest=-1):
+    """
+    Returns all oversamplers having a proportion parameter to control the number
+    of samples to be generated.
+
+    Args:
+        n_quickest (int): the number of quickest oversamplers to return
+
+    Returns:
+        list(OverSampling): the list of oversampling classes having a proportion
+                            parameter
+    """
+
+    oversamplers = get_all_oversamplers()
+
+    oversamplers = [o for o in oversamplers if 'proportion' in o().get_params()]
 
     return determine_n_quickest(oversamplers, n_quickest)
 

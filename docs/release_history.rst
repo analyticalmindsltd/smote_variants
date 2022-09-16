@@ -1,6 +1,11 @@
 Release History
 ***************
 
+Version 0.7.1 (2022.09.16.)
+===========================
+
+* Query for oversamplers with `proportion` parameter added.
+
 Version 0.7.0 (2022.09.11.)
 ===========================
 
