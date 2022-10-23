@@ -1,7 +1,3 @@
-"""
-All oversampling techniques.
-"""
-
 from ._nosmote import *
 from ._smote import *
 from ._smote_tomeklinks import *
@@ -88,3 +84,4 @@ from ._cluster_smote import *
 from ._e_smote import *
 from ._adoms import *
 from ._symprod import *
+from ._smote_amsr import *
