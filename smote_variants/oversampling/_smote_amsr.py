@@ -96,7 +96,12 @@ class SMOTE_AMSR(OverSampling):
 
         # the greater or equal case vectorized
         # TODO: check if this normalization by max_min is correct, aren't parentheses missing?
-        d_ge = mean_anomaly - scores[sample_indices][greater_equal_mask] / max_min
+
+        d_ge = mean_anomaly - scores[sample_indices][greater_equal_mask]
+
+        if max_min > 0:
+            d_ge = mean_anomaly - scores[sample_indices][greater_equal_mask] / max_min
+
         steps_ge = self.random_state.uniform(size=(np.sum(greater_equal_mask), X.shape[1]))
         steps_ge = (steps_ge.T * (1.0 - d_ge) + d_ge).T
 
@@ -104,7 +109,12 @@ class SMOTE_AMSR(OverSampling):
 
         # the less case vectorized
         # TODO: check if this normalization by max_min is correct, aren't parentheses missing?
-        d_less = scores[sample_indices][less_mask] - mean_anomaly / max_min
+
+        d_less = scores[sample_indices][less_mask] - mean_anomaly
+
+        if max_min > 0:
+            d_less = scores[sample_indices][less_mask] - mean_anomaly / max_min
+
         steps_less = self.random_state.uniform(size=(np.sum(less_mask), X.shape[1]))
         steps_less = (steps_less.T * d_less).T
 
@@ -154,13 +164,21 @@ class SMOTE_AMSR(OverSampling):
         greater_equal_mask = diffs_scores_all >= 0
         less_mask = ~greater_equal_mask
 
-        d_ge = diffs_scores_all[greater_equal_mask] / max_min
+        d_ge = diffs_scores_all[greater_equal_mask]
+
+        if max_min > 0:
+            d_ge = diffs_scores_all[greater_equal_mask] / max_min
+
         steps_ge = self.random_state.uniform(size=(np.sum(greater_equal_mask), X.shape[1]))
         steps_ge = (steps_ge.T * (1.0 - d_ge) + d_ge).T
 
         samples[greater_equal_mask] = base_points[greater_equal_mask] + steps_ge * diffs_all[greater_equal_mask]
 
-        d_less = -diffs_scores_all[less_mask] / max_min
+        d_less = -diffs_scores_all[less_mask]
+
+        if max_min > 0:
+            d_less = -diffs_scores_all[less_mask] / max_min
+
         steps_less = self.random_state.uniform(size=(np.sum(less_mask), X.shape[1]))
         steps_less = (steps_less.T * (1.0 - d_less) + d_less).T
 
@@ -217,13 +235,21 @@ class SMOTE_AMSR(OverSampling):
         greater_equal_mask = diffs_scores >= 0
         less_mask = ~greater_equal_mask
 
-        d_ge = diffs_scores[greater_equal_mask] / max_min
+        d_ge = diffs_scores[greater_equal_mask]
+
+        if max_min > 0:
+            d_ge = diffs_scores[greater_equal_mask] / max_min
+
         steps_ge = self.random_state.uniform(size=(np.sum(greater_equal_mask), X.shape[1]))
         steps_ge = (steps_ge.T * (1.0 - d_ge) + d_ge).T
 
         samples[greater_equal_mask] = base_points[greater_equal_mask] + steps_ge * diffs[greater_equal_mask]
 
-        d_less = -diffs_scores[less_mask] / max_min
+        d_less = -diffs_scores[less_mask]
+
+        if max_min > 0:
+            d_less = -diffs_scores[less_mask] / max_min
+
         steps_less = self.random_state.uniform(size=(np.sum(less_mask), X.shape[1]))
         steps_less = (steps_less.T * (1.0 - d_less) + d_less).T
 
