@@ -201,7 +201,7 @@ class NRSBoundary_SMOTE(OverSamplingSimplex):
         samples = np.zeros(shape=(0, X.shape[1]))
 
         deltas = delta[pos_set]
-        deltas_diff = deltas - deltas*0.1
+        deltas_diff = deltas * 0.1
 
         while len(samples) < n_to_sample and trials < n_to_sample and np.all(deltas > 0):
             subsample = self.sample_simplex(X=X[bound_set],

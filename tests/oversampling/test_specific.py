@@ -30,7 +30,7 @@ import logging
 logger = logging.getLogger('smote_variants')
 logger.setLevel(logging.CRITICAL)
 
-oversamplers = [sv.SMOTE()]
+oversamplers = [sv.SMOTE_AMSR(topology='star'), sv.SMOTE_AMSR(topology='bus'), sv.SMOTE_AMSR(topology='mesh')]
 
 @pytest.mark.parametrize("smote_obj", oversamplers)
 def test_1_dim(smote_obj):

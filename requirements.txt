@@ -2,7 +2,7 @@ setuptools>=41.0.1
 joblib
 numpy
 pandas
-sklearn
+scikit-learn
 minisom
 statistics
 tensorflow

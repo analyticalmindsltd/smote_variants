@@ -16,6 +16,7 @@ from .._logger import logger
 _logger = logger
 
 __all__= ['cov',
+          'shuffle_training_set',
           'mode',
           'fix_density',
           'safe_divide',
@@ -48,6 +49,26 @@ def cov(array, rowvar=True):
     if array.shape[0] > 1:
         return np.cov(array, rowvar=rowvar)
     return np.array([[np.cov(array, rowvar=rowvar)]])
+
+def shuffle_training_set(X, y, random_state=None):
+    """
+    Shuffles a training set
+
+    Args:
+        X (np.array): the feature vectors
+        y (np.array): the target labels
+        random_state (np.random.RandomState): the random state to use
+
+    Returns:
+        np.array, np.array: the shuffled training set
+    """
+    if random_state is None:
+        return X, y
+
+    shuffle_mask = np.arange(X.shape[0])
+    random_state.shuffle(shuffle_mask)
+
+    return X[shuffle_mask], y[shuffle_mask]
 
 def fix_density(density):
     """

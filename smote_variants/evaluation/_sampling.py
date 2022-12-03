@@ -7,7 +7,7 @@ import os
 import hashlib
 import warnings
 
-from ..base import instantiate_obj, load_dict, dump_dict, check_if_damaged
+from ..base import instantiate_obj, load_dict, dump_dict, check_if_damaged, coalesce_dict
 from ._parallelization import TimeoutJobBase
 
 __all__= ['SamplingJob']
@@ -60,7 +60,7 @@ class SamplingJob(TimeoutJobBase):
         _ = deep # pylint workaround
         return {'folding': self.folding,
                 'oversampler': self.oversampler,
-                'oversampler_params': self.oversampler_params,
+                'oversampler_params': self.oversampler_params.copy(),
                 'cache_path': self.cache_path,
                 'serialization': self.serialization,
                 'reset': self.reset}
@@ -125,21 +125,22 @@ class SamplingJob(TimeoutJobBase):
 
         X_train = folding['X_train']
         X_test = folding['X_test']
+        y_train = folding['y_train']
 
         if self.scaler is not None:
             scaler = instantiate_obj(self.scaler)
-            X_train = scaler.fit_transform(X_train)
+            X_train = scaler.fit_transform(X_train, y_train)
             X_test = scaler.transform(X_test)
 
         oversampling = {'fold_descriptor': folding['fold_descriptor'],
                         'y_test': folding['y_test'],
-                        'oversampler': oversampler_obj.get_params()}
+                        'oversampler': coalesce_dict(oversampler_obj.get_params(), self.oversampler_params)}
 
         begin_timestamp = time.time()
         with warnings.catch_warnings(record=True) as warning:
             try:
-                X_samp, y_samp = oversampler_obj.sample(folding['X_train'],
-                                                        folding['y_train'])
+                X_samp, y_samp = oversampler_obj.sample(X_train,
+                                                        y_train)
                 X_test = oversampler_obj.preprocessing_transform(folding['X_test'])
                 oversampling = {**oversampling,
                                 'X_train': X_samp,
@@ -150,16 +151,16 @@ class SamplingJob(TimeoutJobBase):
                                 'warning': None}
             except ValueError as value_error:
                 oversampling = {**oversampling,
-                                'X_train': folding['X_train'],
-                                'y_train': folding['y_train'],
-                                'X_test': folding['X_test'],
+                                'X_train': X_train,
+                                'y_train': y_train,
+                                'X_test': X_test,
                                 'runtime': time.time() - begin_timestamp,
                                 'error': str(value_error)}
             except RuntimeError as runtime_error:
                 oversampling = {**oversampling,
-                                'X_train': folding['X_train'],
-                                'y_train': folding['y_train'],
-                                'X_test': folding['X_test'],
+                                'X_train': X_train,
+                                'y_train': y_train,
+                                'X_test': X_test,
                                 'runtime': time.time() - begin_timestamp,
                                 'error': str(runtime_error)}
 
@@ -200,10 +201,11 @@ class SamplingJob(TimeoutJobBase):
 
         X_train = folding['X_train']
         X_test = folding['X_test']
+        y_train = folding['y_train']
 
         if self.scaler is not None:
             scaler = instantiate_obj(self.scaler)
-            X_train = scaler.fit_transform(X_train)
+            X_train = scaler.fit_transform(X_train, y_train)
             X_test = scaler.transform(X_test)
 
         oversampling = {'fold_descriptor': folding['fold_descriptor'],
@@ -211,9 +213,9 @@ class SamplingJob(TimeoutJobBase):
                         'oversampler': oversampler_obj.get_params()}
 
         oversampling = {**oversampling,
-                    'X_train': folding['X_train'],
-                    'y_train': folding['y_train'],
-                    'X_test': folding['X_test'],
+                    'X_train': X_train,
+                    'y_train': y_train,
+                    'X_test': X_test,
                     'runtime': -1,
                     'error': 'TimeOutError',
                     'warning': None}
