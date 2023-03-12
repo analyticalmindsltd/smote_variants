@@ -27,6 +27,8 @@ class OversamplingClassifier(BaseEstimator, ClassifierMixin):
         self.oversampler_obj = instantiate_obj(oversampler)
         self.classifier_obj = instantiate_obj(classifier)
 
+        self.classes_ = None
+
     def fit(self, X, y=None):
         """
         Carries out oversampling and fits the classifier.
@@ -41,6 +43,8 @@ class OversamplingClassifier(BaseEstimator, ClassifierMixin):
 
         X_samp, y_samp = self.oversampler_obj.sample(X, y)
         self.classifier_obj.fit(X_samp, y_samp)
+
+        self.classes_ = self.classifier_obj.classes_
 
         return self
 
