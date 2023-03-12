@@ -479,11 +479,14 @@ class MOT2LD(OverSamplingSimplex):
         _logger.info("%s: Starting TSNE n: %d d: %d",
                         self.__class__.__name__, len(X), len(X[0]))
 
+        if self.n_components > X.shape[1]:
+            self.n_components = min(self.n_components, X.shape[1])
+            
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
             # do the stochastic embedding
             X_tsne = TSNE(self.n_components, # pylint: disable=invalid-name
-                        random_state=self.random_state,
+                        random_state=self._random_state_init,
                         perplexity=np.min([10, X.shape[0]-1]),
                         n_iter_without_progress=100,
                         n_iter=500,
