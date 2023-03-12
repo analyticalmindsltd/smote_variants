@@ -21,7 +21,7 @@ SDSMOTE, Selected_SMOTE, SL_graph_SMOTE, SMMO, SMOBD, SMOTE_Cosine,
 SMOTE_D, SMOTE_ENN, SMOTE_FRST_2T, SMOTE_IPF, SMOTE_OUT, SMOTE_PSO,
 SMOTE_PSOBAT, SMOTE_RSB, SMOTE_TomekLinks, SMOTE, SN_SMOTE, SOI_CJ,
 SOMO, SPY, SSO, Stefanowski, SUNDO, Supervised_SMOTE, SVM_balance, SYMPROD,
-TRIM_SMOTE, V_SYNTH, VIS_RST, MSMOTE, SMOTE_AMSR)
+TRIM_SMOTE, V_SYNTH, VIS_RST, MSMOTE, SMOTE_AMSR, SMOTEWB)
 
 from ._runtimes import runtimes
 
@@ -88,7 +88,7 @@ def get_all_oversamplers(n_quickest=-1):
            SMMO, SMOBD, SMOTE_Cosine, SMOTE_D, SMOTE_ENN, SMOTE_FRST_2T, SMOTE_IPF,
            SMOTE_OUT, SMOTE_PSO, SMOTE_PSOBAT, SMOTE_RSB, SMOTE_TomekLinks, SMOTE,
            SN_SMOTE, SOI_CJ, SOMO, SPY, SSO, Stefanowski, SUNDO, Supervised_SMOTE,
-           SVM_balance, SYMPROD, TRIM_SMOTE, V_SYNTH, VIS_RST, MSMOTE, SMOTE_AMSR]
+           SVM_balance, SYMPROD, TRIM_SMOTE, V_SYNTH, VIS_RST, MSMOTE, SMOTE_AMSR, SMOTEWB]
 
     return determine_n_quickest(oversamplers, n_quickest)
 
