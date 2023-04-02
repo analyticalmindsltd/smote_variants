@@ -49,6 +49,7 @@ SMOTE-variants for imbalanced learning
 Latest News
 -----------
 
+- SMOTEWB added, thanks to @szghlm
 - vectorized implementations for most of the techniques to boost performance
 - a refactored and improved evaluation and model selection toolkit
 - 100% test coverage
@@ -63,7 +64,7 @@ The package implements 86 variants of the Synthetic Minority Oversampling Techni
 Besides the implementations, an easy to use model selection framework is supplied to enable
 the rapid evaluation of oversampling techniques on unseen datasets.
 
-The implemented techniques: [SMOTE]_ , [SMOTE_TomekLinks]_ , [SMOTE_ENN]_ , [Borderline_SMOTE1]_ , [Borderline_SMOTE2]_ , [ADASYN]_ , [AHC]_ , [LLE_SMOTE]_ , [distance_SMOTE]_ , [SMMO]_ , [polynom_fit_SMOTE]_ , [Stefanowski]_ , [ADOMS]_ , [Safe_Level_SMOTE]_ , [MSMOTE]_ , [DE_oversampling]_ , [SMOBD]_ , [SUNDO]_ , [MSYN]_ , [SVM_balance]_ , [TRIM_SMOTE]_ , [SMOTE_RSB]_ , [ProWSyn]_ , [SL_graph_SMOTE]_ , [NRSBoundary_SMOTE]_ , [LVQ_SMOTE]_ , [SOI_CJ]_ , [ROSE]_ , [SMOTE_OUT]_ , [SMOTE_Cosine]_ , [Selected_SMOTE]_ , [LN_SMOTE]_ , [MWMOTE]_ , [PDFOS]_ , [IPADE_ID]_ , [RWO_sampling]_ , [NEATER]_ , [DEAGO]_ , [Gazzah]_ , [MCT]_ , [ADG]_ , [SMOTE_IPF]_ , [KernelADASYN]_ , [MOT2LD]_ , [V_SYNTH]_ , [OUPS]_ , [SMOTE_D]_ , [SMOTE_PSO]_ , [CURE_SMOTE]_ , [SOMO]_ , [ISOMAP_Hybrid]_ , [CE_SMOTE]_ , [Edge_Det_SMOTE]_ , [CBSO]_ , [E_SMOTE]_ , [DBSMOTE]_ , [ASMOBD]_ , [Assembled_SMOTE]_ , [SDSMOTE]_ , [DSMOTE]_ , [G_SMOTE]_ , [NT_SMOTE]_ , [Lee]_ , [SPY]_ , [SMOTE_PSOBAT]_ , [MDO]_ , [Random_SMOTE]_ , [ISMOTE]_ , [VIS_RST]_ , [GASMOTE]_ , [A_SUWO]_ , [SMOTE_FRST_2T]_ , [AND_SMOTE]_ , [NRAS]_ , [AMSCO]_ , [SSO]_ , [NDO_sampling]_ , [DSRBF]_ , [Gaussian_SMOTE]_ , [kmeans_SMOTE]_ , [Supervised_SMOTE]_ , [SN_SMOTE]_ , [CCR]_ , [ANS]_ , [cluster_SMOTE]_ , [SYMPROD]_
+The implemented techniques: [SMOTE]_ , [SMOTE_TomekLinks]_ , [SMOTE_ENN]_ , [Borderline_SMOTE1]_ , [Borderline_SMOTE2]_ , [ADASYN]_ , [AHC]_ , [LLE_SMOTE]_ , [distance_SMOTE]_ , [SMMO]_ , [polynom_fit_SMOTE]_ , [Stefanowski]_ , [ADOMS]_ , [Safe_Level_SMOTE]_ , [MSMOTE]_ , [DE_oversampling]_ , [SMOBD]_ , [SUNDO]_ , [MSYN]_ , [SVM_balance]_ , [TRIM_SMOTE]_ , [SMOTE_RSB]_ , [ProWSyn]_ , [SL_graph_SMOTE]_ , [NRSBoundary_SMOTE]_ , [LVQ_SMOTE]_ , [SOI_CJ]_ , [ROSE]_ , [SMOTE_OUT]_ , [SMOTE_Cosine]_ , [Selected_SMOTE]_ , [LN_SMOTE]_ , [MWMOTE]_ , [PDFOS]_ , [IPADE_ID]_ , [RWO_sampling]_ , [NEATER]_ , [DEAGO]_ , [Gazzah]_ , [MCT]_ , [ADG]_ , [SMOTE_IPF]_ , [KernelADASYN]_ , [MOT2LD]_ , [V_SYNTH]_ , [OUPS]_ , [SMOTE_D]_ , [SMOTE_PSO]_ , [CURE_SMOTE]_ , [SOMO]_ , [ISOMAP_Hybrid]_ , [CE_SMOTE]_ , [Edge_Det_SMOTE]_ , [CBSO]_ , [E_SMOTE]_ , [DBSMOTE]_ , [ASMOBD]_ , [Assembled_SMOTE]_ , [SDSMOTE]_ , [DSMOTE]_ , [G_SMOTE]_ , [NT_SMOTE]_ , [Lee]_ , [SPY]_ , [SMOTE_PSOBAT]_ , [MDO]_ , [Random_SMOTE]_ , [ISMOTE]_ , [VIS_RST]_ , [GASMOTE]_ , [A_SUWO]_ , [SMOTE_FRST_2T]_ , [AND_SMOTE]_ , [NRAS]_ , [AMSCO]_ , [SSO]_ , [NDO_sampling]_ , [DSRBF]_ , [Gaussian_SMOTE]_ , [kmeans_SMOTE]_ , [Supervised_SMOTE]_ , [SN_SMOTE]_ , [CCR]_ , [ANS]_ , [cluster_SMOTE]_ , [SYMPROD]_ , [SMOTEWB]_
 
 Comparison and evaluation
 -------------------------
@@ -484,3 +485,5 @@ References
 .. [cluster_SMOTE] Cieslak, D. A. and Chawla, N. V. and Striegel, A., "Combating imbalance in network intrusion datasets" , 2006 IEEE International Conference on Granular Computing, 2006, pp. 732-737
 
 .. [SYMPROD] Kunakorntum, I. and Hinthong, W. and Phunchongharn, P., "A Synthetic Minority Based on Probabilistic Distribution (SyMProD) Oversampling for Imbalanced Datasets" , IEEE Access, 2020, pp. 114692 - 114704
+
+.. [SMOTEWB] Sağlam, F. and Cengiz, M. A., "A novel SMOTE-based resampling technique trough noise detection and the boosting procedure", Expert Systems with Applications, 2022, pp. 117023
