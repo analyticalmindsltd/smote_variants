@@ -15,7 +15,6 @@ _logger = logging.getLogger('smote_variants')
 
 __all__ = ['SMOTEWB']
 
-
 class SMOTEWB(OverSampling):
     """
     References:
