@@ -9,7 +9,7 @@ import smote_variants
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.tree import DecisionTreeClassifier
 
-from smote_variants.base import OverSampling, NearestNeighborsWithMetricTensor
+from smote_variants.base import OverSampling, NearestNeighborsWithMetricTensor, coalesce
 
 _logger = logging.getLogger('smote_variants')
 
@@ -77,7 +77,7 @@ class SMOTEWB(OverSampling):
 
         self.proportion = proportion
         self.n_iters = n_iters
-        self.nn_params = {} if nn_params is None else nn_params
+        self.nn_params = coalesce(nn_params, {})
         self.n_jobs = n_jobs
 
     @classmethod
@@ -113,7 +113,7 @@ class SMOTEWB(OverSampling):
                                      max_depth=30,
                                      min_samples_split=3)
 
-        for _ in range(0, self.n_iters):
+        for i in range(0, self.n_iters):
             clf.fit(X, y, sample_weight=w)
             predicted_labels = clf.predict(X)
 
@@ -211,15 +211,19 @@ class SMOTEWB(OverSampling):
 
         # non-noise samples and labels
         X_not_noise = np.concatenate([X_min[noise_mask_min], X_maj[noise_mask_maj]])
-        y_not_noise = np.concatenate([np.repeat(self.min_label, X_min.shape[0]),
+        y_not_noise = np.concatenate([np.repeat(self.min_label, X_min.shape[0]), 
                                       np.repeat(self.maj_label, X_maj.shape[0])])
 
         # fitting the model
         # paper: X^good_pos makes no sense, R code: x_notnoise
+        nn_params = {**self.nn_params}
+        nn_params['metric_tensor'] = self.metric_tensor_from_nn_params(nn_params, X, y)
+
         n_neighbors = min([len(X_not_noise), k_max + 1])
         nnmt = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
                                                 n_jobs=self.n_jobs,
-                                                **self.nn_params)
+                                                **nn_params)
+
         nnmt.fit(X_not_noise)
         indices = nnmt.kneighbors(X_min, n_neighbors=n_neighbors, return_distance=False)
         # remove self indices
@@ -274,16 +278,21 @@ class SMOTEWB(OverSampling):
         synt_sample_list = []
         for i in range(0, n_min):
             if fl_arr[i] == SMOTEWB.sample_lonely:
-                for _ in range(C[i]):
+                for j in range(C[i]):
                     synt_sample_list.append(X_min[i].copy())
             elif fl_arr[i] == SMOTEWB.sample_good and C[i] > 0:
                 nn = indices[i, 1: k_arr[i]]
-                k_ids = self.random_state.choice(nn, C[i])
-                for j in k_ids:
-                    synt_sample_list.append(self.sample_between_points(X_min[i], X_not_noise[j]))
-        X_synt_samples = np.array(synt_sample_list)
+                if len(nn) > 0:
+                    k_ids = self.random_state.choice(nn, C[i])
+                    for j in k_ids:
+                        synt_sample_list.append(self.sample_between_points(X_min[i], X_not_noise[j]))
+
+        # no new samples
+        if len(synt_sample_list) == 0:
+            return self.return_copies(X, y, "no samples generated")
 
         # Step 11-12: merging the original samples and the synthetic ones
+        X_synt_samples = np.array(synt_sample_list)
         X_result_scaled = np.vstack([X_scaled, X_synt_samples])
 
         # Step 13: descale X
