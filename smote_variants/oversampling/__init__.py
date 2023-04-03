@@ -89,3 +89,4 @@ from ._e_smote import *
 from ._adoms import *
 from ._symprod import *
 from ._smote_amsr import *
+from ._smotewb import *
