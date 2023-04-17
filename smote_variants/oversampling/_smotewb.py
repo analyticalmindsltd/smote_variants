@@ -2,25 +2,27 @@
 This module implements the SMOTEWB method.
 """
 import logging
-
 import math
+
 import numpy as np
-import smote_variants
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.tree import DecisionTreeClassifier
 
 from smote_variants.base import OverSampling, NearestNeighborsWithMetricTensor, coalesce
+from smote_variants.oversampling import SMOTE
 
 _logger = logging.getLogger('smote_variants')
 
 __all__ = ['SMOTEWB']
+
 
 class SMOTEWB(OverSampling):
     """
     References:
         * BibTex::
            @article{SAGLAM2022117023,
-                title = {A novel SMOTE-based resampling technique trough noise detection and the boosting procedure},
+                title = {A novel SMOTE-based resampling technique trough noise
+                detection and the boosting procedure},
                 journal = {Expert Systems with Applications},
                 volume = {200},
                 pages = {117023},
@@ -43,6 +45,7 @@ class SMOTEWB(OverSampling):
                  proportion=1.0,
                  *,
                  n_iters=100,
+                 max_depth=30,
                  nn_params=None,
                  n_jobs=1,
                  random_state=None,
@@ -55,8 +58,9 @@ class SMOTEWB(OverSampling):
                                 to sample e.g. 1.0 means that after sampling
                                 the number of minority samples will be equal to
                                 the number of majority samples
-            n_iters (int): number of iterations (number of weak classifiers) of the ensemble
+            n_iters (int): number of iterations (number of weak classifiers, dtrees) of the ensemble
                                 noise filtering process (in the paper: M)
+            max_depth (int): maximum depth of dtrees (>=3)
             nn_params (dict): additional parameters for nearest neighbor calculations, any
                                 parameter NearestNeighbors accepts, and additionally use
                                 {'metric': 'precomputed', 'metric_learning': '<method>', ...}
@@ -72,10 +76,12 @@ class SMOTEWB(OverSampling):
 
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_iters, "n_iters", 1)
+        self.check_greater_or_equal(max_depth, "max_depth", 3)
         self.check_n_jobs(n_jobs, 'n_jobs')
 
         self.proportion = proportion
         self.n_iters = n_iters
+        self.max_depth = max_depth
         self.nn_params = coalesce(nn_params, {})
         self.n_jobs = n_jobs
 
@@ -88,7 +94,8 @@ class SMOTEWB(OverSampling):
         """
         parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
                                                  1.0, 1.5, 2.0],
-                                  'n_iters': [30, 50, 100]}
+                                  'n_iters': [30, 50, 100],
+                                  'max_depth': [5, 10, 20, 30]}
 
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
@@ -104,21 +111,20 @@ class SMOTEWB(OverSampling):
             (np.array): weight of the samples
         """
         n_samples = X.shape[0]
-        assert(n_samples > 0)
         w = np.repeat(1.0/n_samples, n_samples)
 
         # based on boosted_weights.R
         clf = DecisionTreeClassifier(random_state=self._random_state_init,
-                                     max_depth=30,
+                                     max_depth=self.max_depth,
                                      min_samples_split=3)
 
-        for i in range(0, self.n_iters):
+        for _ in range(0, self.n_iters):
             clf.fit(X, y, sample_weight=w)
             predicted_labels = clf.predict(X)
 
             w_error = sum(w[predicted_labels != y])
 
-            # no zero check in the original code (all samples is not_noise)
+            # no zero check in the original code (samples are not_noise)
             if w_error == 0:
                 return np.zeros(n_samples, float)
 
@@ -131,8 +137,8 @@ class SMOTEWB(OverSampling):
 
     @staticmethod
     def noise_threshold(w, th):
-        noise = np.zeros(len(w), np.uint8)
-        noise[w > th] = 1
+        noise = np.repeat(False, len(w))
+        noise[w > th] = True
         return noise
 
     def noise_detection(self, X, y):
@@ -163,10 +169,20 @@ class SMOTEWB(OverSampling):
 
         return noise_mask_min, noise_mask_maj
 
-    @staticmethod
-    def first_majority_index(y, axis, invalid_val=-1):
-        mask = y == 0
-        return np.where(mask.any(axis=axis), mask.argmax(axis=axis), invalid_val)
+    def first_majority_index(self, nearest_ys, no_majority_result=-1):
+        """
+        Finds the index of the first majority element in the nearest_ys per row.
+
+        Args:
+            nearest_ys (np.ndarray): label of the nearest neighbours
+            no_majority_result (int): result if there is no majority item in a row
+        Returns:
+            np.array: the i-th element of the array is the index of the first majority label
+                        in the i-th row of the nearest_ys, or no_majority_result if the row
+                        contains no majority labels.
+        """
+        mask = (nearest_ys == self.maj_label)
+        return np.where(mask.any(axis=1), mask.argmax(axis=1), no_majority_result)
 
     def sampling_algorithm(self, X, y):
         """
@@ -183,7 +199,7 @@ class SMOTEWB(OverSampling):
         n_to_sample = self.det_n_to_sample(self.proportion)
 
         if n_to_sample == 0:
-            return self.return_copies(X, y, "Sampling is not needed")
+            return self.return_copies(X, y, "Sampling is not needed.")
 
         # use logging in the below format
         message = "sampling"
@@ -205,18 +221,24 @@ class SMOTEWB(OverSampling):
         n_maj = len(X_maj)
 
         # paper: floor, R implementation: ceil
-        # ceil makes sense (e.g. IR < 1.0)
-        k_max = math.ceil(n_maj / n_min)
+        k_max = math.floor(n_maj / n_min)
 
         # non-noise samples and labels
-        X_not_noise = np.concatenate([X_min[noise_mask_min], X_maj[noise_mask_maj]])
-        y_not_noise = np.concatenate([np.repeat(self.min_label, X_min.shape[0]), 
-                                      np.repeat(self.maj_label, X_maj.shape[0])])
+        X_min_not_noise = X_min[~noise_mask_min]
+        X_maj_not_noise = X_maj[~noise_mask_maj]
+        X_not_noise = np.concatenate([X_min_not_noise, X_maj_not_noise])
+        y_not_noise = np.concatenate([np.repeat(self.min_label, X_min_not_noise.shape[0]),
+                                      np.repeat(self.maj_label, X_maj_not_noise.shape[0])])
 
         # fitting the model
         # paper: X^good_pos makes no sense, R code: x_notnoise
         nn_params = {**self.nn_params}
         nn_params['metric_tensor'] = self.metric_tensor_from_nn_params(nn_params, X, y)
+
+        # all data points are noise
+        if len(X_not_noise) == 0:
+            smote = SMOTE(proportion=self.proportion, nn_params=self.nn_params)
+            return smote.sample(X, y)
 
         n_neighbors = min([len(X_not_noise), k_max + 1])
         nnmt = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
@@ -225,17 +247,23 @@ class SMOTEWB(OverSampling):
 
         nnmt.fit(X_not_noise)
         indices = nnmt.kneighbors(X_min, n_neighbors=n_neighbors, return_distance=False)
-        # remove self indices
-        indices = indices[:, 1:]
 
         # number of the positive neighbors until the first negative one (per row)
-        k_arr = SMOTEWB.first_majority_index(y_not_noise[indices], axis=1, invalid_val=k_max)
+        k_arr = self.first_majority_index(y_not_noise[indices], no_majority_result=k_max+1)
+
+        # decrease one if the sample is not a noise
+        k_arr[~noise_mask_min] -= 1
+        # in case there is a majority sample at 0 distance
+        k_arr[k_arr == -1] = 0
+        # all neighbours are positive
+        k_max = min(indices.shape[1], k_max)
+        k_arr[k_arr > k_max] = k_max
 
         # setting the labels of the samples of X_pos
         fl_arr = np.empty(n_min, int)
         fl_arr[k_arr > 0] = SMOTEWB.sample_good
-        fl_arr[k_arr == 0 & noise_mask_min] = SMOTEWB.sample_bad
-        fl_arr[k_arr == 0 & ~noise_mask_min] = SMOTEWB.sample_lonely
+        fl_arr[(k_arr == 0) & noise_mask_min] = SMOTEWB.sample_bad
+        fl_arr[(k_arr == 0) & (~noise_mask_min)] = SMOTEWB.sample_lonely
         # End: Alg 4
 
         # Step 5: n_to_sample - done
@@ -248,7 +276,7 @@ class SMOTEWB(OverSampling):
 
         # prevent errors (missing from the original) no good or lonely samples => give chance to the others
         if n_good_min + n_lonely_min == 0:
-            smote = smote_variants.SMOTE(proportion=self.proportion, nn_params=self.nn_params)
+            smote = SMOTE(proportion=self.proportion, nn_params=self.nn_params)
             return smote.sample(X, y)
 
         n_to_sample_per_sample = math.ceil(n_to_sample / (n_good_min + n_lonely_min))
@@ -257,19 +285,11 @@ class SMOTEWB(OverSampling):
         C[fl_arr == SMOTEWB.sample_lonely] = n_to_sample_per_sample
 
         # Step 8: correcting the number of samples to be generated to achieve the desired balance
-        # paper: ceil => diff < 0 and why C[ind] += 1
-        # diff = n_to_sample - np.sum(C)
-        # good_and_lonely_ind = np.where( (fl_arr == SMOTEWB.sample_good) |
-        #                                 (fl_arr == SMOTEWB.sample_bad))[0]
-        # ind = self.random_state.choice(good_and_lonely_ind, diff, replace = False)
-        # C[ind] += 1
-
-        # Step 8: correcting the number of samples to be generated to achieve the desired balance
+        # paper: ceil => n_to_sample-p.sum(C) zero or negative
         # we probably have too many samples because of the ceil
         diff = np.sum(C) - n_to_sample
-
         if diff > 0:
-            good_and_lonely_ind = np.where((fl_arr == SMOTEWB.sample_good) | (fl_arr == SMOTEWB.sample_bad))[0]
+            good_and_lonely_ind = np.where((fl_arr == SMOTEWB.sample_good) | (fl_arr == SMOTEWB.sample_lonely))[0]
             selected_ind = self.random_state.choice(good_and_lonely_ind, diff, replace=len(good_and_lonely_ind) < diff)
             C[selected_ind] -= 1
 
@@ -280,15 +300,16 @@ class SMOTEWB(OverSampling):
                 for j in range(C[i]):
                     synt_sample_list.append(X_min[i].copy())
             elif fl_arr[i] == SMOTEWB.sample_good and C[i] > 0:
-                nn = indices[i, 1: k_arr[i]]
+                if noise_mask_min[i]:
+                    nn = indices[i, 0: k_arr[i]]
+                else:
+                    # removing self index
+                    nn = indices[i, 1: k_arr[i] + 1]
+
                 if len(nn) > 0:
                     k_ids = self.random_state.choice(nn, C[i])
                     for j in k_ids:
                         synt_sample_list.append(self.sample_between_points(X_min[i], X_not_noise[j]))
-
-        # no new samples
-        if len(synt_sample_list) == 0:
-            return self.return_copies(X, y, "no samples generated")
 
         # Step 11-12: merging the original samples and the synthetic ones
         X_synt_samples = np.array(synt_sample_list)
@@ -319,5 +340,7 @@ class SMOTEWB(OverSampling):
             dict: the parameters of the current sampling object
         """
         return {'proportion': self.proportion,
+                'max_depth': self.max_depth,
+                'nn_params': self.nn_params,
                 'n_iters': self.n_iters,
                 **OverSampling.get_params(self, deep)}
