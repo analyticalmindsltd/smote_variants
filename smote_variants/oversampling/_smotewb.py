@@ -205,16 +205,14 @@ class SMOTEWB(OverSampling):
         message = "sampling"
         _logger.info(f"{self.__class__.__name__}: {message}")
 
-        # Step 1: scaling (I decide the use it here, because the method ends with descaling)
-        mms = MinMaxScaler()
-        X_scaled = mms.fit_transform(X)  # pylint: disable=invalid-name
+        # Step 1: MinMaxScaler - Rescaling is ignored at the suggestion of the author of the algorithm.  
 
         # Step2: separating the classes
-        X_min = X_scaled[y == self.min_label]
-        X_maj = X_scaled[y == self.maj_label]
+        X_min = X[y == self.min_label]
+        X_maj = X[y == self.maj_label]
 
         # Step 3-4: creating masks of noise samples
-        noise_mask_min, noise_mask_maj = self.noise_detection(X_scaled, y)
+        noise_mask_min, noise_mask_maj = self.noise_detection(X, y)
 
         # Start: Algorithm 4
         n_min = len(X_min)
@@ -313,10 +311,7 @@ class SMOTEWB(OverSampling):
 
         # Step 11-12: merging the original samples and the synthetic ones
         X_synt_samples = np.array(synt_sample_list)
-        X_result_scaled = np.vstack([X_scaled, X_synt_samples])
-
-        # Step 13: descale X
-        X_samples = mms.inverse_transform(X_result_scaled)
+        X_samples = np.vstack([X, X_synt_samples])
 
         return (X_samples,
                 np.hstack([y, np.hstack([self.min_label]*len(synt_sample_list))]))
