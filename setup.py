@@ -58,7 +58,7 @@ on_rtd = os.environ.get('READTHEDOCS') == 'True'
 if on_rtd:
     INSTALL_REQUIRES = []
 else:
-    INSTALL_REQUIRES= ['numpy>=1.13.0', 'scipy', 'scikit-learn', 'joblib', 'minisom', 'statistics', 'tensorflow', 'keras', 'pandas', 'mkl', 'metric_learn', 'seaborn']
+    INSTALL_REQUIRES= ['numpy<1.25.0', 'scipy', 'scikit-learn', 'joblib', 'minisom', 'statistics', 'tensorflow', 'keras', 'pandas', 'mkl', 'metric_learn', 'seaborn']
 EXTRAS_REQUIRE= {'tests': ['pytest'],
                  'docs': ['sphinx', 'sphinx-gallery', 'sphinx_rtd_theme', 'matplotlib', 'pandas']}
 PYTHON_REQUIRES= '>=3.5'
