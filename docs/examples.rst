@@ -73,8 +73,7 @@ Multiclass oversampling is highly ambiguous task, as balancing various classes m
 
     dataset= datasets.load_wine()
 
-    oversampler= sv.MulticlassOversampling(oversampler='distance_SMOTE',
-                                            oversampler_params={})
+    oversampler= sv.MulticlassOversampling(oversampler='distance_SMOTE', oversampler_params={})
 
     X_samp, y_samp= oversampler.sample(dataset['data'], dataset['target'])
 
