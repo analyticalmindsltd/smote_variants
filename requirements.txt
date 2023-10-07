@@ -1,6 +1,6 @@
 setuptools>=41.0.1
 joblib
-numpy<1.25.0
+numpy
 pandas
 scikit-learn
 minisom
