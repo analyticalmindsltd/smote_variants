@@ -136,7 +136,7 @@ Best practices
 Normalization/standardization/scaling/feature selection
 *******************************************************
 
-Most of the oversampling techniques operate in the Euclidean space implied by the attributes. Therefore it is extremely important to normalize/scale the attributes appropriatly. With no knowledge on the importance of attributes, the normalization/standardization is a good first try. Having some domain knowledge or attribute importances from bootstrap classification, the scaling of attribute ranges according to their importances is also reasonable. Alternatively, feature subset selection might also improve the results by making oversampling work in the most suitable subspace.
+Most of the oversampling techniques operate in the Euclidean space implied by the attributes. Therefore, it is extremely important to normalize/scale the attributes appropriately. With no knowledge on the importance of attributes, the normalization/standardization is a good first try. Having some domain knowledge or attribute importance from bootstrap classification, the scaling of attribute ranges according to their importance is also reasonable. Alternatively, feature subset selection might also improve the results by oversampling work in the most suitable subspace.
 
 Model selection for the number of samples to be generated
 *********************************************************
