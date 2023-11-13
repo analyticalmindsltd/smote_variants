@@ -4,3 +4,4 @@ pandas
 scikit-learn
 statistics
 metric_learn
+sphinx_rtd_theme
