@@ -33,8 +33,6 @@
 .. |Gitter| image:: https://badges.gitter.im/smote_variants.svg
 .. _Gitter: https://gitter.im/smote_variants?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 
-https://img.shields.io/pypi/dm/numpy.svg?label=PyPI%20downloads
-
 ::
 
                                 _                                  _                _
