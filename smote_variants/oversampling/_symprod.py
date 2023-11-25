@@ -162,12 +162,9 @@ class SYMPROD(OverSampling):
         Returns:
             np.array: the normalized array
         """
-        if (array.max() - array.min()) == 0.0:
-            array = np.repeat(0.0, len(array))
-        else:
-            array = (array - array.min()) / (array.max() - array.min())
-
-        return array
+        return (np.repeat(0.0, len(array))
+                    if array.max() - array.min() < 1e-10
+                    else (array - array.min()) / (array.max() - array.min()))
 
     def determine_cf_norms(self, X_maj, X_min, nn_params):
         """
