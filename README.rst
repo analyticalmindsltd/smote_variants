@@ -3,12 +3,8 @@
 ..
   |CircleCI|_
 
-|GitHub|_ |Codecov|_ |pylint|_ |ReadTheDocs|_ |PythonVersion|_ |PyPi|_ |License|_ |Gitter|_
+|GitHub|_ |Codecov|_ |pylint|_ |ReadTheDocs|_ |PythonVersion|_ |PyPi|_ |PyPiDownloads|_ |License|_ |Gitter|_
 
-
-..
-  .. |CircleCI| image:: https://circleci.com/gh/analyticalmindsltd/smote_variants.svg?style=svg
-  .. _CircleCI: https://circleci.com/gh/analyticalmindsltd/smote_variants
 
 .. |GitHub| image:: https://github.com/analyticalmindsltd/smote_variants/workflows/Python%20package/badge.svg?branch=master
 .. _GitHub: https://github.com/analyticalmindsltd/smote_variants/workflows/Python%20package/badge.svg?branch=master
@@ -22,17 +18,22 @@
 .. |ReadTheDocs| image:: https://readthedocs.org/projects/smote-variants/badge/?version=latest
 .. _ReadTheDocs: https://smote-variants.readthedocs.io/en/latest/?badge=latest
 
-.. |PythonVersion| image:: https://img.shields.io/badge/python-3.7%20%7C%203.8%20%7C%203.9%20%7C%203.10-brightgreen
-.. _PythonVersion: https://img.shields.io/badge/python-3.7%20%7C%203.8%20%7C%203.9%20%7C%203.10-brightgreen
+.. |PythonVersion| image:: https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11-brightgreen
+.. _PythonVersion: https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11-brightgreen
 
 .. |PyPi| image:: https://badge.fury.io/py/smote-variants.svg
 .. _PyPi: https://badge.fury.io/py/smote-variants
+
+.. |PyPiDownloads| image:: https://img.shields.io/pypi/dm/smote-variants.svg?label=PyPI%20downloads
+.. _PyPiDownloads: https://pypi.org/project/smote-variants/
 
 .. |License| image:: https://img.shields.io/badge/license-MIT-brightgreen
 .. _License: https://img.shields.io/badge/license-MIT-brightgreen
 
 .. |Gitter| image:: https://badges.gitter.im/smote_variants.svg
 .. _Gitter: https://gitter.im/smote_variants?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
+
+https://img.shields.io/pypi/dm/numpy.svg?label=PyPI%20downloads
 
 ::
 
