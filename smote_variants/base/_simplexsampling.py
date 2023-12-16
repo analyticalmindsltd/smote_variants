@@ -400,6 +400,8 @@ class SimplexSamplingMixin(RandomStateMixin):
             return np.repeat(1.0/len(simplices), len(simplices))
         if self.simplex_sampling == 'volume':
             return simplex_volumes(X[simplices])
+        if self.simplex_sampling == 'volume_inv':
+            return 1.0 / (simplex_volumes(X[simplices]) + 0.001)
         raise ValueError(f"simplex sampling with weighting "\
                             f"{self.simplex_sampling} not implemented yet")
 
@@ -541,8 +543,13 @@ class SimplexSamplingMixin(RandomStateMixin):
         """
 
         if 'sigma' in self.gaussian_component:
-            sigma = self.gaussian_component['sigma']
-            return samples + self.random_state.normal(size=samples.shape) * sigma
+            if 'fraction' not in self.gaussian_component:
+                sigma = self.gaussian_component['sigma']
+                return samples + self.random_state.normal(size=samples.shape) * sigma
+            else:
+                sigma = self.gaussian_component['sigma']
+                fraction = self.gaussian_component['fraction']
+                return samples + self.random_state.normal(size=samples.shape) * sigma * self.random_state.choice([0, 1], p=[1.0 - fraction, fraction], size=samples.shape)
         if 'sigmas' in self.gaussian_component:
             sigmas = self.gaussian_component['sigmas']
             return samples + self.random_state.normal(size=samples.shape) * sigmas

@@ -113,7 +113,7 @@ class Lee(OverSamplingSimplex):
         """
         parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
                                                  1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7],
+                                  'n_neighbors': [3, 5, 7, 11, 17],
                                   'rejection_level': [0.3, 0.5, 0.7]}
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 

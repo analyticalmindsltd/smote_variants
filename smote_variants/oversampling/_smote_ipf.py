@@ -122,7 +122,7 @@ class SMOTE_IPF(OverSampling):
         classifiers = [('sklearn.tree', 'DecisionTreeClassifier', {'random_state': 2})]
         parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
                                                  1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7],
+                                  'n_neighbors': [3, 5, 7, 11, 17],
                                   'n_folds': [9],
                                   'k': [3],
                                   'p': [0.01],

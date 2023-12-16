@@ -584,7 +584,8 @@ class MetricTensor:
         if self.metric_learning_method == 'ITML':
             self.metric_tensor = self._train_metric_learning(X_mod,
                                                 y_mod,
-                                                self.metric_learning_method)
+                                                self.metric_learning_method,
+                                                random_state=5)
         elif self.metric_learning_method == 'rf':
             dissim= ClassifierImpliedDissimilarityMatrix().fit(X, y)\
                                             .dissimilarity_matrix(X)
@@ -592,7 +593,8 @@ class MetricTensor:
         elif self.metric_learning_method == 'LSML':
             self.metric_tensor = self._train_metric_learning(X_mod,
                                                 y_mod,
-                                                self.metric_learning_method)
+                                                self.metric_learning_method,
+                                                random_state=5)
         elif self.metric_learning_method == 'cov':
             self.metric_tensor = np.linalg.inv(fix_pd_matrix(np.cov(X.T)))
         elif self.metric_learning_method == 'cov_min':
@@ -606,7 +608,8 @@ class MetricTensor:
         elif self.metric_learning_method == 'ITML_mi':
             self.metric_tensor = self._train_metric_learning(X_mod,
                                                 y_mod,
-                                                self.metric_learning_method)
+                                                self.metric_learning_method,
+                                                random_state=5)
             mutuali= estimate_mutual_information(X, y)
             self.metric_tensor= np.matmul(self.metric_tensor, np.diag(mutuali))
         elif self.metric_learning_method == 'NCA':
@@ -616,9 +619,16 @@ class MetricTensor:
             matrices = [self._train_metric_learning(X_mod,
                                                 y_mod,
                                                 self.metric_learning_method,
+                                                random_state=5,
                                                 prior='random') for i in range(2)]
 
             self.metric_tensor= psd_mean(matrices)
+        elif self.metric_learning_method == 'n_unique':
+            n_uniques = np.array([len(np.unique(X_mod[:, idx])) for idx in range(X.shape[1])])
+            self.metric_tensor = np.diag(np.sqrt(n_uniques))
+        elif self.metric_learning_method == 'n_unique_inv':
+            n_uniques = np.array([len(np.unique(X_mod[:, idx])) for idx in range(X.shape[1])])
+            self.metric_tensor = np.diag(np.sqrt(1.0/n_uniques))
 
         return self.metric_tensor
 

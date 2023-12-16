@@ -95,7 +95,7 @@ class ADASYN(OverSamplingSimplex):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'n_neighbors': [3, 5, 7, 9],
+        parameter_combinations = {'n_neighbors': [3, 5, 7, 9, 11, 17],
                                   'd_th': [0.9],
                                   'proportion': [2.0, 1.5, 1.0, 0.75, 0.5, 0.25]}
         return cls.generate_parameter_combinations(parameter_combinations, raw)
