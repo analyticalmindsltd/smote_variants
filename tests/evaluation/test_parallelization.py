@@ -12,8 +12,10 @@ import pytest
 from smote_variants.evaluation import (
     TimeoutJobBase,
     ThreadTimeoutProcessPool,
+    FunctionWrapperJob,
     wait_for_lock,
     queue_get_default,
+    execute_job_object
 )
 
 sleeps = [1, 2, 6, 7]
@@ -65,6 +67,38 @@ def sleep_job(sleep):
     time.sleep(sleep)
     return {"slept": sleep}
 
+
+def test_sleeping():
+    """
+    Testing the sleeping
+    """
+    result = SleepJob(1).execute()
+    assert result['slept'] == 1
+
+    result = sleep_job(1)
+    assert result['slept'] == 1
+
+
+def test_function_wrapper_job():
+    """
+    Testing the function wrapper job
+    """
+    fwj = FunctionWrapperJob(sleep_job, 1)
+    assert fwj.execute()['slept'] == 1
+
+
+def test_execute_job_object():
+    """
+    Testing the job object execution
+    """
+    fwj = FunctionWrapperJob(sleep_job, 1)
+
+    queue = multiprocessing.Queue()
+    queue_lock = multiprocessing.Lock()
+
+    execute_job_object(fwj, queue, queue_lock)
+
+    assert True
 
 def test_jobs_objects_timeout():
     """

@@ -175,10 +175,10 @@ def _pivot_best_scores(pdf):
     for score in all_scores:
         tmp = pdf[pdf[score + "_mean"] == pdf[score + "_mean"].max()]
 
-        results_dict_classifier[f"{score}_classifier_params"] = [None]
-        results_dict_classifier[f"{score}_oversampler_params"] = [None]
-        score_means[f"{score}_mean"] = [None]
-        score_stds[f"{score}_std"] = [None]
+        results_dict_classifier[f"{score}_classifier_params"] = pd.Series([None], dtype='str')
+        results_dict_classifier[f"{score}_oversampler_params"] = pd.Series([None], dtype='str')
+        score_means[f"{score}_mean"] = pd.Series([None], dtype='float')
+        score_stds[f"{score}_std"] = pd.Series([None], dtype='float')
 
         if len(tmp) > 0:
             results_dict_classifier[f"{score}_classifier_params"] = [

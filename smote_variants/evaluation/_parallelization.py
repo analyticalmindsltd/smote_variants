@@ -11,6 +11,8 @@ __all__ = [
     "ThreadTimeoutProcessPool",
     "wait_for_lock",
     "queue_get_default",
+    "FunctionWrapperJob",
+    "execute_job_object"
 ]
 
 

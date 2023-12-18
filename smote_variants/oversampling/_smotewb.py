@@ -333,11 +333,11 @@ class SMOTEWB(OverSampling):
                 for j in range(C[i]):
                     synt_sample_list.append(X_min[i].copy())
             elif fl_arr[i] == SMOTEWB.sample_good and C[i] > 0:
-                if noise_mask_min[i]:
-                    nn = indices[i, 0 : k_arr[i]]
-                else:
-                    # removing self index
-                    nn = indices[i, 1 : k_arr[i] + 1]
+                nn = (
+                    indices[i, 0 : k_arr[i]]
+                    if noise_mask_min[i]
+                    else indices[i, 1 : k_arr[i] + 1]
+                )
 
                 if len(nn) > 0:
                     k_ids = self.random_state.choice(nn, C[i])

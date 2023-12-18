@@ -62,7 +62,8 @@ def test_sampling():
     for fold in folding.fold():
         sjob = SamplingJob(fold, oversampler, oversampler_params, cache_path=cache_path)
 
-        result = sjob.do_oversampling()
+        # note that here the execute is used
+        result = sjob.execute()
         assert os.path.exists(result)
 
     assert isinstance(sjob.timeout(), str)
