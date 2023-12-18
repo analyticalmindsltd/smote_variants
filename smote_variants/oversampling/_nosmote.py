@@ -5,9 +5,11 @@ This module implements the NoSMOTE method.
 from ..base import OverSampling
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['NoSMOTE']
+__all__ = ["NoSMOTE"]
+
 
 class NoSMOTE(OverSampling):
     """
@@ -18,10 +20,13 @@ class NoSMOTE(OverSampling):
 
     categories = []
 
-    def __init__(self, raise_value_error=False,
-                        raise_runtime_error=False,
-                        random_state=None,
-                        **_kwargs):
+    def __init__(
+        self,
+        raise_value_error=False,
+        raise_runtime_error=False,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the NoSMOTE object.
 
@@ -71,6 +76,8 @@ class NoSMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'raise_value_error': self.raise_value_error,
-                'raise_runtime_error': self.raise_runtime_error,
-                **OverSampling.get_params(self)}
+        return {
+            "raise_value_error": self.raise_value_error,
+            "raise_runtime_error": self.raise_runtime_error,
+            **OverSampling.get_params(self),
+        }

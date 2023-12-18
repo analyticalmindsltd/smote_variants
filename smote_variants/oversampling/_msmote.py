@@ -9,9 +9,11 @@ from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSampling
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['MSMOTE']
+__all__ = ["MSMOTE"]
+
 
 class MSMOTE(OverSampling):
     """
@@ -48,19 +50,23 @@ class MSMOTE(OverSampling):
             minority samples are noise.
     """
 
-    categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_noise_removal,
-                  OverSampling.cat_borderline,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_extensive,
+        OverSampling.cat_noise_removal,
+        OverSampling.cat_borderline,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -82,16 +88,16 @@ class MSMOTE(OverSampling):
         """
         super().__init__(random_state=random_state)
 
-        self.check_greater_or_equal(proportion, 'proportion', 0)
-        self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
         self.nn_params = coalesce(nn_params, {})
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -99,9 +105,10 @@ class MSMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def generate_samples(self, *, X_min, X, indices, sample_type, n_to_sample):
@@ -118,27 +125,28 @@ class MSMOTE(OverSampling):
         Returns:
             np.array: the generated samples
         """
-        not_noise_mask = sample_type != 'NOI'
-        X_not_noise = X_min[not_noise_mask] # pylint: disable=invalid-name
+        not_noise_mask = sample_type != "NOI"
+        X_not_noise = X_min[not_noise_mask]  # pylint: disable=invalid-name
         st_not_noise = sample_type[not_noise_mask]
         ind_not_noise = indices[not_noise_mask]
 
-        base_indices = self.random_state.choice(X_not_noise.shape[0],
-                                                n_to_sample)
+        base_indices = self.random_state.choice(X_not_noise.shape[0], n_to_sample)
 
         neighbor_indices = np.array([1] * n_to_sample)
-        neighbor_indices[st_not_noise[base_indices] == 'SEC'] = \
-            self.random_state.choice(np.arange(1, indices.shape[1]),
-                                     np.sum(st_not_noise[base_indices] == 'SEC'))
+        neighbor_indices[
+            st_not_noise[base_indices] == "SEC"
+        ] = self.random_state.choice(
+            np.arange(1, indices.shape[1]), np.sum(st_not_noise[base_indices] == "SEC")
+        )
 
-        neighbor_indices = ind_not_noise[base_indices,
-                                         neighbor_indices]
+        neighbor_indices = ind_not_noise[base_indices, neighbor_indices]
 
         base_vectors = X_not_noise[base_indices]
         neighbor_vectors = X[neighbor_indices]
 
-        samples = base_vectors + (neighbor_vectors - base_vectors) \
-                       * self.random_state.random_sample(base_vectors.shape)
+        samples = base_vectors + (
+            neighbor_vectors - base_vectors
+        ) * self.random_state.random_sample(base_vectors.shape)
 
         return samples
 
@@ -162,42 +170,47 @@ class MSMOTE(OverSampling):
         X_min = X[y == self.min_label]
 
         # fitting the nearest neighbors model
-        n_neighbors = min([len(X), self.n_neighbors+1])
+        n_neighbors = min([len(X), self.n_neighbors + 1])
 
         nn_params = {**self.nn_params}
-        nn_params['metric_tensor'] = \
-            self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
-        nnmt= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X)
         indices = nnmt.kneighbors(X_min, return_distance=False)
 
         n_p = np.sum(y[indices[:, 1:]] == self.min_label, axis=1)
-        sample_type = np.array(['BOR'] * n_p.shape[0])
-        sample_type[n_p == (n_neighbors - 1)] = 'SEC'
-        sample_type[n_p == 0] = 'NOI'
+        sample_type = np.array(["BOR"] * n_p.shape[0])
+        sample_type[n_p == (n_neighbors - 1)] = "SEC"
+        sample_type[n_p == 0] = "NOI"
 
-        if np.all(sample_type == 'NOI'):
+        if np.all(sample_type == "NOI"):
             return self.return_copies(X, y, "All samples are noise")
 
-        samples = self.generate_samples(X_min=X_min,
-                                        X=X,
-                                        indices=indices,
-                                        sample_type=sample_type,
-                                        n_to_sample=n_to_sample)
+        samples = self.generate_samples(
+            X_min=X_min,
+            X=X,
+            indices=indices,
+            sample_type=sample_type,
+            n_to_sample=n_to_sample,
+        )
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

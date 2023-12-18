@@ -5,18 +5,27 @@ This module implements the DEAGO method.
 import os
 import random
 import warnings
+
 warnings.simplefilter("ignore", DeprecationWarning)
 
-import numpy as np # pylint: disable=wrong-import-position
-from sklearn.preprocessing import StandardScaler # pylint: disable=wrong-import-position
+import numpy as np  # pylint: disable=wrong-import-position
+from sklearn.preprocessing import (  # pylint: disable=wrong-import-position
+    StandardScaler,
+)
 
-from ..base import OverSampling, coalesce, coalesce_dict # pylint: disable=wrong-import-position
-from ._smote import SMOTE # pylint: disable=wrong-import-position
+from ..base import (  # pylint: disable=wrong-import-position
+    OverSampling,
+    coalesce,
+    coalesce_dict,
+)
+from ._smote import SMOTE  # pylint: disable=wrong-import-position
 
-from .._logger import logger # pylint: disable=wrong-import-position
+from .._logger import logger  # pylint: disable=wrong-import-position
+
 _logger = logger
 
-__all__= ['DEAGO']
+__all__ = ["DEAGO"]
+
 
 class DEAGO(OverSampling):
     """
@@ -55,23 +64,27 @@ class DEAGO(OverSampling):
         * There is no hint on the activation functions and amounts of noise.
     """
 
-    categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_density_estimation,
-                  OverSampling.cat_application,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_extensive,
+        OverSampling.cat_density_estimation,
+        OverSampling.cat_application,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 e=100, # pylint: disable=invalid-name
-                 h=0.3, # pylint: disable=invalid-name
-                 sigma=0.1,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        e=100,  # pylint: disable=invalid-name
+        h=0.3,  # pylint: disable=invalid-name
+        sigma=0.1,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs,
+    ):
         """
         Constructor of the sampling object
 
@@ -94,9 +107,12 @@ class DEAGO(OverSampling):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
 
         super().__init__(random_state=random_state)
         self.check_greater_or_equal(proportion, "proportion", 0.0)
@@ -104,16 +120,16 @@ class DEAGO(OverSampling):
         self.check_greater(e, "e", 1)
         self.check_greater(h, "h", 0)
         self.check_greater(sigma, "sigma", 0)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
         self.nn_params = coalesce(nn_params, {})
         self.ss_params = coalesce_dict(ss_params, ss_params_default)
-        self.encoder_params = {'e': e, 'h': h, 'sigma': sigma}
+        self.encoder_params = {"e": e, "h": h, "sigma": sigma}
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -121,17 +137,16 @@ class DEAGO(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7],
-                                  'e': [40],
-                                  'h': [0.1, 0.2, 0.3, 0.4, 0.5],
-                                  'sigma': [0.05, 0.1, 0.2]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7],
+            "e": [40],
+            "h": [0.1, 0.2, 0.3, 0.4, 0.5],
+            "sigma": [0.05, 0.1, 0.2],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
-    def get_model(self,
-                    n_dim,
-                    encoding_d):
+    def get_model(self, n_dim, encoding_d):
         """
         Return the model
 
@@ -143,26 +158,35 @@ class DEAGO(OverSampling):
             tensorflow.keras.models.Model, list: the model and the callbacks
         """
         # this import is here to prevent the heavy importing of tensorflow when not needed
-        from tensorflow.keras.layers import Input, Dense, GaussianNoise # pylint: disable=wrong-import-position,no-name-in-module,import-outside-toplevel
-        from tensorflow.keras.models import Model # pylint: disable=wrong-import-position,no-name-in-module,import-outside-toplevel
-        from tensorflow.keras.callbacks import EarlyStopping # pylint: disable=wrong-import-position,no-name-in-module,import-outside-toplevel
+        from tensorflow.keras.layers import (  # pylint: disable=wrong-import-position,no-name-in-module,import-outside-toplevel
+            Input,
+            Dense,
+            GaussianNoise,
+        )
+        from tensorflow.keras.models import (  # pylint: disable=wrong-import-position,no-name-in-module,import-outside-toplevel
+            Model,
+        )
+        from tensorflow.keras.callbacks import (  # pylint: disable=wrong-import-position,no-name-in-module,import-outside-toplevel
+            EarlyStopping,
+        )
 
         # constructing the autoencoder
-        callbacks = [EarlyStopping(monitor='val_loss', patience=2)]
+        callbacks = [EarlyStopping(monitor="val_loss", patience=2)]
 
         input_layer = Input(shape=(n_dim,))
-        noise = GaussianNoise(self.encoder_params['sigma'])(input_layer)
-        encoded = Dense(encoding_d, activation='relu')(noise)
-        decoded = Dense(n_dim, activation='linear')(encoded)
+        noise = GaussianNoise(self.encoder_params["sigma"])(input_layer)
+        encoded = Dense(encoding_d, activation="relu")(noise)
+        decoded = Dense(n_dim, activation="linear")(encoded)
 
         dae = Model(input_layer, decoded)
 
         return dae, callbacks
 
-    def execute_autoencoder(self,
-                            X_min_normalized, # pylint: disable=invalid-name
-                            X_init_normalized # pylint: disable=invalid-name
-                            ):
+    def execute_autoencoder(
+        self,
+        X_min_normalized,  # pylint: disable=invalid-name
+        X_init_normalized,  # pylint: disable=invalid-name
+    ):
         """
         Execute the autoencoder.
 
@@ -175,34 +199,39 @@ class DEAGO(OverSampling):
         """
 
         n_dim = X_min_normalized.shape[1]
-        encoding_d = np.max([2, int(np.rint(n_dim*self.encoder_params['h']))])
+        encoding_d = np.max([2, int(np.rint(n_dim * self.encoder_params["h"]))])
 
-        _logger.info("%s: Input dimension: %d, encoding dimension: %d",
-                    self.__class__.__name__, n_dim, encoding_d)
+        _logger.info(
+            "%s: Input dimension: %d, encoding dimension: %d",
+            self.__class__.__name__,
+            n_dim,
+            encoding_d,
+        )
 
         warnings.simplefilter("ignore", DeprecationWarning)
 
-        dae, callbacks = self.get_model(n_dim,
-                                        encoding_d)
+        dae, callbacks = self.get_model(n_dim, encoding_d)
 
-        dae.compile(optimizer='adadelta', loss='mean_squared_error')
-        actual_epochs = np.max([self.encoder_params['e'],
-                                int(5000.0/X_min_normalized.shape[0])])
+        dae.compile(optimizer="adadelta", loss="mean_squared_error")
+        actual_epochs = np.max(
+            [self.encoder_params["e"], int(5000.0 / X_min_normalized.shape[0])]
+        )
 
         if X_min_normalized.shape[0] > 10:
             val_num = int(0.2 * X_min_normalized.shape[0])
-            X_min_train = X_min_normalized[:-val_num] # pylint: disable=invalid-name
-            X_min_val = X_min_normalized[-val_num:] # pylint: disable=invalid-name
+            X_min_train = X_min_normalized[:-val_num]  # pylint: disable=invalid-name
+            X_min_val = X_min_normalized[-val_num:]  # pylint: disable=invalid-name
 
-            dae.fit(X_min_train,
-                    X_min_train,
-                    epochs=actual_epochs,
-                    validation_data=(X_min_val, X_min_val),
-                    callbacks=callbacks,
-                    verbose=0)
+            dae.fit(
+                X_min_train,
+                X_min_train,
+                epochs=actual_epochs,
+                validation_data=(X_min_val, X_min_val),
+                callbacks=callbacks,
+                verbose=0,
+            )
         else:
-            dae.fit(X_min_normalized, X_min_normalized,
-                    epochs=actual_epochs, verbose=0)
+            dae.fit(X_min_normalized, X_min_normalized, epochs=actual_epochs, verbose=0)
 
         return dae.predict(X_init_normalized, verbose=0)
 
@@ -225,7 +254,7 @@ class DEAGO(OverSampling):
         warnings.simplefilter("ignore", DeprecationWarning)
 
         # this import is here to prevent the heavy importing of tensorflow when not needed
-        import tensorflow as tf # pylint: disable=wrong-import-position,import-outside-toplevel
+        import tensorflow as tf  # pylint: disable=wrong-import-position,import-outside-toplevel
 
         os.environ["OMP_NUM_THREADS"] = f"{self.n_jobs}"
         os.environ["TF_NUM_INTRAOP_THREADS"] = f"{self.n_jobs}"
@@ -236,46 +265,53 @@ class DEAGO(OverSampling):
 
         tf.config.set_soft_device_placement(True)
 
-        os.environ['PYTHONHASHSEED'] = f"{self._random_state_init}"
+        os.environ["PYTHONHASHSEED"] = f"{self._random_state_init}"
 
         random.seed(self._random_state_init)
         np.random.seed(self._random_state_init)
         tf.random.set_seed(self._random_state_init)
 
         # sampling by smote
-        X_samp, _ = SMOTE(proportion=self.proportion,
-                            n_neighbors=self.n_neighbors,
-                            nn_params=self.nn_params,
-                            ss_params=self.ss_params,
-                            n_jobs=self.n_jobs,
-                            random_state=self._random_state_init).sample(X, y)
+        X_samp, _ = SMOTE(
+            proportion=self.proportion,
+            n_neighbors=self.n_neighbors,
+            nn_params=self.nn_params,
+            ss_params=self.ss_params,
+            n_jobs=self.n_jobs,
+            random_state=self._random_state_init,
+        ).sample(X, y)
 
         # samples to map to the manifold extracted by the autoencoder
-        X_init = X_samp[len(X):] # pylint: disable=invalid-name
+        X_init = X_samp[len(X) :]  # pylint: disable=invalid-name
 
         # normalizing
         X_min = X[y == self.min_label]
         scaler = StandardScaler()
-        X_min_normalized = scaler.fit_transform(X_min) # pylint: disable=invalid-name
-        X_init_normalized = scaler.transform(X_init) # pylint: disable=invalid-name
+        X_min_normalized = scaler.fit_transform(X_min)  # pylint: disable=invalid-name
+        X_init_normalized = scaler.transform(X_init)  # pylint: disable=invalid-name
 
         # mapping the initial samples to the manifold
-        samples = scaler.inverse_transform(self.execute_autoencoder(X_min_normalized,
-                                                                    X_init_normalized))
+        samples = scaler.inverse_transform(
+            self.execute_autoencoder(X_min_normalized, X_init_normalized)
+        )
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'e': self.encoder_params['e'],
-                'h': self.encoder_params['h'],
-                'sigma': self.encoder_params['sigma'],
-                'ss_params': self.ss_params,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "e": self.encoder_params["e"],
+            "h": self.encoder_params["h"],
+            "sigma": self.encoder_params["sigma"],
+            "ss_params": self.ss_params,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

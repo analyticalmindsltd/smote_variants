@@ -6,17 +6,44 @@ import numpy as np
 
 from sklearn.metrics import roc_auc_score, log_loss
 
-__all__ = ['prediction_labels',
-            'calculate_atoms',
-            'calculate_label_scores',
-            'calculate_prob_scores',
-            'calculate_all_scores',
-            'all_scores']
+__all__ = [
+    "prediction_labels",
+    "calculate_atoms",
+    "calculate_label_scores",
+    "calculate_prob_scores",
+    "calculate_all_scores",
+    "all_scores",
+]
 
-all_scores = ['acc', 'sens', 'spec', 'ppv', 'npv', 'fpr', 'fdr',
-                'fnr', 'bacc', 'gacc', 'f1', 'mcc', 'l', 'ltp', 'lfp', 'lfn',
-                'ltn', 'lp', 'ln', 'uc', 'informedness', 'markedness', 'p_top20',
-                'brier', 'log_loss', 'auc']
+all_scores = [
+    "acc",
+    "sens",
+    "spec",
+    "ppv",
+    "npv",
+    "fpr",
+    "fdr",
+    "fnr",
+    "bacc",
+    "gacc",
+    "f1",
+    "mcc",
+    "l",
+    "ltp",
+    "lfp",
+    "lfn",
+    "ltn",
+    "lp",
+    "ln",
+    "uc",
+    "informedness",
+    "markedness",
+    "p_top20",
+    "brier",
+    "log_loss",
+    "auc",
+]
+
 
 def prediction_labels(probabilities_maj):
     """
@@ -34,10 +61,11 @@ def prediction_labels(probabilities_maj):
     if len(indices) <= 1:
         return labels
 
-    half = int(len(indices)/2)
+    half = int(len(indices) / 2)
     labels[indices[:half]] = 0
     labels[indices[half:]] = 1
     return labels
+
 
 def calculate_atoms(test_labels, predicted_labels, min_label=1):
     """
@@ -60,13 +88,14 @@ def calculate_atoms(test_labels, predicted_labels, min_label=1):
     min_sample = test_labels == min_label
     maj_sample = np.logical_not(min_sample)
 
-    atoms['tp'] = int(np.sum(np.logical_and(equals, min_sample)))
-    atoms['tn'] = int(np.sum(np.logical_and(equals, maj_sample)))
+    atoms["tp"] = int(np.sum(np.logical_and(equals, min_sample)))
+    atoms["tn"] = int(np.sum(np.logical_and(equals, maj_sample)))
 
-    atoms['fp'] = int(np.sum(np.logical_and(not_equals, maj_sample)))
-    atoms['fn'] = int(np.sum(np.logical_and(not_equals, min_sample)))
+    atoms["fp"] = int(np.sum(np.logical_and(not_equals, maj_sample)))
+    atoms["fn"] = int(np.sum(np.logical_and(not_equals, min_sample)))
 
     return atoms
+
 
 def _log_score(multiplier, value):
     """
@@ -87,6 +116,7 @@ def _log_score(multiplier, value):
         return None
     return float(multiplier * log_value)
 
+
 def _log_score_div(numerator, denominator):
     """
     Calculates a log score and returs None if not computable.
@@ -102,6 +132,7 @@ def _log_score_div(numerator, denominator):
         return _log_score(numerator, numerator / denominator)
     return None
 
+
 def calculate_label_scores(atoms):
     """
     Calculate scores from labels.
@@ -112,63 +143,64 @@ def calculate_label_scores(atoms):
     Returns:
         dict: the label scores
     """
-    atoms['p'] = atoms['tp'] + atoms['fn']
-    atoms['n'] = atoms['fp'] + atoms['tn']
+    atoms["p"] = atoms["tp"] + atoms["fn"]
+    atoms["n"] = atoms["fp"] + atoms["tn"]
 
-    atoms['acc'] = (atoms['tp'] + atoms['tn']) / (atoms['p'] + atoms['n'])
-    atoms['sens'] = atoms['tp'] / atoms['p']
-    atoms['spec'] = atoms['tn'] / atoms['n']
-    if atoms['tp'] + atoms['fp'] > 0:
-        atoms['ppv'] = atoms['tp'] / (atoms['tp'] + atoms['fp'])
+    atoms["acc"] = (atoms["tp"] + atoms["tn"]) / (atoms["p"] + atoms["n"])
+    atoms["sens"] = atoms["tp"] / atoms["p"]
+    atoms["spec"] = atoms["tn"] / atoms["n"]
+    if atoms["tp"] + atoms["fp"] > 0:
+        atoms["ppv"] = atoms["tp"] / (atoms["tp"] + atoms["fp"])
     else:
-        atoms['ppv'] = 0.0
-    if atoms['tn'] + atoms['fn'] > 0:
-        atoms['npv'] = atoms['tn'] / (atoms['tn'] + atoms['fn'])
+        atoms["ppv"] = 0.0
+    if atoms["tn"] + atoms["fn"] > 0:
+        atoms["npv"] = atoms["tn"] / (atoms["tn"] + atoms["fn"])
     else:
-        atoms['npv'] = 0.0
-    atoms['fpr'] = 1.0 - atoms['spec']
-    atoms['fdr'] = 1.0 - atoms['ppv']
-    atoms['fnr'] = 1.0 - atoms['sens']
-    atoms['bacc'] = (atoms['sens'] + atoms['spec'])/2.0
-    atoms['gacc'] = float(np.sqrt(atoms['sens']*atoms['spec']))
-    atoms['f1'] = 2 * atoms['tp'] / (2 * atoms['tp'] + atoms['fp'] + atoms['fn'])
+        atoms["npv"] = 0.0
+    atoms["fpr"] = 1.0 - atoms["spec"]
+    atoms["fdr"] = 1.0 - atoms["ppv"]
+    atoms["fnr"] = 1.0 - atoms["sens"]
+    atoms["bacc"] = (atoms["sens"] + atoms["spec"]) / 2.0
+    atoms["gacc"] = float(np.sqrt(atoms["sens"] * atoms["spec"]))
+    atoms["f1"] = 2 * atoms["tp"] / (2 * atoms["tp"] + atoms["fp"] + atoms["fn"])
 
-    tp_fp = (atoms['tp'] + atoms['fp'])
-    tp_fn = (atoms['tp'] + atoms['fn'])
-    tn_fp = (atoms['fp'] + atoms['tn'])
-    tn_fn = (atoms['fn'] + atoms['tn'])
+    tp_fp = atoms["tp"] + atoms["fp"]
+    tp_fn = atoms["tp"] + atoms["fn"]
+    tn_fp = atoms["fp"] + atoms["tn"]
+    tn_fn = atoms["fn"] + atoms["tn"]
 
-    mcc_num = atoms['tp']*atoms['tn'] - atoms['fp']*atoms['fn']
+    mcc_num = atoms["tp"] * atoms["tn"] - atoms["fp"] * atoms["fn"]
     mcc_denom = float(np.prod([tp_fp, tp_fn, tn_fp, tn_fn]))
 
     if mcc_denom == 0:
-        atoms['mcc'] = None
+        atoms["mcc"] = None
     else:
-        atoms['mcc'] = float(mcc_num/np.sqrt(mcc_denom))
+        atoms["mcc"] = float(mcc_num / np.sqrt(mcc_denom))
 
-    atoms['l'] = float((atoms['p'] + atoms['n']) * np.log(atoms['p'] + atoms['n']))
+    atoms["l"] = float((atoms["p"] + atoms["n"]) * np.log(atoms["p"] + atoms["n"]))
 
-    atoms['ltp'] = _log_score_div(atoms['tp'], tp_fp * tp_fn)
-    atoms['lfp'] = _log_score_div(atoms['fp'], tp_fp * tn_fp)
-    atoms['lfn'] = _log_score_div(atoms['fn'], tp_fn * tn_fn)
-    atoms['ltn'] = _log_score_div(atoms['tn'], tn_fp * tn_fn)
+    atoms["ltp"] = _log_score_div(atoms["tp"], tp_fp * tp_fn)
+    atoms["lfp"] = _log_score_div(atoms["fp"], tp_fp * tn_fp)
+    atoms["lfn"] = _log_score_div(atoms["fn"], tp_fn * tn_fn)
+    atoms["ltn"] = _log_score_div(atoms["tn"], tn_fp * tn_fn)
 
-    atoms['lp'] = float(atoms['p'] * np.log(atoms['p']/(atoms['p'] + atoms['n'])))
-    atoms['ln'] = float(atoms['n'] * np.log(atoms['n']/(atoms['p'] + atoms['n'])))
+    atoms["lp"] = float(atoms["p"] * np.log(atoms["p"] / (atoms["p"] + atoms["n"])))
+    atoms["ln"] = float(atoms["n"] * np.log(atoms["n"] / (atoms["p"] + atoms["n"])))
 
-    items = [atoms['ltp'], atoms['lfp'], atoms['lfn'], atoms['ltn']]
+    items = [atoms["ltp"], atoms["lfp"], atoms["lfn"], atoms["ltn"]]
 
     if np.all([item is not None for item in items]):
-        uc_num = atoms['l'] + np.sum(items)
-        uc_denom = atoms['l'] + atoms['lp'] + atoms['ln']
-        atoms['uc'] = uc_num / uc_denom
+        uc_num = atoms["l"] + np.sum(items)
+        uc_denom = atoms["l"] + atoms["lp"] + atoms["ln"]
+        atoms["uc"] = uc_num / uc_denom
     else:
-        atoms['uc'] = None
+        atoms["uc"] = None
 
-    atoms['informedness'] = atoms['sens'] + atoms['spec'] - 1.0
-    atoms['markedness'] = atoms['ppv'] + atoms['npv'] - 1.0
+    atoms["informedness"] = atoms["sens"] + atoms["spec"] - 1.0
+    atoms["markedness"] = atoms["ppv"] + atoms["npv"] - 1.0
 
     return atoms
+
 
 def calculate_prob_scores(test_labels, probabilities, min_label=1):
     """
@@ -184,13 +216,14 @@ def calculate_prob_scores(test_labels, probabilities, min_label=1):
     """
     results = {}
 
-    thres = max(int(0.2*len(test_labels)), 1)
-    results['p_top20'] = float(np.sum(test_labels[:thres] == min_label)/thres)
-    results['brier'] = float(np.mean((probabilities - test_labels)**2))
-    results['log_loss'] = float(log_loss(test_labels, probabilities))
-    results['auc'] = float(roc_auc_score(test_labels, probabilities))
+    thres = max(int(0.2 * len(test_labels)), 1)
+    results["p_top20"] = float(np.sum(test_labels[:thres] == min_label) / thres)
+    results["brier"] = float(np.mean((probabilities - test_labels) ** 2))
+    results["log_loss"] = float(log_loss(test_labels, probabilities))
+    results["auc"] = float(roc_auc_score(test_labels, probabilities))
 
     return results
+
 
 def calculate_all_scores(test_labels, probabilities, min_label=1):
     """
@@ -207,7 +240,8 @@ def calculate_all_scores(test_labels, probabilities, min_label=1):
     pred_labels = prediction_labels(probabilities)
     results = calculate_atoms(test_labels, pred_labels, min_label)
     results = calculate_label_scores(results)
-    results = {**results, **calculate_prob_scores(test_labels,
-                                                  probabilities,
-                                                  min_label)}
+    results = {
+        **results,
+        **calculate_prob_scores(test_labels, probabilities, min_label),
+    }
     return results

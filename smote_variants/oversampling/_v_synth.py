@@ -10,9 +10,11 @@ import scipy.spatial as sspatial
 
 from ..base import OverSampling
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['V_SYNTH']
+__all__ = ["V_SYNTH"]
+
 
 class V_SYNTH(OverSampling):
     """
@@ -50,16 +52,11 @@ class V_SYNTH(OverSampling):
         * Voronoi diagram generation in high dimensional spaces is instable
     """
 
-    categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_sample_ordinary]
+    categories = [OverSampling.cat_extensive, OverSampling.cat_sample_ordinary]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_components=3,
-                 *,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self, proportion=1.0, n_components=3, *, n_jobs=1, random_state=None, **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -73,16 +70,16 @@ class V_SYNTH(OverSampling):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        super().__init__(random_state=random_state, checks={'min_n_dim': 2})
+        super().__init__(random_state=random_state, checks={"min_n_dim": 2})
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_components, "n_component", 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_components = n_components
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -90,9 +87,10 @@ class V_SYNTH(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_components': [3]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_components": [3],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def add_bounding_box(self, X):
@@ -109,25 +107,21 @@ class V_SYNTH(OverSampling):
         # creating the bounding box
         mins = np.min(X, axis=0)
         maxs = np.max(X, axis=0)
-        mins = mins - 0.1*np.abs(mins)
-        maxs = maxs + 0.1*np.abs(maxs)
+        mins = mins - 0.1 * np.abs(mins)
+        maxs = maxs + 0.1 * np.abs(maxs)
 
         dim = len(X[0])
 
         def random_min_maxs():
-            return np.where(self.random_state.randint(0, 1, size=dim) == 0,
-                            mins,
-                            maxs)
+            return np.where(self.random_state.randint(0, 1, size=dim) == 0, mins, maxs)
 
         n_bounding_box = min([100, len(X[0])])
         bounding_box = [random_min_maxs() for _ in range(n_bounding_box)]
-        X_bb = np.vstack([X, bounding_box]) # pylint: disable=invalid-name
+        X_bb = np.vstack([X, bounding_box])  # pylint: disable=invalid-name
 
         return X_bb, bounding_box
 
-    def filter_vectors_too_close(self,
-                                X_pca, # pylint: disable=invalid-name
-                                y_pca):
+    def filter_vectors_too_close(self, X_pca, y_pca):  # pylint: disable=invalid-name
         """
         Determine the Voronoi-tessellation
 
@@ -143,7 +137,7 @@ class V_SYNTH(OverSampling):
 
         to_remove = []
         for idx in range(len(distm)):
-            for jdx in range(idx+1, len(distm)):
+            for jdx in range(idx + 1, len(distm)):
                 if distm[idx, jdx] < 0.001:
                     to_remove.append(idx)
 
@@ -152,11 +146,9 @@ class V_SYNTH(OverSampling):
 
         return X_pca, y_pca
 
-    def generate_samples(self, *,
-                            voronoi,
-                            y_pca,
-                            candidate_face_generators,
-                            n_to_sample):
+    def generate_samples(
+        self, *, voronoi, y_pca, candidate_face_generators, n_to_sample
+    ):
         """
         Generate samples.
 
@@ -196,14 +188,12 @@ class V_SYNTH(OverSampling):
 
             # generating a point between the minority ridge point and the
             # random point on the face
-            samples.append(self.sample_between_points(sample_point_on_face,
-                                                      h_vec))
+            samples.append(self.sample_between_points(sample_point_on_face, h_vec))
         return np.vstack(samples)
 
-    def dimensionality_reduction(self,
-                                    X_bb, # pylint: disable=invalid-name
-                                    y,
-                                    bounding_box):
+    def dimensionality_reduction(
+        self, X_bb, y, bounding_box  # pylint: disable=invalid-name
+    ):
         """
         Do the dimensionality reduction.
 
@@ -223,7 +213,7 @@ class V_SYNTH(OverSampling):
 
         while np.sum(component_mask) > 1:
             pca = PCA(n_components=n_components)
-            X_pca = pca.fit_transform(X_bb) # pylint: disable=invalid-name
+            X_pca = pca.fit_transform(X_bb)  # pylint: disable=invalid-name
             y_pca = np.hstack([y, np.repeat(-1, len(bounding_box))])
 
             component_mask = pca.explained_variance_ratio_ > 1e-2
@@ -251,16 +241,20 @@ class V_SYNTH(OverSampling):
         if n_to_sample == 0:
             return self.return_copies(X, y, "Sampling is not needed")
 
-        X_bb, bounding_box = self.add_bounding_box(X) # pylint: disable=invalid-name
+        X_bb, bounding_box = self.add_bounding_box(X)  # pylint: disable=invalid-name
 
-        X_pca, y_pca, n_components, pca = \
-                        self.dimensionality_reduction(X_bb, y, bounding_box) # pylint: disable=invalid-name
+        X_pca, y_pca, n_components, pca = self.dimensionality_reduction(  # pylint: disable=invalid-name
+            X_bb, y, bounding_box
+        )
 
         if n_components == 1:
-            return self.return_copies(X, y,
-                                "Voronoi tessellation in 1D is not feasible")
+            return self.return_copies(
+                X, y, "Voronoi tessellation in 1D is not feasible"
+            )
 
-        X_pca, y_pca = self.filter_vectors_too_close(X_pca, y_pca) # pylint: disable=invalid-name
+        X_pca, y_pca = self.filter_vectors_too_close(  # pylint: disable=invalid-name
+            X_pca, y_pca
+        )
 
         # doing the Voronoi tessellation
         voronoi = sspatial.Voronoi(X_pca)
@@ -269,8 +263,7 @@ class V_SYNTH(OverSampling):
         # generating an edge between two cells of different class labels
         candidate_face_generators = []
         for idx, ridge in enumerate(voronoi.ridge_points):
-            if ridge[0] < len(y) and ridge[1] < len(y) \
-                            and y[ridge[0]] != y[ridge[1]]:
+            if ridge[0] < len(y) and ridge[1] < len(y) and y[ridge[0]] != y[ridge[1]]:
                 candidate_face_generators.append(idx)
 
         # seems like this never happens
@@ -278,20 +271,26 @@ class V_SYNTH(OverSampling):
             return self.return_copies(X, y, "No candidate face generators found")
 
         # generating samples
-        samples = self.generate_samples(voronoi=voronoi,
-                                        y_pca=y_pca,
-                                        candidate_face_generators=candidate_face_generators,
-                                        n_to_sample=n_to_sample)
+        samples = self.generate_samples(
+            voronoi=voronoi,
+            y_pca=y_pca,
+            candidate_face_generators=candidate_face_generators,
+            n_to_sample=n_to_sample,
+        )
 
-        return (np.vstack([X, pca.inverse_transform(samples)]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, pca.inverse_transform(samples)]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_components': self.n_components,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_components": self.n_components,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

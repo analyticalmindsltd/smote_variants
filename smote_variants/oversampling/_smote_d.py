@@ -8,9 +8,11 @@ from ..base import fix_density
 from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSampling
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['SMOTE_D']
+__all__ = ["SMOTE_D"]
+
 
 class SMOTE_D(OverSampling):
     """
@@ -39,17 +41,18 @@ class SMOTE_D(OverSampling):
         * Copying happens if two points are the neighbors of each other.
     """
 
-    categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_metric_learning]
+    categories = [OverSampling.cat_extensive, OverSampling.cat_metric_learning]
 
-    def __init__(self,
-                 proportion=1.0,
-                 k=3,
-                 *,
-                 nn_params={},
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        k=3,
+        *,
+        nn_params=None,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -72,14 +75,14 @@ class SMOTE_D(OverSampling):
 
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(k, "k", 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
-        self.k = k # pylint: disable=invalid-name
-        self.nn_params = nn_params
+        self.k = k  # pylint: disable=invalid-name
+        self.nn_params = nn_params or {}
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -87,9 +90,10 @@ class SMOTE_D(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'k': [3, 5, 7]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "k": [3, 5, 7],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def generate_samples(self, X_min, ind, counts_ij):
@@ -107,12 +111,12 @@ class SMOTE_D(OverSampling):
         # do the sampling
         samples = [np.zeros(shape=(0, X_min.shape[1]))]
         for idx, _ in enumerate(X_min):
-            for jdx in range(ind.shape[1]-1):
+            for jdx in range(ind.shape[1] - 1):
                 while counts_ij[idx][jdx] > 0:
                     if self.random_state.random_sample() < counts_ij[idx][jdx]:
                         translation = X_min[ind[idx][jdx + 1]] - X_min[idx]
                         weight = counts_ij[idx][jdx] + 1
-                        samples.append(X_min[idx] + translation/weight)
+                        samples.append(X_min[idx] + translation / weight)
                     counts_ij[idx][jdx] = counts_ij[idx][jdx] - 1
 
         return np.vstack(samples)
@@ -136,15 +140,14 @@ class SMOTE_D(OverSampling):
         X_min = X[y == self.min_label]
 
         nn_params = {**self.nn_params}
-        nn_params['metric_tensor'] = \
-                self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # fitting nearest neighbors model
-        n_neighbors = min([len(X_min), self.k+1])
+        n_neighbors = min([len(X_min), self.k + 1])
 
-        nnmt = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X_min)
         dist, ind = nnmt.kneighbors(X_min)
 
@@ -155,25 +158,28 @@ class SMOTE_D(OverSampling):
         p_i = fix_density(stds)
 
         # the other component of sampling density
-        p_ij = np.array([fix_density(dist[idx, 1:])
-                            for idx in range(dist.shape[0])])
-        #p_ij = dist[:, 1:]/np.sum(dist[:, 1:], axis=1)[:, None]
+        p_ij = np.array([fix_density(dist[idx, 1:]) for idx in range(dist.shape[0])])
+        # p_ij = dist[:, 1:]/np.sum(dist[:, 1:], axis=1)[:, None]
 
         # number of samples to generate between minority points
         counts_ij = n_to_sample * p_i[:, None] * p_ij
 
         samples = self.generate_samples(X_min, ind, counts_ij)
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'k': self.k,
-                'nn_params': self.nn_params,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "k": self.k,
+            "nn_params": self.nn_params,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

@@ -9,16 +9,15 @@ from ..base import OverSamplingSimplex
 from ..base import mode, coalesce_dict, coalesce
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['Borderline_SMOTE1',
-          'Borderline_SMOTE2']
+__all__ = ["Borderline_SMOTE1", "Borderline_SMOTE2"]
 
-def determine_danger_remove_noise(*, X, y, X_min,
-                                    nn_params,
-                                    n_neighbors,
-                                    n_jobs,
-                                    maj_label):
+
+def determine_danger_remove_noise(
+    *, X, y, X_min, nn_params, n_neighbors, n_jobs, maj_label
+):
     """
     Determine in-danger items and remove noise.
 
@@ -36,11 +35,11 @@ def determine_danger_remove_noise(*, X, y, X_min,
     """
     n_neighbors = np.min([len(X), n_neighbors + 1])
 
-    nnmt= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                            n_jobs=n_jobs,
-                                            **(nn_params))
+    nnmt = NearestNeighborsWithMetricTensor(
+        n_neighbors=n_neighbors, n_jobs=n_jobs, **(nn_params)
+    )
     nnmt.fit(X)
-    indices= nnmt.kneighbors(X_min, return_distance=False)
+    indices = nnmt.kneighbors(X_min, return_distance=False)
 
     # determining minority samples in danger
     noise = []
@@ -51,10 +50,11 @@ def determine_danger_remove_noise(*, X, y, X_min,
         elif mode(y[row[1:]]) == maj_label:
             danger.append(idx)
 
-    X_danger = X_min[danger] # pylint: disable=invalid-name
+    X_danger = X_min[danger]  # pylint: disable=invalid-name
     X_min = np.delete(X_min, np.array(noise).astype(int), axis=0)
 
     return X_min, X_danger
+
 
 class Borderline_SMOTE1(OverSamplingSimplex):
     """
@@ -79,21 +79,25 @@ class Borderline_SMOTE1(OverSamplingSimplex):
                             }
     """
 
-    categories = [OverSamplingSimplex.cat_sample_ordinary,
-                  OverSamplingSimplex.cat_extensive,
-                  OverSamplingSimplex.cat_borderline,
-                  OverSamplingSimplex.cat_metric_learning]
+    categories = [
+        OverSamplingSimplex.cat_sample_ordinary,
+        OverSamplingSimplex.cat_extensive,
+        OverSamplingSimplex.cat_borderline,
+        OverSamplingSimplex.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 k_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        k_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs,
+    ):
         """
         Constructor of the sampling object
 
@@ -117,25 +121,28 @@ class Borderline_SMOTE1(OverSamplingSimplex):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
         ss_params = coalesce_dict(ss_params, ss_params_default)
 
         super().__init__(**ss_params, random_state=random_state)
 
-        self.check_greater_or_equal(proportion, 'proportion', 0)
-        self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
-        self.check_greater_or_equal(k_neighbors, 'k_neighbors', 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_greater_or_equal(k_neighbors, "k_neighbors", 1)
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
         self.k_neighbors = k_neighbors
-        self.nn_params= coalesce(nn_params, {})
+        self.nn_params = coalesce(nn_params, {})
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -143,10 +150,11 @@ class Borderline_SMOTE1(OverSamplingSimplex):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7, 11, 17],
-                                  'k_neighbors': [3, 5, 7, 11, 17]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7, 11, 17],
+            "k_neighbors": [3, 5, 7, 11, 17],
+        }
 
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
@@ -171,71 +179,80 @@ class Borderline_SMOTE1(OverSamplingSimplex):
         # fitting model
         X_min = X[y == self.min_label]
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params,
-                                                                        X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
-        X_min, X_danger = determine_danger_remove_noise(X=X, y=y, # pylint: disable=invalid-name
-                                                        X_min=X_min,
-                                                        nn_params=nn_params,
-                                                        n_neighbors=self.n_neighbors,
-                                                        n_jobs=self.n_jobs,
-                                                        maj_label=self.maj_label)
+        X_min, X_danger = determine_danger_remove_noise(  # pylint: disable=invalid-name
+            X=X,
+            y=y,
+            X_min=X_min,
+            nn_params=nn_params,
+            n_neighbors=self.n_neighbors,
+            n_jobs=self.n_jobs,
+            maj_label=self.maj_label,
+        )
 
         if len(X_min) < 2 or len(X_danger) == 0:
-            return self.return_copies(X, y, "The number of samples "\
-                    f"after preprocessing X_min ({len(X_min)}) "\
-                    f" X_danger ({len(X_danger)} is not enough for sampling.")
+            return self.return_copies(
+                X,
+                y,
+                "The number of samples "
+                f"after preprocessing X_min ({len(X_min)}) "
+                f" X_danger ({len(X_danger)} is not enough for sampling.",
+            )
 
         # fitting nearest neighbors model to minority samples
         k_neigh = min([len(X_min), self.k_neighbors + 1])
 
-        nnmt= NearestNeighborsWithMetricTensor(n_neighbors=k_neigh,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=k_neigh, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X_min)
-        indices= nnmt.kneighbors(X_danger, return_distance=False)
+        indices = nnmt.kneighbors(X_danger, return_distance=False)
 
         # X_danger items are also present in X_min
         indices = indices[:, 1:]
 
-        samples = self.sample_simplex(X=X_danger,
-                                        indices=indices,
-                                        n_to_sample=n_to_sample,
-                                        X_vertices=X_min)
+        samples = self.sample_simplex(
+            X=X_danger, indices=indices, n_to_sample=n_to_sample, X_vertices=X_min
+        )
 
         # original implementation
         # generating samples near points in danger
         # base_indices = self.random_state.choice(list(range(len(X_danger))),
         #                                        n_to_sample)
-        #distribution = np.repeat(1, k_neigh-1)
-        #distribution = distribution / np.sum(distribution)
+        # distribution = np.repeat(1, k_neigh-1)
+        # distribution = distribution / np.sum(distribution)
         #
-        #neighbor_indices = self.random_state.choice(list(range(1, k_neigh)),
+        # neighbor_indices = self.random_state.choice(list(range(1, k_neigh)),
         #                                            n_to_sample,
         #                                            p=distribution)
         #
-        #X_base = X_danger[base_indices]
-        #X_neighbor = X_min[indices[base_indices, neighbor_indices]]
+        # X_base = X_danger[base_indices]
+        # X_neighbor = X_min[indices[base_indices, neighbor_indices]]
         #
-        #samples = X_base + \
+        # samples = X_base + \
         #    np.multiply(self.random_state.rand(
         #        n_to_sample, 1), X_neighbor - X_base)
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.hstack([self.min_label]*n_to_sample)]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.hstack([self.min_label] * n_to_sample)]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'k_neighbors': self.k_neighbors,
-                'nn_params': self.nn_params,
-                'n_jobs': self.n_jobs,
-                **OverSamplingSimplex.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "k_neighbors": self.k_neighbors,
+            "nn_params": self.nn_params,
+            "n_jobs": self.n_jobs,
+            **OverSamplingSimplex.get_params(self),
+        }
 
 
 class Borderline_SMOTE2(OverSamplingSimplex):
@@ -261,21 +278,25 @@ class Borderline_SMOTE2(OverSamplingSimplex):
                             }
     """
 
-    categories = [OverSamplingSimplex.cat_sample_ordinary,
-                  OverSamplingSimplex.cat_extensive,
-                  OverSamplingSimplex.cat_borderline,
-                  OverSamplingSimplex.cat_metric_learning]
+    categories = [
+        OverSamplingSimplex.cat_sample_ordinary,
+        OverSamplingSimplex.cat_extensive,
+        OverSamplingSimplex.cat_borderline,
+        OverSamplingSimplex.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 k_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        k_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs,
+    ):
         """
         Constructor of the sampling object
 
@@ -301,17 +322,20 @@ class Borderline_SMOTE2(OverSamplingSimplex):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
         ss_params = coalesce_dict(ss_params, ss_params_default)
 
         super().__init__(**ss_params, random_state=random_state)
 
-        self.check_greater_or_equal(proportion, 'proportion', 0)
-        self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
-        self.check_greater_or_equal(k_neighbors, 'k_neighbors', 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_greater_or_equal(k_neighbors, "k_neighbors", 1)
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
@@ -319,7 +343,7 @@ class Borderline_SMOTE2(OverSamplingSimplex):
         self.nn_params = coalesce(nn_params, {})
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -327,10 +351,11 @@ class Borderline_SMOTE2(OverSamplingSimplex):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7],
-                                  'k_neighbors': [3, 5, 7]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7],
+            "k_neighbors": [3, 5, 7],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def sampling_algorithm(self, X, y):
@@ -351,33 +376,40 @@ class Borderline_SMOTE2(OverSamplingSimplex):
         if n_to_sample == 0:
             return self.return_copies(X, y, "Sampling is not needed")
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # fitting nearest neighbors model
         X_min = X[y == self.min_label]
 
-        X_min, X_danger = determine_danger_remove_noise(X=X, y=y, # pylint: disable=invalid-name
-                                                        X_min=X_min,
-                                                        nn_params=nn_params,
-                                                        n_neighbors=self.n_neighbors,
-                                                        n_jobs=self.n_jobs,
-                                                        maj_label=self.maj_label)
+        X_min, X_danger = determine_danger_remove_noise(  # pylint: disable=invalid-name
+            X=X,
+            y=y,
+            X_min=X_min,
+            nn_params=nn_params,
+            n_neighbors=self.n_neighbors,
+            n_jobs=self.n_jobs,
+            maj_label=self.maj_label,
+        )
 
         if len(X_min) < 2 or len(X_danger) == 0:
-            return self.return_copies(X, y, "The number of samples "\
-                    f"after preprocessing X_min ({len(X_min)}) "\
-                    f" X_danger ({len(X_danger)} is not enough for sampling.")
+            return self.return_copies(
+                X,
+                y,
+                "The number of samples "
+                f"after preprocessing X_min ({len(X_min)}) "
+                f" X_danger ({len(X_danger)} is not enough for sampling.",
+            )
 
         # fitting nearest neighbors model to samples
         k_neigh = self.k_neighbors + 1
         k_neigh = min([k_neigh, len(X)])
 
-        nnmt= NearestNeighborsWithMetricTensor(n_neighbors=k_neigh,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=k_neigh, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X)
-        indices= nnmt.kneighbors(X_danger, return_distance=False)
+        indices = nnmt.kneighbors(X_danger, return_distance=False)
 
         # X_danger items are also present in X
         indices = indices[:, 1:]
@@ -385,42 +417,48 @@ class Borderline_SMOTE2(OverSamplingSimplex):
         vertex_weights = np.repeat(1.0, len(X))
         vertex_weights[y == self.maj_label] = 0.5
 
-        samples = self.sample_simplex(X=X_danger,
-                                        indices=indices,
-                                        n_to_sample=n_to_sample,
-                                        X_vertices=X,
-                                        vertex_weights=vertex_weights)
+        samples = self.sample_simplex(
+            X=X_danger,
+            indices=indices,
+            n_to_sample=n_to_sample,
+            X_vertices=X,
+            vertex_weights=vertex_weights,
+        )
 
         # generating the samples
-        #base_indices = self.random_state.choice(
+        # base_indices = self.random_state.choice(
         #    list(range(len(X_danger))), n_to_sample)
         #
-        #distribution = np.repeat(1, k_neigh-1)
-        #distribution = distribution / np.sum(distribution)
+        # distribution = np.repeat(1, k_neigh-1)
+        # distribution = distribution / np.sum(distribution)
         #
-        #neighbor_indices = self.random_state.choice(
+        # neighbor_indices = self.random_state.choice(
         #    list(range(1, k_neigh)), n_to_sample, p=distribution)
         #
-        #X_base = X_danger[base_indices]
-        #X_neighbor = X[indices[base_indices, neighbor_indices]]
-        #diff = X_neighbor - X_base
-        #rand = self.random_state.rand(n_to_sample, 1)
-        #mask = y[neighbor_indices] == self.maj_label
-        #rand[mask] = rand[mask]*0.5
+        # X_base = X_danger[base_indices]
+        # X_neighbor = X[indices[base_indices, neighbor_indices]]
+        # diff = X_neighbor - X_base
+        # rand = self.random_state.rand(n_to_sample, 1)
+        # mask = y[neighbor_indices] == self.maj_label
+        # rand[mask] = rand[mask]*0.5
         #
-        #samples = X_base + np.multiply(rand, diff)
+        # samples = X_base + np.multiply(rand, diff)
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.hstack([self.min_label]*n_to_sample)]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.hstack([self.min_label] * n_to_sample)]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'k_neighbors': self.k_neighbors,
-                'nn_params': self.nn_params,
-                'n_jobs': self.n_jobs,
-                **OverSamplingSimplex.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "k_neighbors": self.k_neighbors,
+            "nn_params": self.nn_params,
+            "n_jobs": self.n_jobs,
+            **OverSamplingSimplex.get_params(self),
+        }

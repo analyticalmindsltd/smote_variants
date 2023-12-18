@@ -9,14 +9,18 @@ from sklearn.linear_model import LinearRegression
 
 import scipy.special as sspecial
 
-from ..base import (NearestNeighborsWithMetricTensor,
-                                pairwise_distances_mahalanobis,
-                                fix_density)
+from ..base import (
+    NearestNeighborsWithMetricTensor,
+    pairwise_distances_mahalanobis,
+    fix_density,
+)
 from ..base import OverSampling
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['SSO']
+__all__ = ["SSO"]
+
 
 class SSO(OverSampling):
     """
@@ -48,22 +52,26 @@ class SSO(OverSampling):
             some reasonable, bounded value.
     """
 
-    categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_uses_classifier,
-                  OverSampling.cat_uses_clustering,
-                  OverSampling.cat_density_based,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_extensive,
+        OverSampling.cat_uses_classifier,
+        OverSampling.cat_uses_clustering,
+        OverSampling.cat_density_based,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params={},
-                 h=10, # pylint: disable=invalid-name
-                 n_iter=5,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        h=10,  # pylint: disable=invalid-name
+        n_iter=5,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -89,16 +97,16 @@ class SSO(OverSampling):
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_greater_or_equal(h, "h", 1)
         self.check_greater_or_equal(n_iter, "n_iter", 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
-        self.nn_params = nn_params
-        self.h = h # pylint: disable=invalid-name
+        self.nn_params = nn_params or {}
+        self.h = h  # pylint: disable=invalid-name
         self.n_iter = n_iter
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -106,14 +114,15 @@ class SSO(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5],
-                                  'h': [2, 5, 10, 20],
-                                  'n_iter': [5]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5],
+            "h": [2, 5, 10, 20],
+            "n_iter": [5],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
-    #def eq_6(self, Q, w, u, v, x, h):
+    # def eq_6(self, Q, w, u, v, x, h):
     #    """
     #    Equation 6 in the paper
     #    """
@@ -125,7 +134,7 @@ class SSO(OverSampling):
     #        tmp_sum[i] = np.sqrt(np.pi/2)*v[i]*np.prod(tmp_prod)
     #    return np.dot(tmp_sum, w)/(2*Q)**len(x)
 
-    def eq_6_vectorized(self, *, Q, w, u, v, X): # pylint: disable=invalid-name
+    def eq_6_vectorized(self, *, Q, w, u, v, X):  # pylint: disable=invalid-name
         """
         Vectorized implementation of Equation 6 in the paper
 
@@ -142,11 +151,11 @@ class SSO(OverSampling):
         tmp_a = (X[:, None] - u + Q) / np.sqrt(2 * v)[None, :, None]
         tmp_b = (X[:, None] - u - Q) / np.sqrt(2 * v)[None, :, None]
         tmp_prod = sspecial.erf(tmp_a) - sspecial.erf(tmp_b)
-        tmp_sum = (np.sqrt(np.pi / 2.0) * v * np.prod(tmp_prod, axis=2))
+        tmp_sum = np.sqrt(np.pi / 2.0) * v * np.prod(tmp_prod, axis=2)
         result = np.dot(tmp_sum, w) / (2 * Q) ** X.shape[1]
         return result
 
-    #def eq_8(self, Q, w, u, v, x, h):
+    # def eq_8(self, Q, w, u, v, x, h):
     #    """
     #    Equation 8 in the paper
     #    """
@@ -205,7 +214,7 @@ class SSO(OverSampling):
 
         return a_v, b_v
 
-    def eq_8_vectorized(self, *, Q, w, u, v, X): # pylint: disable=invalid-name
+    def eq_8_vectorized(self, *, Q, w, u, v, X):  # pylint: disable=invalid-name
         """
         Vectorized implementation of Equation 8 in the paper
 
@@ -219,11 +228,11 @@ class SSO(OverSampling):
         Returns:
             np.array: eq. 8 for each X vector
         """
-        v2 = v ** 2.0 # pylint: disable=invalid-name
+        v2 = v**2.0  # pylint: disable=invalid-name
 
-        vi_vr = (v2[:, None] + v2)
+        vi_vr = v2[:, None] + v2
 
-        a1 = np.sqrt(2.0 * (v2[:, None] * v2) * vi_vr) # pylint: disable=invalid-name
+        a1 = np.sqrt(2.0 * (v2[:, None] * v2) * vi_vr)  # pylint: disable=invalid-name
 
         a_v, b_v = self.eq_8_av_bv(Q=Q, u=u, X=X, v2=v2, vi_vr=vi_vr, a1=a1)
 
@@ -231,10 +240,11 @@ class SSO(OverSampling):
 
         tmp_a = (a1 / vi_vr) ** X.shape[1]
 
-        tmp_b = np.exp(-0.5 * np.linalg.norm(u[:, None] - u, axis=2)**2/vi_vr)
+        tmp_b = np.exp(-0.5 * np.linalg.norm(u[:, None] - u, axis=2) ** 2 / vi_vr)
 
-        result = (tmp_a * tmp_b * (w[:, None] * w))[:, :, None] \
-                                        * np.prod(tmp_prod, axis=3)
+        result = (tmp_a * tmp_b * (w[:, None] * w))[:, :, None] * np.prod(
+            tmp_prod, axis=3
+        )
 
         result = np.sum(np.sum(result, axis=0), axis=0)
 
@@ -257,36 +267,39 @@ class SSO(OverSampling):
                                                     vectors
         """
         # applying kmeans clustering to find the hidden neurons
-        h = min([self.h, len(X_min)]) # pylint: disable=invalid-name
-        kmeans = KMeans(n_clusters=h,
-                        random_state=self._random_state_init)
+        h = min([self.h, len(X_min)])  # pylint: disable=invalid-name
+        kmeans = KMeans(n_clusters=h, random_state=self._random_state_init)
         kmeans.fit(X)
 
         # extracting the hidden center elements
-        u = kmeans.cluster_centers_ # pylint: disable=invalid-name
+        u = kmeans.cluster_centers_  # pylint: disable=invalid-name
 
         # extracting scale parameters as the distances of closest centers
-        nn_cent = NearestNeighborsWithMetricTensor(n_neighbors=2,
-                                                    n_jobs=self.n_jobs,
-                                                    **nn_params)
+        nn_cent = NearestNeighborsWithMetricTensor(
+            n_neighbors=2, n_jobs=self.n_jobs, **nn_params
+        )
         nn_cent.fit(u)
         dist_cent, _ = nn_cent.kneighbors(u)
-        v = dist_cent[:, 1] # pylint: disable=invalid-name
+        v = dist_cent[:, 1]  # pylint: disable=invalid-name
 
         # computing the response of the hidden units
-        phi = pairwise_distances_mahalanobis(X, Y=u, tensor=nn_params.get('metric_tensor', None))
+        phi = pairwise_distances_mahalanobis(
+            X, Y=u, tensor=nn_params.get("metric_tensor", None)
+        )
         phi = phi**2
-        phi = np.exp(-phi/v**2)
+        phi = np.exp(-phi / v**2)
 
         # applying linear regression to find the best weights
         linreg = LinearRegression(n_jobs=self.n_jobs)
         linreg.fit(phi, y)
-        f = linreg.predict(phi[np.where(y == self.min_label)[0]]) # pylint: disable=invalid-name
-        w = linreg.coef_ # pylint: disable=invalid-name
+        f = linreg.predict(
+            phi[np.where(y == self.min_label)[0]]
+        )  # pylint: disable=invalid-name
+        w = linreg.coef_  # pylint: disable=invalid-name
 
         return u, v, f, w
 
-    def determine_Q(self, X, X_min, nn_params): # pylint: disable=invalid-name
+    def determine_Q(self, X, X_min, nn_params):  # pylint: disable=invalid-name
         """
         Calculate the Q value.
 
@@ -300,17 +313,21 @@ class SSO(OverSampling):
         """
         # applying nearest neighbors to extract Q values
         n_neighbors = min([self.n_neighbors + 1, len(X)])
-        nnmt = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **nn_params)
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **nn_params
+        )
         nnmt.fit(X)
         dist, _ = nnmt.kneighbors(X_min)
 
-        Q = np.mean(dist[:, n_neighbors-1])/np.sqrt(len(X[0])) # pylint: disable=invalid-name
+        Q = np.mean(dist[:, n_neighbors - 1]) / np.sqrt(  # pylint: disable=invalid-name
+            len(X[0])
+        )
 
         return Q
 
-    def generate_samples(self, X_min, weights, Q, samp_per_iter): # pylint: disable=invalid-name
+    def generate_samples(
+        self, X_min, weights, Q, samp_per_iter
+    ):  # pylint: disable=invalid-name
         """
         Generate samples.
 
@@ -323,18 +340,23 @@ class SSO(OverSampling):
         Returns:
             np.array: the generated samples
         """
-        base_indices = self.random_state.choice(np.arange(X_min.shape[0]),
-                                                samp_per_iter,
-                                                p=weights)
+        base_indices = self.random_state.choice(
+            np.arange(X_min.shape[0]), samp_per_iter, p=weights
+        )
         base_vectors = X_min[base_indices]
-        lam = (self.random_state.random_sample(base_vectors.shape).T \
-                * (2*(1 - weights[base_indices])) - (1 - weights[base_indices])).T
+        lam = (
+            self.random_state.random_sample(base_vectors.shape).T
+            * (2 * (1 - weights[base_indices]))
+            - (1 - weights[base_indices])
+        ).T
 
         samples = base_vectors + Q * lam
 
         return samples
 
-    def determine_Q_and_weights(self, X, y, X_min, nn_params): # pylint: disable=invalid-name
+    def determine_Q_and_weights(
+        self, X, y, X_min, nn_params
+    ):  # pylint: disable=invalid-name
         """
         Determine the Q value and the sampling weights.
 
@@ -347,15 +369,21 @@ class SSO(OverSampling):
         Returns:
             float, np.array: the Q value and the sampling weights
         """
-        u, v, f, w = self.calculate_vectors(X, y, X_min, nn_params) # pylint: disable=invalid-name
+        u, v, f, w = self.calculate_vectors(
+            X, y, X_min, nn_params
+        )  # pylint: disable=invalid-name
 
-        Q = self.determine_Q(X, X_min, nn_params) # pylint: disable=invalid-name
+        Q = self.determine_Q(X, X_min, nn_params)  # pylint: disable=invalid-name
 
         # calculating the sensitivity factors
-        I_1 = self.eq_6_vectorized(Q=Q, w=w, u=u, v=v, X=X_min) # pylint: disable=invalid-name
-        I_2 = self.eq_8_vectorized(Q=Q, w=w, u=u, v=v, X=X_min) # pylint: disable=invalid-name
+        I_1 = self.eq_6_vectorized(
+            Q=Q, w=w, u=u, v=v, X=X_min
+        )  # pylint: disable=invalid-name
+        I_2 = self.eq_8_vectorized(
+            Q=Q, w=w, u=u, v=v, X=X_min
+        )  # pylint: disable=invalid-name
 
-        stsm = f**2 - 2*f*I_1 + I_2
+        stsm = f**2 - 2 * f * I_1 + I_2
 
         # calculating the sampling weights
         stsm = np.abs(stsm)
@@ -377,17 +405,18 @@ class SSO(OverSampling):
         # number of samples to generate in each iteration
         n_to_sample = self.det_n_to_sample(self.proportion)
 
-        samp_per_iter = max([1, int(n_to_sample/self.n_iter)])
+        samp_per_iter = max([1, int(n_to_sample / self.n_iter)])
 
         nn_params = {**self.nn_params}
-        nn_params['metric_tensor'] = \
-            self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # executing the algorithm
         for _ in range(self.n_iter):
             X_min = X[y == self.min_label]
 
-            Q, weights = self.determine_Q_and_weights(X, y, X_min, nn_params) # pylint: disable=invalid-name
+            Q, weights = self.determine_Q_and_weights(  # pylint: disable=invalid-name
+                X, y, X_min, nn_params
+            )
 
             samples = self.generate_samples(X_min, weights, Q, samp_per_iter)
 
@@ -401,10 +430,12 @@ class SSO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'h': self.h,
-                'n_iter': self.n_iter,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "h": self.h,
+            "n_iter": self.n_iter,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

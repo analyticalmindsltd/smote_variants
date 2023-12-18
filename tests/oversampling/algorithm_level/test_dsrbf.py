@@ -4,7 +4,8 @@ Testing the DSRBF.
 
 from smote_variants import DSRBF
 
-from smote_variants.datasets import (load_all_min_noise)
+from smote_variants.datasets import load_all_min_noise
+
 
 def test_specific():
     """
@@ -15,7 +16,6 @@ def test_specific():
 
     dataset = load_all_min_noise()
 
-    X_samp, _ = obj.sample(dataset['data'],
-                            dataset['target'])
+    X_samp, _ = obj.sample(dataset["data"], dataset["target"])
 
     assert len(X_samp) > 0

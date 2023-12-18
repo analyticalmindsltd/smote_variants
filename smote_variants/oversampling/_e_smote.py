@@ -12,9 +12,11 @@ from ..base import OverSampling
 from ._smote import SMOTE
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['E_SMOTE']
+__all__ = ["E_SMOTE"]
+
 
 class E_SMOTE(OverSampling):
     """
@@ -56,22 +58,26 @@ class E_SMOTE(OverSampling):
             selected features only.
     """
 
-    categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_dim_reduction,
-                  OverSampling.cat_memetic,
-                  OverSampling.cat_changes_majority,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_extensive,
+        OverSampling.cat_dim_reduction,
+        OverSampling.cat_memetic,
+        OverSampling.cat_changes_majority,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 min_features=2,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        min_features=2,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -93,15 +99,18 @@ class E_SMOTE(OverSampling):
             random_state (int/RandomState/None): initializer of random_state,
                                 like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
 
         super().__init__(random_state=random_state)
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_greater_or_equal(min_features, "min_features", 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
@@ -112,7 +121,7 @@ class E_SMOTE(OverSampling):
 
         self.mask = None
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -120,10 +129,11 @@ class E_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7],
-                                  'min_features': [1, 2, 3]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7],
+            "min_features": [1, 2, 3],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def crossover(self, mask_a, mask_b, min_features):
@@ -187,10 +197,11 @@ class E_SMOTE(OverSampling):
         min_features = min(self.min_features, len(X[0]))
 
         if len(X) < 800:
-            classifier = SVC(gamma='auto', random_state=self._random_state_init)
+            classifier = SVC(gamma="auto", random_state=self._random_state_init)
         else:
             classifier = DecisionTreeClassifier(
-                max_depth=4, random_state=self._random_state_init)
+                max_depth=4, random_state=self._random_state_init
+            )
 
         # parameters of the evolutionary algorithm
         n_generations = 50
@@ -210,19 +221,22 @@ class E_SMOTE(OverSampling):
                     # crossover
                     i_0 = self.random_state.randint(n_population)
                     i_1 = self.random_state.randint(n_population)
-                    mask = self.crossover(population[i_0][1],
-                                            population[i_1][1],
-                                            min_features)
+                    mask = self.crossover(
+                        population[i_0][1], population[i_1][1], min_features
+                    )
                 else:
                     # mutation
                     idx = self.random_state.randint(n_population)
-                    mask = self.mutate(population[idx][1],
-                                        min_features)
+                    mask = self.mutate(population[idx][1], min_features)
                 # evaluation
-                _logger.info("%s evaluting mask selection with features %d/%d",
-                            self.__class__.__name__, np.sum(mask), len(mask))
+                _logger.info(
+                    "%s evaluting mask selection with features %d/%d",
+                    self.__class__.__name__,
+                    np.sum(mask),
+                    len(mask),
+                )
                 classifier.fit(X[:, mask], y)
-                score = np.sum(y == classifier.predict(X[:, mask]))/len(y)
+                score = np.sum(y == classifier.predict(X[:, mask])) / len(y)
                 # appending the result to the population
                 population.append([score, mask])
             # sorting the population in a reversed order and keeping the
@@ -232,12 +246,14 @@ class E_SMOTE(OverSampling):
         self.mask = population[0][1]
         # resampling the population in the given dimensions
 
-        smote = SMOTE(proportion=self.proportion,
-                      n_neighbors=self.n_neighbors,
-                      nn_params=self.nn_params,
-                      ss_params=self.ss_params,
-                      n_jobs=self.n_jobs,
-                      random_state=self._random_state_init)
+        smote = SMOTE(
+            proportion=self.proportion,
+            n_neighbors=self.n_neighbors,
+            nn_params=self.nn_params,
+            ss_params=self.ss_params,
+            n_jobs=self.n_jobs,
+            random_state=self._random_state_init,
+        )
 
         return smote.sample(X[:, self.mask], y)
 
@@ -258,10 +274,12 @@ class E_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'min_features': self.min_features,
-                'nn_params': self.nn_params,
-                'ss_params': self.ss_params,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "min_features": self.min_features,
+            "nn_params": self.nn_params,
+            "ss_params": self.ss_params,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

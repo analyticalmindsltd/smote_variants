@@ -5,14 +5,15 @@ This module implements the NRSBoundary_SMOTE method.
 import numpy as np
 
 from ..base import coalesce, coalesce_dict
-from ..base import (NearestNeighborsWithMetricTensor,
-                                pairwise_distances_mahalanobis)
+from ..base import NearestNeighborsWithMetricTensor, pairwise_distances_mahalanobis
 from ..base import OverSamplingSimplex
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['NRSBoundary_SMOTE']
+__all__ = ["NRSBoundary_SMOTE"]
+
 
 class NRSBoundary_SMOTE(OverSamplingSimplex):
     """
@@ -31,20 +32,24 @@ class NRSBoundary_SMOTE(OverSamplingSimplex):
                     }
     """
 
-    categories = [OverSamplingSimplex.cat_extensive,
-                  OverSamplingSimplex.cat_borderline,
-                  OverSamplingSimplex.cat_metric_learning]
+    categories = [
+        OverSamplingSimplex.cat_extensive,
+        OverSamplingSimplex.cat_borderline,
+        OverSamplingSimplex.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 w=0.005, # pylint: disable=invalid-name
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        w=0.005,  # pylint: disable=invalid-name
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -66,24 +71,27 @@ class NRSBoundary_SMOTE(OverSamplingSimplex):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
         ss_params = coalesce_dict(ss_params, ss_params_default)
 
         super().__init__(**ss_params, random_state=random_state)
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_greater_or_equal(w, "w", 0)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
         self.nn_params = coalesce(nn_params, {})
-        self.w = w # pylint: disable=invalid-name
+        self.w = w  # pylint: disable=invalid-name
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -91,10 +99,11 @@ class NRSBoundary_SMOTE(OverSamplingSimplex):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7],
-                                  'w': [0.005, 0.01, 0.05]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7],
+            "w": [0.005, 0.01, 0.05],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def determine_delta(self, X, nn_params):
@@ -108,13 +117,12 @@ class NRSBoundary_SMOTE(OverSamplingSimplex):
         Returns:
             np.array: the delta values
         """
-        distm = pairwise_distances_mahalanobis(X,
-                                               tensor=nn_params['metric_tensor'])
+        distm = pairwise_distances_mahalanobis(X, tensor=nn_params["metric_tensor"])
         d_max = np.max(distm, axis=1)
         np.fill_diagonal(distm, np.max(distm))
         d_min = np.min(distm, axis=1)
 
-        delta = d_min + self.w*(d_max - d_min)
+        delta = d_min + self.w * (d_max - d_min)
 
         return delta
 
@@ -140,14 +148,14 @@ class NRSBoundary_SMOTE(OverSamplingSimplex):
         # radius_neighbors function to extract the neighbors in a given radius
         n_neighbors = np.min([self.n_neighbors + 1, len(X)])
 
-        nnmt= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X)
         for idx, x_vec in enumerate(X):
-            indices = nnmt.radius_neighbors(x_vec.reshape(1, -1),
-                                          delta[idx],
-                                          return_distance=False)
+            indices = nnmt.radius_neighbors(
+                x_vec.reshape(1, -1), delta[idx], return_distance=False
+            )
 
             n_minority = np.sum(y[indices[0].astype(int)] == self.min_label)
             n_majority = np.sum(y[indices[0].astype(int)] == self.maj_label)
@@ -161,7 +169,9 @@ class NRSBoundary_SMOTE(OverSamplingSimplex):
 
         return bound_set, pos_set, delta
 
-    def determine_no_conflict_flag(self, subsample, X_pos, nn_params, deltas): # pylint: disable=invalid-name
+    def determine_no_conflict_flag(
+        self, subsample, X_pos, nn_params, deltas
+    ):  # pylint: disable=invalid-name
         """
         Determine the no-conflict flag for the samples
 
@@ -171,16 +181,16 @@ class NRSBoundary_SMOTE(OverSamplingSimplex):
             nn_params (dict): nearest neighbor parameters
             deltas (np.array): the delta values
         """
-        tensor = tensor=nn_params.get('metric_tensor', None)
-        dist_from_pos_set = pairwise_distances_mahalanobis(subsample,
-                                                    Y=X_pos,
-                                                    tensor=tensor)
+        tensor = tensor = nn_params.get("metric_tensor", None)
+        dist_from_pos_set = pairwise_distances_mahalanobis(
+            subsample, Y=X_pos, tensor=tensor
+        )
         no_conflict = np.all(dist_from_pos_set > deltas, axis=1)
         return no_conflict
 
-    def generate_samples(self, *, X, X_min,
-                    indices, bound_set, pos_set,
-                    delta, n_to_sample, nn_params):
+    def generate_samples(
+        self, *, X, X_min, indices, bound_set, pos_set, delta, n_to_sample, nn_params
+    ):
         """
         Generate samples.
 
@@ -203,17 +213,20 @@ class NRSBoundary_SMOTE(OverSamplingSimplex):
         deltas = delta[pos_set]
         deltas_diff = deltas * 0.1
 
-        while len(samples) < n_to_sample and trials < n_to_sample and np.all(deltas > 0):
-            subsample = self.sample_simplex(X=X[bound_set],
-                                            indices=indices,
-                                            n_to_sample=(n_to_sample - len(samples))*10,
-                                            X_vertices=X_min)
+        while (
+            len(samples) < n_to_sample and trials < n_to_sample and np.all(deltas > 0)
+        ):
+            subsample = self.sample_simplex(
+                X=X[bound_set],
+                indices=indices,
+                n_to_sample=(n_to_sample - len(samples)) * 10,
+                X_vertices=X_min,
+            )
 
             # checking the conflict
-            no_conflict = self.determine_no_conflict_flag(subsample,
-                                                            X[pos_set],
-                                                            nn_params,
-                                                            deltas)
+            no_conflict = self.determine_no_conflict_flag(
+                subsample, X[pos_set], nn_params, deltas
+            )
 
             samples = np.vstack([samples, subsample[no_conflict]])
 
@@ -221,7 +234,7 @@ class NRSBoundary_SMOTE(OverSamplingSimplex):
 
             deltas = deltas - deltas_diff
 
-        return np.vstack(samples)[:np.min([len(samples), n_to_sample])]
+        return np.vstack(samples)[: np.min([len(samples), n_to_sample])]
 
     def sampling_algorithm(self, X, y):
         """
@@ -241,16 +254,14 @@ class NRSBoundary_SMOTE(OverSamplingSimplex):
             return self.return_copies(X, y, "Sampling is not needed.")
 
         # step 2
-        X_min_indices = np.where(y == self.min_label)[0] # pylint: disable=invalid-name
+        X_min_indices = np.where(y == self.min_label)[0]  # pylint: disable=invalid-name
         X_min = X[X_min_indices]
 
         # step 3
         nn_params = {**self.nn_params}
-        nn_params['metric_tensor'] = \
-                    self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
-        bound_set, pos_set, delta = \
-                    self.determine_bound_pos_set_delta(X, y, nn_params)
+        bound_set, pos_set, delta = self.determine_bound_pos_set_delta(X, y, nn_params)
 
         if len(pos_set) == 0 or len(bound_set) == 0:
             return self.return_copies(X, y, "bound set or pos set empty")
@@ -260,22 +271,28 @@ class NRSBoundary_SMOTE(OverSamplingSimplex):
         # minority set
 
         n_neighbors = min([len(X_min), self.n_neighbors + 1])
-        nnmt= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X_min)
         indices = nnmt.kneighbors(X[bound_set], return_distance=False)
 
-        samples = self.generate_samples(X=X, X_min=X_min,
-                        indices=indices, bound_set=bound_set, pos_set=pos_set,
-                        delta=delta, n_to_sample=n_to_sample,
-                        nn_params=nn_params)
+        samples = self.generate_samples(
+            X=X,
+            X_min=X_min,
+            indices=indices,
+            bound_set=bound_set,
+            pos_set=pos_set,
+            delta=delta,
+            n_to_sample=n_to_sample,
+            nn_params=nn_params,
+        )
 
         # do the sampling
-        #samples = []
-        #trials = 0
-        #w = self.w
-        #while len(samples) < n_to_sample:
+        # samples = []
+        # trials = 0
+        # w = self.w
+        # while len(samples) < n_to_sample:
         #    idx = self.random_state.choice(len(bound_set))
         #    random_neighbor_idx = self.random_state.choice(indices[idx][1:])
         #    x_new = self.sample_between_points(
@@ -291,17 +308,21 @@ class NRSBoundary_SMOTE(OverSamplingSimplex):
         #        trials = 0
         #        w = w*0.9
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'w': self.w,
-                'n_jobs': self.n_jobs,
-                **OverSamplingSimplex.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "w": self.w,
+            "n_jobs": self.n_jobs,
+            **OverSamplingSimplex.get_params(self),
+        }

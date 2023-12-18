@@ -12,9 +12,11 @@ from ..base import coalesce_dict, coalesce
 from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSamplingSimplex
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['CE_SMOTE']
+__all__ = ["CE_SMOTE"]
+
 
 class CE_SMOTE(OverSamplingSimplex):
     """
@@ -54,23 +56,27 @@ class CE_SMOTE(OverSamplingSimplex):
                                 month={April}}
     """
 
-    categories = [OverSamplingSimplex.cat_extensive,
-                  OverSamplingSimplex.cat_borderline,
-                  OverSamplingSimplex.cat_uses_clustering,
-                  OverSamplingSimplex.cat_sample_ordinary,
-                  OverSamplingSimplex.cat_metric_learning]
+    categories = [
+        OverSamplingSimplex.cat_extensive,
+        OverSamplingSimplex.cat_borderline,
+        OverSamplingSimplex.cat_uses_clustering,
+        OverSamplingSimplex.cat_sample_ordinary,
+        OverSamplingSimplex.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 *,
-                 h=10,
-                 k=5,
-                 nn_params=None,
-                 ss_params=None,
-                 alpha=0.5,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        *,
+        h=10,
+        k=5,
+        nn_params=None,
+        ss_params=None,
+        alpha=0.5,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -91,9 +97,12 @@ class CE_SMOTE(OverSamplingSimplex):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
         ss_params = coalesce_dict(ss_params, ss_params_default)
 
         super().__init__(**ss_params, random_state=random_state)
@@ -101,16 +110,16 @@ class CE_SMOTE(OverSamplingSimplex):
         self.check_greater_or_equal(h, "h", 1)
         self.check_greater_or_equal(k, "k", 1)
         self.check_in_range(alpha, "alpha", [0, 1])
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
-        self.h = h # pylint: disable=invalid-name
-        self.k = k # pylint: disable=invalid-name
+        self.h = h  # pylint: disable=invalid-name
+        self.k = k  # pylint: disable=invalid-name
         self.nn_params = coalesce(nn_params, {})
         self.alpha = alpha
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -118,11 +127,12 @@ class CE_SMOTE(OverSamplingSimplex):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'h': [5, 10, 15],
-                                  'k': [3, 5, 7],
-                                  'alpha': [0.2, 0.5, 0.8]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "h": [5, 10, 15],
+            "k": [3, 5, 7],
+            "alpha": [0.2, 0.5, 0.8],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def do_the_clustering(self, X):
@@ -138,13 +148,14 @@ class CE_SMOTE(OverSamplingSimplex):
         n_dim = X.shape[1]
         labels = []
         for _ in range(self.h):
-            n_features = self.random_state.randint(np.max([int(n_dim/2), 1]), n_dim + 1)
+            n_features = self.random_state.randint(
+                np.max([int(n_dim / 2), 1]), n_dim + 1
+            )
             features = self.random_state.choice(n_dim, n_features, replace=False)
             n_clusters = min([len(X), self.k])
-            kmeans = KMeans(n_clusters=n_clusters,
-                            random_state=self._random_state_init)
+            kmeans = KMeans(n_clusters=n_clusters, random_state=self._random_state_init)
             with warnings.catch_warnings():
-                warnings.simplefilter('ignore')
+                warnings.simplefilter("ignore")
                 kmeans.fit(X[:, features])
             labels.append(kmeans.labels_)
 
@@ -195,8 +206,9 @@ class CE_SMOTE(OverSamplingSimplex):
         Returns:
             np.array: the cluster consistency indices
         """
-        cci = np.apply_along_axis(lambda x: max(set(x.tolist()),
-                                    key=x.tolist().count), 0, labels)
+        cci = np.apply_along_axis(
+            lambda x: max(set(x.tolist()), key=x.tolist().count), 0, labels
+        )
         cci = np.sum(labels == cci, axis=0)
         cci = cci / self.h
 
@@ -230,7 +242,9 @@ class CE_SMOTE(OverSamplingSimplex):
         cci = self.cluster_consistency_index(labels)
 
         # determining minority boundary samples
-        P_boundary = X[(y == self.min_label) & (cci <= self.alpha)] # pylint: disable=invalid-name
+        P_boundary = X[  # pylint: disable=invalid-name
+            (y == self.min_label) & (cci <= self.alpha)
+        ]
 
         # there might be no boundary samples
         if len(P_boundary) <= self.n_dim - 1:
@@ -239,40 +253,43 @@ class CE_SMOTE(OverSamplingSimplex):
         # finding nearest neighbors of boundary samples
         n_neighbors = min([len(P_boundary), self.k])
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= \
-                        self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
-        nnmt = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(P_boundary)
         ind = nnmt.kneighbors(P_boundary, return_distance=False)
 
-        samples = self.sample_simplex(X=P_boundary,
-                                        indices=ind,
-                                        n_to_sample=n_to_sample)
+        samples = self.sample_simplex(
+            X=P_boundary, indices=ind, n_to_sample=n_to_sample
+        )
 
         # do the sampling
-        #samples = []
-        #for _ in range(n_to_sample):
+        # samples = []
+        # for _ in range(n_to_sample):
         #    idx = self.random_state.randint(len(ind))
         #    point_a = P_boundary[idx]
         #    point_b = P_boundary[self.random_state.choice(ind[idx][1:])]
         #    samples.append(self.sample_between_points(point_a, point_b))
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'h': self.h,
-                'k': self.k,
-                'nn_params': self.nn_params,
-                'alpha': self.alpha,
-                'n_jobs': self.n_jobs,
-                **OverSamplingSimplex.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "h": self.h,
+            "k": self.k,
+            "nn_params": self.nn_params,
+            "alpha": self.alpha,
+            "n_jobs": self.n_jobs,
+            **OverSamplingSimplex.get_params(self),
+        }

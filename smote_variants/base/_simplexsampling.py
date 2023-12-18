@@ -1,4 +1,3 @@
-
 """
 This module implements all simplex sampling related functionalities.
 """
@@ -10,17 +9,20 @@ import numpy as np
 from ._base import RandomStateMixin, coalesce
 from .._logger import logger as _logger
 
-__all__= ['array_array_index',
-          'base_idx_neighbor_idx_simplices',
-          'all_neighbor_simplices_real_idx',
-          'reweight_simplex_vertices',
-          'cartesian_product',
-          'vector_choice',
-          'simplex_volume',
-          'simplex_volumes',
-          'SimplexSamplingMixin',
-          'random_samples_from_simplices',
-          'add_samples']
+__all__ = [
+    "array_array_index",
+    "base_idx_neighbor_idx_simplices",
+    "all_neighbor_simplices_real_idx",
+    "reweight_simplex_vertices",
+    "cartesian_product",
+    "vector_choice",
+    "simplex_volume",
+    "simplex_volumes",
+    "SimplexSamplingMixin",
+    "random_samples_from_simplices",
+    "add_samples",
+]
+
 
 def array_array_index(array, indices):
     """
@@ -36,10 +38,11 @@ def array_array_index(array, indices):
     if indices.shape[1] == 1:
         return array[np.arange(array.shape[0]), indices[:, 0]].reshape(indices.shape)
 
-    stride = np.arange(indices.shape[0])*array.shape[1]
+    stride = np.arange(indices.shape[0]) * array.shape[1]
     indices_mod = indices + stride[:, None]
     indices_flat = indices_mod.ravel()
     return array.ravel()[indices_flat].reshape(indices.shape).copy()
+
 
 def base_idx_neighbor_idx_simplices(n_base, n_neighbors=5, n_dim=2):
     """
@@ -54,14 +57,14 @@ def base_idx_neighbor_idx_simplices(n_base, n_neighbors=5, n_dim=2):
         np.array: first column: base record index, the rest are neighbor
                                 indices
     """
-    combinations = np.array(list(itertools.combinations(np.arange(1,
-                                                        n_neighbors),
-                                                        n_dim-1))).astype(int)
+    combinations = np.array(
+        list(itertools.combinations(np.arange(1, n_neighbors), n_dim - 1))
+    ).astype(int)
     base_indices = np.repeat(np.arange(n_base), len(combinations))
-    all_simplices = np.vstack([base_indices,
-                                np.tile(combinations, (n_base, 1)).T]).T
-    #print('simplices', os.getpid(), len(all_simplices), flush=True)
+    all_simplices = np.vstack([base_indices, np.tile(combinations, (n_base, 1)).T]).T
+    # print('simplices', os.getpid(), len(all_simplices), flush=True)
     return all_simplices
+
 
 def all_neighbor_simplices_real_idx(n_dim, indices):
     """
@@ -74,21 +77,20 @@ def all_neighbor_simplices_real_idx(n_dim, indices):
     Returns:
         np.array: the array of simplex indices of the real vectors
     """
-    all_simplices = base_idx_neighbor_idx_simplices(n_base=indices.shape[0],
-                                                n_neighbors=indices.shape[1],
-                                                n_dim=n_dim)
+    all_simplices = base_idx_neighbor_idx_simplices(
+        n_base=indices.shape[0], n_neighbors=indices.shape[1], n_dim=n_dim
+    )
     base_vector_indices = all_simplices[:, 0]
     neighbors_indices = indices[base_vector_indices]
-    #if debug:
+    # if debug:
     #    print(os.getpid(), 'eee', neighbors_indices.shape, all_simplices[:,1:].shape)
-    neighbors_indices = array_array_index(neighbors_indices,
-                                            all_simplices[:,1:])
-    #if debug:
+    neighbors_indices = array_array_index(neighbors_indices, all_simplices[:, 1:])
+    # if debug:
     #    print(os.getpid(), 'fff')
-    simplices_real_indices = np.vstack([base_vector_indices.T,
-                                        neighbors_indices.T]).T
+    simplices_real_indices = np.vstack([base_vector_indices.T, neighbors_indices.T]).T
 
     return simplices_real_indices
+
 
 def simplex_volume(simplex):
     """
@@ -103,7 +105,8 @@ def simplex_volume(simplex):
     simplex_mod = simplex[:-1] - simplex[-1]
     gram = np.dot(simplex_mod, simplex_mod.T)
     det = np.linalg.det(gram)
-    return np.sqrt(det)/np.math.factorial(simplex.shape[0]-1)
+    return np.sqrt(det) / np.math.factorial(simplex.shape[0] - 1)
+
 
 def simplex_volumes(simplices):
     """
@@ -118,14 +121,11 @@ def simplex_volumes(simplices):
     if simplices.shape[0] == 0:
         return np.array([], dtype=float)
     if simplices[0].shape[0] == 2:
-        return np.sqrt(np.sum((simplices[:,0,:] - simplices[:,1,:])**2,
-                                axis=1))
+        return np.sqrt(np.sum((simplices[:, 0, :] - simplices[:, 1, :]) ** 2, axis=1))
     return np.array([simplex_volume(x) for x in simplices])
 
-def reweight_simplex_vertices(X,
-                                simplices,
-                                X_vertices=None,
-                                vertex_weights=None):
+
+def reweight_simplex_vertices(X, simplices, X_vertices=None, vertex_weights=None):
     """
     Simplex vertices are split into two sets, and the weights of the ones in
     the set X_vertices vary. The weight 1 means full contribution, a weight
@@ -144,22 +144,23 @@ def reweight_simplex_vertices(X,
         X_vertices = X
 
     # extracting the weights of each neighbor vector
-    vertex_weights_simplices = vertex_weights[simplices[:,1:]]
+    vertex_weights_simplices = vertex_weights[simplices[:, 1:]]
 
-    X_base = X[simplices[:,0]]
-    X_neighbors = X_vertices[simplices[:,1:]]
+    X_base = X[simplices[:, 0]]
+    X_neighbors = X_vertices[simplices[:, 1:]]
 
     # calculating the direction vectors (neighbor vectors - base vector)
-    diff_vectors = X_neighbors - X_base[:,None]
+    diff_vectors = X_neighbors - X_base[:, None]
 
     # reweighting the direction vectors of neighbors
-    weighted = (diff_vectors.T*vertex_weights_simplices.T).T
+    weighted = (diff_vectors.T * vertex_weights_simplices.T).T
 
     # shifint the scaled neighbors back by the base vectors
-    reverted = weighted + X_base[:,None]
+    reverted = weighted + X_base[:, None]
 
     # concatenating the base vectors and the scaled vectors
-    return np.concatenate([X_base[:,None], reverted], axis=1)
+    return np.concatenate([X_base[:, None], reverted], axis=1)
+
 
 def cartesian_product(*arrays):
     """
@@ -175,12 +176,11 @@ def cartesian_product(*arrays):
     dtype = np.result_type(*arrays)
     arr = np.empty([len(a) for a in arrays] + [length], dtype=dtype)
     for idx, array in enumerate(np.ix_(*arrays)):
-        arr[...,idx] = array
+        arr[..., idx] = array
     return arr.reshape(-1, length)
 
-def vector_choice(arr,
-                    p, # pylint: disable=invalid-name
-                    random_state=None):
+
+def vector_choice(arr, p, random_state=None):  # pylint: disable=invalid-name
     """
     Vector choice
 
@@ -198,11 +198,10 @@ def vector_choice(arr,
     rands = random_state.rand(p.shape[0])
     return arr[np.argmax((rands < prob_cum.T).T, axis=1)]
 
-def random_samples_from_simplices(X,
-                                    simplices,
-                                    X_vertices=None,
-                                    vertex_weights=None,
-                                    random_state=None):
+
+def random_samples_from_simplices(
+    X, simplices, X_vertices=None, vertex_weights=None, random_state=None
+):
     """
     Generate random samples within the simplices.
 
@@ -222,40 +221,29 @@ def random_samples_from_simplices(X,
         random_state = np.random.RandomState(5)
 
     weights = random_state.random_sample(simplices.shape)
-    weights = weights/np.sum(weights, axis=1)[:, None]
+    weights = weights / np.sum(weights, axis=1)[:, None]
 
     if X_vertices is None and vertex_weights is None:
         X_simp = X[simplices]
     elif X_vertices is None and vertex_weights is not None:
-        X_simp = reweight_simplex_vertices(X,
-                                            simplices,
-                                            X,
-                                            vertex_weights)
+        X_simp = reweight_simplex_vertices(X, simplices, X, vertex_weights)
     elif X_vertices is not None and vertex_weights is None:
         n_records = X.shape[0]
         X_all = np.vstack([X, X_vertices])
-        simplices[:,1:] = simplices[:,1:] + n_records
+        simplices[:, 1:] = simplices[:, 1:] + n_records
         X_simp = X_all[simplices]
-        simplices[:,1:] = simplices[:,1:] - n_records
+        simplices[:, 1:] = simplices[:, 1:] - n_records
     else:
-        X_simp = reweight_simplex_vertices(X,
-                                        simplices,
-                                        X_vertices,
-                                        vertex_weights)
+        X_simp = reweight_simplex_vertices(X, simplices, X_vertices, vertex_weights)
 
-    weighted_simplices = X_simp*weights[:, :, None]
+    weighted_simplices = X_simp * weights[:, :, None]
 
     samples = np.sum(weighted_simplices, axis=1)
 
     return samples
 
-def add_samples(*,
-                pairs,
-                counts,
-                count,
-                X,
-                X_vertices,
-                vertex_weights=None):
+
+def add_samples(*, pairs, counts, count, X, X_vertices, vertex_weights=None):
     """
     Create samples for 'count' splitting points
     between the edge pairs listed in 'pairs'
@@ -273,21 +261,22 @@ def add_samples(*,
     """
     pairs_filtered = pairs[counts == count]
 
-    splits = 1.0/(count + 1)*(np.arange(1, count+1))
+    splits = 1.0 / (count + 1) * (np.arange(1, count + 1))
 
-    base_points = X[pairs_filtered[:,0]]
-    neighbor_points = X_vertices[pairs_filtered[:,1]]
+    base_points = X[pairs_filtered[:, 0]]
+    neighbor_points = X_vertices[pairs_filtered[:, 1]]
 
     if vertex_weights is None:
         weights = np.repeat(1.0, len(pairs_filtered))
     else:
-        weights = vertex_weights[pairs_filtered[:,1]]
+        weights = vertex_weights[pairs_filtered[:, 1]]
 
     diffs = neighbor_points - base_points
-    diffweight = (diffs.T*weights).T
+    diffweight = (diffs.T * weights).T
 
-    samples_by_count = [base_points + diffweight*s for s in splits]
+    samples_by_count = [base_points + diffweight * s for s in splits]
     return np.vstack(samples_by_count)
+
 
 def counts_to_vector(counts):
     """
@@ -302,7 +291,8 @@ def counts_to_vector(counts):
 
     return np.hstack([np.repeat(idx, count) for idx, count in enumerate(counts)])
 
-def deterministic_sample(choices, n_to_sample, p): # pylint: disable=invalid-name
+
+def deterministic_sample(choices, n_to_sample, p):  # pylint: disable=invalid-name
     """
     Take a deterministic sample
 
@@ -324,10 +314,9 @@ def deterministic_sample(choices, n_to_sample, p): # pylint: disable=invalid-nam
 
     non_zero_mask = sample_counts > 0
 
-    removal_indices = np.floor(np.linspace(0.0,
-                                            np.sum(non_zero_mask),
-                                            n_to_remove,
-                                            endpoint=False)).astype(int)
+    removal_indices = np.floor(
+        np.linspace(0.0, np.sum(non_zero_mask), n_to_remove, endpoint=False)
+    ).astype(int)
 
     tmp = sample_counts[non_zero_mask]
     tmp[removal_indices] = tmp[removal_indices] - 1
@@ -340,17 +329,21 @@ def deterministic_sample(choices, n_to_sample, p): # pylint: disable=invalid-nam
 
     return samples
 
+
 class SimplexSamplingMixin(RandomStateMixin):
     """
     The mixin class for all simplex sampling based techniques.
     """
-    def __init__(self,
-                *,
-                n_dim=2,
-                simplex_sampling='random',
-                within_simplex_sampling='deterministic',
-                gaussian_component=None,
-                random_state=None):
+
+    def __init__(
+        self,
+        *,
+        n_dim=2,
+        simplex_sampling="random",
+        within_simplex_sampling="deterministic",
+        gaussian_component=None,
+        random_state=None,
+    ):
         """
         Base mixin of the methods implementing simplex sampling.
 
@@ -378,12 +371,13 @@ class SimplexSamplingMixin(RandomStateMixin):
         Returns:
             dict: the parameter dict
         """
-        sampling_params = {'n_dim': self.n_dim,
-                    'simplex_sampling': self.simplex_sampling,
-                    'within_simplex_sampling': self.within_simplex_sampling,
-                    'gaussian_component': self.gaussian_component}
-        return {'ss_params': sampling_params,
-                **RandomStateMixin.get_params(self, deep)}
+        sampling_params = {
+            "n_dim": self.n_dim,
+            "simplex_sampling": self.simplex_sampling,
+            "within_simplex_sampling": self.within_simplex_sampling,
+            "gaussian_component": self.gaussian_component,
+        }
+        return {"ss_params": sampling_params, **RandomStateMixin.get_params(self, deep)}
 
     def determine_simplex_distribution(self, X, simplices):
         """
@@ -396,14 +390,16 @@ class SimplexSamplingMixin(RandomStateMixin):
         Returns:
             np.array: the distribution for sampling the simplices
         """
-        if self.simplex_sampling in ['random', 'deterministic']:
-            return np.repeat(1.0/len(simplices), len(simplices))
-        if self.simplex_sampling == 'volume':
+        if self.simplex_sampling in ["random", "deterministic"]:
+            return np.repeat(1.0 / len(simplices), len(simplices))
+        if self.simplex_sampling == "volume":
             return simplex_volumes(X[simplices])
-        if self.simplex_sampling == 'volume_inv':
+        if self.simplex_sampling == "volume_inv":
             return 1.0 / (simplex_volumes(X[simplices]) + 0.001)
-        raise ValueError(f"simplex sampling with weighting "\
-                            f"{self.simplex_sampling} not implemented yet")
+        raise ValueError(
+            f"simplex sampling with weighting "
+            f"{self.simplex_sampling} not implemented yet"
+        )
 
     def all_simplices_node_weights(self, indices, simplex_weights, n_dim):
         """
@@ -417,22 +413,24 @@ class SimplexSamplingMixin(RandomStateMixin):
         Returns:
             np.array, np.array: all simplices and the node weights
         """
-        #if 'ANS' in self.__class__.__name__:
+        # if 'ANS' in self.__class__.__name__:
         #    print(os.getpid(), "zzz", indices.shape, n_dim)
 
         all_simplices = all_neighbor_simplices_real_idx(n_dim, indices)
 
-        #if 'ANS' in self.__class__.__name__:
+        # if 'ANS' in self.__class__.__name__:
         #    print(os.getpid(), "ggg", indices.shape)
 
         if simplex_weights is not None:
-            all_simplices_nidx = base_idx_neighbor_idx_simplices(n_base=indices.shape[0],
-                                                            n_neighbors=indices.shape[1],
-                                                            n_dim=n_dim)
-            base_indices = all_simplices_nidx[:,0]
-            neighbor_indices = all_simplices_nidx[:,1:]
-            #print(os.getpid(), "hhh", neighbor_indices.shape)
-            node_weights = array_array_index(simplex_weights[base_indices], neighbor_indices)
+            all_simplices_nidx = base_idx_neighbor_idx_simplices(
+                n_base=indices.shape[0], n_neighbors=indices.shape[1], n_dim=n_dim
+            )
+            base_indices = all_simplices_nidx[:, 0]
+            neighbor_indices = all_simplices_nidx[:, 1:]
+            # print(os.getpid(), "hhh", neighbor_indices.shape)
+            node_weights = array_array_index(
+                simplex_weights[base_indices], neighbor_indices
+            )
             node_weights = np.prod(node_weights, axis=1)
         else:
             node_weights = np.repeat(1.0, all_simplices.shape[0])
@@ -460,27 +458,27 @@ class SimplexSamplingMixin(RandomStateMixin):
             else:
                 # joining all vectors to make things easier
                 simplices_joint = all_simplices.copy()
-                simplices_joint[:, 1:] = simplices_joint[:, 1:]\
-                                        + indices.shape[0]
+                simplices_joint[:, 1:] = simplices_joint[:, 1:] + indices.shape[0]
                 X_joint = np.vstack([X, X_vertices])
-                weights = self.determine_simplex_distribution(X_joint,
-                                                            simplices_joint)
+                weights = self.determine_simplex_distribution(X_joint, simplices_joint)
         else:
             n_records = len(base_weights)
             n_simplices = len(all_simplices)
-            weights = np.repeat(base_weights, int(n_simplices/n_records))
+            weights = np.repeat(base_weights, int(n_simplices / n_records))
 
         return weights
 
-    def simplices(self,
-                    X,
-                    n_to_sample,
-                    *,
-                    base_weights=None,
-                    indices=None,
-                    X_vertices=None,
-                    simplex_weights=None,
-                    n_dim=None):
+    def simplices(
+        self,
+        X,
+        n_to_sample,
+        *,
+        base_weights=None,
+        indices=None,
+        X_vertices=None,
+        simplex_weights=None,
+        n_dim=None,
+    ):
         """
         Sampling the simplices.
 
@@ -494,39 +492,42 @@ class SimplexSamplingMixin(RandomStateMixin):
                                     vectors
             simplex_weights (np.array): weights of the simplices
         """
-        #if 'ANS' in self.__class__.__name__:
+        # if 'ANS' in self.__class__.__name__:
         #    print(os.getpid(), "ooo")
 
-        all_simplices, node_weights = \
-            self.all_simplices_node_weights(indices, simplex_weights, n_dim=n_dim)
+        all_simplices, node_weights = self.all_simplices_node_weights(
+            indices, simplex_weights, n_dim=n_dim
+        )
 
-        #if 'ANS' in self.__class__.__name__:
+        # if 'ANS' in self.__class__.__name__:
         #    print(os.getpid(), "uuu", len(all_simplices))
 
-        weights = self.determine_weights(X=X,
-                                         base_weights=base_weights,
-                                         X_vertices=X_vertices,
-                                         all_simplices=all_simplices,
-                                         indices=indices)
+        weights = self.determine_weights(
+            X=X,
+            base_weights=base_weights,
+            X_vertices=X_vertices,
+            all_simplices=all_simplices,
+            indices=indices,
+        )
 
         weights = weights * node_weights
 
-        #if 'ANS' in self.__class__.__name__:
+        # if 'ANS' in self.__class__.__name__:
         #    print(os.getpid(), "vvv", len(weights))
 
         choices = np.arange(all_simplices.shape[0])
 
-        if self.simplex_sampling != 'deterministic':
+        if self.simplex_sampling != "deterministic":
             # sample the simplices
-            selected_indices = self.random_state.choice(choices,
-                                                        n_to_sample,
-                                                        p=weights/np.sum(weights))
-        elif self.simplex_sampling == 'deterministic':
-            selected_indices = deterministic_sample(choices,
-                                                    n_to_sample,
-                                                    p=weights/np.sum(weights))
+            selected_indices = self.random_state.choice(
+                choices, n_to_sample, p=weights / np.sum(weights)
+            )
+        elif self.simplex_sampling == "deterministic":
+            selected_indices = deterministic_sample(
+                choices, n_to_sample, p=weights / np.sum(weights)
+            )
 
-        #if 'ANS' in self.__class__.__name__:
+        # if 'ANS' in self.__class__.__name__:
         #    print(os.getpid(), "www", len(selected_indices))
 
         return all_simplices[selected_indices]
@@ -542,25 +543,28 @@ class SimplexSamplingMixin(RandomStateMixin):
             np.array: the noisy samples
         """
 
-        if 'sigma' in self.gaussian_component:
-            if 'fraction' not in self.gaussian_component:
-                sigma = self.gaussian_component['sigma']
+        if "sigma" in self.gaussian_component:
+            if "fraction" not in self.gaussian_component:
+                sigma = self.gaussian_component["sigma"]
                 return samples + self.random_state.normal(size=samples.shape) * sigma
-            else:
-                sigma = self.gaussian_component['sigma']
-                fraction = self.gaussian_component['fraction']
-                return samples + self.random_state.normal(size=samples.shape) * sigma * self.random_state.choice([0, 1], p=[1.0 - fraction, fraction], size=samples.shape)
-        if 'sigmas' in self.gaussian_component:
-            sigmas = self.gaussian_component['sigmas']
+
+            # the else branch
+            sigma = self.gaussian_component["sigma"]
+            fraction = self.gaussian_component["fraction"]
+            return samples + self.random_state.normal(
+                size=samples.shape
+            ) * sigma * self.random_state.choice(
+                [0, 1], p=[1.0 - fraction, fraction], size=samples.shape
+            )
+        if "sigmas" in self.gaussian_component:
+            sigmas = self.gaussian_component["sigmas"]
             return samples + self.random_state.normal(size=samples.shape) * sigmas
 
         return samples
 
-    def deterministic_samples_dim_2(self,
-                                    X,
-                                    simplices,
-                                    X_vertices=None,
-                                    vertex_weights=None):
+    def deterministic_samples_dim_2(
+        self, X, simplices, X_vertices=None, vertex_weights=None
+    ):
         """
         Carry out uniform sampling on line segments.
 
@@ -588,18 +592,21 @@ class SimplexSamplingMixin(RandomStateMixin):
 
         max_count = np.max(counts)
 
-        samples = [add_samples(pairs=values,
-                                counts=counts,
-                                count=count,
-                                X=X,
-                                X_vertices=X_vertices,
-                                vertex_weights=vertex_weights) for count in range(1, max_count+1)\
-                                                         if count in counts]
+        samples = [
+            add_samples(
+                pairs=values,
+                counts=counts,
+                count=count,
+                X=X,
+                X_vertices=X_vertices,
+                vertex_weights=vertex_weights,
+            )
+            for count in range(1, max_count + 1)
+            if count in counts
+        ]
         return np.vstack(samples)
 
-    def deterministic_samples_dim_1(self,
-                                    X,
-                                    simplices):
+    def deterministic_samples_dim_1(self, X, simplices):
         """
         Deterministic samples for 1-st order simplices.
 
@@ -612,13 +619,9 @@ class SimplexSamplingMixin(RandomStateMixin):
         """
         return X[simplices[:, 0]]
 
-    def deterministic_samples_from_simplices(self,
-                                                *,
-                                                X,
-                                                simplices,
-                                                X_vertices=None,
-                                                vertex_weights=None,
-                                                n_dim=None):
+    def deterministic_samples_from_simplices(
+        self, *, X, simplices, X_vertices=None, vertex_weights=None, n_dim=None
+    ):
         """
         Uniform sampling on simplices.
 
@@ -632,27 +635,30 @@ class SimplexSamplingMixin(RandomStateMixin):
             np.array: the random samples
         """
         if n_dim == 2:
-            samples= self.deterministic_samples_dim_2(X,
-                                                    simplices,
-                                                    X_vertices,
-                                                    vertex_weights)
+            samples = self.deterministic_samples_dim_2(
+                X, simplices, X_vertices, vertex_weights
+            )
             return samples
 
         if n_dim == 1:
             return self.deterministic_samples_dim_1(X, simplices)
 
-        raise ValueError(f"deterministic calculations for dim {n_dim} are\
-                            not implemented yet")
+        raise ValueError(
+            f"deterministic calculations for dim {n_dim} are\
+                            not implemented yet"
+        )
 
-    def sample_simplex(self,
-                X,
-                *,
-                indices,
-                n_to_sample,
-                base_weights=None,
-                vertex_weights=None,
-                X_vertices=None,
-                simplex_weights=None):
+    def sample_simplex(
+        self,
+        X,
+        *,
+        indices,
+        n_to_sample,
+        base_weights=None,
+        vertex_weights=None,
+        X_vertices=None,
+        simplex_weights=None,
+    ):
         """
         Carry out the simplex sampling.
 
@@ -675,34 +681,43 @@ class SimplexSamplingMixin(RandomStateMixin):
         n_dim = np.min([n_dim, indices.shape[1]])
 
         if n_dim != self.n_dim:
-            _logger.info("%s: The simplex order was updated from %d to %d",
-                        self.__class__.__name__, self.n_dim, n_dim)
+            _logger.info(
+                "%s: The simplex order was updated from %d to %d",
+                self.__class__.__name__,
+                self.n_dim,
+                n_dim,
+            )
 
-        _logger.info("%s: simplex sampling with n_dim %d",
-                        self.__class__.__name__, n_dim)
+        _logger.info(
+            "%s: simplex sampling with n_dim %d", self.__class__.__name__, n_dim
+        )
 
-        simplices = self.simplices(X,
-                                n_to_sample,
-                                base_weights=base_weights,
-                                indices=indices,
-                                X_vertices=X_vertices,
-                                simplex_weights=simplex_weights,
-                                n_dim=n_dim)
+        simplices = self.simplices(
+            X,
+            n_to_sample,
+            base_weights=base_weights,
+            indices=indices,
+            X_vertices=X_vertices,
+            simplex_weights=simplex_weights,
+            n_dim=n_dim,
+        )
 
-        if self.within_simplex_sampling == 'random':
-            samples = random_samples_from_simplices(X,
-                                                simplices,
-                                                X_vertices,
-                                                vertex_weights,
-                                                self.random_state)
-        elif self.within_simplex_sampling == 'deterministic':
-            samples = self.deterministic_samples_from_simplices(X=X,
-                                                                simplices=simplices,
-                                                                X_vertices=X_vertices,
-                                                                vertex_weights=vertex_weights,
-                                                                n_dim=n_dim)
+        if self.within_simplex_sampling == "random":
+            samples = random_samples_from_simplices(
+                X, simplices, X_vertices, vertex_weights, self.random_state
+            )
+        elif self.within_simplex_sampling == "deterministic":
+            samples = self.deterministic_samples_from_simplices(
+                X=X,
+                simplices=simplices,
+                X_vertices=X_vertices,
+                vertex_weights=vertex_weights,
+                n_dim=n_dim,
+            )
         else:
-            msg = "Within simplex sampling strategy"\
+            msg = (
+                "Within simplex sampling strategy"
                 f" {self.within_simplex_sampling} is not implemented yet."
+            )
             raise ValueError(msg)
         return self.add_gaussian_noise(samples)

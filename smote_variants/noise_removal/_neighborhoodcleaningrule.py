@@ -6,12 +6,14 @@ import numpy as np
 
 from ..base import mode, coalesce
 from ._noisefilter import NoiseFilter
-from ..base import (NearestNeighborsWithMetricTensor)
+from ..base import NearestNeighborsWithMetricTensor
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['NeighborhoodCleaningRule']
+__all__ = ["NeighborhoodCleaningRule"]
+
 
 class NeighborhoodCleaningRule(NoiseFilter):
     """
@@ -54,15 +56,17 @@ class NeighborhoodCleaningRule(NoiseFilter):
         """
         super().__init__()
 
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.nn_params = coalesce(nn_params, {})
         self.n_jobs = n_jobs
 
     def get_params(self, deep=False):
-        return {'nn_params': self.nn_params,
-                'n_jobs': self.n_jobs,
-                **NoiseFilter.get_params(self, deep)}
+        return {
+            "nn_params": self.nn_params,
+            "n_jobs": self.n_jobs,
+            **NoiseFilter.get_params(self, deep),
+        }
 
     def remove_noise(self, X, y):
         """
@@ -80,25 +84,25 @@ class NeighborhoodCleaningRule(NoiseFilter):
 
         # fitting nearest neighbors with proposed parameter
         # using 4 neighbors because the first neighbor is the point itself
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
-        nnmt= NearestNeighborsWithMetricTensor(n_neighbors=4,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=4, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X)
         indices = nnmt.kneighbors(X, return_distance=False)
 
         # identifying the samples to be removed
         to_remove = []
         for idx in range(len(X)):
-            if (y[idx] == self.maj_label and
-                    mode(y[indices[idx][1:]]) == self.min_label):
+            if y[idx] == self.maj_label and mode(y[indices[idx][1:]]) == self.min_label:
                 # if sample i is majority and the decision based on
                 # neighbors is minority
                 to_remove.append(idx)
-            elif (y[idx] == self.min_label and
-                  mode(y[indices[idx][1:]]) == self.maj_label):
+            elif (
+                y[idx] == self.min_label and mode(y[indices[idx][1:]]) == self.maj_label
+            ):
                 # if sample i is minority and the decision based on
                 # neighbors is majority
                 for jdx in indices[idx][1:]:

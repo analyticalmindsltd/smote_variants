@@ -10,6 +10,7 @@ np.random.seed(42)
 X = np.random.normal(size=(20, 40))
 y = np.hstack([np.repeat(1, 7), np.repeat(0, 13)])
 
+
 def test_specific():
     """
     Oversampler specific testing

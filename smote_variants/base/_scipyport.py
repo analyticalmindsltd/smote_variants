@@ -8,9 +8,10 @@ from scipy.stats import mode
 
 from ._base import coalesce
 
-__all__ = ['scipy_mode']
+__all__ = ["scipy_mode"]
 
-def scipy_mode(array, axis=0, nan_policy='propagate', mode_func=None):
+
+def scipy_mode(array, axis=0, nan_policy="propagate", mode_func=None):
     """
     Wrapper for scipy mode
 
@@ -24,7 +25,7 @@ def scipy_mode(array, axis=0, nan_policy='propagate', mode_func=None):
         np.array: the mode(s) along the given axis
     """
     mode_func = coalesce(mode_func, mode)
-    flag = 'keepdims' in list(inspect.signature(mode_func).parameters.keys())
+    flag = "keepdims" in list(inspect.signature(mode_func).parameters.keys())
 
     if not flag:
         return mode_func(array, axis, nan_policy)

@@ -10,9 +10,11 @@ from sklearn.cluster import AgglomerativeClustering, KMeans
 from ..base import OverSampling
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['AHC']
+__all__ = ["AHC"]
+
 
 class AHC(OverSampling):
     """
@@ -39,16 +41,13 @@ class AHC(OverSampling):
                     }
     """
 
-    categories = [OverSampling.cat_changes_majority,
-                  OverSampling.cat_uses_clustering,
-                  OverSampling.cat_application]
+    categories = [
+        OverSampling.cat_changes_majority,
+        OverSampling.cat_uses_clustering,
+        OverSampling.cat_application,
+    ]
 
-    def __init__(self,
-                 *,
-                 strategy='min',
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(self, *, strategy="min", n_jobs=1, random_state=None, **_kwargs):
         """
         Constructor of the sampling object
 
@@ -59,13 +58,13 @@ class AHC(OverSampling):
                                                     like in sklearn
         """
         super().__init__(random_state=random_state)
-        self.check_isin(strategy, 'strategy', ['min', 'maj', 'minmaj'])
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_isin(strategy, "strategy", ["min", "maj", "minmaj"])
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.strategy = strategy
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -73,7 +72,7 @@ class AHC(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'strategy': ['min', 'maj', 'minmaj']}
+        parameter_combinations = {"strategy": ["min", "maj", "minmaj"]}
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def sample_majority(self, X, n_clusters):
@@ -87,11 +86,10 @@ class AHC(OverSampling):
         Returns:
             np.ndarray: downsampled vectors
         """
-        kmeans = KMeans(n_clusters=n_clusters,
-                        random_state=self._random_state_init)
+        kmeans = KMeans(n_clusters=n_clusters, random_state=self._random_state_init)
 
         with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
+            warnings.simplefilter("ignore")
             kmeans.fit(X)
         return kmeans.cluster_centers_
 
@@ -109,8 +107,8 @@ class AHC(OverSampling):
         aggc.fit(X)
         n_samples = len(X)
 
-        clus_cent = [None]*len(aggc.children_)
-        weights = [None]*len(aggc.children_)
+        clus_cent = [None] * len(aggc.children_)
+        weights = [None] * len(aggc.children_)
 
         def cluster_centers(children, idx, clus_cent, weights):
             """
@@ -130,10 +128,12 @@ class AHC(OverSampling):
 
             if clus_cent[idx - n_samples] is None:
                 a_cent, w_a = cluster_centers(
-                    children, children[idx - n_samples][0], clus_cent, weights)
+                    children, children[idx - n_samples][0], clus_cent, weights
+                )
                 b_cent, w_b = cluster_centers(
-                    children, children[idx - n_samples][1], clus_cent, weights)
-                clus_cent[idx - n_samples] = (w_a*a_cent + w_b*b_cent)/(w_a + w_b)
+                    children, children[idx - n_samples][1], clus_cent, weights
+                )
+                clus_cent[idx - n_samples] = (w_a * a_cent + w_b * b_cent) / (w_a + w_b)
                 weights[idx - n_samples] = w_a + w_b
 
             return clus_cent[idx - n_samples], weights[idx - n_samples]
@@ -158,33 +158,55 @@ class AHC(OverSampling):
         X_min = X[y == self.min_label]
         X_maj = X[y == self.maj_label]
 
-        if self.strategy == 'maj':
-            X_maj_resampled = self.sample_majority(X_maj, len(X_min)) # pylint: disable=invalid-name
-            return (np.vstack([X_min, X_maj_resampled]),
-                    np.hstack([np.repeat(self.min_label, len(X_min)),
-                               np.repeat(self.maj_label,
-                                         len(X_maj_resampled))]))
-        if self.strategy == 'min':
-            X_min_resampled = self.sample_minority(X_min) # pylint: disable=invalid-name
-            return (np.vstack([X_min_resampled, X_min, X_maj]),
-                    np.hstack([np.repeat(self.min_label,
-                                         (len(X_min_resampled) + len(X_min))),
-                               np.repeat(self.maj_label, len(X_maj))]))
+        if self.strategy == "maj":
+            X_maj_resampled = self.sample_majority(  # pylint: disable=invalid-name
+                X_maj, len(X_min)
+            )
+            return (
+                np.vstack([X_min, X_maj_resampled]),
+                np.hstack(
+                    [
+                        np.repeat(self.min_label, len(X_min)),
+                        np.repeat(self.maj_label, len(X_maj_resampled)),
+                    ]
+                ),
+            )
+        if self.strategy == "min":
+            X_min_resampled = self.sample_minority(  # pylint: disable=invalid-name
+                X_min
+            )
+            return (
+                np.vstack([X_min_resampled, X_min, X_maj]),
+                np.hstack(
+                    [
+                        np.repeat(self.min_label, (len(X_min_resampled) + len(X_min))),
+                        np.repeat(self.maj_label, len(X_maj)),
+                    ]
+                ),
+            )
         # the "minmaj" strategy case
-        X_min_resampled = self.sample_minority(X_min) # pylint: disable=invalid-name
+        X_min_resampled = self.sample_minority(X_min)  # pylint: disable=invalid-name
         n_maj_sample = min([len(X_maj), len(X_min_resampled) + len(X_min)])
-        X_maj_resampled = self.sample_majority(X_maj, n_maj_sample) # pylint: disable=invalid-name
-        return (np.vstack([X_min_resampled, X_min, X_maj_resampled]),
-                np.hstack([np.repeat(self.min_label,
-                                        (len(X_min_resampled) + len(X_min))),
-                            np.repeat(self.maj_label,
-                                        len(X_maj_resampled))]))
+        X_maj_resampled = self.sample_majority(  # pylint: disable=invalid-name
+            X_maj, n_maj_sample
+        )
+        return (
+            np.vstack([X_min_resampled, X_min, X_maj_resampled]),
+            np.hstack(
+                [
+                    np.repeat(self.min_label, (len(X_min_resampled) + len(X_min))),
+                    np.repeat(self.maj_label, len(X_maj_resampled)),
+                ]
+            ),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'strategy': self.strategy,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "strategy": self.strategy,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

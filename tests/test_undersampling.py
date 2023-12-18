@@ -4,6 +4,7 @@ This module tests the UnderSampling class.
 
 from smote_variants.base import UnderSampling
 
+
 def test_undersampling():
     """
     Testing the UnderSampling class.

@@ -7,23 +7,27 @@ import warnings
 
 from ..config import suppress_internal_warnings
 
-from ._base import (StatisticsMixin, ParametersMixin, RandomStateMixin,
-                    coalesce_dict)
+from ._base import StatisticsMixin, ParametersMixin, RandomStateMixin, coalesce_dict
 from ._metrictensor import MetricLearningMixin
 from ._simplexsampling import SimplexSamplingMixin
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['OverSampling',
-            'OverSamplingSimplex',
-            'OverSamplingBase',
-            'RandomSamplingMixin']
+__all__ = [
+    "OverSampling",
+    "OverSamplingSimplex",
+    "OverSamplingBase",
+    "RandomSamplingMixin",
+]
+
 
 class RandomSamplingMixin(RandomStateMixin):
     """
     This is the random sampling mixin class
     """
+
     def __init__(self, random_state=None):
         """
         Constructor of the mixin.
@@ -55,8 +59,7 @@ class RandomSamplingMixin(RandomStateMixin):
         Returns:
             np.array: the new sample
         """
-        return x_vector + (y_vector - x_vector)\
-                             * self.random_state.random_sample()
+        return x_vector + (y_vector - x_vector) * self.random_state.random_sample()
 
     def sample_between_points_componentwise(self, x_vector, y_vector, mask=None):
         """
@@ -70,9 +73,11 @@ class RandomSamplingMixin(RandomStateMixin):
             np.array: the new sample being generated
         """
         if mask is None:
-            return x_vector + (y_vector - x_vector)*self.random_state.random_sample()
+            return x_vector + (y_vector - x_vector) * self.random_state.random_sample()
 
-        return x_vector + (y_vector - x_vector)*self.random_state.random_sample()*mask
+        return (
+            x_vector + (y_vector - x_vector) * self.random_state.random_sample() * mask
+        )
 
     def sample_by_jittering(self, x_vector, std):
         """
@@ -83,7 +88,7 @@ class RandomSamplingMixin(RandomStateMixin):
         Returns:
             np.array: the new sample
         """
-        return x_vector + (self.random_state.random_sample() - 0.5)*2.0*std
+        return x_vector + (self.random_state.random_sample() - 0.5) * 2.0 * std
 
     def sample_by_jittering_componentwise(self, x_vector, std):
         """
@@ -94,7 +99,10 @@ class RandomSamplingMixin(RandomStateMixin):
         Returns:
             np.array: the new sample
         """
-        return x_vector + (self.random_state.random_sample(len(x_vector))-0.5)*2.0 * std
+        return (
+            x_vector
+            + (self.random_state.random_sample(len(x_vector)) - 0.5) * 2.0 * std
+        )
 
     def sample_by_gaussian_jittering(self, x_vector, std):
         """
@@ -107,30 +115,29 @@ class RandomSamplingMixin(RandomStateMixin):
         """
         return self.random_state.normal(x_vector, std)
 
-class OverSamplingBase(StatisticsMixin,
-                   ParametersMixin,
-                   MetricLearningMixin):
+
+class OverSamplingBase(StatisticsMixin, ParametersMixin, MetricLearningMixin):
     """
     Base class of oversampling methods
     """
 
     categories = []
 
-    cat_noise_removal = 'NR'
-    cat_dim_reduction = 'DR'
-    cat_uses_classifier = 'Clas'
-    cat_sample_componentwise = 'SCmp'
-    cat_sample_ordinary = 'SO'
-    cat_sample_copy = 'SCpy'
-    cat_memetic = 'M'
-    cat_density_estimation = 'DE'
-    cat_density_based = 'DB'
-    cat_extensive = 'Ex'
-    cat_changes_majority = 'CM'
-    cat_uses_clustering = 'Clus'
-    cat_borderline = 'BL'
-    cat_application = 'A'
-    cat_metric_learning = 'CD'
+    cat_noise_removal = "NR"
+    cat_dim_reduction = "DR"
+    cat_uses_classifier = "Clas"
+    cat_sample_componentwise = "SCmp"
+    cat_sample_ordinary = "SO"
+    cat_sample_copy = "SCpy"
+    cat_memetic = "M"
+    cat_density_estimation = "DE"
+    cat_density_based = "DB"
+    cat_extensive = "Ex"
+    cat_changes_majority = "CM"
+    cat_uses_clustering = "Clus"
+    cat_borderline = "BL"
+    cat_application = "A"
+    cat_metric_learning = "CD"
 
     def __init__(self, checks=None):
         """
@@ -142,8 +149,7 @@ class OverSamplingBase(StatisticsMixin,
         StatisticsMixin.__init__(self)
         ParametersMixin.__init__(self)
         MetricLearningMixin.__init__(self)
-        checks_default = {'min_n_min': 2,
-                          'check_np': True}
+        checks_default = {"min_n_min": 2, "check_np": True}
         self.checks = coalesce_dict(checks, checks_default)
 
     def det_n_to_sample(self, strategy, n_maj=None, n_min=None):
@@ -169,10 +175,12 @@ class OverSamplingBase(StatisticsMixin,
             n_min = self.class_stats[self.min_label]
 
         if isinstance(strategy, (int, float)):
-            return max([0, int((n_maj - n_min)*strategy)])
+            return max([0, int((n_maj - n_min) * strategy)])
 
-        raise ValueError(f"{self.__class__.__name__} Value {strategy} "\
-                            "for parameter strategy is not supported")
+        raise ValueError(
+            f"{self.__class__.__name__} Value {strategy} "
+            "for parameter strategy is not supported"
+        )
 
     def fit_resample(self, X, y):
         """
@@ -212,23 +220,28 @@ class OverSamplingBase(StatisticsMixin,
         Returns:
             np.array, np.array: the oversampled dataset
         """
-        _logger.info("%s: Running sampling via %s",
-                        self.__class__.__name__,
-                        self.descriptor())
+        _logger.info(
+            "%s: Running sampling via %s", self.__class__.__name__, self.descriptor()
+        )
 
         self.class_label_statistics(y)
 
         for key, item in self.checks.items():
-            if key == 'min_n_min':
+            if key == "min_n_min":
                 if self.class_stats[self.min_label] <= item:
-                    msg = f"{self.__class__.__name__}: Too few minority samples"\
-                            " for sampling"
+                    msg = (
+                        f"{self.__class__.__name__}: Too few minority samples"
+                        " for sampling"
+                    )
                     _logger.info(msg)
                     return X.copy(), y.copy()
-            if key == 'min_n_dim':
+            if key == "min_n_dim":
                 if X.shape[1] < item:
-                    _logger.info("%s: not enough dimensions %d",
-                                self.__class__.__name__, X.shape[1])
+                    _logger.info(
+                        "%s: not enough dimensions %d",
+                        self.__class__.__name__,
+                        X.shape[1],
+                    )
                     return X.copy(), y.copy()
 
         return self.sampling_algorithm(X, y)
@@ -245,8 +258,7 @@ class OverSamplingBase(StatisticsMixin,
         Returns:
             np.array, np.array: the oversampled dataset
         """
-        _logger.info("%s: returning copies for %s",
-                        self.__class__.__name__, msg)
+        _logger.info("%s: returning copies for %s", self.__class__.__name__, msg)
 
         if not suppress_internal_warnings():
             warnings.warn(f"{self.__class__.__name__}: returning copies for {msg}")
@@ -269,8 +281,7 @@ class OverSamplingBase(StatisticsMixin,
 
         X_samp, y_samp = self.sample(X, y)
 
-        _logger.info("%s: runtime: %f", self.__class__.__name__,
-                                                (time.time() - begin))
+        _logger.info("%s: runtime: %f", self.__class__.__name__, (time.time() - begin))
         return X_samp, y_samp
 
     def preprocessing_transform(self, X):
@@ -332,43 +343,55 @@ class OverSampling(OverSamplingBase, RandomSamplingMixin):
     """
     The oversampling base class.
     """
+
     def __init__(self, random_state=None, checks=None):
         OverSamplingBase.__init__(self, checks)
         RandomSamplingMixin.__init__(self, random_state)
 
     def get_params(self, deep=False):
-        return {**RandomSamplingMixin.get_params(self, deep),
-                'class_name': self.__class__.__name__}
+        return {
+            **RandomSamplingMixin.get_params(self, deep),
+            "class_name": self.__class__.__name__,
+        }
 
 
 class OverSamplingSimplex(OverSamplingBase, SimplexSamplingMixin):
     """
     The oversampling simplex base class.
     """
-    def __init__(self,
-                *,
-                n_dim=2,
-                simplex_sampling='random',
-                within_simplex_sampling='random',
-                gaussian_component=None,
-                random_state=None,
-                checks=None):
+
+    def __init__(
+        self,
+        *,
+        n_dim=2,
+        simplex_sampling="random",
+        within_simplex_sampling="random",
+        gaussian_component=None,
+        random_state=None,
+        checks=None,
+    ):
         OverSamplingBase.__init__(self, checks)
 
-        if checks is not None and 'simplex_dim' in checks:
-            if n_dim != checks['simplex_dim']:
-                warnings.warn(f"Simplex dimensions {n_dim} not supported "\
-                                f"with the method {self.__class__.__name__} "\
-                                f"forcing n_dim={checks['simplex_dim']}")
-                n_dim = checks['simplex_dim']
+        if checks is not None and "simplex_dim" in checks:
+            if n_dim != checks["simplex_dim"]:
+                warnings.warn(
+                    f"Simplex dimensions {n_dim} not supported "
+                    f"with the method {self.__class__.__name__} "
+                    f"forcing n_dim={checks['simplex_dim']}"
+                )
+                n_dim = checks["simplex_dim"]
 
-        SimplexSamplingMixin.__init__(self,
-                                        n_dim=n_dim,
-                                        simplex_sampling=simplex_sampling,
-                                        within_simplex_sampling=within_simplex_sampling,
-                                        gaussian_component=gaussian_component,
-                                        random_state=random_state)
+        SimplexSamplingMixin.__init__(
+            self,
+            n_dim=n_dim,
+            simplex_sampling=simplex_sampling,
+            within_simplex_sampling=within_simplex_sampling,
+            gaussian_component=gaussian_component,
+            random_state=random_state,
+        )
 
     def get_params(self, deep=False):
-        return {**SimplexSamplingMixin.get_params(self, deep),
-                'class_name': self.__class__.__name__}
+        return {
+            **SimplexSamplingMixin.get_params(self, deep),
+            "class_name": self.__class__.__name__,
+        }

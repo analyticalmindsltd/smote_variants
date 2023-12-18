@@ -6,16 +6,17 @@ import numpy as np
 
 from ..base import coalesce, coalesce_dict
 from ..base._simplexsampling import array_array_index
-from ..base import (NearestNeighborsWithMetricTensor,
-                                pairwise_distances_mahalanobis)
+from ..base import NearestNeighborsWithMetricTensor, pairwise_distances_mahalanobis
 from ..base import OverSampling
 from ._smote import SMOTE
 from ._adasyn import ADASYN
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['NEATER']
+__all__ = ["NEATER"]
+
 
 class NEATER(OverSampling):
     """
@@ -52,23 +53,27 @@ class NEATER(OverSampling):
             having differing neighbors next to each other.
     """
 
-    categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_borderline,
-                  OverSampling.cat_changes_majority,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_extensive,
+        OverSampling.cat_borderline,
+        OverSampling.cat_changes_majority,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 smote_n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 b=5,
-                 alpha=0.1,
-                 h=20,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        smote_n_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        b=5,
+        alpha=0.1,
+        h=20,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -91,9 +96,12 @@ class NEATER(OverSampling):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
         ss_params = coalesce_dict(ss_params, ss_params_default)
 
         super().__init__(random_state=random_state)
@@ -102,18 +110,16 @@ class NEATER(OverSampling):
         self.check_greater_or_equal(b, "b", 1)
         self.check_greater_or_equal(alpha, "alpha", 0)
         self.check_greater_or_equal(h, "h", 0)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.smote_n_neighbors = smote_n_neighbors
         self.nn_params = coalesce(nn_params, {})
         self.ss_params = ss_params
-        self.params = {'b': b,
-                        'alpha': alpha,
-                        'h': h}
+        self.params = {"b": b, "alpha": alpha, "h": h}
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -121,15 +127,16 @@ class NEATER(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'smote_n_neighbors': [3, 5, 7],
-                                  'b': [3, 5, 7],
-                                  'alpha': [0.1],
-                                  'h': [20]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "smote_n_neighbors": [3, 5, 7],
+            "b": [3, 5, 7],
+            "alpha": [0.1],
+            "h": [20],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
-    #def wprob_mixed(self, prob, i, indices, distm, offset):
+    # def wprob_mixed(self, prob, i, indices, distm, offset):
     #    ind = indices[i][1:]
     #    term_0 = 1*prob[offset + i][0]*prob[ind, 0]
     #    term_1 = distm[i, ind]*(prob[offset + i][1]*prob[ind, 0] +
@@ -153,13 +160,15 @@ class NEATER(OverSampling):
         """
         ind = indices[:, 1:]
         term_0 = 1 * prob[offset:, 0][:, None] * prob[ind][:, :, 0]
-        term_1_b = (prob[offset:, 1] * prob[ind][:, :, 0].T +
-                    prob[offset:, 0] * prob[ind][:, :, 1].T)
+        term_1_b = (
+            prob[offset:, 1] * prob[ind][:, :, 0].T
+            + prob[offset:, 0] * prob[ind][:, :, 1].T
+        )
         term_1 = array_array_index(distm, ind) * term_1_b.T
         term_2 = 1 * prob[offset:, 1][:, None] * prob[ind][:, :, 1]
         return np.sum(term_0 + term_1 + term_2, axis=1)
 
-    #def wprob_min(self, prob, i, indices, distm):
+    # def wprob_min(self, prob, i, indices, distm):
     #    term_0 = 0*prob[indices[i][1:], 0]
     #    term_1 = distm[i, indices[i][1:]]*(1*prob[indices[i][1:], 0] +
     #                                    0*prob[indices[i][1:], 1])
@@ -179,15 +188,15 @@ class NEATER(OverSampling):
             np.array: the minority terms
         """
         ind = indices[:, 1:]
-        term_0 = 0*prob[ind, 0]
-        term_1 = (array_array_index(distm, ind)\
-                    * (1 * prob[ind][:, :, 0] + \
-                       0 * prob[ind][:, :, 1]))
-        term_2 = 1*prob[ind][:, :, 1]
+        term_0 = 0 * prob[ind, 0]
+        term_1 = array_array_index(distm, ind) * (
+            1 * prob[ind][:, :, 0] + 0 * prob[ind][:, :, 1]
+        )
+        term_2 = 1 * prob[ind][:, :, 1]
 
         return np.sum(term_0 + term_1 + term_2, axis=1)
 
-    #def wprob_maj(self, prob, i, indices, distm):
+    # def wprob_maj(self, prob, i, indices, distm):
     #    term_0 = 1*prob[indices[i][1:], 0]
     #    term_1 = distm[i, indices[i][1:]]*(0*prob[indices[i][1:], 0] +
     #                                    1*prob[indices[i][1:], 1])
@@ -207,11 +216,11 @@ class NEATER(OverSampling):
             np.array: the minority terms
         """
         ind = indices[:, 1:]
-        term_0 = 1*prob[ind, 0]
-        term_1 = array_array_index(distm, ind)\
-                        *(0 * prob[ind][:, :, 0] +\
-                          1 * prob[ind][:, :, 1])
-        term_2 = 0*prob[ind][:, :, 1]
+        term_0 = 1 * prob[ind, 0]
+        term_1 = array_array_index(distm, ind) * (
+            0 * prob[ind][:, :, 0] + 1 * prob[ind][:, :, 1]
+        )
+        term_2 = 0 * prob[ind][:, :, 1]
 
         return np.sum(term_0 + term_1 + term_2, axis=1)
 
@@ -231,31 +240,33 @@ class NEATER(OverSampling):
                                             utilities
         """
 
-        #domain = range(len(X_syn))
+        # domain = range(len(X_syn))
         offset = len(X)
-        #util_mixed = np.array([self.wprob_mixed(prob, i, indices, distm,
+        # util_mixed = np.array([self.wprob_mixed(prob, i, indices, distm,
         #                                       offset=offset) for i in domain])
         util_mixed = self.wprob_mixed_vectorized(prob, indices, distm, offset)
         util_mixed = np.hstack([np.repeat(0, X.shape[0]), util_mixed])
 
-        #util_min = np.array([self.wprob_min(prob, i, indices, distm) for i in domain])
+        # util_min = np.array([self.wprob_min(prob, i, indices, distm) for i in domain])
         util_min = self.wprob_min_vectorized(prob, indices, distm)
         util_min = np.hstack([np.repeat(0, X.shape[0]), util_min])
 
-        #util_maj = np.array([self.wprob_maj(prob, i, indices, distm) for i in domain])
+        # util_maj = np.array([self.wprob_maj(prob, i, indices, distm) for i in domain])
         util_maj = self.wprob_maj_vectorized(prob, indices, distm)
         util_maj = np.hstack([np.repeat(0, X.shape[0]), util_maj])
 
         return util_mixed, util_min, util_maj
 
-    def evolution(self,
-                    *,
-                    prob,
-                    X,
-                    X_syn, # pylint: disable=invalid-name
-                    indices,
-                    distm,
-                    alpha=None):
+    def evolution(
+        self,
+        *,
+        prob,
+        X,
+        X_syn,  # pylint: disable=invalid-name
+        indices,
+        distm,
+        alpha=None
+    ):
         """
         Executing one step of the probabilistic evolution
 
@@ -271,27 +282,25 @@ class NEATER(OverSampling):
             np.array: updated probabilities
         """
         # binary indicator indicating synthetic instances
-        synthetic = np.hstack([np.array([False]*len(X)),
-                                np.array([True]*len(X_syn))])
+        synthetic = np.hstack(
+            [np.array([False] * len(X)), np.array([True] * len(X_syn))]
+        )
 
-        alpha = coalesce(alpha, self.params['alpha'])
+        alpha = coalesce(alpha, self.params["alpha"])
 
-        util_mixed, util_min, util_maj = self.utilities(prob, X,
-                                                        indices, distm)
+        util_mixed, util_min, util_maj = self.utilities(prob, X, indices, distm)
 
         prob_new = prob.copy()
-        synthetic_values = prob[:, 1] * \
-            (alpha + util_min)/(alpha + util_mixed)
+        synthetic_values = prob[:, 1] * (alpha + util_min) / (alpha + util_mixed)
         prob_new[:, 1] = np.where(synthetic, synthetic_values, prob[:, 1])
 
-        synthetic_values = prob[:, 0] * \
-            (alpha + util_maj)/(alpha + util_mixed)
+        synthetic_values = prob[:, 0] * (alpha + util_maj) / (alpha + util_mixed)
         prob_new[:, 0] = np.where(synthetic, synthetic_values, prob[:, 0])
 
         norm_factor = np.sum(prob_new, axis=1)
 
-        prob_new[:, 0] = prob_new[:, 0]/norm_factor
-        prob_new[:, 1] = prob_new[:, 1]/norm_factor
+        prob_new[:, 0] = prob_new[:, 0] / norm_factor
+        prob_new[:, 1] = prob_new[:, 1] / norm_factor
 
         return prob_new
 
@@ -308,21 +317,25 @@ class NEATER(OverSampling):
             np.array, np.array: all vectors and targets
         """
         # Applying SMOTE and ADASYN
-        X_0, y_0 = SMOTE(proportion=self.proportion, # pylint: disable=invalid-name
-                         n_neighbors=self.smote_n_neighbors,
-                         nn_params=nn_params,
-                         ss_params=self.ss_params,
-                         n_jobs=self.n_jobs,
-                         random_state=self._random_state_init).sample(X, y)
+        X_0, y_0 = SMOTE(  # pylint: disable=invalid-name
+            proportion=self.proportion,
+            n_neighbors=self.smote_n_neighbors,
+            nn_params=nn_params,
+            ss_params=self.ss_params,
+            n_jobs=self.n_jobs,
+            random_state=self._random_state_init,
+        ).sample(X, y)
 
-        X_1, y_1 = ADASYN(n_neighbors=self.params['b'], # pylint: disable=invalid-name
-                          nn_params=nn_params,
-                          ss_params=self.ss_params,
-                          n_jobs=self.n_jobs,
-                          random_state=self._random_state_init).sample(X, y)
+        X_1, y_1 = ADASYN(  # pylint: disable=invalid-name
+            n_neighbors=self.params["b"],
+            nn_params=nn_params,
+            ss_params=self.ss_params,
+            n_jobs=self.n_jobs,
+            random_state=self._random_state_init,
+        ).sample(X, y)
 
-        X_new = np.vstack([X_0, X_1[len(X):]])
-        y_new = np.hstack([y_0, y_1[len(y):]])
+        X_new = np.vstack([X_0, X_1[len(X) :]])
+        y_new = np.hstack([y_0, y_1[len(y) :]])
 
         return X_new, y_new
 
@@ -342,12 +355,12 @@ class NEATER(OverSampling):
         if n_to_sample == 0:
             return self.return_copies(X, y, "Sampling is not needed.")
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
         X_all, y_all = self.generate_new_samples(X, y, nn_params)
 
-        X_syn = X_all[len(X):] # pylint: disable=invalid-name
+        X_syn = X_all[len(X) :]  # pylint: disable=invalid-name
 
         # initializing strategy probabilities
         prob = np.zeros(shape=(len(X_all), 2))
@@ -360,31 +373,29 @@ class NEATER(OverSampling):
 
         # Finding nearest neighbors, +1 as X_syn is part of X_all and nearest
         # neighbors will be themselves
-        nnmt = NearestNeighborsWithMetricTensor(n_neighbors=self.params['b'] + 1,
-                                                n_jobs=self.n_jobs,
-                                                **nn_params)
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=self.params["b"] + 1, n_jobs=self.n_jobs, **nn_params
+        )
         nnmt.fit(X_all)
         indices = nnmt.kneighbors(X_syn, return_distance=False)
 
         # computing distances
-        distm = pairwise_distances_mahalanobis(X_syn,
-                                            Y=X_all,
-                                            tensor=nn_params.get('metric_tensor', None))
+        distm = pairwise_distances_mahalanobis(
+            X_syn, Y=X_all, tensor=nn_params.get("metric_tensor", None)
+        )
 
         distm[distm == 0] = 1e-8
-        distm = 1.0/distm
-        distm[distm > self.params['alpha']] = self.params['alpha']
+        distm = 1.0 / distm
+        distm[distm > self.params["alpha"]] = self.params["alpha"]
 
         # executing the evolution
-        for _ in range(self.params['h']):
-            prob = self.evolution(prob=prob,
-                                    X=X,
-                                    X_syn=X_syn,
-                                    indices=indices,
-                                    distm=distm)
+        for _ in range(self.params["h"]):
+            prob = self.evolution(
+                prob=prob, X=X, X_syn=X_syn, indices=indices, distm=distm
+            )
 
         # determining final labels
-        y_all[len(X):] = np.argmax(prob[len(X):], axis=1)
+        y_all[len(X) :] = np.argmax(prob[len(X) :], axis=1)
 
         return X_all, y_all
 
@@ -393,12 +404,14 @@ class NEATER(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'smote_n_neighbors': self.smote_n_neighbors,
-                'b': self.params['b'],
-                'alpha': self.params['alpha'],
-                'h': self.params['h'],
-                'nn_params': self.nn_params,
-                'ss_params': self.ss_params,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "smote_n_neighbors": self.smote_n_neighbors,
+            "b": self.params["b"],
+            "alpha": self.params["alpha"],
+            "h": self.params["h"],
+            "nn_params": self.nn_params,
+            "ss_params": self.ss_params,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

@@ -11,9 +11,11 @@ from ..base import pairwise_distances_mahalanobis
 
 from ..base import OverSamplingSimplex
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['CURE_SMOTE']
+__all__ = ["CURE_SMOTE"]
+
 
 class CURE_SMOTE(OverSamplingSimplex):
     """
@@ -44,19 +46,23 @@ class CURE_SMOTE(OverSamplingSimplex):
         * All clusters can be removed as noise.
     """
 
-    categories = [OverSamplingSimplex.cat_extensive,
-                  OverSamplingSimplex.cat_uses_clustering]
+    categories = [
+        OverSamplingSimplex.cat_extensive,
+        OverSamplingSimplex.cat_uses_clustering,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 *,
-                 n_clusters=5,
-                 noise_th=2,
-                 nn_params=None,
-                 ss_params=None,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        *,
+        n_clusters=5,
+        noise_th=2,
+        nn_params=None,
+        ss_params=None,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -78,16 +84,19 @@ class CURE_SMOTE(OverSamplingSimplex):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
         ss_params = coalesce_dict(ss_params, ss_params_default)
 
         super().__init__(**ss_params, random_state=random_state)
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_clusters, "n_clusters", 1)
         self.check_greater_or_equal(noise_th, "noise_th", 0)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_clusters = n_clusters
@@ -95,7 +104,7 @@ class CURE_SMOTE(OverSamplingSimplex):
         self.nn_params = coalesce(nn_params, {})
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -103,10 +112,11 @@ class CURE_SMOTE(OverSamplingSimplex):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_clusters': [5, 10, 15],
-                                  'noise_th': [1, 3]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_clusters": [5, 10, 15],
+            "noise_th": [1, 3],
+        }
 
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
@@ -123,8 +133,9 @@ class CURE_SMOTE(OverSamplingSimplex):
         """
         # initiating clustering
         clusters = [np.array([i]) for i in range(len(X_min))]
-        distm = pairwise_distances_mahalanobis(X_min,
-                                        tensor=nn_params.get('metric_tensor', None))
+        distm = pairwise_distances_mahalanobis(
+            X_min, tensor=nn_params.get("metric_tensor", None)
+        )
 
         # setting the diagonal of the distance matrix to infinity
         for idx in range(len(distm)):
@@ -154,8 +165,7 @@ class CURE_SMOTE(OverSamplingSimplex):
             merge_b = min_coord[1][0]
 
             # merging the clusters
-            clusters[merge_a] = np.hstack(
-                [clusters[merge_a], clusters[merge_b]])
+            clusters[merge_a] = np.hstack([clusters[merge_a], clusters[merge_b]])
             # removing one of them
             del clusters[merge_b]
             # adjusting the distances in the distance matrix
@@ -174,8 +184,7 @@ class CURE_SMOTE(OverSamplingSimplex):
         for idx, cluster in enumerate(clusters):
             if len(cluster) < self.noise_th:
                 to_remove.append(idx)
-        clusters = [clusters[i]
-                    for i in range(len(clusters)) if i not in to_remove]
+        clusters = [clusters[i] for i in range(len(clusters)) if i not in to_remove]
 
         return clusters
 
@@ -191,8 +200,7 @@ class CURE_SMOTE(OverSamplingSimplex):
             np.array: the generated samples
         """
         clusters_selected = self.random_state.choice(len(clusters), n_to_sample)
-        cluster_unique, cluster_count = np.unique(clusters_selected,
-                                                    return_counts=True)
+        cluster_unique, cluster_count = np.unique(clusters_selected, return_counts=True)
 
         samples = []
 
@@ -200,15 +208,20 @@ class CURE_SMOTE(OverSamplingSimplex):
             cluster_vectors = X_min[clusters[cluster]]
             cluster_mean = np.mean(cluster_vectors, axis=0)
 
-            #if len(clusters[idx]) >= self.n_dim:
+            # if len(clusters[idx]) >= self.n_dim:
             X = np.array([cluster_mean])
-            indices = np.array([np.hstack([np.array([0]),
-                                np.arange(len(cluster_vectors))])])
-            samples.append(self.sample_simplex(X=X,
-                                                indices=indices,
-                                                n_to_sample=cluster_count[idx],
-                                                X_vertices=cluster_vectors))
-            #else:
+            indices = np.array(
+                [np.hstack([np.array([0]), np.arange(len(cluster_vectors))])]
+            )
+            samples.append(
+                self.sample_simplex(
+                    X=X,
+                    indices=indices,
+                    n_to_sample=cluster_count[idx],
+                    X_vertices=cluster_vectors,
+                )
+            )
+            # else:
             #    sample_indices = self.random_state.choice(len(clusters[cluster]),
             #                                                cluster_count[idx])
             #    samples.append(cluster_vectors[sample_indices])
@@ -233,13 +246,12 @@ class CURE_SMOTE(OverSamplingSimplex):
 
         # standardizing the data
         mms = MinMaxScaler()
-        X_scaled = mms.fit_transform(X) # pylint: disable=invalid-name
+        X_scaled = mms.fit_transform(X)  # pylint: disable=invalid-name
 
         X_min = X_scaled[y == self.min_label]
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= \
-                    self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
         clusters = self.do_the_clustering(X_min, nn_params)
 
@@ -247,21 +259,23 @@ class CURE_SMOTE(OverSamplingSimplex):
         if len(clusters) == 0:
             return self.return_copies(X, y, "all clusters are removed as noise")
 
-        samples = self.generate_samples_in_clusters(X_min,
-                                                    clusters,
-                                                    n_to_sample)
+        samples = self.generate_samples_in_clusters(X_min, clusters, n_to_sample)
 
-        return (np.vstack([X, mms.inverse_transform(np.vstack(samples))]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, mms.inverse_transform(np.vstack(samples))]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_clusters': self.n_clusters,
-                'noise_th': self.noise_th,
-                'nn_params': self.nn_params,
-                'n_jobs': self.n_jobs,
-                **OverSamplingSimplex.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_clusters": self.n_clusters,
+            "noise_th": self.noise_th,
+            "nn_params": self.nn_params,
+            "n_jobs": self.n_jobs,
+            **OverSamplingSimplex.get_params(self),
+        }

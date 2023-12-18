@@ -9,9 +9,11 @@ from sklearn.linear_model import LogisticRegression
 from ..base import coalesce_dict
 from ..base import OverSamplingSimplex
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['OUPS']
+__all__ = ["OUPS"]
+
 
 class OUPS(OverSamplingSimplex):
     """
@@ -38,16 +40,14 @@ class OUPS(OverSamplingSimplex):
             used to index a vector.
     """
 
-    categories = [OverSamplingSimplex.cat_extensive,
-                  OverSamplingSimplex.cat_sample_ordinary]
+    categories = [
+        OverSamplingSimplex.cat_extensive,
+        OverSamplingSimplex.cat_sample_ordinary,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 *,
-                 ss_params=None,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self, proportion=1.0, *, ss_params=None, n_jobs=1, random_state=None, **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -61,20 +61,23 @@ class OUPS(OverSamplingSimplex):
             random_state (int/RandomState/None): initializer of random_state,
                                 like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
         ss_params = coalesce_dict(ss_params, ss_params_default)
 
         super().__init__(**ss_params, random_state=random_state)
 
         self.check_greater_or_equal(proportion, "proportion", 0)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -82,8 +85,7 @@ class OUPS(OverSamplingSimplex):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0]}
+        parameter_combinations = {"proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]}
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def determine_sorting(self, X, y):
@@ -98,13 +100,12 @@ class OUPS(OverSamplingSimplex):
             np.array: the sorting
         """
         # extracting propensity scores
-        logreg = LogisticRegression(solver='lbfgs',
-                                n_jobs=self.n_jobs,
-                                random_state=self._random_state_init)
+        logreg = LogisticRegression(
+            solver="lbfgs", n_jobs=self.n_jobs, random_state=self._random_state_init
+        )
         logreg.fit(X, y)
         propensity = logreg.predict_proba(X)
-        propensity = propensity[:,
-                    np.where(logreg.classes_ == self.min_label)[0][0]]
+        propensity = propensity[:, np.where(logreg.classes_ == self.min_label)[0][0]]
 
         sorting = propensity.argsort()[::-1]
 
@@ -127,46 +128,54 @@ class OUPS(OverSamplingSimplex):
 
         sorting = self.determine_sorting(X, y)
 
-        X_sorted = X[sorting] # pylint: disable=invalid-name
+        X_sorted = X[sorting]  # pylint: disable=invalid-name
 
         min_indices = y[sorting] == self.min_label
-        X_sorted_min = X_sorted[min_indices] # pylint: disable=invalid-name
-        p = np.sum(y == self.maj_label) / np.sum(y == self.min_label) # pylint: disable=invalid-name
+        X_sorted_min = X_sorted[min_indices]  # pylint: disable=invalid-name
+        p = np.sum(y == self.maj_label) / np.sum(
+            y == self.min_label
+        )  # pylint: disable=invalid-name
         simplex_weights = np.tile(np.arange(p, 0, -1.0), (X.shape[0], 1))
         simplex_weights = np.clip(simplex_weights, 0.0, 1.0)
 
-        indices = np.vstack([np.arange(0, len(X)) + idx
-                            for idx in range(1, simplex_weights.shape[1] + 1)]).T
+        indices = np.vstack(
+            [
+                np.arange(0, len(X)) + idx
+                for idx in range(1, simplex_weights.shape[1] + 1)
+            ]
+        ).T
 
         simplex_weights[indices >= len(X)] = 0.0
         indices = indices[min_indices]
 
-        mask = ~ np.all(indices >= X.shape[0], axis=1)
+        mask = ~np.all(indices >= X.shape[0], axis=1)
 
         indices = indices[mask]
-        X_sorted_min = X_sorted_min[mask] # pylint: disable=invalid-name
+        X_sorted_min = X_sorted_min[mask]  # pylint: disable=invalid-name
         indices[indices >= X.shape[0]] = X.shape[0] - indices[indices >= X.shape[0]] - 1
 
-        #n_dim_orig = self.n_dim
-        #self.n_dim = np.min([self.n_dim, simplex_weights.shape[1] + 1])
+        # n_dim_orig = self.n_dim
+        # self.n_dim = np.min([self.n_dim, simplex_weights.shape[1] + 1])
 
-        samples = self.sample_simplex(X=X_sorted_min,
-                                        indices=indices,
-                                        n_to_sample=n_to_sample,
-                                        X_vertices=X_sorted,
-                                        simplex_weights=simplex_weights)
-        #self.n_dim = n_dim_orig
+        samples = self.sample_simplex(
+            X=X_sorted_min,
+            indices=indices,
+            n_to_sample=n_to_sample,
+            X_vertices=X_sorted,
+            simplex_weights=simplex_weights,
+        )
+        # self.n_dim = n_dim_orig
 
         # sorting indices according to propensity scores
-        #prop_sorted = sorted(zip(propensity,
+        # prop_sorted = sorted(zip(propensity,
         #                np.arange(len(propensity))), key=lambda x: -x[0])
-        #p = np.sum(y == self.maj_label) / np.sum(y == self.min_label)
-        #n = 0
-        #samples = []
+        # p = np.sum(y == self.maj_label) / np.sum(y == self.min_label)
+        # n = 0
+        # samples = []
         #
         ## implementing Algorithm 1 in the cited paper with some minor changes
         ## to enable the proper sampling of p numbers
-        #while n < len(propensity) and len(samples) < n_to_sample:
+        # while n < len(propensity) and len(samples) < n_to_sample:
         #    if (y[prop_sorted[n][1]] == self.min_label
         #            and n < len(propensity) - 1):
         #        num = 1
@@ -179,14 +188,18 @@ class OUPS(OverSamplingSimplex):
         #            num = num + 1
         #    n = n + 1
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_jobs': self.n_jobs,
-                **OverSamplingSimplex.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_jobs": self.n_jobs,
+            **OverSamplingSimplex.get_params(self),
+        }

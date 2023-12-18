@@ -6,6 +6,7 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 
 from smote_variants.base import instantiate_obj
 
+
 class OversamplingClassifier(BaseEstimator, ClassifierMixin):
     """
     This class wraps an oversampler and a classifier, making it compatible
@@ -79,8 +80,7 @@ class OversamplingClassifier(BaseEstimator, ClassifierMixin):
             dict: the dictionary of parameters
         """
 
-        return {'oversampler': self.oversampler,
-                'classifier': self.classifier}
+        return {"oversampler": self.oversampler, "classifier": self.classifier}
 
     def set_params(self, **parameters):
         """

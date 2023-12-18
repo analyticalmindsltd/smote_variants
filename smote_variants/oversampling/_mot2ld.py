@@ -14,9 +14,11 @@ from ..base import coalesce, coalesce_dict
 from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSamplingSimplex
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['MOT2LD']
+__all__ = ["MOT2LD"]
+
 
 class MOT2LD(OverSamplingSimplex):
     """
@@ -54,21 +56,25 @@ class MOT2LD(OverSamplingSimplex):
             of 1000
     """
 
-    categories = [OverSamplingSimplex.cat_uses_clustering,
-                  OverSamplingSimplex.cat_sample_ordinary,
-                  OverSamplingSimplex.cat_metric_learning]
+    categories = [
+        OverSamplingSimplex.cat_uses_clustering,
+        OverSamplingSimplex.cat_sample_ordinary,
+        OverSamplingSimplex.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 *,
-                 n_components=2,
-                 k=5,
-                 nn_params=None,
-                 ss_params=None,
-                 d_cut='auto',
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        *,
+        n_components=2,
+        k=5,
+        nn_params=None,
+        ss_params=None,
+        d_cut="auto",
+        n_jobs=1,
+        random_state=None,
+        **_kwargs,
+    ):
         """
         Constructor of the sampling object
 
@@ -94,32 +100,37 @@ class MOT2LD(OverSamplingSimplex):
         """
         nn_params = coalesce(nn_params, {})
 
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
         ss_params = coalesce_dict(ss_params, ss_params_default)
 
         super().__init__(**ss_params, random_state=random_state)
-        self.check_greater_or_equal(proportion, 'proportion', 0)
-        self.check_greater_or_equal(n_components, 'n_component', 1)
-        self.check_greater_or_equal(k, 'k', 1)
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_components, "n_component", 1)
+        self.check_greater_or_equal(k, "k", 1)
         if isinstance(d_cut, (int, float)):
             if d_cut <= 0:
-                raise ValueError(f"{self.__class__.__name__}: Non-positive "\
-                                        "d_cut is not allowed")
-        elif d_cut != 'auto':
-            raise ValueError(f"{self.__class__.__name__}: d_cut value "\
-                                f"{d_cut} not implemented")
-        self.check_n_jobs(n_jobs, 'n_jobs')
+                raise ValueError(
+                    f"{self.__class__.__name__}: Non-positive " "d_cut is not allowed"
+                )
+        elif d_cut != "auto":
+            raise ValueError(
+                f"{self.__class__.__name__}: d_cut value " f"{d_cut} not implemented"
+            )
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_components = n_components
-        self.k = k # pylint: disable=invalid-name
+        self.k = k  # pylint: disable=invalid-name
         self.nn_params = nn_params
         self.d_cut = d_cut
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -127,11 +138,12 @@ class MOT2LD(OverSamplingSimplex):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_components': [2],
-                                  'k': [3, 5, 7],
-                                  'd_cut': ['auto']}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_components": [2],
+            "k": [3, 5, 7],
+            "d_cut": ["auto"],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def density_peak_clustering(self, rho, indices_min, distances_min):
@@ -165,14 +177,18 @@ class MOT2LD(OverSamplingSimplex):
                 delta.append(np.max(distances_min))
 
         to_sort = zip(rho, delta, np.arange(len(rho)))
-        r, d, idx = zip(*sorted(to_sort, key=lambda x: x[0])) # pylint: disable=invalid-name
-        r, d, idx = np.array(r), np.array(d), np.array(idx) # pylint: disable=invalid-name
+        r, d, idx = zip(
+            *sorted(to_sort, key=lambda x: x[0])
+        )  # pylint: disable=invalid-name
+        r, d, idx = (
+            np.array(r),
+            np.array(d),
+            np.array(idx),
+        )  # pylint: disable=invalid-name
 
         return r, d, idx
 
-    def check_enough_clusters(self,
-                                d # pylint: disable=invalid-name
-                                ):
+    def check_enough_clusters(self, d):  # pylint: disable=invalid-name
         """
         Check if there are enough clusters.
 
@@ -205,13 +221,13 @@ class MOT2LD(OverSamplingSimplex):
         Returns:
             np.array: cluster centers
         """
-        r, d, idx = self.density_peak_clustering(rho, # pylint: disable=invalid-name
-                                        indices_min,
-                                        distances_min)
+        r, d, idx = self.density_peak_clustering(
+            rho, indices_min, distances_min  # pylint: disable=invalid-name
+        )
 
         self.check_enough_clusters(d)
 
-        widths = np.arange(1, int(np.rint(len(r)/2)))
+        widths = np.arange(1, int(np.rint(len(r) / 2)))
         peak_indices = np.array(ssignal.find_peaks_cwt(d, widths=widths))
 
         self.check_enough_peaks(peak_indices)
@@ -220,10 +236,9 @@ class MOT2LD(OverSamplingSimplex):
 
         return cluster_centers
 
-    def determine_neighborhoods(self,
-                                X_tsne, # pylint: disable=invalid-name
-                                X_min,
-                                nn_params):
+    def determine_neighborhoods(
+        self, X_tsne, X_min, nn_params  # pylint: disable=invalid-name
+    ):
         """
         Determine the neighborhood structures.
 
@@ -237,24 +252,24 @@ class MOT2LD(OverSamplingSimplex):
                         the indices, minority distances,
                         indices and the rho array
         """
-         # fitting nearest neighbors model for all training data
+        # fitting nearest neighbors model for all training data
         n_neighbors = min([len(X_min), self.k + 1])
-        nnmt = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X_tsne)
         distances, indices = nnmt.kneighbors(X_min)
 
         # fitting nearest neighbors model to the minority data
-        nn_min= NearestNeighborsWithMetricTensor(n_neighbors=len(X_min),
-                                                    n_jobs=self.n_jobs,
-                                                    **(nn_params))
+        nn_min = NearestNeighborsWithMetricTensor(
+            n_neighbors=len(X_min), n_jobs=self.n_jobs, **(nn_params)
+        )
         nn_min.fit(X_min)
         distances_min, indices_min = nn_min.kneighbors(X_min)
 
         if isinstance(self.d_cut, (int, float)):
             d_cut = self.d_cut
-        elif self.d_cut == 'auto':
+        elif self.d_cut == "auto":
             d_cut = np.max(distances[:, 1])
 
         rho = nnmt.radius_neighbors(X_min, d_cut, return_distance=False)
@@ -262,11 +277,9 @@ class MOT2LD(OverSamplingSimplex):
 
         return indices, distances_min, indices_min, rho
 
-    def determine_clusters(self,
-                            X_tsne, # pylint: disable=invalid-name
-                            y,
-                            X_min,
-                            nn_params):
+    def determine_clusters(
+        self, X_tsne, y, X_min, nn_params  # pylint: disable=invalid-name
+    ):
         """
         Do the clustering.
 
@@ -280,20 +293,20 @@ class MOT2LD(OverSamplingSimplex):
             np.array, np.array, np.array: cluster centers, noise mask
                                         and importance scores
         """
-        indices, distances_min, indices_min, rho = \
-                self.determine_neighborhoods(X_tsne, X_min, nn_params)
+        indices, distances_min, indices_min, rho = self.determine_neighborhoods(
+            X_tsne, X_min, nn_params
+        )
 
-        cluster_centers = self.determine_cluster_centers(X_min,
-                                                        rho,
-                                                        indices_min,
-                                                        distances_min)
+        cluster_centers = self.determine_cluster_centers(
+            X_min, rho, indices_min, distances_min
+        )
 
         # computing local minority counts and determining noisy samples
         local_minority_count = np.sum(y[indices[:, 1:]] == self.min_label, axis=1)
 
         noise = np.where(np.logical_or(rho == 1, local_minority_count == 0))[0]
 
-        return cluster_centers, noise, local_minority_count/rho
+        return cluster_centers, noise, local_minority_count / rho
 
     def check_empty_clustering(self, cluster_indices):
         """
@@ -319,10 +332,7 @@ class MOT2LD(OverSamplingSimplex):
         if np.sum(prob) == 0.0:
             raise ValueError("Empty probabilities.")
 
-    def do_clustering(self,
-                        X_tsne, # pylint: disable=invalid-name
-                        y,
-                        X_min):
+    def do_clustering(self, X_tsne, y, X_min):  # pylint: disable=invalid-name
         """
         Do the clustering.
 
@@ -335,18 +345,20 @@ class MOT2LD(OverSamplingSimplex):
             np.array, np.array, np.array, np.array: the cluster indices,
                             cluster labels, probabilities and noise mask
         """
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= \
-                self.metric_tensor_from_nn_params(nn_params, X_tsne, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(
+            nn_params, X_tsne, y
+        )
 
-        cluster_centers, noise, importance = \
-                self.determine_clusters(X_tsne, y, X_min, nn_params)
+        cluster_centers, noise, importance = self.determine_clusters(
+            X_tsne, y, X_min, nn_params
+        )
 
         # finding closest cluster center to minority points and deriving
         # cluster labels
-        nn_cluster= NearestNeighborsWithMetricTensor(n_neighbors=1,
-                                                        n_jobs=self.n_jobs,
-                                                        **(nn_params))
+        nn_cluster = NearestNeighborsWithMetricTensor(
+            n_neighbors=1, n_jobs=self.n_jobs, **(nn_params)
+        )
         nn_cluster.fit(cluster_centers)
         ind_cluster = nn_cluster.kneighbors(X_min, return_distance=False)
         cluster_labels = ind_cluster[:, 0]
@@ -356,21 +368,21 @@ class MOT2LD(OverSamplingSimplex):
 
         self.check_probabilities(prob)
 
-        prob = prob/np.sum(prob)
+        prob = prob / np.sum(prob)
 
         # extracting cluster indices
-        cluster_indices = [np.where(cluster_labels == i)[0]
-                           for i in range(np.max(cluster_labels) + 1)]
+        cluster_indices = [
+            np.where(cluster_labels == i)[0] for i in range(np.max(cluster_labels) + 1)
+        ]
         # removing noise from clusters
-        cluster_indices = [list(set(c).difference(set(noise)))
-                           for c in cluster_indices]
+        cluster_indices = [list(set(c).difference(set(noise))) for c in cluster_indices]
 
         self.check_empty_clustering(cluster_indices)
 
         cluster_sizes = np.array([len(cluster) for cluster in cluster_indices])
         empty = np.isin(cluster_labels, np.where(cluster_sizes == 0)[0])
         prob[empty] = 0.0
-        prob = prob/np.sum(prob)
+        prob = prob / np.sum(prob)
 
         return cluster_indices, prob, noise
 
@@ -393,8 +405,9 @@ class MOT2LD(OverSamplingSimplex):
 
         return cluster_probs
 
-    def generate_samples_in_clusters(self, *, X_min,
-                            cluster_indices, prob, n_to_sample):
+    def generate_samples_in_clusters(
+        self, *, X_min, cluster_indices, prob, n_to_sample
+    ):
         """
         Generate samples in cluster.
 
@@ -407,56 +420,26 @@ class MOT2LD(OverSamplingSimplex):
         Returns:
             np.array: the generated samples
         """
-        cluster_probs = self.determine_cluster_probabilities(cluster_indices,
-                                                                prob)
+        cluster_probs = self.determine_cluster_probabilities(cluster_indices, prob)
 
-        clusters_selected = self.random_state.choice(len(cluster_probs),
-                                                    n_to_sample,
-                                                    p=cluster_probs)
-        cluster_unique, cluster_count = np.unique(clusters_selected,
-                                                    return_counts=True)
+        clusters_selected = self.random_state.choice(
+            len(cluster_probs), n_to_sample, p=cluster_probs
+        )
+        cluster_unique, cluster_count = np.unique(clusters_selected, return_counts=True)
 
-        #n_dim_original = self.n_dim
         samples = []
         for idx, cluster in enumerate(cluster_unique):
             cluster_vectors = X_min[cluster_indices[cluster]]
             within_prob = prob[cluster_indices[cluster]]
             within_prob = within_prob / np.sum(within_prob)
-            #self.n_dim = np.min([self.n_dim, cluster_vectors.shape[0]])
-            samples.append(self.sample_simplex(X=cluster_vectors,
-                            indices=circulant(np.arange(cluster_vectors.shape[0])),
-                            n_to_sample=cluster_count[idx],
-                            base_weights=within_prob))
-            #self.n_dim = n_dim_original
-
-        #samples = []
-        #while len(samples) < n_to_sample:
-        #    # random sample according to the distribution computed
-        #    random_idx = self.random_state.choice(np.arange(len(X_min)),
-        #                                          p=prob)
-        #
-        #    # cluster label of the random minority sample
-        #    cluster_label = cluster_labels[random_idx]
-        #    if cluster_label == -1:
-        #        continue
-        #
-        #    if len(cluster_indices[cluster_label]) == 0:
-        #        continue
-        #    elif len(cluster_indices[cluster_label]) == 1:
-        #        # if the cluster has only 1 elements, it is repeated
-        #        samples.append(X_min[random_idx])
-        #        continue
-        #
-        #    # otherwise a random cluster index is selected for sample
-        #    # generation
-        #    clus = cluster_indices[cluster_label]
-        #    random_neigh_in_clus_idx = self.random_state.choice(clus)
-        #    while random_idx == random_neigh_in_clus_idx:
-        #        random_neigh_in_clus_idx = self.random_state.choice(clus)
-        #
-        #    X_rand = X_min[random_idx]
-        #    X_in_clus = X_min[random_neigh_in_clus_idx]
-        #    samples.append(self.sample_between_points(X_rand, X_in_clus))
+            samples.append(
+                self.sample_simplex(
+                    X=cluster_vectors,
+                    indices=circulant(np.arange(cluster_vectors.shape[0])),
+                    n_to_sample=cluster_count[idx],
+                    base_weights=within_prob,
+                )
+            )
 
         return np.vstack(samples)
 
@@ -476,53 +459,60 @@ class MOT2LD(OverSamplingSimplex):
         if n_to_sample == 0:
             return self.return_copies(X, y, "Sampling is not needed")
 
-        _logger.info("%s: Starting TSNE n: %d d: %d",
-                        self.__class__.__name__, len(X), len(X[0]))
+        _logger.info(
+            "%s: Starting TSNE n: %d d: %d", self.__class__.__name__, len(X), len(X[0])
+        )
 
         if self.n_components > X.shape[1]:
             self.n_components = min(self.n_components, X.shape[1])
-            
+
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
             # do the stochastic embedding
-            X_tsne = TSNE(self.n_components, # pylint: disable=invalid-name
-                        random_state=self._random_state_init,
-                        perplexity=np.min([10, X.shape[0]-1]),
-                        n_iter_without_progress=100,
-                        n_iter=500,
-                        verbose=0,
-                        n_jobs=self.n_jobs).fit_transform(X)
+            X_tsne = TSNE(  # pylint: disable=invalid-name
+                self.n_components,
+                random_state=self._random_state_init,
+                perplexity=np.min([10, X.shape[0] - 1]),
+                n_iter_without_progress=100,
+                n_iter=500,
+                verbose=0,
+                n_jobs=self.n_jobs,
+            ).fit_transform(X)
 
         X_min = X_tsne[y == self.min_label]
         _logger.info("%s: TSNE finished", self.__class__.__name__)
 
         try:
-            cluster_indices, prob, noise = \
-                self.do_clustering(X_tsne, y, X_min)
+            cluster_indices, prob, noise = self.do_clustering(X_tsne, y, X_min)
         except ValueError as valueerror:
             return self.return_copies(X, y, valueerror.args[0])
 
         # carrying out the sampling
         X_min = X[y == self.min_label]
 
-        samples = self.generate_samples_in_clusters(X_min=X_min,
-                                                cluster_indices=cluster_indices,
-                                                prob=prob,
-                                                n_to_sample=n_to_sample)
+        samples = self.generate_samples_in_clusters(
+            X_min=X_min,
+            cluster_indices=cluster_indices,
+            prob=prob,
+            n_to_sample=n_to_sample,
+        )
 
-        return (np.vstack([np.delete(X, noise, axis=0), np.vstack(samples)]),
-                np.hstack([np.delete(y, noise),
-                           np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([np.delete(X, noise, axis=0), np.vstack(samples)]),
+            np.hstack([np.delete(y, noise), np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_components': self.n_components,
-                'k': self.k,
-                'nn_params': self.nn_params,
-                'd_cut': self.d_cut,
-                'n_jobs': self.n_jobs,
-                **OverSamplingSimplex.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_components": self.n_components,
+            "k": self.k,
+            "nn_params": self.nn_params,
+            "d_cut": self.d_cut,
+            "n_jobs": self.n_jobs,
+            **OverSamplingSimplex.get_params(self),
+        }

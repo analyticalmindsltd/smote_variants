@@ -7,9 +7,11 @@ import numpy as np
 from ..base import OverSampling
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['ROSE']
+__all__ = ["ROSE"]
+
 
 class ROSE(OverSampling):
     """
@@ -40,14 +42,9 @@ class ROSE(OverSampling):
             I implement that approach.
     """
 
-    categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_sample_componentwise]
+    categories = [OverSampling.cat_extensive, OverSampling.cat_sample_componentwise]
 
-    def __init__(self,
-                 proportion=1.0,
-                 *,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(self, proportion=1.0, *, random_state=None, **_kwargs):
         """
         Constructor of the sampling object
 
@@ -60,11 +57,11 @@ class ROSE(OverSampling):
                                                     like in sklearn
         """
         super().__init__(random_state=random_state)
-        self.check_greater_or_equal(proportion, 'proportion', 0.0)
+        self.check_greater_or_equal(proportion, "proportion", 0.0)
 
         self.proportion = proportion
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -72,8 +69,7 @@ class ROSE(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0]}
+        parameter_combinations = {"proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]}
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def sampling_algorithm(self, X, y):
@@ -87,9 +83,11 @@ class ROSE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        n_to_sample = self.det_n_to_sample(self.proportion,
-                                           self.class_stats[self.maj_label],
-                                           self.class_stats[self.min_label])
+        n_to_sample = self.det_n_to_sample(
+            self.proportion,
+            self.class_stats[self.maj_label],
+            self.class_stats[self.min_label],
+        )
 
         if n_to_sample == 0:
             return self.return_copies(X, y, "Sampling is not needed")
@@ -98,23 +96,25 @@ class ROSE(OverSampling):
 
         # Estimating the H matrix
         std = np.std(X_min, axis=0)
-        n, d = X.shape # pylint: disable=invalid-name
-        H = std*(4.0/((d + 1)*n))**(1.0/(d + 4)) # pylint: disable=invalid-name
+        n, d = X.shape  # pylint: disable=invalid-name
+        H = std * (4.0 / ((d + 1) * n)) ** (  # pylint: disable=invalid-name
+            1.0 / (d + 4)
+        )
 
-        base_indices = self.random_state.choice(np.arange(X_min.shape[0]),
-                                                n_to_sample)
+        base_indices = self.random_state.choice(np.arange(X_min.shape[0]), n_to_sample)
         base_vectors = X_min[base_indices]
         random = self.random_state.normal(size=base_vectors.shape)
 
         samples = base_vectors + random * H
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                **OverSampling.get_params(self)}
+        return {"proportion": self.proportion, **OverSampling.get_params(self)}

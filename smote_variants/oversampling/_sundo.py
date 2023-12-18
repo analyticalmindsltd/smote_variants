@@ -7,14 +7,15 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 
 from ..base import coalesce
-from ..base import (NearestNeighborsWithMetricTensor,
-                                pairwise_distances_mahalanobis)
+from ..base import NearestNeighborsWithMetricTensor, pairwise_distances_mahalanobis
 from ..base import OverSampling
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['SUNDO']
+__all__ = ["SUNDO"]
+
 
 class SUNDO(OverSampling):
     """
@@ -52,16 +53,13 @@ class SUNDO(OverSampling):
                             month={Nov}}
     """
 
-    categories = [OverSampling.cat_changes_majority,
-                  OverSampling.cat_application,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_changes_majority,
+        OverSampling.cat_application,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 *,
-                 nn_params=None,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(self, *, nn_params=None, n_jobs=1, random_state=None, **_kwargs):
         """
         Constructor of the sampling object
 
@@ -77,12 +75,12 @@ class SUNDO(OverSampling):
         """
         super().__init__(random_state=random_state)
 
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.nn_params = coalesce(nn_params, {})
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -90,10 +88,12 @@ class SUNDO(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        _ = raw # pylint hack
+        _ = raw  # pylint hack
         return [{}]
 
-    def generate_samples(self, X_min, X_maj, nn_params, N): # pylint: disable=invalid-name
+    def generate_samples(
+        self, X_min, X_maj, nn_params, N
+    ):  # pylint: disable=invalid-name
         """
         Generate samples.
 
@@ -106,9 +106,9 @@ class SUNDO(OverSampling):
         Returns:
             np.array: the generated samples
         """
-        nnmt= NearestNeighborsWithMetricTensor(n_neighbors=1,
-                                                n_jobs=self.n_jobs,
-                                                **nn_params)
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=1, n_jobs=self.n_jobs, **nn_params
+        )
         nnmt.fit(X_maj)
 
         stds = np.std(X_min, axis=0)
@@ -121,18 +121,20 @@ class SUNDO(OverSampling):
         base_vectors = X_min[base_indices]
 
         n_trials = 3
-        offsets = self.random_state.normal(size=(base_vectors.shape[0],
-                                                 n_trials,
-                                                 base_vectors.shape[1]))
+        offsets = self.random_state.normal(
+            size=(base_vectors.shape[0], n_trials, base_vectors.shape[1])
+        )
         samples = base_vectors[:, None, :] + offsets * stds[None, None, :]
-        sample_stack = samples.reshape(base_vectors.shape[0] * n_trials, base_vectors.shape[1])
+        sample_stack = samples.reshape(
+            base_vectors.shape[0] * n_trials, base_vectors.shape[1]
+        )
         dist, _ = nnmt.kneighbors(sample_stack)
         dist = dist[:, 0].reshape(base_vectors.shape[0], n_trials)
         samples = samples[np.arange(samples.shape[0]), np.argmax(dist, axis=1)]
 
         return samples
 
-    def determine_removal(self, X_maj, nn_params, N): # pylint: disable=invalid-name
+    def determine_removal(self, X_maj, nn_params, N):  # pylint: disable=invalid-name
         """
         Determine which majority samples need to be removed.
 
@@ -146,16 +148,18 @@ class SUNDO(OverSampling):
         """
         # normalize
         mms = MinMaxScaler()
-        X_maj_normalized = mms.fit_transform(X_maj) # pylint: disable=invalid-name
+        X_maj_normalized = mms.fit_transform(X_maj)  # pylint: disable=invalid-name
 
         # computing the distance matrix
-        distm = pairwise_distances_mahalanobis(X_maj_normalized,
-                                             tensor=nn_params.get('metric_tensor', None))
+        distm = pairwise_distances_mahalanobis(
+            X_maj_normalized, tensor=nn_params.get("metric_tensor", None)
+        )
 
         # len(X_maj) offsets for the diagonal 0 elements, 2N because
         # every distances appears twice
-        threshold = sorted(distm.flatten())[np.min([X_maj.shape[0] + 2 * N,
-                                                 distm.shape[0]**2 - 1])]
+        threshold = sorted(distm.flatten())[
+            np.min([X_maj.shape[0] + 2 * N, distm.shape[0] ** 2 - 1])
+        ]
         np.fill_diagonal(distm, np.inf)
 
         # extracting the coordinates of pairs closer than threshold
@@ -186,36 +190,45 @@ class SUNDO(OverSampling):
 
         n_1 = len(X_min)
         n_0 = len(X) - n_1
-        N = int(np.rint(0.5*n_0 - 0.5*n_1 + 0.5)) # pylint: disable=invalid-name
+        N = int(np.rint(0.5 * n_0 - 0.5 * n_1 + 0.5))  # pylint: disable=invalid-name
 
         if N == 0:
             return self.return_copies(X, y, "N is 0")
 
         # generating minority samples
         nn_params = {**self.nn_params}
-        nn_params['metric_tensor'] = \
-                    self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
         samples = self.generate_samples(X_min, X_maj, nn_params, N)
 
         # Extending the minority dataset with the new samples
-        X_min_extended = np.vstack([X_min, samples]) # pylint: disable=invalid-name
+        X_min_extended = np.vstack([X_min, samples])  # pylint: disable=invalid-name
 
         # Removing N elements from the majority dataset
         to_remove = self.determine_removal(X_maj, nn_params, N)
 
         # removing the selected elements
-        X_maj_cleaned = np.delete(X_maj, to_remove, axis=0) # pylint: disable=invalid-name
+        X_maj_cleaned = np.delete(  # pylint: disable=invalid-name
+            X_maj, to_remove, axis=0
+        )
 
-        return (np.vstack([X_min_extended, X_maj_cleaned]),
-                np.hstack([np.repeat(self.min_label, len(X_min_extended)),
-                           np.repeat(self.maj_label, len(X_maj_cleaned))]))
+        return (
+            np.vstack([X_min_extended, X_maj_cleaned]),
+            np.hstack(
+                [
+                    np.repeat(self.min_label, len(X_min_extended)),
+                    np.repeat(self.maj_label, len(X_maj_cleaned)),
+                ]
+            ),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'nn_params': self.nn_params,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "nn_params": self.nn_params,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

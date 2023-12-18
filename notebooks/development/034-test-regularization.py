@@ -5,6 +5,7 @@ from joblib import Parallel, delayed
 
 import numpy as np
 import pandas as pd
+import pickle
 
 import tqdm
 
@@ -130,13 +131,6 @@ for data_loader in datasets:
 
     results = Parallel(n_jobs=3)(delayed(do_job)(*x) for x in tqdm.tqdm(job_generator(data_loader)))
 
-    results = [
-        x
-        for xs in results
-        for x in xs
-    ]
-
-    results = pd.DataFrame.from_dict(results)
-    results.to_csv(f"{dataset['name']}-reg.csv")
-
+    with open(f'{dataset['name']}-reg.pickle', 'wb') as file:
+        pickle.dump(results, file)
 

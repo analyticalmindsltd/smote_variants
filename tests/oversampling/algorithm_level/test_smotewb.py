@@ -21,20 +21,41 @@ def all_noise_by_dtrees():
 
 
 def low_kmax_good_noise():
-    """ Dataset with sample that is considered noise by decision trees,
+    """Dataset with sample that is considered noise by decision trees,
     but classified as a minor by 1NN, and result low k_max value."""
-    X = np.array([
-        [0, 0], [0, 1], [0, 2], [0, 3], [0, 4],
-        [1, 0], [1, 1], [1, 2], [1, 3], [1, 4],
-        [2, 0], [2, 1], [2, 2], [2, 3], [2, 4],
-        [3, 0], [3, 1], [3, 2], [3, 3], [3, 4],
-        [4, 0], [4, 1], [4, 2], [4, 3], [4, 4]])
+    X = np.array(
+        [
+            [0, 0],
+            [0, 1],
+            [0, 2],
+            [0, 3],
+            [0, 4],
+            [1, 0],
+            [1, 1],
+            [1, 2],
+            [1, 3],
+            [1, 4],
+            [2, 0],
+            [2, 1],
+            [2, 2],
+            [2, 3],
+            [2, 4],
+            [3, 0],
+            [3, 1],
+            [3, 2],
+            [3, 3],
+            [3, 4],
+            [4, 0],
+            [4, 1],
+            [4, 2],
+            [4, 3],
+            [4, 4],
+        ]
+    )
 
-    y = np.array([1, 1, 0, 0, 1,
-                  0, 0, 0, 0, 0,
-                  0, 0, 0, 0, 0,
-                  0, 0, 1, 1, 1,
-                  1, 0, 1, 1, 1])
+    y = np.array(
+        [1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1]
+    )
 
     return X, y
 

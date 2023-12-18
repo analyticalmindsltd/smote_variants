@@ -11,9 +11,11 @@ from ..base import OverSampling
 from ._smote import SMOTE
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['SMOTE_RSB']
+__all__ = ["SMOTE_RSB"]
+
 
 class SMOTE_RSB(OverSampling):
     """
@@ -53,19 +55,23 @@ class SMOTE_RSB(OverSampling):
             set is enough to balance the dataset.
     """
 
-    categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_sample_ordinary,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_extensive,
+        OverSampling.cat_sample_ordinary,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -85,15 +91,18 @@ class SMOTE_RSB(OverSampling):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
 
         super().__init__(random_state=random_state)
 
-        self.check_greater_or_equal(proportion, 'proportion', 0)
-        self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
@@ -101,7 +110,7 @@ class SMOTE_RSB(OverSampling):
         self.ss_params = coalesce_dict(ss_params, ss_params_default)
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -109,9 +118,10 @@ class SMOTE_RSB(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def normalization_factor(self, X_samp):
@@ -132,8 +142,7 @@ class SMOTE_RSB(OverSampling):
         norm_factor = maximums - minimums
         null_mask = norm_factor == 0
         n_null = np.sum(null_mask)
-        fixed = np.max(np.vstack([maximums[null_mask], np.repeat(1, n_null)]),
-                       axis=0)
+        fixed = np.max(np.vstack([maximums[null_mask], np.repeat(1, n_null)]), axis=0)
 
         norm_factor[null_mask] = fixed
 
@@ -154,15 +163,17 @@ class SMOTE_RSB(OverSampling):
         X_min = X[y == self.min_label]
 
         # Step 1: do the sampling
-        smote = SMOTE(proportion=self.proportion,
-                      n_neighbors=self.n_neighbors,
-                      nn_params=self.nn_params,
-                      ss_params=self.ss_params,
-                      n_jobs=self.n_jobs,
-                      random_state=self._random_state_init)
+        smote = SMOTE(
+            proportion=self.proportion,
+            n_neighbors=self.n_neighbors,
+            nn_params=self.nn_params,
+            ss_params=self.ss_params,
+            n_jobs=self.n_jobs,
+            random_state=self._random_state_init,
+        )
 
         X_samp, _ = smote.sample(X, y)
-        X_samp = X_samp[len(X):]
+        X_samp = X_samp[len(X) :]
 
         if len(X_samp) == 0:
             return self.return_copies(X, y, "Sampling is not needed")
@@ -173,41 +184,50 @@ class SMOTE_RSB(OverSampling):
         norm_factor = self.normalization_factor(X_samp)
 
         # compute similarity matrix
-        similarity_matrix = 1.0 - pairwise_distances(X_samp/norm_factor,
-                                                     X_maj/norm_factor,
-                                                     metric='minkowski',
-                                                     p=1) / X.shape[1]
+        similarity_matrix = (
+            1.0
+            - pairwise_distances(
+                X_samp / norm_factor, X_maj / norm_factor, metric="minkowski", p=1
+            )
+            / X.shape[1]
+        )
 
         # Step 4: counting the similar examples
         similarity_value = 0.4
 
         already_added = np.repeat(False, len(X_samp))
-        while (result_set.shape[0] < X_maj.shape[0] - X_min.shape[0] \
-                                            and similarity_value <= 0.9):
+        while (
+            result_set.shape[0] < X_maj.shape[0] - X_min.shape[0]
+            and similarity_value <= 0.9
+        ):
             conts = np.sum(similarity_matrix > similarity_value, axis=1)
-            mask = (conts == 0) & (~ already_added)
+            mask = (conts == 0) & (~already_added)
             result_set = np.vstack([result_set, X_samp[mask]])
             already_added[mask] = True
 
             similarity_value = similarity_value + 0.05
 
-        result_set = result_set[:np.min([result_set.shape[0],
-                                        X_maj.shape[0] - X_min.shape[0]])]
+        result_set = result_set[
+            : np.min([result_set.shape[0], X_maj.shape[0] - X_min.shape[0]])
+        ]
 
         # Step 5: returning the results depending the number of instances
         # added to the result set
-        return (np.vstack([X, result_set]),
-                np.hstack([y, np.repeat(self.min_label,
-                                        len(result_set))]))
+        return (
+            np.vstack([X, result_set]),
+            np.hstack([y, np.repeat(self.min_label, len(result_set))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'ss_params': self.ss_params,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "ss_params": self.ss_params,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

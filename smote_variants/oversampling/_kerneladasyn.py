@@ -10,9 +10,11 @@ from ..base import fix_density, cov
 from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSampling
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['KernelADASYN']
+__all__ = ["KernelADASYN"]
+
 
 class KernelADASYN(OverSampling):
     """
@@ -61,20 +63,24 @@ class KernelADASYN(OverSampling):
         * Not prepared for improperly conditioned covariance matrix.
     """
 
-    categories = [OverSampling.cat_density_estimation,
-                  OverSampling.cat_extensive,
-                  OverSampling.cat_borderline,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_density_estimation,
+        OverSampling.cat_extensive,
+        OverSampling.cat_borderline,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 k=5,
-                 *,
-                 nn_params={},
-                 h=1.0,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        k=5,
+        *,
+        nn_params=None,
+        h=1.0,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -96,20 +102,19 @@ class KernelADASYN(OverSampling):
         """
         super().__init__(random_state=random_state)
         self.check_greater_or_equal(proportion, "proportion", 0)
-        self.check_greater_or_equal(k, 'k', 1)
-        self.check_greater(h, 'h', 0)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_greater_or_equal(k, "k", 1)
+        self.check_greater(h, "h", 0)
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
-        self.k = k # pylint: disable=invalid-name
-        self.nn_params = nn_params
-        self.h = h # pylint: disable=invalid-name
+        self.k = k  # pylint: disable=invalid-name
+        self.nn_params = nn_params or {}
+        self.h = h  # pylint: disable=invalid-name
         self.n_jobs = n_jobs
 
-        self.mcmc_params = {'burn_in' : 1000,
-                            'periods' : 50}
+        self.mcmc_params = {"burn_in": 1000, "periods": 50}
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -117,11 +122,11 @@ class KernelADASYN(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'k': [5, 7, 9],
-                                  'h': [0.01, 0.02, 0.05, 0.1, 0.2,
-                                        0.5, 1.0, 2.0, 10.0]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "k": [5, 7, 9],
+            "h": [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 10.0],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def p_x(self, x_vec, X_min, r_score):
@@ -134,11 +139,11 @@ class KernelADASYN(OverSampling):
         Returns:
             float: density value
         """
-        result = 1.0/(len(X_min)*self.h)
-        result = result*(1.0/(np.sqrt(2*np.pi)*self.h)**len(X_min[0]))
+        result = 1.0 / (len(X_min) * self.h)
+        result = result * (1.0 / (np.sqrt(2 * np.pi) * self.h) ** len(X_min[0]))
 
-        exp_term = np.exp(-0.5*np.linalg.norm(x_vec - X_min, axis=1)**2/self.h)
-        return result*np.inner(r_score, exp_term)
+        exp_term = np.exp(-0.5 * np.linalg.norm(x_vec - X_min, axis=1) ** 2 / self.h)
+        return result * np.inner(r_score, exp_term)
 
     def mcmc(self, X_min, r_score, covariance, n_to_sample):
         """
@@ -155,37 +160,32 @@ class KernelADASYN(OverSampling):
 
         # parameters of the Monte Carlo sampling
 
-
         # starting Markov-Chain Monte Carlo for sampling
         x_old = X_min[self.random_state.choice(np.where(r_score > 0)[0])]
         p_old = self.p_x(x_old, X_min, r_score)
 
         # Cholesky decomposition
-        L_mat = np.linalg.cholesky(covariance) # pylint: disable=invalid-name
+        L_mat = np.linalg.cholesky(covariance)  # pylint: disable=invalid-name
 
         while len(samples) < n_to_sample:
-            x_new = x_old + \
-                np.dot(self.random_state.normal(size=len(x_old)), L_mat)
+            x_new = x_old + np.dot(self.random_state.normal(size=len(x_old)), L_mat)
             p_new = self.p_x(x_new, X_min, r_score)
 
-            alpha = p_new/p_old
+            alpha = p_new / p_old
             if self.random_state.random_sample() < alpha:
                 x_old = x_new
                 p_old = p_new
 
             iteration = iteration + 1
-            if (iteration % self.mcmc_params['periods'] == 0
-                                and iteration > self.mcmc_params['burn_in']):
+            if (
+                iteration % self.mcmc_params["periods"] == 0
+                and iteration > self.mcmc_params["burn_in"]
+            ):
                 samples.append(x_old)
 
         return np.vstack(samples)
 
-    def iterated_sampling(self, *,
-                        covariance,
-                        X, y,
-                        X_min,
-                        r_score,
-                        n_to_sample):
+    def iterated_sampling(self, *, covariance, X, y, X_min, r_score, n_to_sample):
         """
         Try to carry out the sampling and reduce the dimensions if it
         does not succeed.
@@ -202,23 +202,27 @@ class KernelADASYN(OverSampling):
             np.array, np.array: the oversampled dataset
         """
         if len(covariance) > 1 and np.linalg.cond(covariance) > 10000:
-            _logger.info("%s: reducing dimensions due to improperly "\
-                            "conditioned covariance matrix",
-                        self.__class__.__name__)
+            _logger.info(
+                "%s: reducing dimensions due to improperly "
+                "conditioned covariance matrix",
+                self.__class__.__name__,
+            )
 
             if X.shape[1] <= 2:
                 return self.return_copies(X, y, "matrix is ill conditioned")
 
-            n_components = int(np.rint(len(covariance)/2))
+            n_components = int(np.rint(len(covariance) / 2))
 
             pca = PCA(n_components=n_components)
-            X_trans = pca.fit_transform(X) # pylint: disable=invalid-name
+            X_trans = pca.fit_transform(X)  # pylint: disable=invalid-name
 
-            kernela = KernelADASYN(proportion=self.proportion,
-                              k=self.k,
-                              nn_params=self.nn_params,
-                              h=self.h,
-                              random_state=self._random_state_init)
+            kernela = KernelADASYN(
+                proportion=self.proportion,
+                k=self.k,
+                nn_params=self.nn_params,
+                h=self.h,
+                random_state=self._random_state_init,
+            )
 
             X_samp, y_samp = kernela.sample(X_trans, y)
 
@@ -226,8 +230,10 @@ class KernelADASYN(OverSampling):
 
         samples = self.mcmc(X_min, r_score, covariance, n_to_sample)
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def sampling_algorithm(self, X, y):
         """
@@ -247,43 +253,48 @@ class KernelADASYN(OverSampling):
 
         X_min = X[y == self.min_label]
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # fitting the nearest neighbors model
-        nnmt = NearestNeighborsWithMetricTensor(n_neighbors=min([len(X_min), self.k+1]),
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=min([len(X_min), self.k + 1]), n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X)
         indices = nnmt.kneighbors(X_min, return_distance=False)
 
         # computing majority score
-        r_score = np.array([np.sum(y[indices[i][1:]] == self.maj_label)
-                      for i in range(len(X_min))])
+        r_score = np.array(
+            [np.sum(y[indices[i][1:]] == self.maj_label) for i in range(len(X_min))]
+        )
 
         if np.sum(r_score > 0) < 2:
-            return self.return_copies(X, y, "majority score is 0 for most "\
-                                                "vectors")
+            return self.return_copies(X, y, "majority score is 0 for most vectors")
 
         r_score = fix_density(r_score)
 
         # covariance is used to generate a random sample in the neighborhood
         covariance = cov(X_min[r_score > 0], rowvar=False)
 
-        return self.iterated_sampling(covariance=covariance,
-                                        X=X, y=y,
-                                        X_min=X_min,
-                                        r_score=r_score,
-                                        n_to_sample=n_to_sample)
+        return self.iterated_sampling(
+            covariance=covariance,
+            X=X,
+            y=y,
+            X_min=X_min,
+            r_score=r_score,
+            n_to_sample=n_to_sample,
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'k': self.k,
-                'nn_params': self.nn_params,
-                'h': self.h,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "k": self.k,
+            "nn_params": self.nn_params,
+            "h": self.h,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

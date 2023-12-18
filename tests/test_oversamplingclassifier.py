@@ -9,22 +9,25 @@ from smote_variants.classifiers import OversamplingClassifier, ErrorWarningClass
 
 dataset = datasets.load_breast_cancer()
 
+
 def test_oversamplingclassifier():
     """
     Testing the oversampling classifier
     """
-    osc = OversamplingClassifier(oversampler=('smote_variants', 'SMOTE', {}),
-                                    classifier=('sklearn.neighbors', 'KNeighborsClassifier', {}))
+    osc = OversamplingClassifier(
+        oversampler=("smote_variants", "SMOTE", {}),
+        classifier=("sklearn.neighbors", "KNeighborsClassifier", {}),
+    )
 
-    osc.fit(dataset['data'], dataset['target'])
+    osc.fit(dataset["data"], dataset["target"])
 
-    pred = osc.predict(dataset['data'])
+    pred = osc.predict(dataset["data"])
 
-    assert len(pred) == len(dataset['data'])
+    assert len(pred) == len(dataset["data"])
 
-    prob = osc.predict_proba(dataset['data'])
+    prob = osc.predict_proba(dataset["data"])
 
-    assert len(prob) == len(dataset['data'])
+    assert len(prob) == len(dataset["data"])
 
     params = osc.get_params()
 

@@ -4,9 +4,12 @@ Testing the DBSMOTE.
 
 from smote_variants import DBSMOTE
 
-from smote_variants.datasets import (load_all_min_noise,
-                                     load_3_min_some_maj,
-                                     load_separable)
+from smote_variants.datasets import (
+    load_all_min_noise,
+    load_3_min_some_maj,
+    load_separable,
+)
+
 
 def test_specific():
     """
@@ -17,8 +20,7 @@ def test_specific():
 
     dataset = load_3_min_some_maj()
 
-    X_samp, _ = obj.sample(dataset['data'],
-                            dataset['target'])
+    X_samp, _ = obj.sample(dataset["data"], dataset["target"])
 
     assert len(X_samp) > 0
 
@@ -26,8 +28,7 @@ def test_specific():
 
     dataset = load_all_min_noise()
 
-    X_samp, _ = obj.sample(dataset['data'],
-                            dataset['target'])
+    X_samp, _ = obj.sample(dataset["data"], dataset["target"])
 
     assert len(X_samp) > 0
 
@@ -35,7 +36,6 @@ def test_specific():
 
     dataset = load_separable()
 
-    X_samp, _ = obj.sample(dataset['data'],
-                            dataset['target'])
+    X_samp, _ = obj.sample(dataset["data"], dataset["target"])
 
     assert len(X_samp) > 0

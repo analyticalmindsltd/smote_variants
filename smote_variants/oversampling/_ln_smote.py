@@ -8,11 +8,13 @@ from ..base import coalesce
 from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSampling
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['LN_SMOTE']
+__all__ = ["LN_SMOTE"]
 
-class LN_SMOTE(OverSampling): # pylint: disable=invalid-name
+
+class LN_SMOTE(OverSampling):  # pylint: disable=invalid-name
     """
     References:
         * BibTex::
@@ -40,18 +42,22 @@ class LN_SMOTE(OverSampling): # pylint: disable=invalid-name
                             month={April}}
     """
 
-    categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_sample_componentwise,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_extensive,
+        OverSampling.cat_sample_componentwise,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs,
+    ):
         """
         Constructor of the sampling object
 
@@ -73,14 +79,14 @@ class LN_SMOTE(OverSampling): # pylint: disable=invalid-name
         super().__init__(random_state=random_state)
         self.check_greater_or_equal(proportion, "proportion", 0.0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
         self.nn_params = coalesce(nn_params, {})
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -88,9 +94,10 @@ class LN_SMOTE(OverSampling): # pylint: disable=invalid-name
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def safe_level(self, p_idx, *, y, indices, n_idx=None):
@@ -111,8 +118,7 @@ class LN_SMOTE(OverSampling): # pylint: disable=invalid-name
             return np.sum(y[indices[p_idx][1:-1]] == self.min_label)
 
         # implementation for 2 samples
-        if ((not y[n_idx] != self.maj_label)
-                and p_idx in indices[n_idx][1:-1]):
+        if (not y[n_idx] != self.maj_label) and p_idx in indices[n_idx][1:-1]:
             # -1 because p_idx will be replaced
             n_positives = np.sum(y[indices[n_idx][1:-1]] == self.min_label) - 1
             if y[indices[n_idx][-1]] == self.min_label:
@@ -141,14 +147,14 @@ class LN_SMOTE(OverSampling): # pylint: disable=invalid-name
         if sln == 0 and slp > 0:
             return np.repeat(delta, n_dim)
 
-        sl_ratio = slp/sln
+        sl_ratio = slp / sln
 
         if sl_ratio == 1:
             delta = self.random_state.random_sample(size=n_dim)
         elif sl_ratio > 1:
-            delta = self.random_state.random_sample(size=n_dim)/sl_ratio
+            delta = self.random_state.random_sample(size=n_dim) / sl_ratio
         else:
-            delta = 1.0 - self.random_state.random_sample(size=n_dim)*sl_ratio
+            delta = 1.0 - self.random_state.random_sample(size=n_dim) * sl_ratio
 
         if not n_label == self.min_label:
             delta = delta * sln / n_neighbors
@@ -173,8 +179,7 @@ class LN_SMOTE(OverSampling): # pylint: disable=invalid-name
         for p_idx in minority_indices:
             slp = self.safe_level(p_idx, y=y, indices=indices)
             for n_idx in indices[p_idx][1:-1]:
-                sln = self.safe_level(p_idx, n_idx=n_idx, y=y,
-                                            indices=indices)
+                sln = self.safe_level(p_idx, n_idx=n_idx, y=y, indices=indices)
                 slpsln[(p_idx, n_idx)] = (slp, sln)
 
         return slpsln
@@ -205,11 +210,13 @@ class LN_SMOTE(OverSampling): # pylint: disable=invalid-name
 
             slp, sln = slpsln[(p_idx, n_idx)]
 
-            delta = self.random_gap(slp=slp,
-                                    sln=sln,
-                                    n_label=y[n_idx],
-                                    n_neighbors=n_neighbors,
-                                    n_dim=X.shape[1])
+            delta = self.random_gap(
+                slp=slp,
+                sln=sln,
+                n_label=y[n_idx],
+                n_neighbors=n_neighbors,
+                n_dim=X.shape[1],
+            )
 
             samples.append(X[p_idx] + (X[n_idx] - X[p_idx]) * delta)
 
@@ -238,13 +245,13 @@ class LN_SMOTE(OverSampling): # pylint: disable=invalid-name
         if n_neighbors < 2:
             return self.return_copies(X, y, f"Too few samples {len(X)}")
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # nearest neighbors of each instance to each instance in the dataset
-        nnmt = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors + 2,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors + 2, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X)
         indices = nnmt.kneighbors(X, return_distance=False)
 
@@ -253,25 +260,28 @@ class LN_SMOTE(OverSampling): # pylint: disable=invalid-name
         # calculate safe levels
         slpsln = self.calculate_slp_sln(minority_indices, indices, y)
 
-        slpsln = {key: item for key, item in slpsln.items()\
-                                            if item[0] > 0 and item[1] > 0}
+        slpsln = {
+            key: item for key, item in slpsln.items() if item[0] > 0 and item[1] > 0
+        }
 
-        samples = self.generate_samples(slpsln=slpsln,
-                                        n_to_sample=n_to_sample,
-                                        X=X,
-                                        y=y,
-                                        n_neighbors=n_neighbors)
+        samples = self.generate_samples(
+            slpsln=slpsln, n_to_sample=n_to_sample, X=X, y=y, n_neighbors=n_neighbors
+        )
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

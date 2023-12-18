@@ -23,10 +23,11 @@ good-names=X,X_maj,X_min,X_base,X_new,X_neighbors,y,X_test,X_samp,X_train,
     SOI_CJ,SOMO,SPY,SSO,Stefanowski,SUNDO,Supervised_SMOTE,SVM_balance,
     SYMPROD,
     TRIM_SMOTE,
-    V_SYNTH,VIS_RST
+    V_SYNTH,VIS_RST,
+    SMOTE_AMSR
 
 
-disable=duplicate-code
+disable=duplicate-code,too-many-arguments
 
 [TYPECHECK]
 

@@ -11,9 +11,11 @@ from ..base import coalesce, coalesce_dict
 from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSamplingSimplex
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['NRAS']
+__all__ = ["NRAS"]
+
 
 class NRAS(OverSamplingSimplex):
     """
@@ -36,20 +38,24 @@ class NRAS(OverSamplingSimplex):
                         }
     """
 
-    categories = [OverSamplingSimplex.cat_sample_ordinary,
-                  OverSamplingSimplex.cat_noise_removal,
-                  OverSamplingSimplex.cat_metric_learning]
+    categories = [
+        OverSamplingSimplex.cat_sample_ordinary,
+        OverSamplingSimplex.cat_noise_removal,
+        OverSamplingSimplex.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 t=0.5,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        t=0.5,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -70,24 +76,27 @@ class NRAS(OverSamplingSimplex):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
         ss_params = coalesce_dict(ss_params, ss_params_default)
 
         super().__init__(**ss_params, random_state=random_state)
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_in_range(t, "t", [0, 1])
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
         self.nn_params = coalesce(nn_params, {})
-        self.t = t # pylint: disable=invalid-name
+        self.t = t  # pylint: disable=invalid-name
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -95,15 +104,14 @@ class NRAS(OverSamplingSimplex):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [5, 7, 9],
-                                  't': [0.3, 0.5, 0.8]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [5, 7, 9],
+            "t": [0.3, 0.5, 0.8],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
-    def propensity_scores(self,
-                            X_trans, # pylint: disable=invalid-name
-                            y):
+    def propensity_scores(self, X_trans, y):  # pylint: disable=invalid-name
         """
         Determining the propensity scores.
 
@@ -115,21 +123,18 @@ class NRAS(OverSamplingSimplex):
             np.array: the propensity scores
         """
         # determining propensity scores using logistic regression
-        logreg = LogisticRegression(solver='lbfgs',
-                                n_jobs=self.n_jobs,
-                                random_state=self._random_state_init)
+        logreg = LogisticRegression(
+            solver="lbfgs", n_jobs=self.n_jobs, random_state=self._random_state_init
+        )
         logreg.fit(X_trans, y)
         propensity = logreg.predict_proba(X_trans)
         propensity = propensity[:, np.where(logreg.classes_ == self.min_label)[0][0]]
 
         return propensity
 
-    def neighborhood_structure(self,
-                                X_new,
-                                y,
-                                n_neighbors,
-                                X_min_new # pylint: disable=invalid-name
-                                ):
+    def neighborhood_structure(
+        self, X_new, y, n_neighbors, X_min_new  # pylint: disable=invalid-name
+    ):
         """
         Determine neighborhood structure.
 
@@ -143,19 +148,19 @@ class NRAS(OverSamplingSimplex):
             np.array: the neighborhood structure
         """
         nn_params = {**self.nn_params}
-        nn_params['metric_tensor'] = \
-                    self.metric_tensor_from_nn_params(nn_params, X_new, y)
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(
+            nn_params, X_new, y
+        )
 
-        nnmt = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X_new)
         ind = nnmt.kneighbors(X_min_new, return_distance=False)
 
         return ind
 
-    def generate_samples(self, *, X_min, to_remove, X_trans, y,
-                                                    ind, n_to_sample):
+    def generate_samples(self, *, X_min, to_remove, X_trans, y, ind, n_to_sample):
         """
         Generate samples
 
@@ -175,12 +180,14 @@ class NRAS(OverSamplingSimplex):
         vertex_weights = np.repeat(1.0, len(X_trans))
         vertex_weights[y == self.min_label][to_remove] = 0.0
 
-        samples = self.sample_simplex(X=X_min,
-                                        indices=ind,
-                                        n_to_sample=n_to_sample,
-                                        X_vertices=X_trans,
-                                        vertex_weights=vertex_weights,
-                                        base_weights=base_weights)
+        samples = self.sample_simplex(
+            X=X_min,
+            indices=ind,
+            n_to_sample=n_to_sample,
+            X_vertices=X_trans,
+            vertex_weights=vertex_weights,
+            base_weights=base_weights,
+        )
         return samples
 
     def sampling_algorithm(self, X, y):
@@ -203,16 +210,16 @@ class NRAS(OverSamplingSimplex):
         # standardization is needed to make the range of the propensity scores
         # similar to that of the features
         mms = MinMaxScaler()
-        X_trans = mms.fit_transform(X) # pylint: disable=invalid-name
+        X_trans = mms.fit_transform(X)  # pylint: disable=invalid-name
 
         X_min = X_trans[y == self.min_label]
 
         # adding propensity scores as a new feature
         X_new = np.column_stack([X_trans, self.propensity_scores(X_trans, y)])
-        X_min_new = X_new[y == self.min_label] # pylint: disable=invalid-name
+        X_min_new = X_new[y == self.min_label]  # pylint: disable=invalid-name
 
         # finding nearest neighbors of minority samples
-        n_neighbors = min([len(X_new), self.n_neighbors+1])
+        n_neighbors = min([len(X_new), self.n_neighbors + 1])
 
         ind = self.neighborhood_structure(X_new, y, n_neighbors, X_min_new)
 
@@ -221,23 +228,26 @@ class NRAS(OverSamplingSimplex):
         to_remove = np.where(t_hat < self.t * n_neighbors)[0]
 
         if len(to_remove) >= len(X_min) - 1:
-            return self.return_copies(X, y,
-                            "most minority samples indentified as noise")
+            return self.return_copies(
+                X, y, "most minority samples indentified as noise"
+            )
 
         n_to_sample = n_to_sample + to_remove.shape[0]
 
-        samples = self.generate_samples(X_min=X_min,
-                                        to_remove=to_remove,
-                                        X_trans=X_trans,
-                                        y=y,
-                                        ind=ind,
-                                        n_to_sample=n_to_sample)
+        samples = self.generate_samples(
+            X_min=X_min,
+            to_remove=to_remove,
+            X_trans=X_trans,
+            y=y,
+            ind=ind,
+            n_to_sample=n_to_sample,
+        )
 
         X_min = np.delete(X_min, to_remove, axis=0)
 
         # do the sampling
-        #samples = []
-        #while len(samples) < n_to_sample:
+        # samples = []
+        # while len(samples) < n_to_sample:
         #    idx = self.random_state.randint(len(X_min))
         #    # finding the number of minority neighbors
         #    t_hat = np.sum(y[ind[idx][1:]] == self.min_label)
@@ -259,22 +269,29 @@ class NRAS(OverSamplingSimplex):
         #        X_b = X_trans[self.random_state.choice(ind[idx][1:])]
         #        samples.append(self.sample_between_points(X_min[idx], X_b))
 
-        return (mms.inverse_transform(np.vstack([X_trans[y == self.maj_label],
-                                                 X_min,
-                                                 samples])),
-                np.hstack([np.repeat(self.maj_label,
-                                                np.sum(y == self.maj_label)),
-                           np.repeat(self.min_label, len(X_min)),
-                           np.repeat(self.min_label, len(samples))]))
+        return (
+            mms.inverse_transform(
+                np.vstack([X_trans[y == self.maj_label], X_min, samples])
+            ),
+            np.hstack(
+                [
+                    np.repeat(self.maj_label, np.sum(y == self.maj_label)),
+                    np.repeat(self.min_label, len(X_min)),
+                    np.repeat(self.min_label, len(samples)),
+                ]
+            ),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                't': self.t,
-                'n_jobs': self.n_jobs,
-                **OverSamplingSimplex.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "t": self.t,
+            "n_jobs": self.n_jobs,
+            **OverSamplingSimplex.get_params(self),
+        }

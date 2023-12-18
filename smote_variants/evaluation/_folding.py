@@ -11,20 +11,23 @@ from sklearn.model_selection import RepeatedStratifiedKFold
 
 from ..base import dump_dict
 
-__all__= ['Folding']
+__all__ = ["Folding"]
 
-class Folding():
+
+class Folding:
     """
     Cache-able folding of dataset for cross-validation
     """
 
-    def __init__(self,
-                dataset,
-                *,
-                serialization='json',
-                cache_path=None,
-                validator_params=None,
-                reset=False):
+    def __init__(
+        self,
+        dataset,
+        *,
+        serialization="json",
+        cache_path=None,
+        validator_params=None,
+        reset=False,
+    ):
         """
         Constructor of Folding object
 
@@ -38,34 +41,32 @@ class Folding():
         """
         self.dataset = dataset
         if validator_params is None:
-            self.validator_params = {'n_repeats': 2,
-                                        'n_splits': 5,
-                                        'random_state': 5}
+            self.validator_params = {"n_repeats": 2, "n_splits": 5, "random_state": 5}
         else:
             self.validator_params = validator_params
         self.serialization = serialization
         self.cache_path = cache_path
         self.reset = reset
 
-        labels, counts = np.unique(self.dataset['target'],
-                                    return_counts=True)
+        labels, counts = np.unique(self.dataset["target"], return_counts=True)
 
         min_label = int(np.max(labels[counts == np.min(counts)]))
         maj_label = int(labels[labels != min_label][0])
 
         n_min = int(counts[min_label])
         n_maj = int(counts[maj_label])
-        imb_ratio = float(counts[maj_label]/counts[min_label])
+        imb_ratio = float(counts[maj_label] / counts[min_label])
 
-        self.properties = {'db_n': len(dataset['data']),
-                            'db_n_attr': len(dataset['data'][0]),
-                            'imbalance_ratio': imb_ratio,
-                            'name': dataset['name'],
-                            'label_stats': {'min_label': n_min,
-                                            'maj_label': n_maj}}
+        self.properties = {
+            "db_n": len(dataset["data"]),
+            "db_n_attr": len(dataset["data"][0]),
+            "imbalance_ratio": imb_ratio,
+            "name": dataset["name"],
+            "label_stats": {"min_label": n_min, "maj_label": n_maj},
+        }
 
         if self.cache_path is not None:
-            self.folding_dir_path = os.path.join(self.cache_path, dataset['name'])
+            self.folding_dir_path = os.path.join(self.cache_path, dataset["name"])
 
             # creating the folding directory
             os.makedirs(self.folding_dir_path, exist_ok=True)
@@ -87,10 +88,10 @@ class Folding():
         Returns:
             list: the list of fold filenames
         """
-        if self.serialization == 'json':
-            path = os.path.join(self.folding_dir_path, 'fold_*.json')
-        elif self.serialization == 'pickle':
-            path = os.path.join(self.folding_dir_path, 'fold_*.pickle')
+        if self.serialization == "json":
+            path = os.path.join(self.folding_dir_path, "fold_*.json")
+        elif self.serialization == "pickle":
+            path = os.path.join(self.folding_dir_path, "fold_*.pickle")
 
         if len(glob.glob(path)) == 0:
             self.cache_foldings()
@@ -107,26 +108,26 @@ class Folding():
         """
         validator = RepeatedStratifiedKFold(**self.validator_params)
 
-        data = self.dataset['data']
-        target = self.dataset['target']
+        data = self.dataset["data"]
+        target = self.dataset["target"]
 
         properties = self.properties
-        n_splits = self.validator_params['n_splits']
-        properties['n_repeats'] = self.validator_params['n_repeats']
-        properties['n_splits'] = n_splits
+        n_splits = self.validator_params["n_splits"]
+        properties["n_repeats"] = self.validator_params["n_repeats"]
+        properties["n_splits"] = n_splits
 
-        for idx, (train, test) in enumerate(validator.split(data,
-                                                            target,
-                                                            target)):
-            properties['split_idx'] = idx
-            properties['repeat_idx'] = idx // n_splits
-            properties['fold_idx'] = idx - (idx // n_splits)*n_splits
+        for idx, (train, test) in enumerate(validator.split(data, target, target)):
+            properties["split_idx"] = idx
+            properties["repeat_idx"] = idx // n_splits
+            properties["fold_idx"] = idx - (idx // n_splits) * n_splits
 
-            folding = {'X_train': data[train],
-                        'y_train': target[train],
-                        'X_test': data[test],
-                        'y_test': target[test],
-                        'fold_descriptor': properties}
+            folding = {
+                "X_train": data[train],
+                "y_train": target[train],
+                "X_test": data[test],
+                "y_test": target[test],
+                "fold_descriptor": properties,
+            }
 
             yield folding
 
@@ -135,14 +136,17 @@ class Folding():
         Cache the foldings
         """
         for folding in self.fold():
-            repeat_idx = folding['fold_descriptor']['repeat_idx']
-            fold_idx = folding['fold_descriptor']['fold_idx']
-            filename = f"fold_{repeat_idx:04}_{fold_idx:04}"\
-                        f".{self.serialization}"
+            repeat_idx = folding["fold_descriptor"]["repeat_idx"]
+            fold_idx = folding["fold_descriptor"]["fold_idx"]
+            filename = f"fold_{repeat_idx:04}_{fold_idx:04}" f".{self.serialization}"
             full_name = os.path.join(self.folding_dir_path, filename)
 
-            dump_dict(folding, full_name, self.serialization,
-                        ['X_train', 'X_test', 'y_train', 'y_test'])
+            dump_dict(
+                folding,
+                full_name,
+                self.serialization,
+                ["X_train", "X_test", "y_train", "y_test"],
+            )
 
     def get_params(self, deep=False):
         """
@@ -154,13 +158,15 @@ class Folding():
         Returns:
             dict: the parameters of the object
         """
-        _ = deep # pylint fix
+        _ = deep  # pylint fix
 
-        return {'dataset': self.dataset,
-                'serialization': self.serialization,
-                'cache_path': self.cache_path,
-                'validator_params': self.validator_params,
-                'reset': self.reset}
+        return {
+            "dataset": self.dataset,
+            "serialization": self.serialization,
+            "cache_path": self.cache_path,
+            "validator_params": self.validator_params,
+            "reset": self.reset,
+        }
 
     def descriptor(self):
         """

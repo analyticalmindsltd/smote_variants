@@ -2,17 +2,17 @@
 This module implements the NoiseFilter base class.
 """
 
-from ..base import (StatisticsMixin, ParametersMixin)
+from ..base import StatisticsMixin, ParametersMixin
 from ..base import MetricLearningMixin
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['NoiseFilter']
+__all__ = ["NoiseFilter"]
 
-class NoiseFilter(StatisticsMixin,
-                  ParametersMixin,
-                  MetricLearningMixin):
+
+class NoiseFilter(StatisticsMixin, ParametersMixin, MetricLearningMixin):
     """
     Parent class of noise filtering methods
     """

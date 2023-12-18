@@ -9,9 +9,11 @@ from ..base import OverSamplingSimplex
 from ..base import instantiate_obj, coalesce_dict
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['Supervised_SMOTE']
+__all__ = ["Supervised_SMOTE"]
+
 
 class Supervised_SMOTE(OverSamplingSimplex):
     """
@@ -37,25 +39,29 @@ class Supervised_SMOTE(OverSamplingSimplex):
                     }
     """
 
-    categories = [OverSamplingSimplex.cat_extensive,
-                  OverSamplingSimplex.cat_sample_ordinary,
-                  OverSamplingSimplex.cat_uses_classifier,
-                  OverSamplingSimplex.cat_application]
+    categories = [
+        OverSamplingSimplex.cat_extensive,
+        OverSamplingSimplex.cat_sample_ordinary,
+        OverSamplingSimplex.cat_uses_classifier,
+        OverSamplingSimplex.cat_application,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 *,
-                 th_lower=0.5,
-                 th_upper=1.0,
-                 classifier=('sklearn.ensemble',
-                                'RandomForestClassifier',
-                                {'n_estimators': 50,
-                                'n_jobs': 1,
-                                'random_state': 5}),
-                 ss_params=None,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        *,
+        th_lower=0.5,
+        th_upper=1.0,
+        classifier=(
+            "sklearn.ensemble",
+            "RandomForestClassifier",
+            {"n_estimators": 50, "n_jobs": 1, "random_state": 5},
+        ),
+        ss_params=None,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -72,16 +78,19 @@ class Supervised_SMOTE(OverSamplingSimplex):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                    'within_simplex_sampling': 'random',
-                    'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
         ss_params = coalesce_dict(ss_params, ss_params_default)
 
         super().__init__(**ss_params, random_state=random_state)
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_in_range(th_lower, "th_lower", [0, 1])
         self.check_in_range(th_upper, "th_upper", [0, 1])
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.th_lower = th_lower
@@ -90,7 +99,7 @@ class Supervised_SMOTE(OverSamplingSimplex):
         self.classifier_obj = instantiate_obj(classifier)
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -98,16 +107,19 @@ class Supervised_SMOTE(OverSamplingSimplex):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        classifiers = [('sklearn.ensemble',
-                        'RandomForestClassifier',
-                        {'n_estimators': 50,
-                        'n_jobs': 1,
-                        'random_state': 5})]
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'th_lower': [0.3, 0.5, 0.8],
-                                  'th_upper': [1.0],
-                                  'classifier': classifiers}
+        classifiers = [
+            (
+                "sklearn.ensemble",
+                "RandomForestClassifier",
+                {"n_estimators": 50, "n_jobs": 1, "random_state": 5},
+            )
+        ]
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "th_lower": [0.3, 0.5, 0.8],
+            "th_upper": [1.0],
+            "classifier": classifiers,
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def sampling_algorithm(self, X, y):
@@ -143,46 +155,49 @@ class Supervised_SMOTE(OverSamplingSimplex):
         n_trials = 1
         n_success = 1
         while len(samples) < n_to_sample:
-            to_sample = np.max([(n_to_sample - len(samples))*4, 100])
-            #print(os.getpid(), n_to_sample, to_sample, len(samples), n_success, n_trials,
+            to_sample = np.max([(n_to_sample - len(samples)) * 4, 100])
+            # print(os.getpid(), n_to_sample, to_sample, len(samples), n_success, n_trials,
             # len(X_min), th_lower, th_upper, flush=True)
-            #print(n_to_sample, to_sample)
+            # print(n_to_sample, to_sample)
 
             n_trials = n_trials + to_sample
 
-            samples_tmp = self.sample_simplex(X=X_min,
-                                          indices=indices,
-                                          n_to_sample=to_sample)
+            samples_tmp = self.sample_simplex(
+                X=X_min, indices=indices, n_to_sample=to_sample
+            )
 
             prob = self.classifier_obj.predict_proba(samples_tmp)
             prob = prob[:, class_column]
 
-            samples_tmp = samples_tmp[(prob >= th_lower)
-                                    & (prob <= th_upper)]
+            samples_tmp = samples_tmp[(prob >= th_lower) & (prob <= th_upper)]
 
             samples = np.vstack([samples, samples_tmp])
 
             n_success = n_success + samples_tmp.shape[0]
 
-            if n_success/n_trials < 0.1:
+            if n_success / n_trials < 0.1:
                 th_lower = th_lower - 0.1
                 th_upper = th_upper + 0.1
                 n_success = 1
                 n_trials = 1
 
-        samples = samples[:np.min([samples.shape[0], n_to_sample])]
+        samples = samples[: np.min([samples.shape[0], n_to_sample])]
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'th_lower': self.th_lower,
-                'th_upper': self.th_upper,
-                'classifier': self.classifier,
-                'n_jobs': self.n_jobs,
-                **OverSamplingSimplex.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "th_lower": self.th_lower,
+            "th_upper": self.th_upper,
+            "classifier": self.classifier,
+            "n_jobs": self.n_jobs,
+            **OverSamplingSimplex.get_params(self),
+        }

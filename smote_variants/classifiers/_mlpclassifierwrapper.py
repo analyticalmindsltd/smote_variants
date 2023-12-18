@@ -6,19 +6,22 @@ import numpy as np
 
 from sklearn.neural_network import MLPClassifier
 
+
 class MLPClassifierWrapper:
     """
     Wrapper over MLPClassifier of sklearn to provide easier parameterization
     """
 
-    def __init__(self,
-                 *,
-                 max_iter=10000,
-                 activation='relu',
-                 hidden_layer_fraction='sqrt',
-                 alpha=0.0001,
-                 learning_rate='adaptive',
-                 random_state=None):
+    def __init__(
+        self,
+        *,
+        max_iter=10000,
+        activation="relu",
+        hidden_layer_fraction="sqrt",
+        alpha=0.0001,
+        learning_rate="adaptive",
+        random_state=None
+    ):
         """
         Constructor of the MLPClassifier
 
@@ -36,15 +39,15 @@ class MLPClassifierWrapper:
         self.activation = activation
         self.hidden_layer_fraction = hidden_layer_fraction
         self.alpha = alpha
-        self.learning_rate= learning_rate
+        self.learning_rate = learning_rate
         self.random_state = random_state
         self.model = None
 
     def _determine_hidden_layer_size(self, n_dim):
         if isinstance(self.hidden_layer_fraction, str):
-            if self.hidden_layer_fraction == 'sqrt':
+            if self.hidden_layer_fraction == "sqrt":
                 return max([1, int(np.sqrt(n_dim))])
-        return max([1, int(n_dim*self.hidden_layer_fraction)])
+        return max([1, int(n_dim * self.hidden_layer_fraction)])
 
     def fit(self, X, y):
         """
@@ -58,12 +61,14 @@ class MLPClassifierWrapper:
             obj: the MLPClassifierWrapper object
         """
         hidden_layer_size = self._determine_hidden_layer_size(X.shape[1])
-        self.model = MLPClassifier(activation=self.activation,
-                                   max_iter=self.max_iter,
-                                   hidden_layer_sizes=(hidden_layer_size,),
-                                   alpha=self.alpha,
-                                   learning_rate=self.learning_rate,
-                                   random_state=self.random_state).fit(X, y)
+        self.model = MLPClassifier(
+            activation=self.activation,
+            max_iter=self.max_iter,
+            hidden_layer_sizes=(hidden_layer_size,),
+            alpha=self.alpha,
+            learning_rate=self.learning_rate,
+            random_state=self.random_state,
+        ).fit(X, y)
         return self
 
     def predict(self, X):
@@ -98,11 +103,13 @@ class MLPClassifierWrapper:
             dict: the parameters of the object
         """
         _ = deep
-        return {'activation': self.activation,
-                'hidden_layer_fraction': self.hidden_layer_fraction,
-                'alpha': self.alpha,
-                'learning_rate': self.learning_rate,
-                'random_state': self.random_state}
+        return {
+            "activation": self.activation,
+            "hidden_layer_fraction": self.hidden_layer_fraction,
+            "alpha": self.alpha,
+            "learning_rate": self.learning_rate,
+            "random_state": self.random_state,
+        }
 
     def copy(self):
         """

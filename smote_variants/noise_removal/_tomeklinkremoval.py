@@ -5,12 +5,14 @@ This module implements the Tomek-link removal technique.
 import numpy as np
 
 from ._noisefilter import NoiseFilter
-from ..base import (NearestNeighborsWithMetricTensor, coalesce)
+from ..base import NearestNeighborsWithMetricTensor, coalesce
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['TomekLinkRemoval']
+__all__ = ["TomekLinkRemoval"]
+
 
 class TomekLinkRemoval(NoiseFilter):
     """
@@ -41,11 +43,7 @@ class TomekLinkRemoval(NoiseFilter):
                     }
     """
 
-    def __init__(self,
-                 strategy='remove_majority',
-                 nn_params=None,
-                 n_jobs=1,
-                 **_kwargs):
+    def __init__(self, strategy="remove_majority", nn_params=None, n_jobs=1, **_kwargs):
         """
         Constructor of the noise filter.
 
@@ -61,18 +59,20 @@ class TomekLinkRemoval(NoiseFilter):
         """
         super().__init__()
 
-        self.check_isin(strategy, 'strategy', ['remove_majority', 'remove_both'])
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_isin(strategy, "strategy", ["remove_majority", "remove_both"])
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.strategy = strategy
-        self.nn_params= coalesce(nn_params, {})
+        self.nn_params = coalesce(nn_params, {})
         self.n_jobs = n_jobs
 
     def get_params(self, deep=False):
-        return {'strategy': self.strategy,
-                'nn_params': self.nn_params,
-                'n_jobs': self.n_jobs,
-                **NoiseFilter.get_params(self, deep)}
+        return {
+            "strategy": self.strategy,
+            "nn_params": self.nn_params,
+            "n_jobs": self.n_jobs,
+            **NoiseFilter.get_params(self, deep),
+        }
 
     def remove_noise(self, X, y):
         """
@@ -88,14 +88,14 @@ class TomekLinkRemoval(NoiseFilter):
         _logger.info("%s: Running noise removal.", self.__class__.__name__)
         self.class_label_statistics(y)
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # using 2 neighbors because the first neighbor is the point itself
-        nnmt= NearestNeighborsWithMetricTensor(n_neighbors=2,
-                                                n_jobs=self.n_jobs,
-                                                **nn_params)
-        indices= nnmt.fit(X).kneighbors(X, return_distance=False)
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=2, n_jobs=self.n_jobs, **nn_params
+        )
+        indices = nnmt.fit(X).kneighbors(X, return_distance=False)
 
         # identify links
         links = []
@@ -107,12 +107,12 @@ class TomekLinkRemoval(NoiseFilter):
         # determine links to be removed
         to_remove = []
         for link in links:
-            if self.strategy == 'remove_majority':
+            if self.strategy == "remove_majority":
                 if y[link[0]] == self.min_label:
                     to_remove.append(link[1])
                 else:
                     to_remove.append(link[0])
-            elif self.strategy == 'remove_both':
+            elif self.strategy == "remove_both":
                 to_remove.append(link[0])
                 to_remove.append(link[1])
 

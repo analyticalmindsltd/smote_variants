@@ -6,13 +6,14 @@ import numpy as np
 from scipy.linalg import circulant
 
 from ..base import coalesce_dict, fix_density, coalesce
-from ..base import (NearestNeighborsWithMetricTensor,
-                             pairwise_distances_mahalanobis)
+from ..base import NearestNeighborsWithMetricTensor, pairwise_distances_mahalanobis
 from ..base import OverSamplingSimplex
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['CBSO']
+__all__ = ["CBSO"]
+
 
 class CBSO(OverSamplingSimplex):
     """
@@ -41,22 +42,26 @@ class CBSO(OverSamplingSimplex):
         * Clusters containing 1 element induce cloning of samples.
     """
 
-    categories = [OverSamplingSimplex.cat_uses_clustering,
-                  OverSamplingSimplex.cat_density_based,
-                  OverSamplingSimplex.cat_extensive,
-                  OverSamplingSimplex.cat_sample_ordinary,
-                  OverSamplingSimplex.cat_metric_learning]
+    categories = [
+        OverSamplingSimplex.cat_uses_clustering,
+        OverSamplingSimplex.cat_density_based,
+        OverSamplingSimplex.cat_extensive,
+        OverSamplingSimplex.cat_sample_ordinary,
+        OverSamplingSimplex.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 C_p=1.3,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        C_p=1.3,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -77,24 +82,27 @@ class CBSO(OverSamplingSimplex):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
         ss_params = coalesce_dict(ss_params, ss_params_default)
 
         super().__init__(**ss_params, random_state=random_state)
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_greater(C_p, "C_p", 0)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
         self.nn_params = coalesce(nn_params, {})
-        self.C_p = C_p # pylint: disable=invalid-name
+        self.C_p = C_p  # pylint: disable=invalid-name
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -102,10 +110,11 @@ class CBSO(OverSamplingSimplex):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7],
-                                  'C_p': [0.8, 1.0, 1.3, 1.6]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7],
+            "C_p": [0.8, 1.0, 1.3, 1.6],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def do_clustering(self, X_min, nn_params):
@@ -120,17 +129,18 @@ class CBSO(OverSamplingSimplex):
             np.array, np.array: clusters, labels
         """
         # do the clustering
-        nnmt = NearestNeighborsWithMetricTensor(n_neighbors=2,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=2, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X_min)
         d_avg = np.mean(nnmt.kneighbors(X_min)[0][:, 1])
-        T_h = d_avg * self.C_p # pylint: disable=invalid-name
+        T_h = d_avg * self.C_p  # pylint: disable=invalid-name
 
         # initiating clustering
         clusters = [np.array([i]) for i in range(len(X_min))]
-        distm = pairwise_distances_mahalanobis(X_min,
-                                            tensor=nn_params.get('metric_tensor', None))
+        distm = pairwise_distances_mahalanobis(
+            X_min, tensor=nn_params.get("metric_tensor", None)
+        )
 
         # setting the diagonal of the distance matrix to infinity
         for idx in range(len(distm)):
@@ -148,8 +158,7 @@ class CBSO(OverSamplingSimplex):
                 break
 
             # merging the clusters
-            clusters[merge_a] = np.hstack(
-                [clusters[merge_a], clusters[merge_b]])
+            clusters[merge_a] = np.hstack([clusters[merge_a], clusters[merge_b]])
             # removing one of them
             del clusters[merge_b]
             # adjusting the distances in the distance matrix
@@ -171,12 +180,7 @@ class CBSO(OverSamplingSimplex):
 
         return clusters, labels
 
-    def generate_samples_in_clusters(self,
-                                    *,
-                                    clusters,
-                                    X_min,
-                                    n_to_sample,
-                                    weights):
+    def generate_samples_in_clusters(self, *, clusters, X_min, n_to_sample, weights):
         """
         Generate samples within the clusters.
 
@@ -193,12 +197,11 @@ class CBSO(OverSamplingSimplex):
         cluster_weights = np.array([np.sum(weights[cluster]) for cluster in clusters])
         cluster_weights = cluster_weights / np.sum(cluster_weights)
 
-        cluster_indices = self.random_state.choice(np.arange(len(clusters)),
-                                                    n_to_sample,
-                                                    p=cluster_weights)
+        cluster_indices = self.random_state.choice(
+            np.arange(len(clusters)), n_to_sample, p=cluster_weights
+        )
 
-        cluster_unique, cluster_count = np.unique(cluster_indices,
-                                                    return_counts=True)
+        cluster_unique, cluster_count = np.unique(cluster_indices, return_counts=True)
 
         samples = []
         for idx, cluster in enumerate(cluster_unique):
@@ -206,12 +209,16 @@ class CBSO(OverSamplingSimplex):
             within_cluster_weights = weights[clusters[cluster]]
             within_cluster_weights = fix_density(within_cluster_weights)
 
-            #if len(cluster_vectors) >= self.n_dim:
-            samples.append(self.sample_simplex(X=cluster_vectors,
-                                        indices=circulant(np.arange(cluster_vectors.shape[0])),
-                                        n_to_sample=cluster_count[idx],
-                                        base_weights=within_cluster_weights))
-            #else:
+            # if len(cluster_vectors) >= self.n_dim:
+            samples.append(
+                self.sample_simplex(
+                    X=cluster_vectors,
+                    indices=circulant(np.arange(cluster_vectors.shape[0])),
+                    n_to_sample=cluster_count[idx],
+                    base_weights=within_cluster_weights,
+                )
+            )
+            # else:
             #    sample_indices = self.random_state.choice(np.arange(len(cluster_vectors)),
             #                                                cluster_count[idx],
             #                                                p=within_cluster_weights)
@@ -219,8 +226,8 @@ class CBSO(OverSamplingSimplex):
 
         # original implementation
         # do the sampling
-        #samples = []
-        #while len(samples) < n_to_sample:
+        # samples = []
+        # while len(samples) < n_to_sample:
         #    idx = self.random_state.choice(np.arange(len(X_min)), p=weights)
         #    if len(clusters[labels[idx]]) <= 1:
         #        samples.append(X_min[idx])
@@ -254,41 +261,42 @@ class CBSO(OverSamplingSimplex):
 
         X_min = X[y == self.min_label]
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params,
-                                                                        X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # fitting nearest neighbors model to find neighbors of minority points
-        nnmt = NearestNeighborsWithMetricTensor(n_neighbors=self.n_neighbors + 1,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=self.n_neighbors + 1, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X)
         ind = nnmt.kneighbors(X_min, return_distance=False)
 
         # extracting the number of majority neighbors
-        weights = [np.sum(y[ind[i][1:]] == self.maj_label)
-                   for i in range(len(X_min))]
+        weights = [np.sum(y[ind[i][1:]] == self.maj_label) for i in range(len(X_min))]
 
         weights = fix_density(weights)
 
         clusters, _ = self.do_clustering(X_min, nn_params)
 
-        samples = self.generate_samples_in_clusters(clusters=clusters,
-                                                    n_to_sample=n_to_sample,
-                                                    X_min=X_min,
-                                                    weights=weights)
+        samples = self.generate_samples_in_clusters(
+            clusters=clusters, n_to_sample=n_to_sample, X_min=X_min, weights=weights
+        )
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'C_p': self.C_p,
-                'n_jobs': self.n_jobs,
-                **OverSamplingSimplex.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "C_p": self.C_p,
+            "n_jobs": self.n_jobs,
+            **OverSamplingSimplex.get_params(self),
+        }

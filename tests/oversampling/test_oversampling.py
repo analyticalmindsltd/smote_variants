@@ -6,8 +6,8 @@ import numpy as np
 
 import pytest
 
-from smote_variants.base import (OverSampling, OverSamplingSimplex,
-                            OverSamplingBase)
+from smote_variants.base import OverSampling, OverSamplingSimplex, OverSamplingBase
+
 
 def test_oversamplingbase():
     """
@@ -26,7 +26,7 @@ def test_oversamplingbase():
 
     assert X_samp.shape == X.shape
 
-    overs.checks={'min_n_min': 0}
+    overs.checks = {"min_n_min": 0}
 
     X_samp, _ = overs.sample(X, y)
 
@@ -41,7 +41,7 @@ def test_oversamplingbase():
     assert n_to_sample >= 0
 
     with pytest.raises(Exception):
-        overs.det_n_to_sample('dummy')
+        overs.det_n_to_sample("dummy")
 
     X_samp, _ = overs.fit_resample(X, y)
 
@@ -55,17 +55,18 @@ def test_oversamplingbase():
 
     assert X_samp.shape == X.shape
 
-    X_prep = overs.preprocessing_transform(X) # pylint: disable=invalid-name
+    X_prep = overs.preprocessing_transform(X)  # pylint: disable=invalid-name
 
     assert X_prep.shape == X.shape
 
     assert len(overs.get_params()) == 0
 
-    assert getattr(overs.set_params(**{'dummy': 1}), 'dummy') == 1
+    assert getattr(overs.set_params(**{"dummy": 1}), "dummy") == 1
 
     assert len(overs.descriptor()) > 0
 
     assert len(str(overs)) > 0
+
 
 def test_oversampling():
     """
@@ -73,19 +74,17 @@ def test_oversampling():
     """
     overs = OverSampling(random_state=5)
 
-    assert overs.get_params()['random_state'] == 5
+    assert overs.get_params()["random_state"] == 5
 
-    assert overs.sample_between_points(np.array([1]),
-                                       np.array([2])).shape[0] == 1
+    assert overs.sample_between_points(np.array([1]), np.array([2])).shape[0] == 1
 
-    x_samp = overs.sample_between_points_componentwise(np.array([1]),
-                                                       np.array([2]))
+    x_samp = overs.sample_between_points_componentwise(np.array([1]), np.array([2]))
 
     assert x_samp.shape[0] == 1
 
-    x_samp = overs.sample_between_points_componentwise(np.array([1]),
-                                                       np.array([2]),
-                                                       np.array([1]))
+    x_samp = overs.sample_between_points_componentwise(
+        np.array([1]), np.array([2]), np.array([1])
+    )
 
     assert x_samp.shape[0] == 1
 
@@ -101,12 +100,12 @@ def test_oversampling():
 
     assert x_samp.shape[0] == 1
 
+
 def test_oversamplingsimplex():
     """
     Testing the OverSamplingSimplex class
     """
     with pytest.warns(Warning):
-        overs = OverSamplingSimplex(random_state=5,
-                                    checks={'simplex_dim': 3})
+        overs = OverSamplingSimplex(random_state=5, checks={"simplex_dim": 3})
 
-    assert overs.get_params()['random_state'] == 5
+    assert overs.get_params()["random_state"] == 5

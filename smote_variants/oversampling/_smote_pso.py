@@ -11,9 +11,11 @@ from sklearn.metrics import roc_auc_score
 from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSampling
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['SMOTE_PSO']
+__all__ = ["SMOTE_PSO"]
+
 
 class SMOTE_PSO(OverSampling):
     """
@@ -55,24 +57,28 @@ class SMOTE_PSO(OverSampling):
             near the class boundaries.
     """
 
-    categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_memetic,
-                  OverSampling.cat_uses_classifier,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_extensive,
+        OverSampling.cat_memetic,
+        OverSampling.cat_uses_classifier,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 k=3,
-                 *,
-                 nn_params={},
-                 eps=0.01,
-                 n_pop=10,
-                 w=1.0,
-                 c1=2.0,
-                 c2=2.0,
-                 num_it=15,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        k=3,
+        *,
+        nn_params=None,
+        eps=0.01,
+        n_pop=10,
+        w=1.0,
+        c1=2.0,
+        c2=2.0,
+        num_it=15,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -104,19 +110,21 @@ class SMOTE_PSO(OverSampling):
         self.check_greater_or_equal(c1, "c1", 0)
         self.check_greater_or_equal(c2, "c2", 0)
         self.check_greater_or_equal(num_it, "num_it", 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
-        self.k = k # pylint: disable=invalid-name
-        self.nn_params = nn_params
-        self.params = {'eps': eps,
-                       'n_pop': n_pop,
-                       'w': w,
-                       'c1': c1,
-                       'c2': c2,
-                       'num_it': num_it}
+        self.k = k  # pylint: disable=invalid-name
+        self.nn_params = nn_params or {}
+        self.params = {
+            "eps": eps,
+            "n_pop": n_pop,
+            "w": w,
+            "c1": c1,
+            "c2": c2,
+            "num_it": num_it,
+        }
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -124,13 +132,18 @@ class SMOTE_PSO(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        return cls.generate_parameter_combinations({'k': [3, 5, 7],
-                                                    'eps': [0.01],
-                                                    'n_pop': [5],
-                                                    'w': [0.5, 1.0],
-                                                    'c1': [1.0, 2.0],
-                                                    'c2': [1.0, 2.0],
-                                                    'num_it': [20]}, raw)
+        return cls.generate_parameter_combinations(
+            {
+                "k": [3, 5, 7],
+                "eps": [0.01],
+                "n_pop": [5],
+                "w": [0.5, 1.0],
+                "c1": [1.0, 2.0],
+                "c2": [1.0, 2.0],
+                "num_it": [20],
+            },
+            raw,
+        )
 
     # def remove_majority(self,
     #                     performance_th,
@@ -215,9 +228,7 @@ class SMOTE_PSO(OverSampling):
 
     #     return X_scaled, y
 
-    def determine_support(self,
-                            X_scaled, # pylint: disable=invalid-name
-                            y):
+    def determine_support(self, X_scaled, y):  # pylint: disable=invalid-name
         """
         Find the support.
 
@@ -229,16 +240,24 @@ class SMOTE_PSO(OverSampling):
             np.array, np.array: the minority and majority support vectors
         """
         # fitting SVM to extract initial support vectors
-        svc = SVC(kernel='rbf', probability=True,
-                  gamma='auto', random_state=self._random_state_init)
+        svc = SVC(
+            kernel="rbf",
+            probability=True,
+            gamma="auto",
+            random_state=self._random_state_init,
+        )
         svc.fit(X_scaled, y)
 
         # extracting the support vectors
-        SV_min = np.array([i for i in svc.support_ if y[i] == self.min_label]) # pylint: disable=invalid-name
-        SV_maj = np.array([i for i in svc.support_ if y[i] == self.maj_label]) # pylint: disable=invalid-name
+        SV_min = np.array(
+            [i for i in svc.support_ if y[i] == self.min_label]
+        )  # pylint: disable=invalid-name
+        SV_maj = np.array(
+            [i for i in svc.support_ if y[i] == self.maj_label]
+        )  # pylint: disable=invalid-name
 
-        X_SV_min = X_scaled[SV_min] # pylint: disable=invalid-name
-        X_SV_maj = X_scaled[SV_maj] # pylint: disable=invalid-name
+        X_SV_min = X_scaled[SV_min]  # pylint: disable=invalid-name
+        X_SV_maj = X_scaled[SV_maj]  # pylint: disable=invalid-name
 
         return X_SV_min, X_SV_maj
 
@@ -255,18 +274,15 @@ class SMOTE_PSO(OverSampling):
         Returns:
             np.array: indices
         """
-        nnmt = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **nn_params)
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **nn_params
+        )
         nnmt.fit(X_SV_maj)
         _, ind = nnmt.kneighbors(X_SV_min)
 
         return ind
 
-    def initialize(self,
-                    X_scaled, # pylint: disable=invalid-name
-                    y,
-                    nn_params):
+    def initialize(self, X_scaled, y, nn_params):  # pylint: disable=invalid-name
         """
         Initialize the search
 
@@ -281,7 +297,9 @@ class SMOTE_PSO(OverSampling):
                                                     the initial velocities,
                                                     and the search bounds
         """
-        X_SV_min, X_SV_maj = self.determine_support(X_scaled, y) # pylint: disable=invalid-name
+        X_SV_min, X_SV_maj = self.determine_support(
+            X_scaled, y
+        )  # pylint: disable=invalid-name
 
         # finding nearest majority support vectors
         n_neighbors = np.min([X_SV_maj.shape[0], self.k])
@@ -290,14 +308,14 @@ class SMOTE_PSO(OverSampling):
         min_vector = X_SV_min[np.repeat(np.arange(len(X_SV_min)), n_neighbors)]
         maj_vector = X_SV_maj[ind.flatten()]
         upper_bound = X_SV_maj[ind[np.repeat(np.arange(len(X_SV_min)), n_neighbors), 0]]
-        init_velocity = self.params['eps'] * (maj_vector - min_vector)
-        X_min_gen = min_vector + init_velocity # pylint: disable=invalid-name
+        init_velocity = self.params["eps"] * (maj_vector - min_vector)
+        X_min_gen = min_vector + init_velocity  # pylint: disable=invalid-name
 
         search_bound = np.linalg.norm(min_vector - upper_bound, axis=1)
 
-        search_space = np.hstack([min_vector, maj_vector]).reshape(min_vector.shape[0],
-                                                                    2,
-                                                                    min_vector.shape[1])
+        search_space = np.hstack([min_vector, maj_vector]).reshape(
+            min_vector.shape[0], 2, min_vector.shape[1]
+        )
 
         return X_min_gen, search_space, search_bound, init_velocity
 
@@ -311,18 +329,19 @@ class SMOTE_PSO(OverSampling):
             X_test (np.array): test vectors
             y_test (np.array): test labels
         """
-        svc = SVC(kernel='rbf', probability=True,
-                  gamma='auto', random_state=self._random_state_init)
+        svc = SVC(
+            kernel="rbf",
+            probability=True,
+            gamma="auto",
+            random_state=self._random_state_init,
+        )
 
         svc.fit(X_train, y_train)
         class_idx = np.where(svc.classes_ == self.min_label)[0][0]
         y_pred = svc.predict_proba(X_test)[:, class_idx]
         return roc_auc_score(y_test, y_pred)
 
-    def evaluate_particle(self,
-                            X_scaled, # pylint: disable=invalid-name
-                            y,
-                            part):
+    def evaluate_particle(self, X_scaled, y, part):  # pylint: disable=invalid-name
         """
         Evaluate a particle.
 
@@ -331,12 +350,13 @@ class SMOTE_PSO(OverSampling):
             y (np.array): the target labels
             part (np.array): a particle
         """
-        X_extended = np.vstack([X_scaled, part]) # pylint: disable=invalid-name
+        X_extended = np.vstack([X_scaled, part])  # pylint: disable=invalid-name
         y_extended = np.hstack([y, np.repeat(self.min_label, len(part))])
         return self.evaluate(X_extended, y_extended, X_scaled, y)
 
-    def update_velocities(self, *, particle_swarm, velocities,
-                            search_bound, local_best, global_best):
+    def update_velocities(
+        self, *, particle_swarm, velocities, search_bound, local_best, global_best
+    ):
         """
         Update the velocities.
 
@@ -351,7 +371,7 @@ class SMOTE_PSO(OverSampling):
             list: the updated velocities
         """
         # update velocities
-        #for idx, part in enumerate(particle_swarm):
+        # for idx, part in enumerate(particle_swarm):
         #    term_0 = self.params['w'] * velocities[idx]
         #    rand = self.random_state.random_sample(2)
         #    term_1 = self.params['c1'] * rand[0] * (local_best[idx] - part)
@@ -360,18 +380,20 @@ class SMOTE_PSO(OverSampling):
         #    velocities[idx] = term_0 + term_1 + term_2
         #    #velocities[idx] = term_0
 
-        term_0 = self.params['w'] * velocities
+        term_0 = self.params["w"] * velocities
         rand = self.random_state.random_sample((2, velocities.shape[0]))
-        term_1 = self.params['c1'] * (local_best - particle_swarm) \
-                                                        * rand[0][:, None, None]
-        term_2 = self.params['c2'] * (global_best - particle_swarm) \
-                                                        * rand[1][:, None, None]
+        term_1 = (
+            self.params["c1"] * (local_best - particle_swarm) * rand[0][:, None, None]
+        )
+        term_2 = (
+            self.params["c2"] * (global_best - particle_swarm) * rand[1][:, None, None]
+        )
 
         velocities = term_0 + term_1 + term_2
 
         velocity_norms = np.linalg.norm(velocities, axis=2)
 
-        mask = (velocity_norms > search_bound[None, :] / 2.0)
+        mask = velocity_norms > search_bound[None, :] / 2.0
 
         search_bounds = np.tile(search_bound[:, None], (velocity_norms.shape[0],)).T
 
@@ -380,7 +402,7 @@ class SMOTE_PSO(OverSampling):
         velocities[mask] = velocities[mask] * multiplier[:, None]
 
         # bound velocities according to search space constraints
-        #for vel in velocities:
+        # for vel in velocities:
         #    for idx, vel_idx in enumerate(vel):
         #        v_i_norm = np.linalg.norm(vel_idx)
         #        if v_i_norm > search_bound[idx]/2.0:
@@ -409,7 +431,9 @@ class SMOTE_PSO(OverSampling):
 
         mask = trans_norm > search_bound[None, :]
 
-        search_space_0 = np.tile(search_space[:, 0][None, :, :], (particle_swarm.shape[0], 1, 1))
+        search_space_0 = np.tile(
+            search_space[:, 0][None, :, :], (particle_swarm.shape[0], 1, 1)
+        )
 
         search_bounds = np.tile(search_bound, (particle_swarm.shape[0], 1))
 
@@ -419,11 +443,11 @@ class SMOTE_PSO(OverSampling):
 
         particle_swarm[mask] = search_space_0[mask] + normed_trans
 
-        #for idx, part in enumerate(particle_swarm):
+        # for idx, part in enumerate(particle_swarm):
         #    particle_swarm[idx] = particle_swarm[idx] + velocities[idx]
 
         # bound positions according to search space constraints
-        #for part in particle_swarm:
+        # for part in particle_swarm:
         #    for idx, p_idx in enumerate(part):
         #        search_idx = search_space[idx]
         #
@@ -436,8 +460,17 @@ class SMOTE_PSO(OverSampling):
 
         return particle_swarm
 
-    def update_scores(self, *, X_scaled, y, particle_swarm,
-                local_best_scores, local_best, global_best_score, global_best):
+    def update_scores(
+        self,
+        *,
+        X_scaled,
+        y,
+        particle_swarm,
+        local_best_scores,
+        local_best,
+        global_best_score,
+        global_best
+    ):
         """
         Evaluate and update the scores.
 
@@ -456,8 +489,9 @@ class SMOTE_PSO(OverSampling):
                         particle
         """
 
-        scores = np.array([self.evaluate_particle(X_scaled, y, p)
-                      for p in particle_swarm])
+        scores = np.array(
+            [self.evaluate_particle(X_scaled, y, p) for p in particle_swarm]
+        )
 
         local_mask = scores > local_best_scores
         local_best_scores[local_mask] = scores[local_mask]
@@ -469,7 +503,7 @@ class SMOTE_PSO(OverSampling):
             global_best = particle_swarm[max_idx]
 
         # update best scores
-        #for idx, score in enumerate(scores):
+        # for idx, score in enumerate(scores):
         #    if score > local_best_scores[idx]:
         #        local_best_scores[idx] = score
         #        local_best[idx] = particle_swarm[idx]
@@ -479,10 +513,7 @@ class SMOTE_PSO(OverSampling):
 
         return local_best_scores, local_best, global_best_score, global_best
 
-    def search(self,
-                X_scaled, # pylint: disable=invalid-name
-                y,
-                nn_params):
+    def search(self, X_scaled, y, nn_params):  # pylint: disable=invalid-name
         """
         The optimization search.
 
@@ -494,40 +525,48 @@ class SMOTE_PSO(OverSampling):
         Returns:
             np.array: the generated samples
         """
-        X_min_gen, search_space, search_bound, init_velocity = \
-                    self.initialize(X_scaled, y, nn_params) # pylint: disable=invalid-name
+        X_min_gen, search_space, search_bound, init_velocity = self.initialize(
+            X_scaled, y, nn_params
+        )  # pylint: disable=invalid-name
 
         # initializing the particle swarm and the particle and population level
         # memory
-        particle_swarm = np.array([X_min_gen.copy()] * self.params['n_pop'])
-        velocities = np.array([init_velocity.copy()] * self.params['n_pop'])
-        local_best = np.array([X_min_gen.copy()] * self.params['n_pop'])
-        local_best_scores = np.array([0.0]*self.params['n_pop'])
+        particle_swarm = np.array([X_min_gen.copy()] * self.params["n_pop"])
+        velocities = np.array([init_velocity.copy()] * self.params["n_pop"])
+        local_best = np.array([X_min_gen.copy()] * self.params["n_pop"])
+        local_best_scores = np.array([0.0] * self.params["n_pop"])
         global_best = X_min_gen.copy()
         global_best_score = 0.0
 
-        for iteration in range(self.params['num_it']):
+        for iteration in range(self.params["num_it"]):
             _logger.info("%s: Iteration %d", self.__class__.__name__, iteration)
             # evaluate population
-            local_best_scores, local_best, global_best_score, global_best = \
-                self.update_scores(X_scaled=X_scaled,
-                                    y=y,
-                                    particle_swarm=particle_swarm,
-                                    local_best_scores=local_best_scores,
-                                    local_best=local_best,
-                                    global_best_score=global_best_score,
-                                    global_best=global_best)
+            (
+                local_best_scores,
+                local_best,
+                global_best_score,
+                global_best,
+            ) = self.update_scores(
+                X_scaled=X_scaled,
+                y=y,
+                particle_swarm=particle_swarm,
+                local_best_scores=local_best_scores,
+                local_best=local_best,
+                global_best_score=global_best_score,
+                global_best=global_best,
+            )
 
-            velocities = self.update_velocities(particle_swarm=particle_swarm,
-                                                velocities=velocities,
-                                                search_bound=search_bound,
-                                                local_best=local_best,
-                                                global_best=global_best)
+            velocities = self.update_velocities(
+                particle_swarm=particle_swarm,
+                velocities=velocities,
+                search_bound=search_bound,
+                local_best=local_best,
+                global_best=global_best,
+            )
 
-            particle_swarm = self.update_positions(particle_swarm,
-                                                    velocities,
-                                                    search_space,
-                                                    search_bound)
+            particle_swarm = self.update_positions(
+                particle_swarm, velocities, search_space, search_bound
+            )
         return global_best
 
     def sampling_algorithm(self, X, y):
@@ -549,32 +588,37 @@ class SMOTE_PSO(OverSampling):
         y_orig = y
 
         # scaling the records
-        #mms = MinMaxScaler()
+        # mms = MinMaxScaler()
         mms = StandardScaler()
-        X_scaled = mms.fit_transform(X) # pylint: disable=invalid-name
+        X_scaled = mms.fit_transform(X)  # pylint: disable=invalid-name
 
         # removing majority and minority samples far from the training data if
         # needed to increase performance
-        #performance_th = 500
+        # performance_th = 500
 
         nn_params = {**self.nn_params}
-        nn_params['metric_tensor'] = \
-                self.metric_tensor_from_nn_params(nn_params, X_scaled, y)
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(
+            nn_params, X_scaled, y
+        )
 
-        #X_scaled, y = self.remove_majority(performance_th, nn_params, X_scaled, y)
+        # X_scaled, y = self.remove_majority(performance_th, nn_params, X_scaled, y)
 
-        #X_scaled, y = self.remove_minority(performance_th, nn_params, X_scaled, y)
+        # X_scaled, y = self.remove_minority(performance_th, nn_params, X_scaled, y)
 
         new_items = [np.zeros(shape=(0, X.shape[1]))]
 
         while np.sum(y == self.min_label) < np.sum(y == self.maj_label):
             global_best = self.search(X_scaled, y, nn_params)
             new_items.append(global_best)
-            X_scaled = np.vstack([X_scaled, global_best]) # pylint: disable=invalid-name
+            X_scaled = np.vstack(
+                [X_scaled, global_best]
+            )  # pylint: disable=invalid-name
             y = np.hstack([y, np.repeat(self.min_label, len(global_best))])
 
         X_new = np.vstack(new_items)
-        X_ret = np.vstack([X_orig, mms.inverse_transform(X_new)]) # pylint: disable=invalid-name
+        X_ret = np.vstack(
+            [X_orig, mms.inverse_transform(X_new)]
+        )  # pylint: disable=invalid-name
         y_ret = np.hstack([y_orig, np.repeat(self.min_label, len(X_new))])
 
         return (X_ret, y_ret)
@@ -584,13 +628,15 @@ class SMOTE_PSO(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'k': self.k,
-                'nn_params': self.nn_params,
-                'eps': self.params['eps'],
-                'n_pop': self.params['n_pop'],
-                'w': self.params['w'],
-                'c1': self.params['c1'],
-                'c2': self.params['c2'],
-                'num_it': self.params['num_it'],
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "k": self.k,
+            "nn_params": self.nn_params,
+            "eps": self.params["eps"],
+            "n_pop": self.params["n_pop"],
+            "w": self.params["w"],
+            "c1": self.params["c1"],
+            "c2": self.params["c2"],
+            "num_it": self.params["num_it"],
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

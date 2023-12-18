@@ -14,9 +14,11 @@ from ._smote import SMOTE
 from ..noise_removal import NeighborhoodCleaningRule
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['ISOMAP_Hybrid']
+__all__ = ["ISOMAP_Hybrid"]
+
 
 class ISOMAP_Hybrid(OverSampling):
     """
@@ -46,23 +48,27 @@ class ISOMAP_Hybrid(OverSampling):
                             }
     """
 
-    categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_noise_removal,
-                  OverSampling.cat_dim_reduction,
-                  OverSampling.cat_changes_majority,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_extensive,
+        OverSampling.cat_noise_removal,
+        OverSampling.cat_dim_reduction,
+        OverSampling.cat_changes_majority,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 n_components=3,
-                 smote_n_neighbors=5,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        n_components=3,
+        smote_n_neighbors=5,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -82,16 +88,19 @@ class ISOMAP_Hybrid(OverSampling):
             smote_n_neighbors (int): number of neighbors in SMOTE sampling
             n_jobs (int): number of parallel jobs
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
 
         super().__init__(random_state=random_state)
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_greater_or_equal(n_components, "n_components", 1)
         self.check_greater_or_equal(smote_n_neighbors, "smote_n_neighbors", 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.isomap_params = {}
@@ -100,11 +109,11 @@ class ISOMAP_Hybrid(OverSampling):
         self.smote_n_neighbors = smote_n_neighbors
         self.n_jobs = n_jobs
 
-        self.isomap = Isomap(n_neighbors=n_neighbors,
-                             n_components=n_components,
-                             n_jobs=n_jobs)
+        self.isomap = Isomap(
+            n_neighbors=n_neighbors, n_components=n_components, n_jobs=n_jobs
+        )
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -112,11 +121,12 @@ class ISOMAP_Hybrid(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7],
-                                  'n_components': [2, 3, 4],
-                                  'smote_n_neighbors': [3, 5, 7]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7],
+            "n_components": [2, 3, 4],
+            "smote_n_neighbors": [3, 5, 7],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def sampling_algorithm(self, X, y):
@@ -134,26 +144,29 @@ class ISOMAP_Hybrid(OverSampling):
         with warnings.catch_warnings():
             if suppress_external_warnings():
                 warnings.simplefilter("ignore")
-            X_trans = self.isomap.fit_transform(X, y) # pylint: disable=invalid-name
+            X_trans = self.isomap.fit_transform(X, y)  # pylint: disable=invalid-name
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= \
-                    self.metric_tensor_from_nn_params(nn_params, X_trans, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(
+            nn_params, X_trans, y
+        )
 
-        X_sm, y_sm = SMOTE(proportion=self.proportion, # pylint: disable=invalid-name
-                           n_neighbors=self.smote_n_neighbors,
-                           nn_params=nn_params,
-                           ss_params=self.ss_params,
-                           n_jobs=self.n_jobs,
-                           random_state=self._random_state_init).sample(X_trans, y)
+        X_sm, y_sm = SMOTE(  # pylint: disable=invalid-name
+            proportion=self.proportion,
+            n_neighbors=self.smote_n_neighbors,
+            nn_params=nn_params,
+            ss_params=self.ss_params,
+            n_jobs=self.n_jobs,
+            random_state=self._random_state_init,
+        ).sample(X_trans, y)
 
-        ncr = NeighborhoodCleaningRule(n_jobs=self.n_jobs,
-                                      nn_params=nn_params)
-        X_final, y_final= ncr.remove_noise(X_sm, y_sm)
+        ncr = NeighborhoodCleaningRule(n_jobs=self.n_jobs, nn_params=nn_params)
+        X_final, y_final = ncr.remove_noise(X_sm, y_sm)
 
         if np.sum(y_final) <= 2 or np.sum(y_final == 0) <= 2:
-            return self.return_copies(X_sm, y_sm, "too many samples removed "\
-                                    "returning isomapped dataset")
+            return self.return_copies(
+                X_sm, y_sm, "too many samples removed returning isomapped dataset"
+            )
 
         return X_final, y_final
 
@@ -174,11 +187,13 @@ class ISOMAP_Hybrid(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.isomap.n_neighbors,
-                'nn_params': self.nn_params,
-                'ss_params': self.ss_params,
-                'n_components': self.isomap.n_components,
-                'smote_n_neighbors': self.smote_n_neighbors,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.isomap.n_neighbors,
+            "nn_params": self.nn_params,
+            "ss_params": self.ss_params,
+            "n_components": self.isomap.n_components,
+            "smote_n_neighbors": self.smote_n_neighbors,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

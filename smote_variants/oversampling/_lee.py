@@ -8,9 +8,11 @@ from ..base import coalesce, coalesce_dict
 from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSamplingSimplex
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['Lee']
+__all__ = ["Lee"]
+
 
 class Lee(OverSamplingSimplex):
     """
@@ -44,20 +46,24 @@ class Lee(OverSamplingSimplex):
                             }
     """
 
-    categories = [OverSamplingSimplex.cat_extensive,
-                  OverSamplingSimplex.cat_sample_ordinary,
-                  OverSamplingSimplex.cat_metric_learning]
+    categories = [
+        OverSamplingSimplex.cat_extensive,
+        OverSamplingSimplex.cat_sample_ordinary,
+        OverSamplingSimplex.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 rejection_level=0.5,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        rejection_level=0.5,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -85,9 +91,12 @@ class Lee(OverSamplingSimplex):
         """
         nn_params = coalesce(nn_params, {})
 
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
 
         ss_params = coalesce_dict(ss_params, ss_params_default)
 
@@ -95,7 +104,7 @@ class Lee(OverSamplingSimplex):
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_in_range(rejection_level, "rejection_level", [0, 1])
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
@@ -103,7 +112,7 @@ class Lee(OverSamplingSimplex):
         self.rejection_level = rejection_level
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -111,19 +120,14 @@ class Lee(OverSamplingSimplex):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7, 11, 17],
-                                  'rejection_level': [0.3, 0.5, 0.7]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7, 11, 17],
+            "rejection_level": [0.3, 0.5, 0.7],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
-    def generate_samples(self,
-                            *,
-                            y,
-                            X_min,
-                            n_to_sample,
-                            ind_min,
-                            nnmt):
+    def generate_samples(self, *, y, X_min, n_to_sample, ind_min, nnmt):
         """
         Generate samples
 
@@ -146,12 +150,11 @@ class Lee(OverSamplingSimplex):
             # to generate 1 sample in each iteration
             n_missing = np.max([n_to_sample - samples.shape[0], 20])
 
-            samples_new = self.sample_simplex(X=X_min,
-                                                indices=ind_min,
-                                                n_to_sample=n_missing)
+            samples_new = self.sample_simplex(
+                X=X_min, indices=ind_min, n_to_sample=n_missing
+            )
             ind_new = nnmt.kneighbors(samples_new, return_distance=False)
-            maj_frac = np.sum(y[ind_new] == self.maj_label, axis=1)\
-                                                        /self.n_neighbors
+            maj_frac = np.sum(y[ind_new] == self.maj_label, axis=1) / self.n_neighbors
             if np.sum(maj_frac < rejection_level) == 0:
                 tries = tries + 1
 
@@ -159,8 +162,7 @@ class Lee(OverSamplingSimplex):
                 rejection_level = rejection_level + 0.1
                 tries = 0
 
-            samples = np.vstack([samples,
-                                 samples_new[maj_frac < rejection_level]])
+            samples = np.vstack([samples, samples_new[maj_frac < rejection_level]])
 
         samples = samples[:n_to_sample]
 
@@ -185,21 +187,21 @@ class Lee(OverSamplingSimplex):
 
         X_min = X[y == self.min_label]
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # fitting nearest neighbors models to find neighbors of minority
         # samples in the total data and in the minority datasets
         n_neighbors = min([len(X_min), self.n_neighbors])
-        nnmt= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **nn_params)
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **nn_params
+        )
         nnmt.fit(X)
 
         n_neighbors = min([len(X_min), self.n_neighbors + 1])
-        nn_min= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                    n_jobs=self.n_jobs,
-                                                    **nn_params)
+        nn_min = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **nn_params
+        )
         nn_min.fit(X_min)
         ind_min = nn_min.kneighbors(X_min, return_distance=False)
 
@@ -207,17 +209,15 @@ class Lee(OverSamplingSimplex):
         # levels in order to fix situations when no unrejectable data can
         # be can be generated
 
-        samples = self.generate_samples(y=y,
-                                        X_min=X_min,
-                                        n_to_sample=n_to_sample,
-                                        ind_min=ind_min,
-                                        nnmt=nnmt)
+        samples = self.generate_samples(
+            y=y, X_min=X_min, n_to_sample=n_to_sample, ind_min=ind_min, nnmt=nnmt
+        )
 
-        #samples = []
-        #passed = 0
-        #trial = 0
-        #rejection_level = self.rejection_level
-        #while len(samples) < n_to_sample:
+        # samples = []
+        # passed = 0
+        # trial = 0
+        # rejection_level = self.rejection_level
+        # while len(samples) < n_to_sample:
         #    # checking if we managed to generate a single data in 1000 trials
         #    if passed == trial and passed > 1000:
         #        rejection_level = rejection_level + 0.1
@@ -239,17 +239,21 @@ class Lee(OverSamplingSimplex):
         #    else:
         #        passed = passed + 1
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'rejection_level': self.rejection_level,
-                'n_jobs': self.n_jobs,
-                **OverSamplingSimplex.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "rejection_level": self.rejection_level,
+            "n_jobs": self.n_jobs,
+            **OverSamplingSimplex.get_params(self),
+        }

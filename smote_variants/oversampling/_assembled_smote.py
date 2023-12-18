@@ -9,14 +9,15 @@ from sklearn.decomposition import PCA
 
 from ..config import suppress_external_warnings
 from ..base import coalesce_dict, coalesce
-from ..base import (NearestNeighborsWithMetricTensor,
-                                pairwise_distances_mahalanobis)
+from ..base import NearestNeighborsWithMetricTensor, pairwise_distances_mahalanobis
 from ..base import OverSamplingSimplex
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['Assembled_SMOTE']
+__all__ = ["Assembled_SMOTE"]
+
 
 class Assembled_SMOTE(OverSamplingSimplex):
     """
@@ -67,23 +68,27 @@ class Assembled_SMOTE(OverSamplingSimplex):
             clusters.
     """
 
-    categories = [OverSamplingSimplex.cat_extensive,
-                  OverSamplingSimplex.cat_uses_clustering,
-                  OverSamplingSimplex.cat_borderline,
-                  OverSamplingSimplex.cat_sample_ordinary,
-                  OverSamplingSimplex.cat_metric_learning]
+    categories = [
+        OverSamplingSimplex.cat_extensive,
+        OverSamplingSimplex.cat_uses_clustering,
+        OverSamplingSimplex.cat_borderline,
+        OverSamplingSimplex.cat_sample_ordinary,
+        OverSamplingSimplex.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 pop=2,
-                 thres=0.3,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        pop=2,
+        thres=0.3,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -106,9 +111,12 @@ class Assembled_SMOTE(OverSamplingSimplex):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
         ss_params = coalesce_dict(ss_params, ss_params_default)
 
         super().__init__(**ss_params, random_state=random_state)
@@ -116,7 +124,7 @@ class Assembled_SMOTE(OverSamplingSimplex):
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_greater_or_equal(pop, "pop", 1)
         self.check_in_range(thres, "thres", [0, 1])
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
@@ -125,7 +133,7 @@ class Assembled_SMOTE(OverSamplingSimplex):
         self.thres = thres
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -133,11 +141,12 @@ class Assembled_SMOTE(OverSamplingSimplex):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7],
-                                  'pop': [2, 4, 5],
-                                  'thres': [0.1, 0.3, 0.5]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7],
+            "pop": [2, 4, 5],
+            "thres": [0.1, 0.3, 0.5],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def determine_border_non_border(self, X, y, X_min, nn_params):
@@ -154,25 +163,24 @@ class Assembled_SMOTE(OverSamplingSimplex):
             np.array, np.array: the border and non-border samples
         """
         # fitting nearest neighbors model
-        n_neighbors = min([len(X), self.n_neighbors+1])
-        nearestn= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        n_neighbors = min([len(X), self.n_neighbors + 1])
+        nearestn = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **(nn_params)
+        )
         nearestn.fit(X)
         ind = nearestn.kneighbors(X_min, return_distance=False)
 
         # finding the set of border and non-border minority elements
-        n_min_neighbors = [np.sum(y[ind[i]] == self.min_label)
-                           for i in range(len(ind))]
+        n_min_neighbors = [np.sum(y[ind[i]] == self.min_label) for i in range(len(ind))]
         border_mask = np.logical_not(np.array(n_min_neighbors) == n_neighbors)
-        X_border = X_min[border_mask] # pylint: disable=invalid-name
-        X_non_border = X_min[np.logical_not(border_mask)] # pylint: disable=invalid-name
+        X_border = X_min[border_mask]  # pylint: disable=invalid-name
+        X_non_border = X_min[  # pylint: disable=invalid-name
+            np.logical_not(border_mask)
+        ]
 
         return X_border, X_non_border
 
-    def do_the_clustering(self,
-                            X_border,  # pylint: disable=invalid-name
-                            nn_params):
+    def do_the_clustering(self, X_border, nn_params):  # pylint: disable=invalid-name
         """
         Carry out the clustering of the border samples.
 
@@ -187,8 +195,9 @@ class Assembled_SMOTE(OverSamplingSimplex):
         # initializing clustering
         clusters = [np.array([i]) for i in range(len(X_border))]
 
-        distm = pairwise_distances_mahalanobis(X_border,
-                                            tensor=nn_params.get('metric_tensor', None))
+        distm = pairwise_distances_mahalanobis(
+            X_border, tensor=nn_params.get("metric_tensor", None)
+        )
         for idx in range(len(distm)):
             distm[idx, idx] = np.inf
 
@@ -200,15 +209,14 @@ class Assembled_SMOTE(OverSamplingSimplex):
             merge_b = min_coord[1][0]
 
             # checking the size of clusters to see if they should be merged
-            if (len(clusters[merge_a]) < self.pop
-                    or len(clusters[merge_b]) < self.pop):
+            if len(clusters[merge_a]) < self.pop or len(clusters[merge_b]) < self.pop:
                 # if both clusters are small, do the merge
-                clusters[merge_a] = np.hstack([clusters[merge_a],
-                                               clusters[merge_b]])
+                clusters[merge_a] = np.hstack([clusters[merge_a], clusters[merge_b]])
                 del clusters[merge_b]
                 # update the distance matrix accordingly
-                distm[merge_a] = np.min(np.vstack([distm[merge_a], distm[merge_b]]),
-                                     axis=0)
+                distm[merge_a] = np.min(
+                    np.vstack([distm[merge_a], distm[merge_b]]), axis=0
+                )
                 distm[:, merge_a] = distm[merge_a]
                 # remove columns
                 distm = np.delete(distm, merge_b, axis=0)
@@ -220,23 +228,25 @@ class Assembled_SMOTE(OverSamplingSimplex):
                 # otherwise find principal directions
                 with warnings.catch_warnings():
                     if suppress_external_warnings():
-                        warnings.simplefilter('ignore')
+                        warnings.simplefilter("ignore")
                     pca_a = PCA(n_components=1).fit(X_border[clusters[merge_a]])
                     pca_b = PCA(n_components=1).fit(X_border[clusters[merge_b]])
                 # extract the angle of principal directions
                 numerator = np.dot(pca_a.components_[0], pca_b.components_[0])
                 denominator = np.linalg.norm(pca_a.components_[0])
                 denominator *= np.linalg.norm(pca_b.components_[0])
-                angle = abs(numerator/denominator)
+                angle = abs(numerator / denominator)
                 # check if angle if angle is above a specific threshold
                 if angle > self.thres:
                     # do the merge
-                    clusters[merge_a] = np.hstack([clusters[merge_a],
-                                                   clusters[merge_b]])
+                    clusters[merge_a] = np.hstack(
+                        [clusters[merge_a], clusters[merge_b]]
+                    )
                     del clusters[merge_b]
                     # update the distance matrix acoordingly
-                    distm[merge_a] = np.min(np.vstack([distm[merge_a], distm[merge_b]]),
-                                         axis=0)
+                    distm[merge_a] = np.min(
+                        np.vstack([distm[merge_a], distm[merge_b]]), axis=0
+                    )
                     distm[:, merge_a] = distm[merge_a]
                     # remove columns
                     distm = np.delete(distm, merge_b, axis=0)
@@ -263,12 +273,11 @@ class Assembled_SMOTE(OverSamplingSimplex):
             np.array: the neighborhood structure
         """
         n_neighbors = np.min([self.n_neighbors + 1, len(vectors)])
-        nearestn= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nearestn = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **(nn_params)
+        )
 
-        indices = nearestn.fit(vectors).kneighbors(vectors,
-                                                    return_distance=False)
+        indices = nearestn.fit(vectors).kneighbors(vectors, return_distance=False)
 
         return indices
 
@@ -287,24 +296,25 @@ class Assembled_SMOTE(OverSamplingSimplex):
         # extract cluster sizes and calculating point distribution in clusters
         # the last element of the clusters is the set of non-border xamples
         cluster_sizes = np.array([len(vect) for vect in vectors])
-        cluster_density = cluster_sizes/np.sum(cluster_sizes)
+        cluster_density = cluster_sizes / np.sum(cluster_sizes)
 
-        cluster_indices = self.random_state.choice(len(cluster_sizes),
-                                                    n_to_sample,
-                                                    p=cluster_density)
+        cluster_indices = self.random_state.choice(
+            len(cluster_sizes), n_to_sample, p=cluster_density
+        )
 
-        cluster_unique, cluster_count = np.unique(cluster_indices,
-                                                    return_counts=True)
+        cluster_unique, cluster_count = np.unique(cluster_indices, return_counts=True)
 
         samples = []
         for idx, cluster in enumerate(cluster_unique):
             indices = self.determine_indices(vectors[cluster], nn_params)
 
-            #if len(vectors[cluster]) >= self.n_dim:
-            samples.append(self.sample_simplex(X=vectors[cluster],
-                                            indices=indices,
-                                            n_to_sample=cluster_count[idx]))
-            #else:
+            # if len(vectors[cluster]) >= self.n_dim:
+            samples.append(
+                self.sample_simplex(
+                    X=vectors[cluster], indices=indices, n_to_sample=cluster_count[idx]
+                )
+            )
+            # else:
             #    sample_indices = self.random_state.choice(np.arange(len(vectors[cluster])),
             #                                                cluster_count[idx])
             #    samples.append(vectors[cluster][sample_indices])
@@ -328,15 +338,14 @@ class Assembled_SMOTE(OverSamplingSimplex):
         if n_to_sample == 0:
             return self.return_copies(X, y, "Sampling is not needed.")
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= \
-                        self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
         X_min = X[y == self.min_label]
 
-        X_border, X_non_border = self.determine_border_non_border(X, y, # pylint: disable=invalid-name
-                                                                    X_min,
-                                                                    nn_params)
+        X_border, X_non_border = self.determine_border_non_border(  # pylint: disable=invalid-name
+            X, y, X_min, nn_params
+        )
 
         if len(X_border) == 0:
             return self.return_copies(X, y, "X_border is empty")
@@ -351,18 +360,22 @@ class Assembled_SMOTE(OverSamplingSimplex):
 
         samples = self.generate_samples_in_clusters(vectors, n_to_sample, nn_params)
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'pop': self.pop,
-                'thres': self.thres,
-                'n_jobs': self.n_jobs,
-                **OverSamplingSimplex.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "pop": self.pop,
+            "thres": self.thres,
+            "n_jobs": self.n_jobs,
+            **OverSamplingSimplex.get_params(self),
+        }

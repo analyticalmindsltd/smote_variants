@@ -8,13 +8,14 @@ import numpy as np
 from sklearn.cluster import KMeans
 
 from ..base import coalesce, coalesce_dict, fix_density
-from ..base import (NearestNeighborsWithMetricTensor,
-                                pairwise_distances_mahalanobis)
+from ..base import NearestNeighborsWithMetricTensor, pairwise_distances_mahalanobis
 from ..base import OverSamplingSimplex
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['kmeans_SMOTE']
+__all__ = ["kmeans_SMOTE"]
+
 
 class kmeans_SMOTE(OverSamplingSimplex):
     """
@@ -39,21 +40,25 @@ class kmeans_SMOTE(OverSamplingSimplex):
                         }
     """
 
-    categories = [OverSamplingSimplex.cat_extensive,
-                  OverSamplingSimplex.cat_uses_clustering,
-                  OverSamplingSimplex.cat_metric_learning]
+    categories = [
+        OverSamplingSimplex.cat_extensive,
+        OverSamplingSimplex.cat_uses_clustering,
+        OverSamplingSimplex.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 n_clusters=10,
-                 irt=2.0,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        n_clusters=10,
+        irt=2.0,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -75,9 +80,12 @@ class kmeans_SMOTE(OverSamplingSimplex):
                                                     like in sklearn
         """
         nn_params = coalesce(nn_params, {})
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
         ss_params = coalesce_dict(ss_params, ss_params_default)
 
         super().__init__(**ss_params, random_state=random_state)
@@ -85,7 +93,7 @@ class kmeans_SMOTE(OverSamplingSimplex):
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_greater_or_equal(n_clusters, "n_clusters", 1)
         self.check_greater_or_equal(irt, "irt", 0)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
@@ -94,7 +102,7 @@ class kmeans_SMOTE(OverSamplingSimplex):
         self.irt = irt
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -102,11 +110,12 @@ class kmeans_SMOTE(OverSamplingSimplex):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7],
-                                  'n_clusters': [2, 5, 10, 20, 50],
-                                  'irt': [0.5, 0.8, 1.0, 1.5]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7],
+            "n_clusters": [2, 5, 10, 20, 50],
+            "irt": [0.5, 0.8, 1.0, 1.5],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def do_the_clustering(self, X, y):
@@ -122,8 +131,7 @@ class kmeans_SMOTE(OverSamplingSimplex):
         """
         # applying kmeans clustering to all data
         n_clusters = min([self.n_clusters, len(X)])
-        kmeans = KMeans(n_clusters=n_clusters,
-                        random_state=self._random_state_init)
+        kmeans = KMeans(n_clusters=n_clusters, random_state=self._random_state_init)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             kmeans.fit(X)
@@ -137,10 +145,9 @@ class kmeans_SMOTE(OverSamplingSimplex):
             numerator = np.sum(y[cluster] == self.maj_label) + 1
             denominator = np.sum(y[cluster] == self.min_label) + 1
             n_minority = np.sum(y[cluster] == self.min_label)
-            return numerator/denominator < self.irt and n_minority > 1
+            return numerator / denominator < self.irt and n_minority > 1
 
-        filt_clusters = [cluster for cluster in clusters \
-                                        if cluster_filter(cluster)]
+        filt_clusters = [cluster for cluster in clusters if cluster_filter(cluster)]
 
         return filt_clusters
 
@@ -157,9 +164,8 @@ class kmeans_SMOTE(OverSamplingSimplex):
             np.array, list, list: the weights, the cluster minority indices,
                                     the nearest neighbors
         """
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= \
-            self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # Step 2 in the paper
         sparsity = []
@@ -170,19 +176,21 @@ class kmeans_SMOTE(OverSamplingSimplex):
             minority_ind = cluster[y[cluster] == self.min_label]
             cluster_minority_ind.append(minority_ind)
             # compute distance matrix of minority samples in the cluster
-            distm = pairwise_distances_mahalanobis(X[minority_ind],
-                                    tensor=nn_params['metric_tensor'])
+            distm = pairwise_distances_mahalanobis(
+                X[minority_ind], tensor=nn_params["metric_tensor"]
+            )
             min_count = len(minority_ind)
             # compute the average of distances
-            avg_min_dist = (np.sum(distm) - distm.trace()) / \
-                (len(minority_ind)**2 - len(minority_ind))
+            avg_min_dist = (np.sum(distm) - distm.trace()) / (
+                len(minority_ind) ** 2 - len(minority_ind)
+            )
             # compute sparsity (Step 4)
-            sparsity.append(avg_min_dist**len(X[0])/min_count)
+            sparsity.append(avg_min_dist ** len(X[0]) / min_count)
             # extract the nearest neighbors graph
             n_neighbors = min([len(minority_ind), self.n_neighbors + 1])
-            nnmt = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                    n_jobs=self.n_jobs,
-                                                    **(nn_params))
+            nnmt = NearestNeighborsWithMetricTensor(
+                n_neighbors=n_neighbors, n_jobs=self.n_jobs, **(nn_params)
+            )
             nnmt.fit(X[minority_ind])
             nearest_neighbors.append(nnmt.kneighbors(X[minority_ind]))
 
@@ -191,13 +199,9 @@ class kmeans_SMOTE(OverSamplingSimplex):
 
         return sparsity, cluster_minority_ind, nearest_neighbors
 
-    def generate_samples_in_clusters(self,
-                                    *,
-                                    X,
-                                    weights,
-                                    cluster_minority_ind,
-                                    nearest_neighbors,
-                                    n_to_sample):
+    def generate_samples_in_clusters(
+        self, *, X, weights, cluster_minority_ind, nearest_neighbors, n_to_sample
+    ):
         """
         Generates samples within the clusters.
 
@@ -213,27 +217,30 @@ class kmeans_SMOTE(OverSamplingSimplex):
             np.array: the generated samples
         """
 
-        clusters_selected = self.random_state.choice(len(weights),
-                                                    n_to_sample,
-                                                    p=weights)
-        cluster_unique, cluster_count = np.unique(clusters_selected,
-                                                    return_counts=True)
+        clusters_selected = self.random_state.choice(
+            len(weights), n_to_sample, p=weights
+        )
+        cluster_unique, cluster_count = np.unique(clusters_selected, return_counts=True)
 
-        #n_dim_original = self.n_dim
+        # n_dim_original = self.n_dim
         samples = []
         for idx, cluster in enumerate(cluster_unique):
             cluster_vectors = X[cluster_minority_ind[cluster]]
-            #self.n_dim = np.min([self.n_dim, cluster_vectors.shape[0]])
-            samples.append(self.sample_simplex(X=cluster_vectors,
-                                        indices=nearest_neighbors[cluster][1],
-                                        n_to_sample=cluster_count[idx]))
-            #self.n_dim = n_dim_original
+            # self.n_dim = np.min([self.n_dim, cluster_vectors.shape[0]])
+            samples.append(
+                self.sample_simplex(
+                    X=cluster_vectors,
+                    indices=nearest_neighbors[cluster][1],
+                    n_to_sample=cluster_count[idx],
+                )
+            )
+            # self.n_dim = n_dim_original
 
         return np.vstack(samples)
 
         # do the sampling
-        #samples = []
-        #while len(samples) < n_to_sample:
+        # samples = []
+        # while len(samples) < n_to_sample:
         #    # choose random cluster index and random minority element
         #    clust_ind = self.random_state.choice(
         #        np.arange(len(weights)), p=weights)
@@ -269,30 +276,38 @@ class kmeans_SMOTE(OverSamplingSimplex):
         filt_clusters = self.do_the_clustering(X, y)
 
         if len(filt_clusters) == 0:
-            return self.return_copies(X, y, "number of clusters after "\
-                                                            "filtering is 0")
+            return self.return_copies(
+                X, y, "number of clusters after filtering is 0"
+            )
 
-        weights, cluster_minority_ind, nearest_neighbors = \
-                    self.calculate_weights(filt_clusters, X, y)
+        weights, cluster_minority_ind, nearest_neighbors = self.calculate_weights(
+            filt_clusters, X, y
+        )
 
-        samples = self.generate_samples_in_clusters(X=X,
-                                    weights=weights,
-                                    cluster_minority_ind=cluster_minority_ind,
-                                    nearest_neighbors=nearest_neighbors,
-                                    n_to_sample=n_to_sample)
+        samples = self.generate_samples_in_clusters(
+            X=X,
+            weights=weights,
+            cluster_minority_ind=cluster_minority_ind,
+            nearest_neighbors=nearest_neighbors,
+            n_to_sample=n_to_sample,
+        )
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'n_clusters': self.n_clusters,
-                'irt': self.irt,
-                'n_jobs': self.n_jobs,
-                **OverSamplingSimplex.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "n_clusters": self.n_clusters,
+            "irt": self.irt,
+            "n_jobs": self.n_jobs,
+            **OverSamplingSimplex.get_params(self),
+        }

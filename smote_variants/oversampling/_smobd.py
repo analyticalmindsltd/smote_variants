@@ -12,9 +12,11 @@ from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSampling
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['SMOBD']
+__all__ = ["SMOBD"]
+
 
 class SMOBD(OverSampling):
     """
@@ -51,23 +53,27 @@ class SMOBD(OverSampling):
                             month={Nov},}
     """
 
-    categories = [OverSampling.cat_uses_clustering,
-                  OverSampling.cat_density_based,
-                  OverSampling.cat_extensive,
-                  OverSampling.cat_noise_removal,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_uses_clustering,
+        OverSampling.cat_density_based,
+        OverSampling.cat_extensive,
+        OverSampling.cat_noise_removal,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 *,
-                 eta1=0.5,
-                 t=1.8,
-                 min_samples=5,
-                 nn_params={},
-                 max_eps=1.0,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        *,
+        eta1=0.5,
+        t=1.8,
+        min_samples=5,
+        nn_params=None,
+        max_eps=1.0,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -90,22 +96,22 @@ class SMOBD(OverSampling):
                                                     like in sklearn
         """
         super().__init__(random_state=random_state)
-        self.check_greater_or_equal(proportion, 'proportion', 0)
-        self.check_in_range(eta1, 'eta1', [0.0, 1.0])
-        self.check_greater_or_equal(t, 't', 0)
-        self.check_greater_or_equal(min_samples, 'min_samples', 1)
-        self.check_greater_or_equal(max_eps, 'max_eps', 0.0)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_in_range(eta1, "eta1", [0.0, 1.0])
+        self.check_greater_or_equal(t, "t", 0)
+        self.check_greater_or_equal(min_samples, "min_samples", 1)
+        self.check_greater_or_equal(max_eps, "max_eps", 0.0)
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.eta1 = eta1
-        self.t = t # pylint: disable=invalid-name
+        self.t = t  # pylint: disable=invalid-name
         self.min_samples = min_samples
-        self.nn_params = nn_params
+        self.nn_params = nn_params or {}
         self.max_eps = max_eps
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -113,12 +119,13 @@ class SMOBD(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'eta1': [0.1, 0.5, 0.9],
-                                  't': [1.5, 2.5],
-                                  'min_samples': [5],
-                                  'max_eps': [0.1, 0.5, 1.0, 2.0]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "eta1": [0.1, 0.5, 0.9],
+            "t": [1.5, 2.5],
+            "min_samples": [5],
+            "max_eps": [0.1, 0.5, 1.0, 2.0],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def determine_indices_and_density(self, X_min, nn_params):
@@ -133,46 +140,52 @@ class SMOBD(OverSampling):
             np.array, np.array: the neighborhood structure and the density
         """
         # running the OPTICS technique based on the sklearn implementation
-        min_samples = min([len(X_min)-1, self.min_samples])
-        optics = OPTICS(min_samples=min_samples,
-                   max_eps=self.max_eps,
-                   n_jobs=self.n_jobs)
+        min_samples = min([len(X_min) - 1, self.min_samples])
+        optics = OPTICS(
+            min_samples=min_samples, max_eps=self.max_eps, n_jobs=self.n_jobs
+        )
         with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
+            warnings.simplefilter("ignore")
             optics.fit(X_min)
 
         # noise filtering
         cd_average = np.mean(optics.core_distances_)
         rd_average = np.mean(optics.reachability_)
-        noise = np.logical_and(optics.core_distances_ > cd_average*self.t,
-                                optics.reachability_ > rd_average*self.t)
+        noise = np.logical_and(
+            optics.core_distances_ > cd_average * self.t,
+            optics.reachability_ > rd_average * self.t,
+        )
 
         # fitting a nearest neighbor model to be able to find
         # neighbors in radius
-        n_neighbors = min([len(X_min), self.min_samples+1])
+        n_neighbors = min([len(X_min), self.min_samples + 1])
 
-        nnmt= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X_min)
         indices = nnmt.kneighbors(X_min, return_distance=False)
 
         # determining the density
         factor_1 = optics.core_distances_
-        factor_2 = np.array([len(x)
-                        for x in nnmt.radius_neighbors(X_min,
-                                                       radius=self.max_eps,
-                                                       return_distance=False)])
+        factor_2 = np.array(
+            [
+                len(x)
+                for x in nnmt.radius_neighbors(
+                    X_min, radius=self.max_eps, return_distance=False
+                )
+            ]
+        )
 
         if np.all(factor_1 == np.inf) or np.all(factor_2 == 0):
             raise ValueError("factor_1 or factor_2 is not suitable")
 
-        factor_1[factor_1 == np.inf] = max(factor_1[factor_1 != np.inf])*1.1
+        factor_1[factor_1 == np.inf] = max(factor_1[factor_1 != np.inf]) * 1.1
 
         factor_1 = factor_1 / max([max(factor_1), 1e-8])
         factor_2 = factor_2 / max([max(factor_2), 1e-8])
 
-        density = factor_1*self.eta1 + factor_2*(1 - self.eta1)
+        density = factor_1 * self.eta1 + factor_2 * (1 - self.eta1)
 
         # setting the density at noisy samples to zero
         density[noise] = 0.0
@@ -201,39 +214,42 @@ class SMOBD(OverSampling):
         X_min = X[y == self.min_label]
 
         nn_params = {**self.nn_params}
-        nn_params['metric_tensor'] = \
-                self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
         try:
-            indices, density = self.determine_indices_and_density(X_min,
-                                                                  nn_params)
+            indices, density = self.determine_indices_and_density(X_min, nn_params)
         except ValueError as valueerror:
             return self.return_copies(X, y, valueerror.args[0])
 
-        base_ind = self.random_state.choice(np.arange(X_min.shape[0]),
-                                            n_to_sample,
-                                            p=density)
-        neigh_ind = self.random_state.choice(np.arange(1, indices.shape[1]),
-                                             n_to_sample)
+        base_ind = self.random_state.choice(
+            np.arange(X_min.shape[0]), n_to_sample, p=density
+        )
+        neigh_ind = self.random_state.choice(
+            np.arange(1, indices.shape[1]), n_to_sample
+        )
         base_vectors = X_min[base_ind]
         neigh_vectors = X_min[indices[base_ind, neigh_ind]]
         random = self.random_state.random_sample(size=base_vectors.shape)
 
-        samples = base_vectors + (neigh_vectors - base_vectors) *  random
+        samples = base_vectors + (neigh_vectors - base_vectors) * random
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'eta1': self.eta1,
-                't': self.t,
-                'min_samples': self.min_samples,
-                'nn_params': self.nn_params,
-                'max_eps': self.max_eps,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "eta1": self.eta1,
+            "t": self.t,
+            "min_samples": self.min_samples,
+            "nn_params": self.nn_params,
+            "max_eps": self.max_eps,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

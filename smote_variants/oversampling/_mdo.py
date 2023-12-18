@@ -9,9 +9,11 @@ from sklearn.decomposition import PCA
 from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSampling
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['MDO']
+__all__ = ["MDO"]
+
 
 class MDO(OverSampling):
     """
@@ -52,19 +54,23 @@ class MDO(OverSampling):
                         month={Jan}}
     """
 
-    categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_dim_reduction,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_extensive,
+        OverSampling.cat_dim_reduction,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 *,
-                 K2=5,
-                 K1_frac=0.5,
-                 nn_params={},
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        *,
+        K2=5,
+        K1_frac=0.5,
+        nn_params=None,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -88,15 +94,15 @@ class MDO(OverSampling):
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(K2, "K2", 1)
         self.check_greater_or_equal(K1_frac, "K1_frac", 0)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
-        self.K2 = K2 # pylint: disable=invalid-name
-        self.K1_frac = K1_frac # pylint: disable=invalid-name
-        self.nn_params = nn_params
+        self.K2 = K2  # pylint: disable=invalid-name
+        self.K1_frac = K1_frac  # pylint: disable=invalid-name
+        self.nn_params = nn_params or {}
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -104,16 +110,14 @@ class MDO(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'K2': [3, 5, 7],
-                                  'K1_frac': [0.3, 0.5, 0.7]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "K2": [3, 5, 7],
+            "K1_frac": [0.3, 0.5, 0.7],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
-    def generate_1_sample(self,
-                            alpha,
-                            V # pylint: disable=invalid-name
-                            ):
+    def generate_1_sample(self, alpha, V):  # pylint: disable=invalid-name
         """
         Generate 1 sample.
 
@@ -124,25 +128,26 @@ class MDO(OverSampling):
         Returns:
             np.array: the generated sample
         """
-        alpha_V = alpha * V # pylint: disable=invalid-name
+        alpha_V = alpha * V  # pylint: disable=invalid-name
         alpha_V[alpha_V < 0.001] = 0.001
 
         # initializing a new vector
         X_new = np.zeros(V.shape[0])
 
         # sampling components of the new vector
-        s = 0# pylint: disable=invalid-name
+        s = 0  # pylint: disable=invalid-name
         for jdx in range(V.shape[0] - 1):
-            r = (2 * self.random_state.random_sample() - 1) # pylint: disable=invalid-name
-            r = r * np.sqrt(alpha_V[jdx]) # pylint: disable=invalid-name
+            r = (
+                2 * self.random_state.random_sample() - 1
+            )  # pylint: disable=invalid-name
+            r = r * np.sqrt(alpha_V[jdx])  # pylint: disable=invalid-name
             X_new[jdx] = r
-            s = s + (r**2 / alpha_V[jdx]) # pylint: disable=invalid-name
+            s = s + (r**2 / alpha_V[jdx])  # pylint: disable=invalid-name
 
         last_fea_val = np.sqrt(max((1 - s) * alpha * V[-1], 0)) * (s <= 1)
 
         # determine last component to fulfill the ellipse equation
-        X_new[-1] = (2 * self.random_state.random_sample() - 1) \
-                                                        * last_fea_val
+        X_new[-1] = (2 * self.random_state.random_sample() - 1) * last_fea_val
 
         return X_new
 
@@ -159,14 +164,14 @@ class MDO(OverSampling):
             np.array: the generated samples
         """
         # Algorithm 1 - MDO over-sampling
-        mu = np.mean(X_sel, axis=0) # pylint: disable=invalid-name
-        Z = X_sel - mu # pylint: disable=invalid-name
+        mu = np.mean(X_sel, axis=0)  # pylint: disable=invalid-name
+        Z = X_sel - mu  # pylint: disable=invalid-name
         # executing PCA
         pca = PCA(n_components=min([Z.shape[1], Z.shape[0]])).fit(Z)
-        T = pca.transform(Z) # pylint: disable=invalid-name
+        T = pca.transform(Z)  # pylint: disable=invalid-name
 
         # computing variances (step 13)
-        V = np.var(T, axis=0) # pylint: disable=invalid-name
+        V = np.var(T, axis=0)  # pylint: disable=invalid-name
 
         V[V < 0.001] = 0.001
 
@@ -174,13 +179,12 @@ class MDO(OverSampling):
         samples = []
         while len(samples) < n_to_sample:
             # selecting a sample randomly according to the distribution
-            idx = self.random_state.choice(np.arange(X_sel.shape[0]),
-                                            p=weights)
+            idx = self.random_state.choice(np.arange(X_sel.shape[0]), p=weights)
 
             # finding vector in PCA space
 
             # computing alpha
-            alpha = np.sum(T[idx]**2 / V)
+            alpha = np.sum(T[idx] ** 2 / V)
 
             X_new = self.generate_1_sample(alpha, V)
 
@@ -208,18 +212,17 @@ class MDO(OverSampling):
         X_min = X[y == self.min_label]
 
         # determining K1
-        K1 = int(self.K2*self.K1_frac) # pylint: disable=invalid-name
-        K1 = min([K1, len(X)]) # pylint: disable=invalid-name
-        K2 = min([self.K2 + 1, len(X)]) # pylint: disable=invalid-name
+        K1 = int(self.K2 * self.K1_frac)  # pylint: disable=invalid-name
+        K1 = min([K1, len(X)])  # pylint: disable=invalid-name
+        K2 = min([self.K2 + 1, len(X)])  # pylint: disable=invalid-name
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= \
-                    self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # Algorithm 2 - chooseSamples
-        nnmt = NearestNeighborsWithMetricTensor(n_neighbors=K2,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=K2, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X)
         ind = nnmt.kneighbors(X_min, return_distance=False)
 
@@ -227,7 +230,7 @@ class MDO(OverSampling):
         n_min = np.sum(y[ind[:, 1:]] == self.min_label, axis=1)
 
         # extracting selected samples from minority ones
-        X_sel = X_min[n_min >= K1] # pylint: disable=invalid-name
+        X_sel = X_min[n_min >= K1]  # pylint: disable=invalid-name
 
         # falling back to returning input data if all the input is considered
         # noise
@@ -236,23 +239,27 @@ class MDO(OverSampling):
 
         # computing distribution
         weights = n_min[n_min >= K1] / K2
-        weights = weights/np.sum(weights)
+        weights = weights / np.sum(weights)
 
-        samples = self.generate_samples(X_sel=X_sel,
-                                        weights=weights,
-                                        n_to_sample=n_to_sample)
+        samples = self.generate_samples(
+            X_sel=X_sel, weights=weights, n_to_sample=n_to_sample
+        )
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'K2': self.K2,
-                'K1_frac': self.K1_frac,
-                'nn_params': self.nn_params,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "K2": self.K2,
+            "K1_frac": self.K1_frac,
+            "nn_params": self.nn_params,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

@@ -11,11 +11,13 @@ from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSampling
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['DE_oversampling']
+__all__ = ["DE_oversampling"]
 
-class DE_oversampling(OverSampling): # pylint: disable=invalid-name
+
+class DE_oversampling(OverSampling):  # pylint: disable=invalid-name
     """
     References:
         * BibTex::
@@ -54,21 +56,25 @@ class DE_oversampling(OverSampling): # pylint: disable=invalid-name
                             month={Jan},}
     """
 
-    categories = [OverSampling.cat_changes_majority,
-                  OverSampling.cat_uses_clustering,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_changes_majority,
+        OverSampling.cat_uses_clustering,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params={},
-                 crossover_rate=0.5,
-                 similarity_threshold=0.5,
-                 n_clusters=30,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        crossover_rate=0.5,
+        similarity_threshold=0.5,
+        n_clusters=30,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -92,23 +98,22 @@ class DE_oversampling(OverSampling): # pylint: disable=invalid-name
                                                     like in sklearn
         """
         super().__init__(random_state=random_state)
-        self.check_greater_or_equal(proportion, 'proportion', 0)
-        self.check_greater_or_equal(n_neighbors, 'n_neighbors', 2)
-        self.check_in_range(crossover_rate, 'crossover_rate', [0, 1])
-        self.check_in_range(similarity_threshold,
-                            'similarity_threshold', [0, 1])
-        self.check_greater_or_equal(n_clusters, 'n_clusters', 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 2)
+        self.check_in_range(crossover_rate, "crossover_rate", [0, 1])
+        self.check_in_range(similarity_threshold, "similarity_threshold", [0, 1])
+        self.check_greater_or_equal(n_clusters, "n_clusters", 1)
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
-        self.nn_params = nn_params
+        self.nn_params = nn_params or {}
         self.crossover_rate = crossover_rate
         self.similarity_threshold = similarity_threshold
         self.n_clusters = n_clusters
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -116,12 +121,13 @@ class DE_oversampling(OverSampling): # pylint: disable=invalid-name
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7],
-                                  'crossover_rate': [0.1, 0.5, 0.9],
-                                  'similarity_threshold': [0.5, 0.9],
-                                  'n_clusters': [10, 20, 50]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7],
+            "crossover_rate": [0.1, 0.5, 0.9],
+            "similarity_threshold": [0.5, 0.9],
+            "n_clusters": [10, 20, 50],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def generate_samples(self, n_to_sample, X_min, indices):
@@ -143,13 +149,16 @@ class DE_oversampling(OverSampling): # pylint: disable=invalid-name
             random_index = self.random_state.randint(len(X_min))
             random_point = X_min[random_index]
             random_neighbor_indices = self.random_state.choice(
-                indices[random_index][1:], 2, replace=False)
+                indices[random_index][1:], 2, replace=False
+            )
             random_neighbor_1 = X_min[random_neighbor_indices[0]]
             random_neighbor_2 = X_min[random_neighbor_indices[1]]
 
-            mutated = random_point + \
-                (random_neighbor_1 - random_neighbor_2) * \
-                self.random_state.random_sample()
+            mutated = (
+                random_point
+                + (random_neighbor_1 - random_neighbor_2)
+                * self.random_state.random_sample()
+            )
 
             # crossover - updates the vector 'mutated'
             rand_s = self.random_state.randint(n_dim)
@@ -175,8 +184,10 @@ class DE_oversampling(OverSampling): # pylint: disable=invalid-name
             np.array: indices to remove
         """
         # cleansing based on clustering
-        kmeans = KMeans(n_clusters=min([len(X), self.n_clusters]),
-                        random_state=self._random_state_init)
+        kmeans = KMeans(
+            n_clusters=min([len(X), self.n_clusters]),
+            random_state=self._random_state_init,
+        )
 
         with warnings.catch_warnings():
             if suppress_external_warnings():
@@ -186,8 +197,9 @@ class DE_oversampling(OverSampling): # pylint: disable=invalid-name
         def cluster_filter(label):
             return len(np.unique(y[np.where(kmeans.labels_ == label)[0]])) == 1
 
-        one_label_clusters = [label \
-                    for label in np.unique(kmeans.labels_) if cluster_filter(label)]
+        one_label_clusters = [
+            label for label in np.unique(kmeans.labels_) if cluster_filter(label)
+        ]
         to_remove = []
 
         # going through the clusters having one label only
@@ -203,8 +215,9 @@ class DE_oversampling(OverSampling): # pylint: disable=invalid-name
             # removing the samples similar to the center-like sample
             for idx in cluster_indices:
                 if idx != center_like_index:
-                    denom = (np.linalg.norm(X[idx]) *
-                                        np.linalg.norm(X[center_like_index]))
+                    denom = np.linalg.norm(X[idx]) * np.linalg.norm(
+                        X[center_like_index]
+                    )
                     num = np.inner(X[idx], X[center_like_index])
 
                     if denom == 0.0 or (num / denom) > self.similarity_threshold:
@@ -231,14 +244,14 @@ class DE_oversampling(OverSampling): # pylint: disable=invalid-name
 
         X_min = X[y == self.min_label]
 
-        n_neighbors = min([len(X_min), self.n_neighbors+1])
+        n_neighbors = min([len(X_min), self.n_neighbors + 1])
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
-        nnmt= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X_min)
         indices = nnmt.kneighbors(X_min, return_distance=False)
 
@@ -247,7 +260,8 @@ class DE_oversampling(OverSampling): # pylint: disable=invalid-name
 
         # assembling all data for clearning
         X, y = np.vstack([X, np.vstack(samples)]), np.hstack(
-            [y, np.repeat(self.min_label, len(samples))])
+            [y, np.repeat(self.min_label, len(samples))]
+        )
 
         to_remove = self.cleansing(X, y)
 
@@ -258,11 +272,13 @@ class DE_oversampling(OverSampling): # pylint: disable=invalid-name
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'crossover_rate': self.crossover_rate,
-                'similarity_threshold': self.similarity_threshold,
-                'n_clusters': self.n_clusters,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "crossover_rate": self.crossover_rate,
+            "similarity_threshold": self.similarity_threshold,
+            "n_clusters": self.n_clusters,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }
