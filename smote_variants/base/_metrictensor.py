@@ -639,16 +639,17 @@ class MetricTensor:
             ]
 
             self.metric_tensor = psd_mean(matrices)
-        elif self.metric_learning_method == "n_unique":
-            n_uniques = np.array(
-                [len(np.unique(X_mod[:, idx])) for idx in range(X.shape[1])]
-            )
-            self.metric_tensor = np.diag(np.sqrt(n_uniques))
-        elif self.metric_learning_method == "n_unique_inv":
-            n_uniques = np.array(
-                [len(np.unique(X_mod[:, idx])) for idx in range(X.shape[1])]
-            )
-            self.metric_tensor = np.diag(np.sqrt(1.0 / n_uniques))
+
+        #elif self.metric_learning_method == "n_unique":
+        #    n_uniques = np.array(
+        #        [len(np.unique(X_mod[:, idx])) for idx in range(X.shape[1])]
+        #    )
+        #    self.metric_tensor = np.diag(np.sqrt(n_uniques))
+        #elif self.metric_learning_method == "n_unique_inv":
+        #    n_uniques = np.array(
+        #        [len(np.unique(X_mod[:, idx])) for idx in range(X.shape[1])]
+        #    )
+        #    self.metric_tensor = np.diag(np.sqrt(1.0 / n_uniques))
 
         return self.metric_tensor
 

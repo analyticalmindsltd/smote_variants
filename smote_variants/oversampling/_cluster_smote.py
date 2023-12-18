@@ -204,6 +204,7 @@ class cluster_SMOTE(OverSamplingSimplex):  # pylint: disable=invalid-name
 
         kmeans = KMeans(
             n_clusters=min([len(X_min), self.n_clusters]),
+            n_init='auto',
             random_state=self._random_state_init,
         )
         with warnings.catch_warnings():

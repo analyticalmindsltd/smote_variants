@@ -186,6 +186,7 @@ class DE_oversampling(OverSampling):  # pylint: disable=invalid-name
         # cleansing based on clustering
         kmeans = KMeans(
             n_clusters=min([len(X), self.n_clusters]),
+            n_init='auto',
             random_state=self._random_state_init,
         )
 

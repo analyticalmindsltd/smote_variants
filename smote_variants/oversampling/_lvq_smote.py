@@ -169,7 +169,7 @@ class LVQ_SMOTE(OverSampling):
 
         # clustering X_min to extract codebook
         n_clusters = min([len(X_min), self.n_clusters])
-        kmeans = KMeans(n_clusters=n_clusters, random_state=self._random_state_init)
+        kmeans = KMeans(n_clusters=n_clusters, n_init='auto', random_state=self._random_state_init)
         with warnings.catch_warnings():
             if suppress_external_warnings():
                 warnings.simplefilter("ignore")

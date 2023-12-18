@@ -86,7 +86,7 @@ class AHC(OverSampling):
         Returns:
             np.ndarray: downsampled vectors
         """
-        kmeans = KMeans(n_clusters=n_clusters, random_state=self._random_state_init)
+        kmeans = KMeans(n_clusters=n_clusters, n_init='auto', random_state=self._random_state_init)
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")

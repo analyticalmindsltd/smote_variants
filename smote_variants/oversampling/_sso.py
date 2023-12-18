@@ -268,7 +268,7 @@ class SSO(OverSampling):
         """
         # applying kmeans clustering to find the hidden neurons
         h = min([self.h, len(X_min)])  # pylint: disable=invalid-name
-        kmeans = KMeans(n_clusters=h, random_state=self._random_state_init)
+        kmeans = KMeans(n_clusters=h, n_init='auto', random_state=self._random_state_init)
         kmeans.fit(X)
 
         # extracting the hidden center elements

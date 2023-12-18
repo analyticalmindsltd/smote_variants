@@ -153,7 +153,7 @@ class CE_SMOTE(OverSamplingSimplex):
             )
             features = self.random_state.choice(n_dim, n_features, replace=False)
             n_clusters = min([len(X), self.k])
-            kmeans = KMeans(n_clusters=n_clusters, random_state=self._random_state_init)
+            kmeans = KMeans(n_clusters=n_clusters, n_init='auto', random_state=self._random_state_init)
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 kmeans.fit(X[:, features])

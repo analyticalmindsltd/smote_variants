@@ -131,7 +131,7 @@ class kmeans_SMOTE(OverSamplingSimplex):
         """
         # applying kmeans clustering to all data
         n_clusters = min([self.n_clusters, len(X)])
-        kmeans = KMeans(n_clusters=n_clusters, random_state=self._random_state_init)
+        kmeans = KMeans(n_clusters=n_clusters, n_init='auto', random_state=self._random_state_init)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             kmeans.fit(X)

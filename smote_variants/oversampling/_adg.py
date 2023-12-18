@@ -95,7 +95,7 @@ def xmeans(X, rng=(1, 10), random_state=None):
     for n_clusters in range(rng[0], min([rng[1], len(X)])):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            kmeans = KMeans(n_clusters=n_clusters, random_state=random_state).fit(X)
+            kmeans = KMeans(n_clusters=n_clusters, random_state=random_state, n_init='auto').fit(X)
 
         bic = bic_score(kmeans, X)
         if bic < best_bic:

@@ -27,6 +27,7 @@ from smote_variants.base import (
     fix_density,
     cov,
     scipy_mode,
+    shuffle_training_set
 )
 
 
@@ -295,3 +296,19 @@ def test_parameter_combinations():
     assert (
         len(ParametersMixin.generate_parameter_combinations(params_base, raw=True)) == 2
     )
+
+def test_shuffle_training_set():
+    """
+    Testing the training set shuffling
+    """
+
+    X = np.array([[1, 2], [2, 3], [3, 4]])
+    y = np.array([0, 0, 1])
+
+    shuffled_X, _ = shuffle_training_set(X, y)
+
+    assert X is shuffled_X
+
+    shuffled_X, _ = shuffle_training_set(X, y, np.random.RandomState(5))
+
+    assert X.shape == shuffled_X.shape

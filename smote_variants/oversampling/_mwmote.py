@@ -536,6 +536,7 @@ class MWMOTE(OverSamplingSimplex):
         _logger.info("%s: do clustering", self.__class__.__name__)
         kmeans = KMeans(
             n_clusters=np.min([len(np.unique(X_min, axis=1)), self.params["M"]]),
+            n_init='auto',
             random_state=self._random_state_init,
         )
         with warnings.catch_warnings():
