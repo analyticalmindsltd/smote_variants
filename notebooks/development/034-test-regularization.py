@@ -131,6 +131,6 @@ for data_loader in datasets:
 
     results = Parallel(n_jobs=3)(delayed(do_job)(*x) for x in tqdm.tqdm(job_generator(data_loader)))
 
-    with open(f'{dataset['name']}-reg.pickle', 'wb') as file:
+    with open(f'{dataset["name"]}-reg.pickle', 'wb') as file:
         pickle.dump(results, file)
 
