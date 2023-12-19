@@ -48,6 +48,8 @@ SMOTE-variants for imbalanced learning
 Latest News
 -----------
 
+- 1.0.0 release is out
+- Undersampling techniques added
 - SMOTEWB added, thanks to @szghlm
 - vectorized implementations for most of the techniques to boost performance
 - a refactored and improved evaluation and model selection toolkit
