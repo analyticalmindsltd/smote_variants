@@ -7,9 +7,11 @@ from ._condensednn import CondensedNearestNeighbors
 from ._tomeklinkremoval import TomekLinkRemoval
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['OneSidedSelection']
+__all__ = ["OneSidedSelection"]
+
 
 class OneSidedSelection(NoiseFilter):
     """
@@ -47,13 +49,12 @@ class OneSidedSelection(NoiseFilter):
         """
         super().__init__()
 
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.n_jobs = n_jobs
 
     def get_params(self, deep=False):
-        return {'n_jobs': self.n_jobs,
-                **NoiseFilter.get_params(self, deep)}
+        return {"n_jobs": self.n_jobs, **NoiseFilter.get_params(self, deep)}
 
     def remove_noise(self, X, y):
         """
@@ -70,7 +71,7 @@ class OneSidedSelection(NoiseFilter):
         self.class_label_statistics(y)
 
         tomek = TomekLinkRemoval(n_jobs=self.n_jobs)
-        X_tomek, y_tomek = tomek.remove_noise(X, y) # pylint: disable=invalid-name
+        X_tomek, y_tomek = tomek.remove_noise(X, y)  # pylint: disable=invalid-name
         cnn = CondensedNearestNeighbors(n_jobs=self.n_jobs)
 
         return cnn.remove_noise(X_tomek, y_tomek)

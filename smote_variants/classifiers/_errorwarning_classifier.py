@@ -6,16 +6,17 @@ import warnings
 
 from sklearn.neighbors import KNeighborsClassifier
 
-__all__=['ErrorWarningClassifier']
+__all__ = ["ErrorWarningClassifier"]
+
 
 class ErrorWarningClassifier:
     """
     Mock classifier throwing an error or warning.
     """
 
-    def __init__(self, raise_value_error=False,
-                       raise_warning=False,
-                       raise_runtime_error=False):
+    def __init__(
+        self, raise_value_error=False, raise_warning=False, raise_runtime_error=False
+    ):
         """
         Constructor of the classifier.
 
@@ -83,6 +84,8 @@ class ErrorWarningClassifier:
         Returns:
             dict: the parameters
         """
-        return {'raise_value_error': self.raise_value_error,
-                'raise_warning': self.raise_warning,
-                'raise_runtime_error': self.raise_runtime_error}
+        return {
+            "raise_value_error": self.raise_value_error,
+            "raise_warning": self.raise_warning,
+            "raise_runtime_error": self.raise_runtime_error,
+        }

@@ -5,12 +5,14 @@ import numpy as np
 
 from ..base import mode, coalesce
 from ._noisefilter import NoiseFilter
-from ..base import (NearestNeighborsWithMetricTensor)
+from ..base import NearestNeighborsWithMetricTensor
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['EditedNearestNeighbors']
+__all__ = ["EditedNearestNeighbors"]
+
 
 class EditedNearestNeighbors(NoiseFilter):
     """
@@ -39,11 +41,7 @@ class EditedNearestNeighbors(NoiseFilter):
                     }
     """
 
-    def __init__(self,
-                 remove='both',
-                 nn_params=None,
-                 n_jobs=1,
-                 **_kwargs):
+    def __init__(self, remove="both", nn_params=None, n_jobs=1, **_kwargs):
         """
         Constructor of the noise removal object
 
@@ -58,18 +56,20 @@ class EditedNearestNeighbors(NoiseFilter):
         """
         super().__init__()
 
-        self.check_isin(remove, 'remove', ['both', 'min', 'maj'])
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_isin(remove, "remove", ["both", "min", "maj"])
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.remove = remove
-        self.nn_params= coalesce(nn_params, {})
+        self.nn_params = coalesce(nn_params, {})
         self.n_jobs = n_jobs
 
     def get_params(self, deep=False):
-        return {'remove': self.remove,
-                'nn_params': self.nn_params,
-                'n_jobs': self.n_jobs,
-                **NoiseFilter.get_params(self, deep)}
+        return {
+            "remove": self.remove,
+            "nn_params": self.nn_params,
+            "n_jobs": self.n_jobs,
+            **NoiseFilter.get_params(self, deep),
+        }
 
     def remove_noise(self, X, y):
         """
@@ -86,24 +86,27 @@ class EditedNearestNeighbors(NoiseFilter):
         self.class_label_statistics(y)
 
         if len(X) < 4:
-            _logger.info("%s: Not enough samples for noise removal",
-                                                self.__class__.__name__)
+            _logger.info(
+                "%s: Not enough samples for noise removal", self.__class__.__name__
+            )
             return X.copy(), y.copy()
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
-        nnmt= NearestNeighborsWithMetricTensor(n_neighbors=4,
-                                                n_jobs=self.n_jobs,
-                                                **nn_params)
-        indices= nnmt.fit(X).kneighbors(X, return_distance=False)
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=4, n_jobs=self.n_jobs, **nn_params
+        )
+        indices = nnmt.fit(X).kneighbors(X, return_distance=False)
 
         to_remove = []
         for idx in range(len(X)):
             if not y[idx] == mode(y[indices[idx][1:]]):
-                if (self.remove == 'both' or
-                    (self.remove == 'min' and y[idx] == self.min_label) or
-                        (self.remove == 'maj' and y[idx] == self.maj_label)):
+                if (
+                    self.remove == "both"
+                    or (self.remove == "min" and y[idx] == self.min_label)
+                    or (self.remove == "maj" and y[idx] == self.maj_label)
+                ):
                     to_remove.append(idx)
 
         return np.delete(X, to_remove, axis=0), np.delete(y, to_remove)

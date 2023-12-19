@@ -6,15 +6,21 @@ import threading
 import multiprocessing
 from queue import Empty
 
-__all__ = ['TimeoutJobBase',
-           'ThreadTimeoutProcessPool',
-           'wait_for_lock',
-           'queue_get_default']
+__all__ = [
+    "TimeoutJobBase",
+    "ThreadTimeoutProcessPool",
+    "wait_for_lock",
+    "queue_get_default",
+    "FunctionWrapperJob",
+    "execute_job_object"
+]
+
 
 class TimeoutJobBase:
     """
     Preferred base class of a TimeoutJob
     """
+
     def execute(self):
         """
         Execute the job
@@ -33,10 +39,12 @@ class TimeoutJobBase:
         """
         raise RuntimeError(f"{self.__class__.__name__}.timeout method not implemented")
 
+
 class FunctionWrapperJob(TimeoutJobBase):
     """
     A class wrapping the function-task interface of the pool
     """
+
     def __init__(self, function, task):
         """
         Constructor of the wrapper
@@ -66,6 +74,7 @@ class FunctionWrapperJob(TimeoutJobBase):
         """
         return None
 
+
 def execute_job_object(job, queue, queue_lock):
     """
     Execute a job object and put the result into a queue
@@ -78,6 +87,7 @@ def execute_job_object(job, queue, queue_lock):
     queue_lock.acquire()
     queue.put(result)
     queue_lock.release()
+
 
 def queue_get_default(queue, job):
     """
@@ -96,11 +106,8 @@ def queue_get_default(queue, job):
     except Empty:
         return job.timeout()
 
-def process_manager(job,
-                    idx,
-                    results,
-                    process_start_lock,
-                    timeout=None):
+
+def process_manager(job, idx, results, process_start_lock, timeout=None):
     """
     The timed-out process manager function, executes a process
     with timeout and writes the result into the results list/arra
@@ -118,10 +125,10 @@ def process_manager(job,
     queue_lock = multiprocessing.Lock()
 
     # creating and executing the process with timeout
-    process = multiprocessing.Process(target=execute_job_object,
-                                      kwargs={'job': job,
-                                                'queue': queue,
-                                                'queue_lock': queue_lock})
+    process = multiprocessing.Process(
+        target=execute_job_object,
+        kwargs={"job": job, "queue": queue, "queue_lock": queue_lock},
+    )
 
     process.start()
 
@@ -151,6 +158,7 @@ def process_manager(job,
     process.kill()
     results[idx] = job.timeout()
 
+
 def wait_for_lock(lock):
     """
     Wait for a multiprocessing lock
@@ -159,6 +167,7 @@ def wait_for_lock(lock):
         lock (multiprocessing.Lock): a lock to wait for
     """
     lock.acquire()
+
 
 def pooling_thread(pool_object):
     """
@@ -179,17 +188,21 @@ def pooling_thread(pool_object):
             break
 
         process_start_lock = threading.Lock()
-        process_start_lock.acquire() # pylint: disable=consider-using-with
+        process_start_lock.acquire()  # pylint: disable=consider-using-with
 
         # creating a new process manager thread to execute the job
         # with timeout
-        thread = threading.Thread(target=process_manager,
-                                    kwargs={'job': pool_object.jobs[pool_object.idx],
-                                            'idx': pool_object.idx,
-                                            'results': pool_object.results,
-                                            'process_start_lock': process_start_lock,
-                                            'timeout': pool_object.timeout},
-                                    daemon=True)
+        thread = threading.Thread(
+            target=process_manager,
+            kwargs={
+                "job": pool_object.jobs[pool_object.idx],
+                "idx": pool_object.idx,
+                "results": pool_object.results,
+                "process_start_lock": process_start_lock,
+                "timeout": pool_object.timeout,
+            },
+            daemon=True,
+        )
         pool_object.idx = pool_object.idx + 1
 
         # the index indicating the next job to be done is updated, so the
@@ -197,18 +210,20 @@ def pooling_thread(pool_object):
 
         thread.start()
 
-        process_start_lock.acquire() # pylint: disable=consider-using-with
+        process_start_lock.acquire()  # pylint: disable=consider-using-with
         process_start_lock.release()
 
         pool_object.lock.release()
 
         thread.join()
 
+
 class ThreadTimeoutProcessPool:
     """
     A pool object being able to run n_jobs workers each subject
     to time-out to process a list of tasks
     """
+
     def __init__(self, n_jobs=1, timeout=-1):
         """
         The constructor of the object
@@ -244,10 +259,12 @@ class ThreadTimeoutProcessPool:
         self.results = [None] * len(self.jobs)
 
         # creating the pool of workers
-        pool = [threading.Thread(target=pooling_thread,
-                                 kwargs={'pool_object': self},
-                                 daemon=True)
-                                            for _ in range(self.n_jobs)]
+        pool = [
+            threading.Thread(
+                target=pooling_thread, kwargs={"pool_object": self}, daemon=True
+            )
+            for _ in range(self.n_jobs)
+        ]
 
         for thread in pool:
             thread.start()

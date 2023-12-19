@@ -2,12 +2,15 @@
 Tests the configurations
 """
 
-from smote_variants.config import (suppress_external_warnings,
-                                   suppress_internal_warnings,
-                                   distance_matrix_max_memory_chunk,
-                                   DEFAULT_SUPPRESS_EXTERNAL_WARNINGS,
-                                   DEFAULT_SUPPRESS_INTERNAL_WARNINGS,
-                                   DISTANCE_MATRIX_MAX_MEMORY_CHUNK)
+from smote_variants.config import (
+    suppress_external_warnings,
+    suppress_internal_warnings,
+    distance_matrix_max_memory_chunk,
+    DEFAULT_SUPPRESS_EXTERNAL_WARNINGS,
+    DEFAULT_SUPPRESS_INTERNAL_WARNINGS,
+    DISTANCE_MATRIX_MAX_MEMORY_CHUNK,
+)
+
 
 def test_external_warnings():
     """
@@ -24,6 +27,7 @@ def test_external_warnings():
 
     suppress_external_warnings(DEFAULT_SUPPRESS_EXTERNAL_WARNINGS)
 
+
 def test_internal_warnings():
     """
     Tests the internal warnings settings
@@ -38,6 +42,7 @@ def test_internal_warnings():
     assert not suppress_internal_warnings()
 
     suppress_internal_warnings(DEFAULT_SUPPRESS_INTERNAL_WARNINGS)
+
 
 def test_distance_matrix_memory():
     """

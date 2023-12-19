@@ -8,12 +8,16 @@ from ..base import coalesce_dict
 from ..base import OverSampling, OverSamplingSimplex
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['polynom_fit_SMOTE_star',
-            'polynom_fit_SMOTE_bus',
-            'polynom_fit_SMOTE_poly',
-            'polynom_fit_SMOTE_mesh']
+__all__ = [
+    "polynom_fit_SMOTE_star",
+    "polynom_fit_SMOTE_bus",
+    "polynom_fit_SMOTE_poly",
+    "polynom_fit_SMOTE_mesh",
+]
+
 
 class polynom_fit_SMOTE(OverSampling):
     """
@@ -38,12 +42,9 @@ class polynom_fit_SMOTE(OverSampling):
 
     categories = [OverSampling.cat_extensive]
 
-    def __init__(self,
-                 proportion=1.0,
-                 *,
-                 topology='star',
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self, proportion=1.0, *, topology="star", random_state=None, **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -58,17 +59,16 @@ class polynom_fit_SMOTE(OverSampling):
         """
         super().__init__(random_state=random_state)
         self.check_greater_or_equal(proportion, "proportion", 0.0)
-        if topology.startswith('poly'):
-            self.check_greater_or_equal(
-                int(topology.split('_')[-1]), 'topology', 1)
+        if topology.startswith("poly"):
+            self.check_greater_or_equal(int(topology.split("_")[-1]), "topology", 1)
         else:
-            self.check_isin(topology, "topology", ['star', 'bus'])
+            self.check_isin(topology, "topology", ["star", "bus"])
 
         self.proportion = proportion
         self.topology = topology
 
-    #@ classmethod
-    #def parameter_combinations(cls, raw=False):
+    # @ classmethod
+    # def parameter_combinations(cls, raw=False):
     #    """
     #    Generates reasonable parameter combinations.
     #
@@ -102,65 +102,69 @@ class polynom_fit_SMOTE(OverSampling):
         X_min = X[y == self.min_label]
 
         samples = []
-        if self.topology == 'star':
+        if self.topology == "star":
             # Implementation of the star topology
             kdx = np.max([1, int(np.rint(n_to_sample / X_min.shape[0]))])
-            splits = np.arange(1, kdx + 1).astype(float)/(kdx + 1)
+            splits = np.arange(1, kdx + 1).astype(float) / (kdx + 1)
 
-            X_mean = np.mean(X_min, axis=0) # pylint: disable=invalid-name
+            X_mean = np.mean(X_min, axis=0)  # pylint: disable=invalid-name
             diffs = X_mean - X_min
 
             samples = np.vstack(diffs[:, None] * splits[:, None])
-            samples = samples + np.repeat(X_min,
-                                            np.repeat(kdx, X_min.shape[0]),
-                                            axis=0)
-        elif self.topology == 'bus':
+            samples = samples + np.repeat(X_min, np.repeat(kdx, X_min.shape[0]), axis=0)
+        elif self.topology == "bus":
             # Implementation of the bus topology
             kdx = np.max([1, int(np.rint(n_to_sample / X_min.shape[0]))])
-            splits = np.arange(1, kdx + 1).astype(float)/(kdx + 1)
+            splits = np.arange(1, kdx + 1).astype(float) / (kdx + 1)
 
             diffs = np.diff(X_min, axis=0)
 
             samples = np.vstack(diffs[:, None] * splits[:, None])
 
-            samples = samples + np.repeat(X_min[:-1],
-                                            np.repeat(kdx, X_min.shape[0] - 1),
-                                            axis=0)
-        elif self.topology.startswith('poly'):
+            samples = samples + np.repeat(
+                X_min[:-1], np.repeat(kdx, X_min.shape[0] - 1), axis=0
+            )
+        elif self.topology.startswith("poly"):
             # Implementation of the polynomial topology
-            degree = int(self.topology.split('_')[1])
+            degree = int(self.topology.split("_")[1])
 
             # this hack is added to make the fitted polynoms independent
             # from the ordering of the minority samples
             X_min = X_min[np.mean(X_min, axis=1).argsort()]
 
             def fit_poly(dim):
-                return np.poly1d(np.polyfit(np.arange(len(X_min)),
-                                            X_min[:, dim],
-                                            degree))
+                return np.poly1d(
+                    np.polyfit(np.arange(len(X_min)), X_min[:, dim], degree)
+                )
 
             polys = [fit_poly(dim) for dim in range(X_min.shape[1])]
 
             for dim in range(X_min.shape[1]):
-                rand = self.random_state.random_sample(size=n_to_sample)\
-                                                                * X_min.shape[0]
+                rand = (
+                    self.random_state.random_sample(size=n_to_sample) * X_min.shape[0]
+                )
                 samples.append(np.array(polys[dim](rand)))
 
             samples = np.vstack(samples).T
 
-        return (np.vstack([X, np.vstack(samples)]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, np.vstack(samples)]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'topology': self.topology,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "topology": self.topology,
+            **OverSampling.get_params(self),
+        }
 
-class polynom_fit_SMOTE_star(OverSampling):# pylint: disable=invalid-name
+
+class polynom_fit_SMOTE_star(OverSampling):  # pylint: disable=invalid-name
     """
     References:
         * BibTex::
@@ -183,11 +187,7 @@ class polynom_fit_SMOTE_star(OverSampling):# pylint: disable=invalid-name
 
     categories = [OverSampling.cat_extensive]
 
-    def __init__(self,
-                 proportion=1.0,
-                 *,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(self, proportion=1.0, *, random_state=None, **_kwargs):
         """
         Constructor of the sampling object
 
@@ -200,11 +200,11 @@ class polynom_fit_SMOTE_star(OverSampling):# pylint: disable=invalid-name
                                                     like in sklearn
         """
         super().__init__(random_state=random_state)
-        self.polynom_fit_smote = polynom_fit_SMOTE(proportion=proportion,
-                                                    topology='star',
-                                                    random_state=random_state)
+        self.polynom_fit_smote = polynom_fit_SMOTE(
+            proportion=proportion, topology="star", random_state=random_state
+        )
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -212,8 +212,7 @@ class polynom_fit_SMOTE_star(OverSampling):# pylint: disable=invalid-name
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0]}
+        parameter_combinations = {"proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]}
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def get_params(self, deep=False):
@@ -222,7 +221,7 @@ class polynom_fit_SMOTE_star(OverSampling):# pylint: disable=invalid-name
             dict: the parameters of the current sampling object
         """
         params = self.polynom_fit_smote.get_params()
-        params ['class_name'] = self.__class__.__name__
+        params["class_name"] = self.__class__.__name__
         return params
 
     def sampling_algorithm(self, X, y):
@@ -238,7 +237,8 @@ class polynom_fit_SMOTE_star(OverSampling):# pylint: disable=invalid-name
         """
         return self.polynom_fit_smote.sample(X, y)
 
-class polynom_fit_SMOTE_bus(OverSampling):# pylint: disable=invalid-name
+
+class polynom_fit_SMOTE_bus(OverSampling):  # pylint: disable=invalid-name
     """
     References:
         * BibTex::
@@ -261,11 +261,7 @@ class polynom_fit_SMOTE_bus(OverSampling):# pylint: disable=invalid-name
 
     categories = [OverSampling.cat_extensive]
 
-    def __init__(self,
-                 proportion=1.0,
-                 *,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(self, proportion=1.0, *, random_state=None, **_kwargs):
         """
         Constructor of the sampling object
 
@@ -278,11 +274,11 @@ class polynom_fit_SMOTE_bus(OverSampling):# pylint: disable=invalid-name
                                                     like in sklearn
         """
         super().__init__(random_state=random_state)
-        self.polynom_fit_smote = polynom_fit_SMOTE(proportion=proportion,
-                                                    topology='bus',
-                                                    random_state=random_state)
+        self.polynom_fit_smote = polynom_fit_SMOTE(
+            proportion=proportion, topology="bus", random_state=random_state
+        )
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -290,8 +286,7 @@ class polynom_fit_SMOTE_bus(OverSampling):# pylint: disable=invalid-name
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0]}
+        parameter_combinations = {"proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]}
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def get_params(self, deep=False):
@@ -300,7 +295,7 @@ class polynom_fit_SMOTE_bus(OverSampling):# pylint: disable=invalid-name
             dict: the parameters of the current sampling object
         """
         params = self.polynom_fit_smote.get_params()
-        params ['class_name'] = self.__class__.__name__
+        params["class_name"] = self.__class__.__name__
         return params
 
     def sampling_algorithm(self, X, y):
@@ -316,7 +311,8 @@ class polynom_fit_SMOTE_bus(OverSampling):# pylint: disable=invalid-name
         """
         return self.polynom_fit_smote.sample(X, y)
 
-class polynom_fit_SMOTE_poly(OverSampling):# pylint: disable=invalid-name
+
+class polynom_fit_SMOTE_poly(OverSampling):  # pylint: disable=invalid-name
     """
     References:
         * BibTex::
@@ -339,12 +335,7 @@ class polynom_fit_SMOTE_poly(OverSampling):# pylint: disable=invalid-name
 
     categories = [OverSampling.cat_extensive]
 
-    def __init__(self,
-                 proportion=1.0,
-                 order=2,
-                 *,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(self, proportion=1.0, order=2, *, random_state=None, **_kwargs):
         """
         Constructor of the sampling object
 
@@ -358,12 +349,14 @@ class polynom_fit_SMOTE_poly(OverSampling):# pylint: disable=invalid-name
                                                     like in sklearn
         """
         super().__init__(random_state=random_state)
-        self.polynom_fit_smote = polynom_fit_SMOTE(proportion=proportion,
-                                                    topology='poly_' + str(order),
-                                                    random_state=random_state)
+        self.polynom_fit_smote = polynom_fit_SMOTE(
+            proportion=proportion,
+            topology="poly_" + str(order),
+            random_state=random_state,
+        )
         self.order = order
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -371,9 +364,10 @@ class polynom_fit_SMOTE_poly(OverSampling):# pylint: disable=invalid-name
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'order': [1, 2, 3]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "order": [1, 2, 3],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def get_params(self, deep=False):
@@ -381,9 +375,8 @@ class polynom_fit_SMOTE_poly(OverSampling):# pylint: disable=invalid-name
         Returns:
             dict: the parameters of the current sampling object
         """
-        params = {'order': self.order,
-                **self.polynom_fit_smote.get_params()}
-        params['class_name'] = self.__class__.__name__
+        params = {"order": self.order, **self.polynom_fit_smote.get_params()}
+        params["class_name"] = self.__class__.__name__
         return params
 
     def sampling_algorithm(self, X, y):
@@ -399,7 +392,8 @@ class polynom_fit_SMOTE_poly(OverSampling):# pylint: disable=invalid-name
         """
         return self.polynom_fit_smote.sample(X, y)
 
-class polynom_fit_SMOTE_mesh(OverSamplingSimplex): # pylint: disable=invalid-name
+
+class polynom_fit_SMOTE_mesh(OverSamplingSimplex):  # pylint: disable=invalid-name
     """
     References:
         * BibTex::
@@ -422,12 +416,7 @@ class polynom_fit_SMOTE_mesh(OverSamplingSimplex): # pylint: disable=invalid-nam
 
     categories = [OverSamplingSimplex.cat_extensive]
 
-    def __init__(self,
-                 proportion=1.0,
-                 ss_params=None,
-                 *,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(self, proportion=1.0, ss_params=None, *, random_state=None, **_kwargs):
         """
         Constructor of the sampling object
 
@@ -440,9 +429,12 @@ class polynom_fit_SMOTE_mesh(OverSamplingSimplex): # pylint: disable=invalid-nam
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'deterministic',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "deterministic",
+            "gaussian_component": None,
+        }
         ss_params = coalesce_dict(ss_params, ss_params_default)
 
         super().__init__(**ss_params, random_state=random_state)
@@ -450,7 +442,7 @@ class polynom_fit_SMOTE_mesh(OverSamplingSimplex): # pylint: disable=invalid-nam
 
         self.proportion = proportion
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -458,8 +450,7 @@ class polynom_fit_SMOTE_mesh(OverSamplingSimplex): # pylint: disable=invalid-nam
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0]}
+        parameter_combinations = {"proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]}
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def sampling_algorithm(self, X, y):
@@ -487,25 +478,27 @@ class polynom_fit_SMOTE_mesh(OverSamplingSimplex): # pylint: disable=invalid-nam
         samples = []
 
         base = np.arange(X_min.shape[0])
-        neighbors = np.vstack([self.random_state.choice(np.arange(X_min.shape[0]),
-                                        X_min.shape[0],
-                                        replace=True) for _ in range(kdx)])
+        neighbors = np.vstack(
+            [
+                self.random_state.choice(
+                    np.arange(X_min.shape[0]), X_min.shape[0], replace=True
+                )
+                for _ in range(kdx)
+            ]
+        )
 
         indices = np.vstack([base, neighbors]).T
 
-        samples = self.sample_simplex(X=X_min,
-                                        indices=indices,
-                                        n_to_sample=n_to_sample)
-
+        samples = self.sample_simplex(X=X_min, indices=indices, n_to_sample=n_to_sample)
 
         ## Implementation of the mesh topology
-        #if len(X_min)**2 > n_to_sample:
+        # if len(X_min)**2 > n_to_sample:
         #    while len(samples) < n_to_sample:
         #        random_i = self.random_state.randint(len(X_min))
         #        random_j = self.random_state.randint(len(X_min))
         #        diff = X_min[random_i] - X_min[random_j]
         #        samples.append(X_min[random_j] + 0.5*diff)
-        #else:
+        # else:
         #    n_combs = (len(X_min)*(len(X_min)-1)/2)
         #    k = max([1, int(np.rint(n_to_sample/n_combs))])
         #    for i in range(len(X_min)):
@@ -514,13 +507,14 @@ class polynom_fit_SMOTE_mesh(OverSamplingSimplex): # pylint: disable=invalid-nam
         #            for li in range(1, k+1):
         #                samples.append(X_min[j] + float(li)/(k+1)*diff)
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                **OverSamplingSimplex.get_params(self)}
+        return {"proportion": self.proportion, **OverSamplingSimplex.get_params(self)}

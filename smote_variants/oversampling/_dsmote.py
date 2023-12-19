@@ -8,14 +8,15 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from scipy.stats.mstats import gmean
 
-from ..base import (NearestNeighborsWithMetricTensor,
-                                pairwise_distances_mahalanobis)
+from ..base import NearestNeighborsWithMetricTensor, pairwise_distances_mahalanobis
 from ..base import OverSampling
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['DSMOTE']
+__all__ = ["DSMOTE"]
+
 
 @dataclass
 class DSMOTEPartialResults:
@@ -31,11 +32,13 @@ class DSMOTEPartialResults:
         all_sum (float): the sum of all minority coordinate values
         norm (np.array): the norms of all minority samples
     """
+
     log_sum: np.array
     sum1: np.array
     sum2: np.array
     all_sum: float
     norm: np.array
+
 
 class DSMOTE(OverSampling):
     """
@@ -96,19 +99,20 @@ class DSMOTE(OverSampling):
             value, which will make the geometric mean of all attribute 0.
     """
 
-    categories = [OverSampling.cat_changes_majority,
-                  OverSampling.cat_metric_learning]
+    categories = [OverSampling.cat_changes_majority, OverSampling.cat_metric_learning]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params={},
-                 rate=0.1,
-                 n_step=50,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        rate=0.1,
+        n_step=50,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -136,16 +140,16 @@ class DSMOTE(OverSampling):
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_in_range(rate, "rate", [0, 1])
         self.check_greater_or_equal(n_step, "n_step", 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
-        self.nn_params = nn_params
+        self.nn_params = nn_params or {}
         self.rate = rate
         self.n_step = n_step
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -153,17 +157,17 @@ class DSMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7],
-                                  'rate': [0.1, 0.2],
-                                  'n_step': [50]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7],
+            "rate": [0.1, 0.2],
+            "n_step": [50],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
-    def calculate_gdiv(self,
-                        X_min_new, # pylint: disable=invalid-name
-                        gmean_min,
-                        partial):
+    def calculate_gdiv(
+        self, X_min_new, gmean_min, partial  # pylint: disable=invalid-name
+    ):
         """
         Calculate the g-divergence score.
 
@@ -176,8 +180,8 @@ class DSMOTE(OverSampling):
             float: the g-divergence
         """
         inner_prod = np.dot(X_min_new, gmean_min)
-        gmean_norm = np.linalg.norm(gmean_min)**2
-        term_sum = partial.norm - 2*inner_prod + gmean_norm
+        gmean_norm = np.linalg.norm(gmean_min) ** 2
+        term_sum = partial.norm - 2 * inner_prod + gmean_norm
         gdiv = np.mean(np.sqrt(term_sum))
 
         return gdiv
@@ -197,16 +201,14 @@ class DSMOTE(OverSampling):
         Returns:
             float: the Fisher ratio
         """
-        fisher_numerator = (all_mean_min - mean_maj)**2
+        fisher_numerator = (all_mean_min - mean_maj) ** 2
         fisher_denominator = np.mean(var_min) + var_maj
         fisher = fisher_numerator / fisher_denominator
         return fisher
 
-    def calculate_objective(self,
-                            X_min_new, # pylint: disable=invalid-name
-                            partial,
-                            mean_maj,
-                            var_maj):
+    def calculate_objective(
+        self, X_min_new, partial, mean_maj, var_maj  # pylint: disable=invalid-name
+    ):
         """
         Calculate the objective function.
 
@@ -229,8 +231,9 @@ class DSMOTE(OverSampling):
         all_mean_min = partial.all_sum / all_n_min
 
         # computing the new objective function value
-        score = self.calculate_gdiv(X_min_new, gmean_min, partial) \
-                + self.calculate_fisher(all_mean_min, mean_maj, var_min, var_maj)
+        score = self.calculate_gdiv(
+            X_min_new, gmean_min, partial
+        ) + self.calculate_fisher(all_mean_min, mean_maj, var_min, var_maj)
 
         return score
 
@@ -253,27 +256,28 @@ class DSMOTE(OverSampling):
         new_partial_results = {}
         highest_score = 0.0
         # we try n_step combinations of minority samples
-        n_steps = np.min([X_min.shape[0] \
-                        * (X_min.shape[0]-1) \
-                        * (X_min.shape[0]-2), self.n_step])
+        n_steps = np.min(
+            [X_min.shape[0] * (X_min.shape[0] - 1) * (X_min.shape[0] - 2), self.n_step]
+        )
 
         for _ in range(n_steps):
-            indices = self.random_state.choice(np.arange(X_min.shape[0]),
-                                                        3,
-                                                        replace=False)
+            indices = self.random_state.choice(
+                np.arange(X_min.shape[0]), 3, replace=False
+            )
             gmv = gmean(X_min[indices], axis=0)
 
             # computing the new objective function for the new point (gm)
             #  added
-            X_min_new = np.vstack([X_min, gmv]) # pylint: disable=invalid-name
+            X_min_new = np.vstack([X_min, gmv])  # pylint: disable=invalid-name
 
             # updating the components of the objective function
             partial_tmp = DSMOTEPartialResults(
-                            log_sum=partial_results.log_sum + np.log(gmv),
-                            sum1=partial_results.sum1 + gmv,
-                            sum2=partial_results.sum2 + gmv**2,
-                            all_sum=partial_results.all_sum + np.sum(gmv),
-                            norm=partial_results.norm + np.linalg.norm(gmv))
+                log_sum=partial_results.log_sum + np.log(gmv),
+                sum1=partial_results.sum1 + gmv,
+                sum2=partial_results.sum2 + gmv**2,
+                all_sum=partial_results.all_sum + np.sum(gmv),
+                norm=partial_results.norm + np.linalg.norm(gmv),
+            )
 
             score = self.calculate_objective(X_min_new, partial_tmp, mean_maj, var_maj)
             # evaluate the objective function
@@ -285,7 +289,6 @@ class DSMOTE(OverSampling):
                 new_partial_results = partial_tmp
 
         return best_candidate, new_partial_results
-
 
     def sampling(self, X_maj, X_min, n_to_sample):
         """
@@ -313,21 +316,18 @@ class DSMOTE(OverSampling):
         # contains the sum of all numbers in X_min
         all_sum = np.sum(X_min)
 
-        norm = np.linalg.norm(X_min)**2
+        norm = np.linalg.norm(X_min) ** 2
 
-        partial_results = DSMOTEPartialResults(log_sum=log_sum,
-                                                sum1=sum1,
-                                                sum2=sum2,
-                                                all_sum=all_sum,
-                                                norm=norm)
+        partial_results = DSMOTEPartialResults(
+            log_sum=log_sum, sum1=sum1, sum2=sum2, all_sum=all_sum, norm=norm
+        )
 
         # do the sampling
         n_added = 0
         while n_added < n_to_sample:
-            best_candidate, partial_results = self.generate_one_sample(X_min,
-                                                                mean_maj,
-                                                                var_maj,
-                                                                partial_results)
+            best_candidate, partial_results = self.generate_one_sample(
+                X_min, mean_maj, var_maj, partial_results
+            )
             # add the best candidate to the minority samples
             X_min = np.vstack([X_min, best_candidate])
             n_added = n_added + 1
@@ -347,25 +347,30 @@ class DSMOTE(OverSampling):
         Returns:
             np.array: the abnormality scores
         """
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # fitting nearest neighbors model
-        nnmt = NearestNeighborsWithMetricTensor(n_neighbors=len(X_maj),
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=len(X_maj), n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X_maj)
         dist, _ = nnmt.kneighbors(X_min)
 
         # compute mean distances, the D_min is compenstaed for taking into
         # consideration self-distances in the mean
-        D_maj = np.mean(dist, axis=1) # pylint: disable=invalid-name
-        D_min = np.mean(pairwise_distances_mahalanobis(X_min, # pylint: disable=invalid-name
-                                tensor=nn_params.get('metric_tensor', None)), axis=1)
-        D_min = D_min * len(X_min)/(len(X_min)-1) # pylint: disable=invalid-name
+        D_maj = np.mean(dist, axis=1)  # pylint: disable=invalid-name
+        D_min = np.mean(  # pylint: disable=invalid-name
+            pairwise_distances_mahalanobis(
+                X_min,
+                tensor=nn_params.get("metric_tensor", None),
+            ),
+            axis=1,
+        )
+        D_min = D_min * len(X_min) / (len(X_min) - 1)  # pylint: disable=invalid-name
 
         # computing degree of abnormality
-        abnormality = D_min/D_maj
+        abnormality = D_min / D_maj
 
         return abnormality
 
@@ -396,7 +401,7 @@ class DSMOTE(OverSampling):
         # sorting minority indices in decreasing order by abnormality
         to_sort = zip(abnormality, np.arange(len(abnormality)))
         abnormality, indices = zip(*sorted(to_sort, key=lambda x: -x[0]))
-        rate = int(self.rate*len(abnormality))
+        rate = int(self.rate * len(abnormality))
 
         if rate > 0:
             # moving the most abnormal points to the majority class
@@ -430,19 +435,27 @@ class DSMOTE(OverSampling):
 
         X_min = self.sampling(X_maj, X_min, n_to_sample)
 
-        return (mms.inverse_transform(np.vstack([X_maj, X_min])),
-                np.hstack([np.repeat(self.maj_label, len(X_maj)),
-                           np.repeat(self.min_label, len(X_min))]))
+        return (
+            mms.inverse_transform(np.vstack([X_maj, X_min])),
+            np.hstack(
+                [
+                    np.repeat(self.maj_label, len(X_maj)),
+                    np.repeat(self.min_label, len(X_min)),
+                ]
+            ),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'rate': self.rate,
-                'n_step': self.n_step,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "rate": self.rate,
+            "n_step": self.n_step,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

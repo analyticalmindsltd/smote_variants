@@ -8,9 +8,11 @@ from ..base import fix_density, coalesce, coalesce_dict
 from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSamplingSimplex
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['Edge_Det_SMOTE']
+__all__ = ["Edge_Det_SMOTE"]
+
 
 class Edge_Det_SMOTE(OverSamplingSimplex):
     """
@@ -47,20 +49,24 @@ class Edge_Det_SMOTE(OverSamplingSimplex):
         * This technique is very loosely specified.
     """
 
-    categories = [OverSamplingSimplex.cat_density_based,
-                  OverSamplingSimplex.cat_borderline,
-                  OverSamplingSimplex.cat_extensive,
-                  OverSamplingSimplex.cat_metric_learning]
+    categories = [
+        OverSamplingSimplex.cat_density_based,
+        OverSamplingSimplex.cat_borderline,
+        OverSamplingSimplex.cat_extensive,
+        OverSamplingSimplex.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 k=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        k=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -81,22 +87,25 @@ class Edge_Det_SMOTE(OverSamplingSimplex):
                                                     like in sklearn
         """
         nn_params = coalesce(nn_params, {})
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
         ss_params = coalesce_dict(ss_params, ss_params_default)
 
         super().__init__(**ss_params, random_state=random_state)
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(k, "k", 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
-        self.k = k # pylint: disable=invalid-name
+        self.k = k  # pylint: disable=invalid-name
         self.nn_params = nn_params
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -104,9 +113,10 @@ class Edge_Det_SMOTE(OverSamplingSimplex):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'k': [3, 5, 7]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "k": [3, 5, 7],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def determine_magnitudes(self, X, y):
@@ -126,16 +136,17 @@ class Edge_Det_SMOTE(OverSamplingSimplex):
             to_sort = zip(X[:, idx], np.arange(len(X)), y)
             _, ind, label = zip(*sorted(to_sort, key=lambda x: x[0]))
             # extracting edge magnitudes in this dimension
-            for jdx in range(1, len(ind)-1):
-                magnitudes[ind[jdx]] = magnitudes[ind[jdx]] + \
-                    (label[jdx-1] - label[jdx+1])**2
+            for jdx in range(1, len(ind) - 1):
+                magnitudes[ind[jdx]] = (
+                    magnitudes[ind[jdx]] + (label[jdx - 1] - label[jdx + 1]) ** 2
+                )
 
         # density estimation
         magnitudes = magnitudes[y == self.min_label]
-        magnitudes[magnitudes < 0]= 0
+        magnitudes[magnitudes < 0] = 0
         magnitudes = fix_density(magnitudes)
         magnitudes = np.sqrt(magnitudes)
-        magnitudes = magnitudes/np.sum(magnitudes)
+        magnitudes = magnitudes / np.sum(magnitudes)
 
         return magnitudes
 
@@ -160,41 +171,44 @@ class Edge_Det_SMOTE(OverSamplingSimplex):
         magnitudes = self.determine_magnitudes(X, y)
 
         # fitting nearest neighbors models to minority samples
-        n_neighbors = min([len(X_min), self.k+1])
+        n_neighbors = min([len(X_min), self.k + 1])
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
-        nnmt = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X_min)
         ind = nnmt.kneighbors(X_min, return_distance=False)
 
         # do the sampling
 
-        samples = self.sample_simplex(X=X_min,
-                                        indices=ind,
-                                        n_to_sample=n_to_sample,
-                                        base_weights=magnitudes)
+        samples = self.sample_simplex(
+            X=X_min, indices=ind, n_to_sample=n_to_sample, base_weights=magnitudes
+        )
 
-        #samples = []
-        #for _ in range(n_to_sample):
+        # samples = []
+        # for _ in range(n_to_sample):
         #    idx = self.random_state.choice(np.arange(len(X_min)), p=magnitudes)
         #    X_a = X_min[idx]
         #    X_b = X_min[self.random_state.choice(ind[idx][1:])]
         #    samples.append(self.sample_between_points(X_a, X_b))
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'k': self.k,
-                'nn_params': self.nn_params,
-                'n_jobs': self.n_jobs,
-                **OverSamplingSimplex.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "k": self.k,
+            "nn_params": self.nn_params,
+            "n_jobs": self.n_jobs,
+            **OverSamplingSimplex.get_params(self),
+        }

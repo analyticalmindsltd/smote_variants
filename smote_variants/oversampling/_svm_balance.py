@@ -13,9 +13,11 @@ from ..base import OverSampling
 from ._smote import SMOTE
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['SVM_balance']
+__all__ = ["SVM_balance"]
+
 
 class SVM_balance(OverSampling):
     """
@@ -45,20 +47,24 @@ class SVM_balance(OverSampling):
                     }
     """
 
-    categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_uses_classifier,
-                  OverSampling.cat_changes_majority,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_extensive,
+        OverSampling.cat_uses_classifier,
+        OverSampling.cat_changes_majority,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -78,15 +84,18 @@ class SVM_balance(OverSampling):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
 
         super().__init__(random_state=random_state)
 
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
@@ -94,7 +103,7 @@ class SVM_balance(OverSampling):
         self.ss_params = coalesce_dict(ss_params, ss_params_default)
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -102,9 +111,10 @@ class SVM_balance(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def sampling_algorithm(self, X, y):
@@ -118,33 +128,34 @@ class SVM_balance(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        X, y = SMOTE(proportion=self.proportion,
-                     n_neighbors=self.n_neighbors,
-                     nn_params=self.nn_params,
-                     ss_params=self.ss_params,
-                     n_jobs=self.n_jobs,
-                     random_state=self._random_state_init).sample(X, y)
+        X, y = SMOTE(
+            proportion=self.proportion,
+            n_neighbors=self.n_neighbors,
+            nn_params=self.nn_params,
+            ss_params=self.ss_params,
+            n_jobs=self.n_jobs,
+            random_state=self._random_state_init,
+        ).sample(X, y)
 
         validator = np.min([5, sum(y == self.min_label)])
 
         scaler = StandardScaler()
-        X_norm = scaler.fit_transform(X) # pylint: disable=invalid-name
+        X_norm = scaler.fit_transform(X)  # pylint: disable=invalid-name
 
-        C_params = [0.01, 0.1, 1.0, 10.0] # pylint: disable=invalid-name
+        C_params = [0.01, 0.1, 1.0, 10.0]  # pylint: disable=invalid-name
         best_score = 0
-        best_C = 0.01 # pylint: disable=invalid-name
+        best_C = 0.01  # pylint: disable=invalid-name
 
-        for C in C_params: # pylint: disable=invalid-name
-            _logger.info("%s: Evaluating SVM with C=%f",
-                                    self.__class__.__name__, C)
+        for C in C_params:  # pylint: disable=invalid-name
+            _logger.info("%s: Evaluating SVM with C=%f", self.__class__.__name__, C)
 
-            svc = SVC(C=C, kernel='rbf', gamma='auto')
+            svc = SVC(C=C, kernel="rbf", gamma="auto")
             score = np.mean(cross_val_score(svc, X_norm, y, cv=validator))
             if score > best_score:
                 best_score = score
-                best_C = C # pylint: disable=invalid-name
+                best_C = C  # pylint: disable=invalid-name
 
-        svc = SVC(C=best_C, kernel='rbf', gamma='auto')
+        svc = SVC(C=best_C, kernel="rbf", gamma="auto")
 
         svc.fit(X_norm, y)
 
@@ -155,9 +166,11 @@ class SVM_balance(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'ss_params': self.ss_params,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "ss_params": self.ss_params,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

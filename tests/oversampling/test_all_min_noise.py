@@ -2,6 +2,8 @@
 Testing oversampling with all minority samples being noise.
 """
 
+import logging
+
 import pytest
 import numpy as np
 
@@ -11,11 +13,12 @@ from smote_variants.datasets import load_all_min_noise
 from .additional_objs import additional_objs
 
 # disabling smote-variants logging
-import logging
-logger = logging.getLogger('smote_variants')
+
+logger = logging.getLogger("smote_variants")
 logger.setLevel(logging.CRITICAL)
 
 dataset = load_all_min_noise()
+
 
 @pytest.mark.parametrize("smote_class", sv.get_all_oversamplers())
 def test_all_min_noise(smote_class):
@@ -25,10 +28,11 @@ def test_all_min_noise(smote_class):
     Args:
         smote_class (class): an oversampler class.
     """
-    X, y = smote_class().sample(dataset['data'], dataset['target'])
+    X, y = smote_class().sample(dataset["data"], dataset["target"])
 
     assert np.unique(y).shape[0] == 2
     assert X.shape[0] > 0
+
 
 @pytest.mark.parametrize("smote_obj", additional_objs)
 def test_all_min_noise_additional(smote_obj):
@@ -38,7 +42,7 @@ def test_all_min_noise_additional(smote_obj):
     Args:
         smote_obj (obj): an oversampler obj
     """
-    X, y = smote_obj.sample(dataset['data'], dataset['target'])
+    X, y = smote_obj.sample(dataset["data"], dataset["target"])
 
     assert np.unique(y).shape[0] == 2
     assert X.shape[0] > 0

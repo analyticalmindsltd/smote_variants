@@ -2,6 +2,8 @@
 Testing the reproducibility of oversampling and noise filtering.
 """
 
+import logging
+
 import numpy as np
 import pytest
 
@@ -11,14 +13,15 @@ from smote_variants.datasets import load_normal
 from .additional_objs import additional_objs
 
 # disabling smote-variants logging
-import logging
-logger = logging.getLogger('smote_variants')
+
+logger = logging.getLogger("smote_variants")
 logger.setLevel(logging.CRITICAL)
 
 dataset = load_normal()
 
-X_normal = dataset['data']
-y_normal = dataset['target']
+X_normal = dataset["data"]
+y_normal = dataset["target"]
+
 
 @pytest.mark.parametrize("smote_class", sv.get_all_oversamplers())
 def test_reproducibility(smote_class):
@@ -44,6 +47,7 @@ def test_reproducibility(smote_class):
     assert np.array_equal(y_b, y_c)
     assert np.array_equal(y_orig, y_normal)
 
+
 @pytest.mark.parametrize("smote_obj", additional_objs)
 def test_reproducibility_additional(smote_obj):
     """
@@ -64,6 +68,7 @@ def test_reproducibility_additional(smote_obj):
     assert np.array_equal(y_a, y_c)
     assert np.array_equal(X_normal, X_orig)
     assert np.array_equal(y_normal, y_orig)
+
 
 @pytest.mark.parametrize("nf_class", sv.get_all_noisefilters())
 def test_reproducibility_noisefilters(nf_class):

@@ -13,9 +13,11 @@ from ..base import pairwise_distances_mahalanobis
 from ..base import coalesce, coalesce_dict, fix_density
 from ..base import OverSamplingSimplex
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['SOMO']
+__all__ = ["SOMO"]
+
 
 class SOMO(OverSamplingSimplex):
     """
@@ -40,22 +42,26 @@ class SOMO(OverSamplingSimplex):
             100 in these cases.
     """
 
-    categories = [OverSamplingSimplex.cat_extensive,
-                  OverSamplingSimplex.cat_uses_clustering,
-                  OverSamplingSimplex.cat_metric_learning]
+    categories = [
+        OverSamplingSimplex.cat_extensive,
+        OverSamplingSimplex.cat_uses_clustering,
+        OverSamplingSimplex.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 *,
-                 n_grid=10,
-                 sigma=0.2,
-                 learning_rate=0.5,
-                 n_iter=100,
-                 nn_params=None,
-                 ss_params=None,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        *,
+        n_grid=10,
+        sigma=0.2,
+        learning_rate=0.5,
+        n_iter=100,
+        nn_params=None,
+        ss_params=None,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -72,28 +78,33 @@ class SOMO(OverSamplingSimplex):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
         ss_params = coalesce_dict(ss_params, ss_params_default)
 
         super().__init__(**ss_params, random_state=random_state)
-        self.check_greater_or_equal(proportion, 'proportion', 0)
-        self.check_greater_or_equal(n_grid, 'n_grid', 2)
-        self.check_greater(sigma, 'sigma', 0)
-        self.check_greater(learning_rate, 'learning_rate', 0)
-        self.check_greater_or_equal(n_iter, 'n_iter', 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_grid, "n_grid", 2)
+        self.check_greater(sigma, "sigma", 0)
+        self.check_greater(learning_rate, "learning_rate", 0)
+        self.check_greater_or_equal(n_iter, "n_iter", 1)
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
-        self.params = {'n_grid': n_grid,
-                        'sigma': sigma,
-                        'learning_rate': learning_rate,
-                        'n_iter': n_iter}
+        self.params = {
+            "n_grid": n_grid,
+            "sigma": sigma,
+            "learning_rate": learning_rate,
+            "n_iter": n_iter,
+        }
         self.nn_params = coalesce(nn_params, {})
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -101,12 +112,13 @@ class SOMO(OverSamplingSimplex):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_grid': [5, 9, 13],
-                                  'sigma': [0.4],
-                                  'learning_rate': [0.3, 0.5],
-                                  'n_iter': [100]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_grid": [5, 9, 13],
+            "sigma": [0.4],
+            "learning_rate": [0.3, 0.5],
+            "n_iter": [100],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def construct_grid(self, X, y):
@@ -121,13 +133,15 @@ class SOMO(OverSamplingSimplex):
             dict, dict: the minority and majority grids
         """
         # training SOM
-        som = minisom.MiniSom(self.params['n_grid'],
-                              self.params['n_grid'],
-                              len(X[0]),
-                              sigma=self.params['sigma'],
-                              learning_rate=self.params['learning_rate'],
-                              random_seed=3)
-        som.train_random(X, self.params['n_iter'])
+        som = minisom.MiniSom(
+            self.params["n_grid"],
+            self.params["n_grid"],
+            len(X[0]),
+            sigma=self.params["sigma"],
+            learning_rate=self.params["learning_rate"],
+            random_seed=3,
+        )
+        som.train_random(X, self.params["n_iter"])
 
         # constructing the grid
         grid_min = {}
@@ -166,26 +180,24 @@ class SOMO(OverSamplingSimplex):
         Returns:
             dict: the densities
         """
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= \
-                    self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
-        tensor = nn_params.get('metric_tensor', None)
+        tensor = nn_params.get("metric_tensor", None)
 
         # filtering
         filtered = {}
         for idx, _ in grid_min.items():
-            filtered[idx] = (len(grid_maj[idx]) + 1)/(len(grid_min[idx]) + 1) < 1.0
+            filtered[idx] = (len(grid_maj[idx]) + 1) / (len(grid_min[idx]) + 1) < 1.0
 
         # computing densities
         densities = {}
         for idx, filt in filtered.items():
             if filt:
-                paird = pairwise_distances_mahalanobis(X[grid_min[idx]],
-                                                            tensor=tensor)
+                paird = pairwise_distances_mahalanobis(X[grid_min[idx]], tensor=tensor)
                 mean_value = np.mean(paird)
                 if len(grid_min[idx]) > 1 and mean_value > 0:
-                    densities[idx] = len(grid_min[idx])/mean_value**2
+                    densities[idx] = len(grid_min[idx]) / mean_value**2
                 else:
                     densities[idx] = 10
 
@@ -229,12 +241,7 @@ class SOMO(OverSamplingSimplex):
 
         return density_vals
 
-    def generate_intra(self, *,
-                        density_keys,
-                        density_vals,
-                        grid_min,
-                        X,
-                        n_to_sample):
+    def generate_intra(self, *, density_keys, density_vals, grid_min, X, n_to_sample):
         """
         Generate samples within the clusters.
 
@@ -249,24 +256,25 @@ class SOMO(OverSamplingSimplex):
             np.array: the generated samples
         """
         samples = np.zeros((0, X.shape[1]))
-        clusters = self.random_state.choice(np.arange(len(density_keys)),
-                                            n_to_sample,
-                                            p=density_vals)
+        clusters = self.random_state.choice(
+            np.arange(len(density_keys)), n_to_sample, p=density_vals
+        )
 
         cluster_unique, cluster_count = np.unique(clusters, return_counts=True)
 
         for idx, cluster_idx in enumerate(cluster_unique):
             cluster = X[grid_min[density_keys[cluster_idx]]]
-            #n_dim_orig = self.n_dim
-            #self.n_dim = np.min([len(cluster), n_dim_orig])
+            # n_dim_orig = self.n_dim
+            # self.n_dim = np.min([len(cluster), n_dim_orig])
             samples_tmp = self.sample_simplex(
-                                X=cluster,
-                                indices=circulant(np.arange(cluster.shape[0])),
-                                n_to_sample=cluster_count[idx])
+                X=cluster,
+                indices=circulant(np.arange(cluster.shape[0])),
+                n_to_sample=cluster_count[idx],
+            )
             samples = np.vstack([samples, samples_tmp])
-            #self.n_dim = n_dim_orig
+            # self.n_dim = n_dim_orig
 
-        #while len(samples) < n_to_sample:
+        # while len(samples) < n_to_sample:
         #    cluster_idx = density_keys[self.random_state.choice(
         #        np.arange(len(density_keys)), p=density_vals)]
         #    cluster = grid_min[cluster_idx]
@@ -296,21 +304,14 @@ class SOMO(OverSamplingSimplex):
         self.n_dim = 2
 
         samples_tmp = self.sample_simplex(
-                            X=cluster_a,
-                            indices=indices,
-                            n_to_sample=n_to_sample,
-                            X_vertices=cluster_b)
+            X=cluster_a, indices=indices, n_to_sample=n_to_sample, X_vertices=cluster_b
+        )
 
         self.n_dim = n_dim_orig
 
         return samples_tmp
 
-    def generate_inter(self, *,
-                        pair_keys,
-                        pair_dens_vals,
-                        grid_min,
-                        X,
-                        n_to_sample):
+    def generate_inter(self, *, pair_keys, pair_dens_vals, grid_min, X, n_to_sample):
         """
         Generate samples between the clusters.
 
@@ -330,23 +331,21 @@ class SOMO(OverSamplingSimplex):
         if pair_dens_vals.shape[0] == 0:
             return samples
 
-        clusters = self.random_state.choice(np.arange(len(pair_keys)),
-                                            n_to_sample,
-                                            p=pair_dens_vals)
+        clusters = self.random_state.choice(
+            np.arange(len(pair_keys)), n_to_sample, p=pair_dens_vals
+        )
 
         cluster_unique, cluster_count = np.unique(clusters, return_counts=True)
 
         for idx, cluster_idx in enumerate(cluster_unique):
-
             samples_tmp = self.generate_inter_samples(
-                            cluster_a=X[grid_min[pair_keys[cluster_idx][0]]],
-                            cluster_b=X[grid_min[pair_keys[cluster_idx][1]]],
-                            n_to_sample=cluster_count[idx]
-                            )
+                cluster_a=X[grid_min[pair_keys[cluster_idx][0]]],
+                cluster_b=X[grid_min[pair_keys[cluster_idx][1]]],
+                n_to_sample=cluster_count[idx],
+            )
             samples = np.vstack([samples, samples_tmp])
 
-
-        #while len(samples) < n_to_sample:
+        # while len(samples) < n_to_sample:
         #    idx = pair_keys[self.random_state.choice(
         #        np.arange(len(pair_keys)), p=pair_dens_vals)]
         #    cluster_a = grid_min[idx[0]]
@@ -368,9 +367,11 @@ class SOMO(OverSamplingSimplex):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        n_to_sample = self.det_n_to_sample(self.proportion,
-                                           self.class_stats[self.maj_label],
-                                           self.class_stats[self.min_label])
+        n_to_sample = self.det_n_to_sample(
+            self.proportion,
+            self.class_stats[self.maj_label],
+            self.class_stats[self.min_label],
+        )
 
         if n_to_sample == 0:
             return self.return_copies(X, y, "Sampling is not needed")
@@ -398,33 +399,40 @@ class SOMO(OverSamplingSimplex):
             dens_num = n_to_sample
 
         # generating the samples according to the extracted distributions
-        samples_intra = self.generate_intra(density_keys=density_keys,
-                                            density_vals=density_vals,
-                                            grid_min=grid_min,
-                                            X=X,
-                                            n_to_sample=dens_num)
+        samples_intra = self.generate_intra(
+            density_keys=density_keys,
+            density_vals=density_vals,
+            grid_min=grid_min,
+            X=X,
+            n_to_sample=dens_num,
+        )
 
-        samples_inter = self.generate_inter(pair_keys=pair_keys,
-                                            pair_dens_vals=pair_dens_vals,
-                                            grid_min=grid_min,
-                                            X=X,
-                                            n_to_sample=n_to_sample-dens_num)
+        samples_inter = self.generate_inter(
+            pair_keys=pair_keys,
+            pair_dens_vals=pair_dens_vals,
+            grid_min=grid_min,
+            X=X,
+            n_to_sample=n_to_sample - dens_num,
+        )
 
-        return (np.vstack([X, np.vstack([samples_intra,
-                                         samples_inter])]),
-                np.hstack([y, np.repeat(self.min_label,
-                                        len(samples_intra) \
-                                            + len(samples_inter))]))
+        return (
+            np.vstack([X, np.vstack([samples_intra, samples_inter])]),
+            np.hstack(
+                [y, np.repeat(self.min_label, len(samples_intra) + len(samples_inter))]
+            ),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_grid': self.params['n_grid'],
-                'sigma': self.params['sigma'],
-                'learning_rate': self.params['learning_rate'],
-                'n_iter': self.params['n_iter'],
-                'n_jobs': self.n_jobs,
-                **OverSamplingSimplex.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_grid": self.params["n_grid"],
+            "sigma": self.params["sigma"],
+            "learning_rate": self.params["learning_rate"],
+            "n_iter": self.params["n_iter"],
+            "n_jobs": self.n_jobs,
+            **OverSamplingSimplex.get_params(self),
+        }

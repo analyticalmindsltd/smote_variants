@@ -13,15 +13,18 @@ from ..base import RandomStateMixin, coalesce
 from ..base import MetricTensor
 from ..base import OverSampling
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['PDFOS', 'FullRankTransformer', 'PDFOSKDE']
+__all__ = ["PDFOS", "FullRankTransformer", "PDFOSKDE"]
+
 
 class FullRankTransformer:
     """
     Transforms data into a lower dimensional full rank covariance
     representation
     """
+
     def __init__(self, eps=0.002):
         """
         Constructor of the object.
@@ -89,6 +92,7 @@ class PDFOSKDE(RandomStateMixin):
     """
     The KDE in PDFOS
     """
+
     def __init__(self, metric_learning=None, random_state=None):
         """
         Constructor of the PDFOS KDE estimation
@@ -100,14 +104,11 @@ class PDFOSKDE(RandomStateMixin):
         """
         RandomStateMixin.__init__(self, random_state)
         self.transformer = FullRankTransformer(eps=0.02)
-        self.metric_learning = coalesce(metric_learning, 'cov_min')
-        self.S = None # pylint: disable=invalid-name
+        self.metric_learning = coalesce(metric_learning, "cov_min")
+        self.S = None  # pylint: disable=invalid-name
         self.X_base = None
 
-    def eq_5_0(self,
-                sigma,
-                m # pylint: disable=invalid-name
-                ):
+    def eq_5_0(self, sigma, m):  # pylint: disable=invalid-name
         """
         Eq (5) in the paper
 
@@ -118,13 +119,9 @@ class PDFOSKDE(RandomStateMixin):
         Returns:
             float: the value of the equation
         """
-        return sigma**(-m)/((2.0*np.pi)**(m/2))
+        return sigma ** (-m) / ((2.0 * np.pi) ** (m / 2))
 
-    def eq_8_vectorized(self,
-                        X,
-                        sigma,
-                        S_inv # pylint: disable=invalid-name
-                        ):
+    def eq_8_vectorized(self, X, sigma, S_inv):  # pylint: disable=invalid-name
         """
         Eq (8) in the paper
 
@@ -136,24 +133,27 @@ class PDFOSKDE(RandomStateMixin):
         Returns:
             np.array: the result of the equation for all pairs of vectors
         """
-        m = X.shape[1] # pylint: disable=invalid-name
+        m = X.shape[1]  # pylint: disable=invalid-name
 
-        tmp= (X[:,None] - X)
-        tmp = np.einsum('ijk,kl,lji -> ij', tmp, S_inv, tmp.T)
+        tmp = X[:, None] - X
+        tmp = np.einsum("ijk,kl,lji -> ij", tmp, S_inv, tmp.T)
 
-        numerator_9 = (np.sqrt(2)*sigma)**(-m)*expit(-(1/(4*sigma**2))*tmp)
-        numerator_5 = sigma**(-m)*expit(-(1/(2*sigma**2))*tmp)
-        denominator = ((2*np.pi)**(m/2))
+        numerator_9 = (np.sqrt(2) * sigma) ** (-m) * expit(
+            -(1 / (4 * sigma**2)) * tmp
+        )
+        numerator_5 = sigma ** (-m) * expit(-(1 / (2 * sigma**2)) * tmp)
+        denominator = (2 * np.pi) ** (m / 2)
         eq_9 = numerator_9 / denominator
         eq_5 = numerator_5 / denominator
 
         return eq_9 - 2 * eq_5
 
-    def M(self, # pylint: disable=invalid-name
-            sigma,
-            X,
-            S_inv # pylint: disable=invalid-name
-            ):
+    def M(  # pylint: disable=invalid-name
+        self,
+        sigma,
+        X,
+        S_inv,  # pylint: disable=invalid-name
+    ):
         """
         Eq (7) in the paper
 
@@ -165,18 +165,14 @@ class PDFOSKDE(RandomStateMixin):
         Returns:
             float: the value of the equation
         """
-        m = X.shape[1] # pylint: disable=invalid-name
+        m = X.shape[1]  # pylint: disable=invalid-name
         total = np.sum(self.eq_8_vectorized(X, sigma, S_inv))
 
-        term_a = total/len(X)**2
-        term_b = 2.0 * self.eq_5_0(sigma, m)/len(X)
+        term_a = total / len(X) ** 2
+        term_b = 2.0 * self.eq_5_0(sigma, m) / len(X)
         return term_a + term_b
 
-    def find_best_sigma(self,
-                        X,
-                        n_optimize,
-                        S_inv # pylint: disable=invalid-name
-                        ):
+    def find_best_sigma(self, X, n_optimize, S_inv):  # pylint: disable=invalid-name
         """
         Find the best sigma parameter.
 
@@ -195,9 +191,11 @@ class PDFOSKDE(RandomStateMixin):
         # the dataset is reduced to make the optimization more efficient
         domain = range(len(X))
         n_to_choose = min([len(X), n_optimize])
-        X_reduced = X[self.random_state.choice(domain, # pylint: disable=invalid-name
-                                               n_to_choose,
-                                               replace=False)]
+        X_reduced = X[  # pylint: disable=invalid-name
+            self.random_state.choice(
+                domain, n_to_choose, replace=False
+            )
+        ]
 
         # we suppose that the data is normalized, thus, this search space
         # should be meaningful
@@ -206,16 +204,12 @@ class PDFOSKDE(RandomStateMixin):
             if err < error:
                 error = err
                 best_sigma = sigma
-        #_logger.info("%s: best sigma found %f",
+        # _logger.info("%s: best sigma found %f",
         #                self.__class__.__name__, best_sigma)
 
         return best_sigma
 
-    def fit(self,
-                X,
-                X_ml, # pylint: disable=invalid-name
-                y_ml,
-                n_optimize=100):
+    def fit(self, X, X_ml, y_ml, n_optimize=100):  # pylint: disable=invalid-name
         """
         Fitting the kernel density estimator
 
@@ -232,13 +226,13 @@ class PDFOSKDE(RandomStateMixin):
             obj: the fitted object
         """
         self.transformer.fit(X)
-        X_trans = self.transformer.transform(X) # pylint: disable=invalid-name
+        X_trans = self.transformer.transform(X)  # pylint: disable=invalid-name
 
         X_ml = self.transformer.transform(X_ml)
 
         metrict = MetricTensor(metric_learning_method=self.metric_learning)
-        S_inv = metrict.tensor(X_ml, y_ml) # pylint: disable=invalid-name
-        S = np.linalg.inv(S_inv) # pylint: disable=invalid-name
+        S_inv = metrict.tensor(X_ml, y_ml)  # pylint: disable=invalid-name
+        S = np.linalg.inv(S_inv)  # pylint: disable=invalid-name
 
         best_sigma = self.find_best_sigma(X_trans, n_optimize, S_inv)
 
@@ -257,20 +251,22 @@ class PDFOSKDE(RandomStateMixin):
         Returns:
             np.array: the generated samples
         """
-        samples_raw = self.random_state.multivariate_normal(np.repeat(0.0, self.X_base.shape[1]),
-                                                            self.S,
-                                                            size=n_to_sample)
+        samples_raw = self.random_state.multivariate_normal(
+            np.repeat(0.0, self.X_base.shape[1]), self.S, size=n_to_sample
+        )
 
         base_indices = self.random_state.choice(self.X_base.shape[0], n_to_sample)
         unique_indices, unique_counts = np.unique(base_indices, return_counts=True)
         samples = []
         loc = 0
         for idx, base_idx in enumerate(unique_indices):
-            samples.append(self.X_base[base_idx] \
-                            + samples_raw[loc:(loc + unique_counts[idx])])
+            samples.append(
+                self.X_base[base_idx] + samples_raw[loc : (loc + unique_counts[idx])]
+            )
             loc = loc + unique_counts[idx]
         samples = np.vstack(samples)
         return self.transformer.inverse_transform(samples)
+
 
 class PDFOS(OverSampling):
     """
@@ -298,16 +294,17 @@ class PDFOS(OverSampling):
         * Not prepared for low-rank data.
     """
 
-    categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_density_estimation]
+    categories = [OverSampling.cat_extensive, OverSampling.cat_density_estimation]
 
-    def __init__(self,
-                 proportion=1.0,
-                 *,
-                 metric_learning=None,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        *,
+        metric_learning=None,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs,
+    ):
         """
         Constructor of the sampling object
 
@@ -324,13 +321,13 @@ class PDFOS(OverSampling):
         """
         super().__init__(random_state=random_state)
         self.check_greater_or_equal(proportion, "proportion", 0)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.metric_learning = metric_learning
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -338,8 +335,7 @@ class PDFOS(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0]}
+        parameter_combinations = {"proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]}
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def sampling_algorithm(self, X, y):
@@ -353,37 +349,43 @@ class PDFOS(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        n_to_sample = self.det_n_to_sample(self.proportion,
-                                           self.class_stats[self.maj_label],
-                                           self.class_stats[self.min_label])
+        n_to_sample = self.det_n_to_sample(
+            self.proportion,
+            self.class_stats[self.maj_label],
+            self.class_stats[self.min_label],
+        )
 
         if n_to_sample == 0:
             return self.return_copies(X, y, n_to_sample)
 
         # scaling the data to aid numerical stability
         scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X) # pylint: disable=invalid-name
+        X_scaled = scaler.fit_transform(X)  # pylint: disable=invalid-name
 
         X_min = X_scaled[y == self.min_label]
 
         # generating samples by kernel density estimation
         try:
-            kde = PDFOSKDE(metric_learning=self.metric_learning,
-                            random_state=self._random_state_init).fit(X_min,
-                                                                        X_ml=X_scaled,
-                                                                        y_ml=y)
+            kde = PDFOSKDE(
+                metric_learning=self.metric_learning,
+                random_state=self._random_state_init,
+            ).fit(X_min, X_ml=X_scaled, y_ml=y)
         except LinAlgError as exc:
             return self.return_copies(X, y, f"kde fitting did not succeed {exc}")
         samples = kde.sample(n_to_sample)
 
-        return (np.vstack([X, scaler.inverse_transform(samples)]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, scaler.inverse_transform(samples)]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

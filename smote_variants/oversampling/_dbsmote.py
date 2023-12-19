@@ -10,11 +10,13 @@ from sklearn.cluster import DBSCAN
 from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSampling
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['DBSMOTE']
+__all__ = ["DBSMOTE"]
 
 DB_LIMIT = 5
+
 
 # Bellman-Ford algorithm, inspired by
 # https://gist.github.com/joninvski/701720
@@ -32,10 +34,11 @@ def initialize(graph, source):
     distance = {}
     path = {}
     for node in graph:
-        distance[node] = float('Inf')
+        distance[node] = float("Inf")
         path[node] = None
     distance[source] = 0
     return distance, path
+
 
 def relax(u_key, v_key, graph, distance, path):
     """
@@ -52,6 +55,7 @@ def relax(u_key, v_key, graph, distance, path):
         distance[v_key] = distance[u_key] + graph[u_key][v_key]
         path[v_key] = u_key
 
+
 def bellman_ford(graph, source):
     """
     Main entry point of the Bellman-Ford algorithm
@@ -61,7 +65,7 @@ def bellman_ford(graph, source):
         source (key): the key of the source node
     """
     distance, path = initialize(graph, source)
-    for _ in range(len(graph)-1):
+    for _ in range(len(graph) - 1):
         for u_key in graph:
             for v_key in graph[u_key]:
                 relax(u_key, v_key, graph, distance, path)
@@ -100,22 +104,26 @@ class DBSMOTE(OverSampling):
             by recursive call with increaseing eps.
     """
 
-    categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_noise_removal,
-                  OverSampling.cat_uses_clustering,
-                  OverSampling.cat_density_based,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_extensive,
+        OverSampling.cat_noise_removal,
+        OverSampling.cat_uses_clustering,
+        OverSampling.cat_density_based,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 *,
-                 eps=0.8,
-                 min_samples=3,
-                 db_iter_limit=3,
-                 nn_params={},
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        *,
+        eps=0.8,
+        min_samples=3,
+        db_iter_limit=3,
+        nn_params=None,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -140,16 +148,16 @@ class DBSMOTE(OverSampling):
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater(eps, "eps", 0)
         self.check_greater_or_equal(min_samples, "min_samples", 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.eps = eps
         self.min_samples = min_samples
         self.db_iter_limit = db_iter_limit
-        self.nn_params = nn_params
+        self.nn_params = nn_params or {}
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -157,10 +165,11 @@ class DBSMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'eps': [0.5, 0.8, 1.2],
-                                  'min_samples': [1, 3, 5]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "eps": [0.5, 0.8, 1.2],
+            "min_samples": [1, 3, 5],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def execute_dbscan(self, X_min):
@@ -173,9 +182,9 @@ class DBSMOTE(OverSampling):
         Returns:
             np.array: the labels
         """
-        dbscan = DBSCAN(eps=self.eps,
-                    min_samples=self.min_samples,
-                    n_jobs=self.n_jobs).fit(X_min)
+        dbscan = DBSCAN(
+            eps=self.eps, min_samples=self.min_samples, n_jobs=self.n_jobs
+        ).fit(X_min)
         labels = dbscan.labels_
         num_labels = np.max(labels) + 1
 
@@ -183,19 +192,18 @@ class DBSMOTE(OverSampling):
 
         while num_labels == 0 and step < self.db_iter_limit:
             # adjusting the parameters if no clusters were identified
-            dbscan = DBSCAN(eps=self.eps*1.5**step,
-                    min_samples=self.min_samples - 1*step,
-                    n_jobs=self.n_jobs).fit(X_min)
+            dbscan = DBSCAN(
+                eps=self.eps * 1.5**step,
+                min_samples=self.min_samples - 1 * step,
+                n_jobs=self.n_jobs,
+            ).fit(X_min)
             labels = dbscan.labels_
             num_labels = np.max(labels) + 1
             step = step + 1
 
         return labels
 
-    def extract_shortest_paths(self,
-                                X_min,
-                                clusters,
-                                nn_params):
+    def extract_shortest_paths(self, X_min, clusters, nn_params):
         """
         Extract shortest paths.
 
@@ -217,36 +225,31 @@ class DBSMOTE(OverSampling):
                 graph[idx] = {}
 
             # fitting nearest neighbors model to the cluster elements
-            nnmt = NearestNeighborsWithMetricTensor(n_neighbors=len(cluster),
-                                                    n_jobs=self.n_jobs,
-                                                    **(nn_params))
+            nnmt = NearestNeighborsWithMetricTensor(
+                n_neighbors=len(cluster), n_jobs=self.n_jobs, **(nn_params)
+            )
             nnmt.fit(cluster)
             dist, ind = nnmt.kneighbors(cluster)
 
             # extracting graph edges according directly to the density reachabality
             # definition
             for idx in range(len(cluster)):
-                index_set = ind[idx][1:min([len(cluster),
-                                            (self.min_samples + 1)])]
+                index_set = ind[idx][1 : min([len(cluster), (self.min_samples + 1)])]
                 for jdx in range(len(cluster)):
-                    if jdx in index_set \
-                        and dist[idx][ind[idx] == jdx][0] < self.eps:
+                    if jdx in index_set and dist[idx][ind[idx] == jdx][0] < self.eps:
                         graph[idx][jdx] = dist[idx][ind[idx] == jdx][0]
 
             # finding the index of the center like object
-            centroid_ind = nnmt.kneighbors(np.mean(cluster, axis=0).reshape(1, -1),
-                                           return_distance=False)[0][0]
+            centroid_ind = nnmt.kneighbors(
+                np.mean(cluster, axis=0).reshape(1, -1), return_distance=False
+            )[0][0]
 
             # extracting shortest paths from centroid object
             shortest_paths.append(bellman_ford(graph, centroid_ind))
 
         return shortest_paths
 
-    def generate_samples(self,
-                            n_to_sample,
-                            clusters,
-                            shortest_paths,
-                            X_min):
+    def generate_samples(self, n_to_sample, clusters, shortest_paths, X_min):
         """
         Generate samples
 
@@ -259,15 +262,15 @@ class DBSMOTE(OverSampling):
         Returns:
             np.array: the generated samples
         """
-        cluster_dist = np.array([len(clusters[idx])
-                                  for idx in range(len(clusters))])
-        cluster_dist = cluster_dist/np.sum(cluster_dist)
+        cluster_dist = np.array([len(clusters[idx]) for idx in range(len(clusters))])
+        cluster_dist = cluster_dist / np.sum(cluster_dist)
 
         # generating samples
         samples = []
         while len(samples) < n_to_sample:
             cluster_idx = self.random_state.choice(
-                np.arange(len(clusters)), p=cluster_dist)
+                np.arange(len(clusters)), p=cluster_dist
+            )
             cluster = X_min[clusters[cluster_idx]]
             idx = self.random_state.choice(range(len(clusters[cluster_idx])))
 
@@ -284,16 +287,16 @@ class DBSMOTE(OverSampling):
                 samples.append(cluster[path[0]])
             elif len(path) == 2:
                 # if the path consists of 1 edge
-                sample = \
-                    self.sample_between_points_componentwise(cluster[path[0]],
-                                                             cluster[path[1]])
+                sample = self.sample_between_points_componentwise(
+                    cluster[path[0]], cluster[path[1]]
+                )
                 samples.append(sample)
             else:
                 # if the path consists of at least two edges
-                r_vertex = self.random_state.randint(len(path)-1)
-                sample = \
-                    self.sample_between_points_componentwise(cluster[path[r_vertex]],
-                                                             cluster[path[r_vertex + 1]])
+                r_vertex = self.random_state.randint(len(path) - 1)
+                sample = self.sample_between_points_componentwise(
+                    cluster[path[r_vertex]], cluster[path[r_vertex + 1]]
+                )
                 samples.append(sample)
         return samples
 
@@ -315,7 +318,7 @@ class DBSMOTE(OverSampling):
             return self.return_copies(X, y, "Sampling is not needed")
 
         scaler = StandardScaler().fit(X)
-        X_ss = scaler.transform(X) # pylint: disable=invalid-name
+        X_ss = scaler.transform(X)  # pylint: disable=invalid-name
 
         # doing the clustering using DBSCAN
         X_min = X_ss[y == self.min_label]
@@ -328,26 +331,29 @@ class DBSMOTE(OverSampling):
         # determining cluster size distribution
         clusters = [np.where(labels == i)[0] for i in range(num_labels)]
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
         shortest_paths = self.extract_shortest_paths(X_min, clusters, nn_params)
 
-        samples = self.generate_samples(n_to_sample, clusters, shortest_paths,
-                            X_min)
+        samples = self.generate_samples(n_to_sample, clusters, shortest_paths, X_min)
 
-        return (np.vstack([X, scaler.inverse_transform(np.vstack(samples))]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, scaler.inverse_transform(np.vstack(samples))]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'eps': self.eps,
-                'min_samples': self.min_samples,
-                'db_iter_limit': self.db_iter_limit,
-                'nn_params': self.nn_params,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "eps": self.eps,
+            "min_samples": self.min_samples,
+            "db_iter_limit": self.db_iter_limit,
+            "nn_params": self.nn_params,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

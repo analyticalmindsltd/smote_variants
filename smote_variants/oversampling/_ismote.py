@@ -8,9 +8,11 @@ from ..base import coalesce, coalesce_dict
 from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSamplingSimplex
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['ISMOTE']
+__all__ = ["ISMOTE"]
+
 
 class ISMOTE(OverSamplingSimplex):
     """
@@ -36,18 +38,22 @@ class ISMOTE(OverSamplingSimplex):
                             }
     """
 
-    categories = [OverSamplingSimplex.cat_changes_majority,
-                  OverSamplingSimplex.cat_metric_learning]
+    categories = [
+        OverSamplingSimplex.cat_changes_majority,
+        OverSamplingSimplex.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 minority_weight=0.5,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        minority_weight=0.5,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -65,22 +71,25 @@ class ISMOTE(OverSamplingSimplex):
                                                     like in sklearn
         """
         nn_params = coalesce(nn_params, {})
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
         ss_params = coalesce_dict(ss_params, ss_params_default)
 
         super().__init__(**ss_params, random_state=random_state)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_greater_or_equal(minority_weight, "minority_weight", 0)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.n_neighbors = n_neighbors
         self.nn_params = nn_params
         self.minority_weight = minority_weight
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -88,8 +97,10 @@ class ISMOTE(OverSamplingSimplex):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'n_neighbors': [3, 5, 7],
-                                  'minority_weight': [0.2, 0.5, 0.8]}
+        parameter_combinations = {
+            "n_neighbors": [3, 5, 7],
+            "minority_weight": [0.2, 0.5, 0.8],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def sampling_algorithm(self, X, y):
@@ -106,18 +117,18 @@ class ISMOTE(OverSamplingSimplex):
         X_min = X[y == self.min_label]
         X_maj = X[y == self.maj_label]
 
-        n_to_sample = int((len(X_maj) - len(X_min))/2 + 0.5)
+        n_to_sample = int((len(X_maj) - len(X_min)) / 2 + 0.5)
 
         if n_to_sample == 0:
             return self.return_copies(X, y, "Sampling is not needed")
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # computing distances of majority samples from minority ones
-        nnmt = NearestNeighborsWithMetricTensor(n_neighbors=len(X_min),
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=len(X_min), n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X_min)
         dist, ind = nnmt.kneighbors(X_maj)
 
@@ -131,14 +142,18 @@ class ISMOTE(OverSamplingSimplex):
 
         # construct new dataset
         X = np.vstack([X_maj, X_min])
-        y = np.hstack([np.repeat(self.maj_label, len(X_maj)),
-                           np.repeat(self.min_label, len(X_min))])
+        y = np.hstack(
+            [
+                np.repeat(self.maj_label, len(X_maj)),
+                np.repeat(self.min_label, len(X_min)),
+            ]
+        )
 
         # fitting nearest neighbors model
         n_neighbors = np.min([len(X), self.n_neighbors + 1])
-        nnmt= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X)
         ind = nnmt.kneighbors(X_min, return_distance=False)
 
@@ -148,19 +163,21 @@ class ISMOTE(OverSamplingSimplex):
         # removing the minority samples from their own neighborhoods
         ind = ind[:, 1:]
 
-        samples = self.sample_simplex(X=X_min,
-                                        indices=ind,
-                                        n_to_sample=n_to_sample,
-                                        X_vertices=X,
-                                        vertex_weights=vertex_weights)
+        samples = self.sample_simplex(
+            X=X_min,
+            indices=ind,
+            n_to_sample=n_to_sample,
+            X_vertices=X,
+            vertex_weights=vertex_weights,
+        )
 
         # do the oversampling
-        #samples = []
-        #while len(samples) < n_to_sample:
+        # samples = []
+        # while len(samples) < n_to_sample:
         #    idx = self.random_state.choice(np.arange(len(X_min)))
         #    y_idx = self.random_state.choice(ind[idx][1:])
 
-            # different generation scheme depending on the class label
+        # different generation scheme depending on the class label
         #    if y_new[y_idx] == self.min_label:
         #        diff = (X_new[y_idx] - X_min[idx])
         #        r = self.random_state.random_sample()
@@ -171,16 +188,20 @@ class ISMOTE(OverSamplingSimplex):
         #        sample = X_min[idx] + r * diff * (1.0 - self.minority_weight)
         #        samples.append(sample)
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'minority_weight': self.minority_weight,
-                'n_jobs': self.n_jobs,
-                **OverSamplingSimplex.get_params(self)}
+        return {
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "minority_weight": self.minority_weight,
+            "n_jobs": self.n_jobs,
+            **OverSamplingSimplex.get_params(self),
+        }

@@ -4,11 +4,10 @@ This module implements the UnderSampling base class.
 
 from ._base import StatisticsMixin, ParametersMixin, RandomStateMixin
 
-__all__= ['UnderSampling']
+__all__ = ["UnderSampling"]
 
-class UnderSampling(StatisticsMixin,
-                    ParametersMixin,
-                    RandomStateMixin):
+
+class UnderSampling(StatisticsMixin, ParametersMixin, RandomStateMixin):
     """
     Base class of undersampling approaches.
     """
@@ -24,9 +23,11 @@ class UnderSampling(StatisticsMixin,
     def sample(self, X, y):
         """
         Carry out undersampling
+
         Args:
             X (np.array): features
             y (np.array): labels
+
         Returns:
             np.array, np.array: sampled X and y
         """
@@ -36,6 +37,7 @@ class UnderSampling(StatisticsMixin,
     def get_params(self, deep=False):
         """
         Returns the parameters of the object as a dictionary.
+
         Returns:
             dict: the parameters of the object
         """
@@ -43,6 +45,8 @@ class UnderSampling(StatisticsMixin,
 
     def descriptor(self):
         """
+        Return the descriptor
+
         Returns:
             str: JSON description of the current sampling object
         """

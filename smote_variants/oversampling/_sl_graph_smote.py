@@ -15,9 +15,11 @@ from ._safe_level_smote import Safe_Level_SMOTE
 from ._borderline_smote import Borderline_SMOTE1
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['SL_graph_SMOTE']
+__all__ = ["SL_graph_SMOTE"]
+
 
 class SL_graph_SMOTE(OverSampling):
     """
@@ -38,19 +40,23 @@ class SL_graph_SMOTE(OverSampling):
                     }
     """
 
-    categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_borderline,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_extensive,
+        OverSampling.cat_borderline,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -72,14 +78,17 @@ class SL_graph_SMOTE(OverSampling):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
 
         super().__init__(random_state=random_state)
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
@@ -87,7 +96,7 @@ class SL_graph_SMOTE(OverSampling):
         self.ss_params = coalesce_dict(ss_params, ss_params_default)
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -95,9 +104,10 @@ class SL_graph_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def sampling_algorithm(self, X, y):
@@ -119,13 +129,12 @@ class SL_graph_SMOTE(OverSampling):
         # Fitting nearest neighbors model
         n_neighbors = min([len(X), self.n_neighbors])
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= \
-            self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
-        nnmt= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **nn_params)
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **nn_params
+        )
         nnmt.fit(X)
         indices = nnmt.kneighbors(X[y == self.min_label], return_distance=False)
 
@@ -135,25 +144,29 @@ class SL_graph_SMOTE(OverSampling):
         # Computing skewness
         with warnings.catch_warnings():
             if suppress_external_warnings():
-                warnings.simplefilter('ignore')
+                warnings.simplefilter("ignore")
             skewness = skew(safe_level_values)
 
         if skewness < 0:
             # left skewed
-            sampler = Safe_Level_SMOTE(proportion=self.proportion,
-                                        n_neighbors=self.n_neighbors,
-                                        nn_params=nn_params,
-                                        ss_params=self.ss_params,
-                                        n_jobs=self.n_jobs,
-                                        random_state=self._random_state_init)
+            sampler = Safe_Level_SMOTE(
+                proportion=self.proportion,
+                n_neighbors=self.n_neighbors,
+                nn_params=nn_params,
+                ss_params=self.ss_params,
+                n_jobs=self.n_jobs,
+                random_state=self._random_state_init,
+            )
         else:
             # right skewed
-            sampler = Borderline_SMOTE1(proportion=self.proportion,
-                                        n_neighbors=self.n_neighbors,
-                                        nn_params=nn_params,
-                                        ss_params=self.ss_params,
-                                        n_jobs=self.n_jobs,
-                                        random_state=self._random_state_init)
+            sampler = Borderline_SMOTE1(
+                proportion=self.proportion,
+                n_neighbors=self.n_neighbors,
+                nn_params=nn_params,
+                ss_params=self.ss_params,
+                n_jobs=self.n_jobs,
+                random_state=self._random_state_init,
+            )
 
         return sampler.sample(X, y)
 
@@ -162,9 +175,11 @@ class SL_graph_SMOTE(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'ss_params': self.ss_params,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "ss_params": self.ss_params,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

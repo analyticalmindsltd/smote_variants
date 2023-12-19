@@ -9,19 +9,25 @@ from queue import Empty
 
 import pytest
 
-from smote_variants.evaluation import (TimeoutJobBase,
-                                        ThreadTimeoutProcessPool,
-                                        wait_for_lock,
-                                        queue_get_default)
+from smote_variants.evaluation import (
+    TimeoutJobBase,
+    ThreadTimeoutProcessPool,
+    FunctionWrapperJob,
+    wait_for_lock,
+    queue_get_default,
+    execute_job_object
+)
 
 sleeps = [1, 2, 6, 7]
 
 sleeps_no_timeout = [1, 2]
 
+
 class SleepJob(TimeoutJobBase):
     """
     Sleep job for testing
     """
+
     def __init__(self, sleep):
         """
         The constructor of the sleep job
@@ -36,7 +42,7 @@ class SleepJob(TimeoutJobBase):
             dict: the result of the sleep job
         """
         time.sleep(self.sleep)
-        return {'slept': self.sleep}
+        return {"slept": self.sleep}
 
     def timeout(self):
         """
@@ -45,7 +51,8 @@ class SleepJob(TimeoutJobBase):
         Returns:
             dict: the return of the timeout post-processing
         """
-        return {'slept': None}
+        return {"slept": None}
+
 
 def sleep_job(sleep):
     """
@@ -58,7 +65,40 @@ def sleep_job(sleep):
         dict: the result of the sleeping
     """
     time.sleep(sleep)
-    return {'slept': sleep}
+    return {"slept": sleep}
+
+
+def test_sleeping():
+    """
+    Testing the sleeping
+    """
+    result = SleepJob(1).execute()
+    assert result['slept'] == 1
+
+    result = sleep_job(1)
+    assert result['slept'] == 1
+
+
+def test_function_wrapper_job():
+    """
+    Testing the function wrapper job
+    """
+    fwj = FunctionWrapperJob(sleep_job, 1)
+    assert fwj.execute()['slept'] == 1
+
+
+def test_execute_job_object():
+    """
+    Testing the job object execution
+    """
+    fwj = FunctionWrapperJob(sleep_job, 1)
+
+    queue = multiprocessing.Queue()
+    queue_lock = multiprocessing.Lock()
+
+    execute_job_object(fwj, queue, queue_lock)
+
+    assert True
 
 def test_jobs_objects_timeout():
     """
@@ -72,6 +112,7 @@ def test_jobs_objects_timeout():
     assert len(results) == len(sleeps)
 
     assert all(isinstance(result, dict) for result in results)
+
 
 def test_jobs_functions_timeout():
     """
@@ -88,6 +129,7 @@ def test_jobs_functions_timeout():
 
     assert 0 < dict_count < len(sleeps)
 
+
 def test_jobs_objects_no_timeout():
     """
     Testing the job objects without timeout.
@@ -100,6 +142,7 @@ def test_jobs_objects_no_timeout():
     assert len(results) == len(sleeps_no_timeout)
 
     assert all(isinstance(result, dict) for result in results)
+
 
 def test_jobs_functions_no_timeout():
     """
@@ -116,6 +159,7 @@ def test_jobs_functions_no_timeout():
 
     assert dict_count == len(sleeps_no_timeout)
 
+
 def test_exceptions():
     """
     Testing the exception in the base class
@@ -128,6 +172,7 @@ def test_exceptions():
 
     with pytest.raises(RuntimeError) as _:
         toj.timeout()
+
 
 def test_lock():
     """
@@ -149,10 +194,12 @@ def test_lock():
 
     assert not thread.is_alive()
 
-class MockQueue: # pylint: disable=too-few-public-methods
+
+class MockQueue:  # pylint: disable=too-few-public-methods
     """
     Class mocking the Queue object
     """
+
     def get(self, block):
         """
         Mocking the get function of the Queue
@@ -166,10 +213,12 @@ class MockQueue: # pylint: disable=too-few-public-methods
         _ = block
         raise Empty
 
-class MockJob: # pylint: disable=too-few-public-methods
+
+class MockJob:  # pylint: disable=too-few-public-methods
     """
     Class mocking a TimeoutJob object
     """
+
     def timeout(self):
         """
         The timeout function
@@ -178,6 +227,7 @@ class MockJob: # pylint: disable=too-few-public-methods
             int: 1
         """
         return 1
+
 
 def test_queue_get_default():
     """

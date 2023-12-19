@@ -11,9 +11,11 @@ from ..base import coalesce, coalesce_dict
 from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSamplingSimplex
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['GASMOTE']
+__all__ = ["GASMOTE"]
+
 
 class GASMOTE(OverSamplingSimplex):
     """
@@ -41,25 +43,29 @@ class GASMOTE(OverSamplingSimplex):
                         }
     """
 
-    categories = [OverSamplingSimplex.cat_extensive,
-                  OverSamplingSimplex.cat_memetic,
-                  OverSamplingSimplex.cat_sample_ordinary,
-                  OverSamplingSimplex.cat_metric_learning]
+    categories = [
+        OverSamplingSimplex.cat_extensive,
+        OverSamplingSimplex.cat_memetic,
+        OverSamplingSimplex.cat_sample_ordinary,
+        OverSamplingSimplex.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 maxn=7,
-                 n_pop=10,
-                 popl3=5,
-                 pm=0.3,
-                 pr=0.2,
-                 Ge=10,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        maxn=7,
+        n_pop=10,
+        popl3=5,
+        pm=0.3,
+        pr=0.2,
+        Ge=10,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -84,9 +90,12 @@ class GASMOTE(OverSamplingSimplex):
         """
         nn_params = coalesce(nn_params, {})
 
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
         ss_params = coalesce_dict(ss_params, ss_params_default)
 
         super().__init__(**ss_params, random_state=random_state)
@@ -96,19 +105,21 @@ class GASMOTE(OverSamplingSimplex):
         self.check_in_range(pm, "pm", [0, 1])
         self.check_in_range(pr, "pr", [0, 1])
         self.check_greater_or_equal(Ge, "Ge", 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.n_neighbors = n_neighbors
         self.nn_params = nn_params
-        self.ga_params = {'maxn': maxn,
-                            'n_pop': n_pop,
-                            'popl3': popl3,
-                            'pm': pm,
-                            'pr': pr,
-                            'Ge': Ge}
+        self.ga_params = {
+            "maxn": maxn,
+            "n_pop": n_pop,
+            "popl3": popl3,
+            "pm": pm,
+            "pr": pr,
+            "Ge": Ge,
+        }
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -116,13 +127,18 @@ class GASMOTE(OverSamplingSimplex):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        return cls.generate_parameter_combinations({'n_neighbors': [7],
-                                                    'maxn': [2, 3, 4],
-                                                    'n_pop': [10],
-                                                    'popl3': [4],
-                                                    'pm': [0.3],
-                                                    'pr': [0.2],
-                                                    'Ge': [10]}, raw)
+        return cls.generate_parameter_combinations(
+            {
+                "n_neighbors": [7],
+                "maxn": [2, 3, 4],
+                "n_pop": [10],
+                "popl3": [4],
+                "pm": [0.3],
+                "pr": [0.2],
+                "Ge": [10],
+            },
+            raw,
+        )
 
     def samples_from_conf(self, X_min, ind, conf):
         """
@@ -138,10 +154,14 @@ class GASMOTE(OverSamplingSimplex):
         """
         samples = [np.zeros(shape=(0, X_min.shape[1]), dtype=float)]
         for idx, conf_i in enumerate(conf):
-            samples.append(self.sample_simplex(X=X_min[[idx]],
-                                                indices=ind[[idx]],
-                                                n_to_sample=conf_i,
-                                                X_vertices=X_min))
+            samples.append(
+                self.sample_simplex(
+                    X=X_min[[idx]],
+                    indices=ind[[idx]],
+                    n_to_sample=conf_i,
+                    X_vertices=X_min,
+                )
+            )
         return np.vstack(samples)
 
     def calculate_score(self, tests, preds):
@@ -160,10 +180,10 @@ class GASMOTE(OverSamplingSimplex):
         t_n = np.sum(np.logical_and(tests == self.maj_label, tests == preds))
         f_p = np.sum(np.logical_and(tests == self.maj_label, tests != preds))
         f_n = np.sum(np.logical_and(tests == self.min_label, tests != preds))
-        sens = t_p/(t_p + f_n)
-        spec = t_n/(f_p + t_n)
+        sens = t_p / (t_p + f_n)
+        spec = t_n / (f_p + t_n)
 
-        return np.sqrt(sens*spec)
+        return np.sqrt(sens * spec)
 
     def fitness(self, *, conf, X_min, ind, X, y, kfold):
         """
@@ -183,8 +203,8 @@ class GASMOTE(OverSamplingSimplex):
         # generate new samples
         samples = self.samples_from_conf(X_min, ind, conf)
 
-        #samples = []
-        #for idx, conf_i in enumerate(conf):
+        # samples = []
+        # for idx, conf_i in enumerate(conf):
         #    for _ in range(conf_i):
         #        X_b = X_min[self.random_state.choice(ind[idx][1:])]
         #        samples.append(self.sample_between_points(X_min[idx], X_b))
@@ -215,7 +235,7 @@ class GASMOTE(OverSamplingSimplex):
         Returns:
             list, list: the configurations after crossover
         """
-        for _ in range(self.ga_params['popl3']):
+        for _ in range(self.ga_params["popl3"]):
             kdx = self.random_state.randint(len(conf_a))
             conf_a = np.hstack([conf_a[:kdx], conf_b[kdx:]])
             conf_b = np.hstack([conf_b[:kdx], conf_a[kdx:]])
@@ -233,15 +253,15 @@ class GASMOTE(OverSamplingSimplex):
             list: the mutated configuration
         """
         conf = conf.copy()
-        if self.random_state.random_sample() >= self.ga_params['pm']:
+        if self.random_state.random_sample() >= self.ga_params["pm"]:
             for idx, conf_i in enumerate(conf):
                 rand = self.random_state.random_sample()
-                rand = rand**((1 - ge_/self.ga_params['Ge'])**3)
+                rand = rand ** ((1 - ge_ / self.ga_params["Ge"]) ** 3)
                 if self.random_state.randint(2) == 0:
-                    tmp = (self.ga_params['maxn'] - conf_i) * rand
+                    tmp = (self.ga_params["maxn"] - conf_i) * rand
                     conf[idx] = int(conf_i + tmp)
                 else:
-                    conf[idx] = int(conf_i - (conf_i - 0)*rand)
+                    conf[idx] = int(conf_i - (conf_i - 0) * rand)
         return conf
 
     # generate initial population
@@ -255,7 +275,7 @@ class GASMOTE(OverSamplingSimplex):
         Returns:
             np.array: an initial population
         """
-        return self.random_state.randint(self.ga_params['maxn'], size=X_min.shape[0])
+        return self.random_state.randint(self.ga_params["maxn"], size=X_min.shape[0])
 
     def genetic_algorithm(self, *, X_min, ind, X, y, kfold):
         """
@@ -268,58 +288,67 @@ class GASMOTE(OverSamplingSimplex):
             y (np.array): all target labels
             kfold (obj): a k-fold cross-validation object
         """
-        population = [[self.init_pop(X_min), 0] for _ in range(self.ga_params['n_pop'])]
+        population = [[self.init_pop(X_min), 0] for _ in range(self.ga_params["n_pop"])]
 
         # calculate fitness values
         for pop in population:
-            pop[1] = self.fitness(conf=pop[0],
-                                    X_min=X_min,
-                                    ind=ind,
-                                    X=X,
-                                    y=y,
-                                    kfold=kfold)
+            pop[1] = self.fitness(
+                conf=pop[0], X_min=X_min, ind=ind, X=X, y=y, kfold=kfold
+            )
 
         # start iteration
         ge_ = 0
-        while ge_ < self.ga_params['Ge']:
+        while ge_ < self.ga_params["Ge"]:
             # sorting population in descending order by fitness scores
             population = sorted(population, key=lambda x: -x[1])
 
             # selection operation (Step 2)
-            n_keep = int(self.ga_params['n_pop']*self.ga_params['pr'])
+            n_keep = int(self.ga_params["n_pop"] * self.ga_params["pr"])
             population_new = []
             population_new.extend(population[:n_keep])
-            population_new.extend(population[:(self.ga_params['n_pop'] - n_keep)])
+            population_new.extend(population[: (self.ga_params["n_pop"] - n_keep)])
             population = population_new
 
             # crossover
-            for _ in range(int(self.ga_params['n_pop']/2)):
-                pop_0 = population[self.random_state.randint(self.ga_params['n_pop'])][0]
-                pop_1 = population[self.random_state.randint(self.ga_params['n_pop'])][0]
+            for _ in range(int(self.ga_params["n_pop"] / 2)):
+                pop_0 = population[self.random_state.randint(self.ga_params["n_pop"])][
+                    0
+                ]
+                pop_1 = population[self.random_state.randint(self.ga_params["n_pop"])][
+                    0
+                ]
                 conf_a, conf_b = self.crossover(pop_0, pop_1)
-                population.append([conf_a, self.fitness(conf=conf_a,
-                                                        X_min=X_min,
-                                                        ind=ind,
-                                                        X=X,
-                                                        y=y,
-                                                        kfold=kfold)])
-                population.append([conf_b, self.fitness(conf=conf_b,
-                                                        X_min=X_min,
-                                                        ind=ind,
-                                                        X=X,
-                                                        y=y,
-                                                        kfold=kfold)])
+                population.append(
+                    [
+                        conf_a,
+                        self.fitness(
+                            conf=conf_a, X_min=X_min, ind=ind, X=X, y=y, kfold=kfold
+                        ),
+                    ]
+                )
+                population.append(
+                    [
+                        conf_b,
+                        self.fitness(
+                            conf=conf_b, X_min=X_min, ind=ind, X=X, y=y, kfold=kfold
+                        ),
+                    ]
+                )
 
             # mutation
-            for _ in range(int(self.ga_params['n_pop']/2)):
-                pop_0 = population[self.random_state.randint(self.ga_params['n_pop'])][0]
+            for _ in range(int(self.ga_params["n_pop"] / 2)):
+                pop_0 = population[self.random_state.randint(self.ga_params["n_pop"])][
+                    0
+                ]
                 conf_a = self.mutation(pop_0, ge_)
-                population.append([conf_a, self.fitness(conf=conf_a,
-                                                        X_min=X_min,
-                                                        ind=ind,
-                                                        X=X,
-                                                        y=y,
-                                                        kfold=kfold)])
+                population.append(
+                    [
+                        conf_a,
+                        self.fitness(
+                            conf=conf_a, X_min=X_min, ind=ind, X=X, y=y, kfold=kfold
+                        ),
+                    ]
+                )
 
             ge_ = ge_ + 1
 
@@ -346,40 +375,40 @@ class GASMOTE(OverSamplingSimplex):
         #  minority samples
         n_neighbors = min([self.n_neighbors + 1, len(X_min)])
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
-        nnmt = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                        n_jobs=self.n_jobs,
-                                                        **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X_min)
         ind = nnmt.kneighbors(X_min, return_distance=False)
         kfold = KFold(min([len(X), 5]))
 
-        conf = self.genetic_algorithm(X_min=X_min,
-                                        ind=ind,
-                                        X=X,
-                                        y=y,
-                                        kfold=kfold)
+        conf = self.genetic_algorithm(X_min=X_min, ind=ind, X=X, y=y, kfold=kfold)
 
         # generate final samples
         samples = self.samples_from_conf(X_min, ind, conf)
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'maxn': self.ga_params['maxn'],
-                'n_pop': self.ga_params['n_pop'],
-                'popl3': self.ga_params['popl3'],
-                'pm': self.ga_params['pm'],
-                'pr': self.ga_params['pr'],
-                'Ge': self.ga_params['Ge'],
-                'n_jobs': self.n_jobs,
-                **OverSamplingSimplex.get_params(self)}
+        return {
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "maxn": self.ga_params["maxn"],
+            "n_pop": self.ga_params["n_pop"],
+            "popl3": self.ga_params["popl3"],
+            "pm": self.ga_params["pm"],
+            "pr": self.ga_params["pr"],
+            "Ge": self.ga_params["Ge"],
+            "n_jobs": self.n_jobs,
+            **OverSamplingSimplex.get_params(self),
+        }

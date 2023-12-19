@@ -8,9 +8,11 @@ from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSampling
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['Safe_Level_SMOTE']
+__all__ = ["Safe_Level_SMOTE"]
+
 
 class Safe_Level_SMOTE(OverSampling):
     """
@@ -47,19 +49,23 @@ class Safe_Level_SMOTE(OverSampling):
             sample has minority neighbors.
     """
 
-    categories = [OverSampling.cat_borderline,
-                  OverSampling.cat_extensive,
-                  OverSampling.cat_sample_componentwise,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_borderline,
+        OverSampling.cat_extensive,
+        OverSampling.cat_sample_componentwise,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params= {},
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -83,14 +89,14 @@ class Safe_Level_SMOTE(OverSampling):
 
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1.0)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
-        self.nn_params = nn_params
+        self.nn_params = nn_params or {}
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -98,9 +104,10 @@ class Safe_Level_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def slp_sln(self, y, indices):
@@ -124,15 +131,17 @@ class Safe_Level_SMOTE(OverSampling):
         pos_slp = minority_indices[safe_levels[minority_indices] > 0]
         null_slp = minority_indices[safe_levels[minority_indices] == 0]
 
-        part0 = np.vstack([np.repeat(pos_slp, indices.shape[1] - 1),
-                            indices[pos_slp, 1:].flatten()]).T
+        part0 = np.vstack(
+            [np.repeat(pos_slp, indices.shape[1] - 1), indices[pos_slp, 1:].flatten()]
+        ).T
 
         pos_sln = np.where(safe_levels[indices[null_slp, 1:]] > 0)
-        part1 = np.vstack([null_slp[pos_sln[0]],
-                            indices[null_slp, 1:][pos_sln]]).T
+        part1 = np.vstack([null_slp[pos_sln[0]], indices[null_slp, 1:][pos_sln]]).T
 
         pairs = np.vstack([part0, part1])
-        return np.vstack([pairs.T, safe_levels[pairs[:, 0]], safe_levels[pairs[:, 1]]]).T
+        return np.vstack(
+            [pairs.T, safe_levels[pairs[:, 0]], safe_levels[pairs[:, 1]]]
+        ).T
 
     def generate_samples(self, X, y, slp_sln, n_to_sample):
         """
@@ -148,31 +157,34 @@ class Safe_Level_SMOTE(OverSampling):
             np.array, np.array: the extended training set
         """
         if len(slp_sln) == 0:
-            return self.return_copies(X, y, "No neighbors passing the "\
-                                                            "safe level test")
+            return self.return_copies(
+                X, y, "No neighbors passing the safe level test"
+            )
 
-        base_indices = \
-            self.random_state.choice(np.arange(len(slp_sln)), n_to_sample)
+        base_indices = self.random_state.choice(np.arange(len(slp_sln)), n_to_sample)
 
         gap = self.random_state.random_sample(size=(n_to_sample, X.shape[1]))
 
-        slp = slp_sln[base_indices][:,2]
-        sln = slp_sln[base_indices][:,3]
+        slp = slp_sln[base_indices][:, 2]
+        sln = slp_sln[base_indices][:, 3]
 
         gap = (gap.T * np.where(np.logical_and(sln == 0, slp > 0), 0.0, 1.0)).T
 
         mask = slp > sln
-        gap[mask] = (gap[mask].T * sln[mask]/slp[mask]).T
+        gap[mask] = (gap[mask].T * sln[mask] / slp[mask]).T
 
         mask = slp < sln
-        gap[mask] = (gap[mask].T * slp[mask]/sln[mask]).T
-        gap[mask] = (gap[mask].T + (1.0 - slp[mask]/sln[mask])).T
+        gap[mask] = (gap[mask].T * slp[mask] / sln[mask]).T
+        gap[mask] = (gap[mask].T + (1.0 - slp[mask] / sln[mask])).T
 
-        samples = X[slp_sln[base_indices][:,0]] + \
-                    ((X[slp_sln[base_indices][:,1]] - X[slp_sln[base_indices][:,0]]) * gap)
+        samples = X[slp_sln[base_indices][:, 0]] + (
+            (X[slp_sln[base_indices][:, 1]] - X[slp_sln[base_indices][:, 0]]) * gap
+        )
 
-        return (np.vstack([X, samples]),
-               np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def sampling_algorithm(self, X, y):
         """
@@ -191,15 +203,14 @@ class Safe_Level_SMOTE(OverSampling):
             return self.return_copies(X, y, "Sampling is not needed")
 
         # fitting nearest neighbors model
-        n_neighbors = min([self.n_neighbors+1, len(X)])
+        n_neighbors = min([self.n_neighbors + 1, len(X)])
 
         nn_params = {**self.nn_params}
-        nn_params['metric_tensor'] = \
-                    self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
-        nnmt= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X)
         indices = nnmt.kneighbors(X, return_distance=False)
 
@@ -207,14 +218,15 @@ class Safe_Level_SMOTE(OverSampling):
 
         return self.generate_samples(X, y, slp_sln, n_to_sample)
 
-
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

@@ -9,9 +9,11 @@ from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSampling
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['SMOTE_OUT']
+__all__ = ["SMOTE_OUT"]
+
 
 class SMOTE_OUT(OverSampling):
     """
@@ -30,17 +32,18 @@ class SMOTE_OUT(OverSampling):
                     }
     """
 
-    categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_metric_learning]
+    categories = [OverSampling.cat_extensive, OverSampling.cat_metric_learning]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -62,14 +65,14 @@ class SMOTE_OUT(OverSampling):
         super().__init__(random_state=random_state)
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
         self.nn_params = coalesce(nn_params, {})
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -77,13 +80,23 @@ class SMOTE_OUT(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
-    def generate_samples(self, *, X, X_maj, X_min, minority_indices,
-                            n_to_sample, maj_indices, min_indices):
+    def generate_samples(
+        self,
+        *,
+        X,
+        X_maj,
+        X_min,
+        minority_indices,
+        n_to_sample,
+        maj_indices,
+        min_indices
+    ):
         """
         Generate samples
 
@@ -99,17 +112,22 @@ class SMOTE_OUT(OverSampling):
         Returns:
             np.array: the generated samples
         """
-        base_ind = self.random_state.choice(np.arange(len(minority_indices)),
-                                            n_to_sample)
+        base_ind = self.random_state.choice(
+            np.arange(len(minority_indices)), n_to_sample
+        )
 
-        u = X[minority_indices[base_ind]] # pylint: disable=invalid-name
-        neigh_ind = self.random_state.choice(np.arange(0, maj_indices.shape[1]),
-                                             n_to_sample)
-        v = X_maj[maj_indices[base_ind, neigh_ind]] # pylint: disable=invalid-name
-        uu = u + self.random_state.random_sample(u.shape) * 0.3 * (u - v) # pylint: disable=invalid-name
-        min_neigh_ind = self.random_state.choice(np.arange(1, min_indices.shape[1]),
-                                                 n_to_sample)
-        x = X_min[min_indices[base_ind, min_neigh_ind]] # pylint: disable=invalid-name
+        u = X[minority_indices[base_ind]]  # pylint: disable=invalid-name
+        neigh_ind = self.random_state.choice(
+            np.arange(0, maj_indices.shape[1]), n_to_sample
+        )
+        v = X_maj[maj_indices[base_ind, neigh_ind]]  # pylint: disable=invalid-name
+        uu = u + self.random_state.random_sample(u.shape) * 0.3 * (
+            u - v
+        )  # pylint: disable=invalid-name
+        min_neigh_ind = self.random_state.choice(
+            np.arange(1, min_indices.shape[1]), n_to_sample
+        )
+        x = X_min[min_indices[base_ind, min_neigh_ind]]  # pylint: disable=invalid-name
         return x + self.random_state.random_sample(x.shape) * 0.5 * (uu - x)
 
     def sampling_algorithm(self, X, y):
@@ -123,9 +141,11 @@ class SMOTE_OUT(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        n_to_sample = self.det_n_to_sample(self.proportion,
-                                           self.class_stats[self.maj_label],
-                                           self.class_stats[self.min_label])
+        n_to_sample = self.det_n_to_sample(
+            self.proportion,
+            self.class_stats[self.maj_label],
+            self.class_stats[self.min_label],
+        )
         if n_to_sample == 0:
             return self.return_copies(X, y, "Sampling is not needed")
 
@@ -136,32 +156,36 @@ class SMOTE_OUT(OverSampling):
 
         # nearest neighbors among minority points
         nn_params = {**self.nn_params}
-        nn_params['metric_tensor'] = \
-            self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
-        n_neighbors_min = min([len(X_min), self.n_neighbors+1])
-        nn_min= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors_min,
-                                                    n_jobs=self.n_jobs,
-                                                    **nn_params)
+        n_neighbors_min = min([len(X_min), self.n_neighbors + 1])
+        nn_min = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors_min, n_jobs=self.n_jobs, **nn_params
+        )
         nn_min.fit(X_min)
 
         min_indices = nn_min.kneighbors(X_min, return_distance=False)
         # nearest neighbors among majority points
-        n_neighbors_maj = min([len(X_maj), self.n_neighbors+1])
-        nn_maj= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors_maj,
-                                                    n_jobs=self.n_jobs,
-                                                    **nn_params)
+        n_neighbors_maj = min([len(X_maj), self.n_neighbors + 1])
+        nn_maj = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors_maj, n_jobs=self.n_jobs, **nn_params
+        )
         nn_maj.fit(X_maj)
         maj_indices = nn_maj.kneighbors(X_min, return_distance=False)
 
-        samples = self.generate_samples(X=X, X_maj=X_maj, X_min=X_min,
-                    minority_indices=minority_indices, n_to_sample=n_to_sample,
-                    maj_indices=maj_indices, min_indices=min_indices)
-
+        samples = self.generate_samples(
+            X=X,
+            X_maj=X_maj,
+            X_min=X_min,
+            minority_indices=minority_indices,
+            n_to_sample=n_to_sample,
+            maj_indices=maj_indices,
+            min_indices=min_indices,
+        )
 
         # generate samples
-        #samples = []
-        #for _ in range(n_to_sample):
+        # samples = []
+        # for _ in range(n_to_sample):
         #    # implementation of Algorithm 1 in the paper
         #    random_idx = self.random_state.choice(np.arange(len(minority_indices)))
         #    u = X[minority_indices[random_idx]]
@@ -174,16 +198,20 @@ class SMOTE_OUT(OverSampling):
         #
         #    samples.append(w)
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

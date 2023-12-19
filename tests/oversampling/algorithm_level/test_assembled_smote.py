@@ -6,6 +6,7 @@ import numpy as np
 
 from smote_variants import Assembled_SMOTE
 
+
 def test_specific():
     """
     Oversampler specific testing
@@ -15,7 +16,7 @@ def test_specific():
 
     vectors = [np.array([[1.0, 2.0]]), np.array([[2.0, 3.0]])]
 
-    samples = obj.generate_samples_in_clusters(vectors=vectors,
-                                                n_to_sample=4,
-                                                nn_params={})
+    samples = obj.generate_samples_in_clusters(
+        vectors=vectors, n_to_sample=4, nn_params={}
+    )
     assert len(samples) == 4

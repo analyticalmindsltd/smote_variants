@@ -2,35 +2,44 @@
 Tests oversamplers with a few samples.
 """
 
+import logging
+
 import pytest
 import numpy as np
 
 import smote_variants as sv
 
-from smote_variants.datasets import (load_1_dim,
-                                     load_illustration_2_class,
-                                     load_normal,
-                                     load_same_num,
-                                     load_some_min_some_maj,
-                                     load_1_min_some_maj,
-                                     load_2_min_some_maj,
-                                     load_3_min_some_maj,
-                                     load_4_min_some_maj,
-                                     load_5_min_some_maj,
-                                     load_1_min_1_maj,
-                                     load_repeated,
-                                     load_all_min_noise,
-                                     load_separable,
-                                     load_linearly_dependent,
-                                     load_alternating,
-                                     load_high_dim)
+from smote_variants.datasets import (
+    load_1_dim,
+    load_illustration_2_class,
+    load_normal,
+    load_same_num,
+    load_some_min_some_maj,
+    load_1_min_some_maj,
+    load_2_min_some_maj,
+    load_3_min_some_maj,
+    load_4_min_some_maj,
+    load_5_min_some_maj,
+    load_1_min_1_maj,
+    load_repeated,
+    load_all_min_noise,
+    load_separable,
+    load_linearly_dependent,
+    load_alternating,
+    load_high_dim,
+)
 
 # disabling smote-variants logging
-import logging
-logger = logging.getLogger('smote_variants')
+
+logger = logging.getLogger("smote_variants")
 logger.setLevel(logging.CRITICAL)
 
-oversamplers = [sv.SMOTE_AMSR(topology='star'), sv.SMOTE_AMSR(topology='bus'), sv.SMOTE_AMSR(topology='mesh')]
+oversamplers = [
+    sv.SMOTE_AMSR(topology="star"),
+    sv.SMOTE_AMSR(topology="bus"),
+    sv.SMOTE_AMSR(topology="mesh"),
+]
+
 
 @pytest.mark.parametrize("smote_obj", oversamplers)
 def test_1_dim(smote_obj):
@@ -42,10 +51,11 @@ def test_1_dim(smote_obj):
     """
     dataset = load_1_dim()
 
-    X, y = smote_obj.sample(dataset['data'], dataset['target'])
+    X, y = smote_obj.sample(dataset["data"], dataset["target"])
 
     assert np.unique(y).shape[0] == 2
     assert X.shape[0] > 0
+
 
 @pytest.mark.parametrize("smote_obj", oversamplers)
 def test_1_min_some_maj(smote_obj):
@@ -57,10 +67,11 @@ def test_1_min_some_maj(smote_obj):
     """
     dataset = load_1_min_some_maj()
 
-    X, y = smote_obj.sample(dataset['data'], dataset['target'])
+    X, y = smote_obj.sample(dataset["data"], dataset["target"])
 
     assert np.unique(y).shape[0] == 2
     assert X.shape[0] > 0
+
 
 @pytest.mark.parametrize("smote_obj", oversamplers)
 def test_1_min_1_maj(smote_obj):
@@ -72,10 +83,11 @@ def test_1_min_1_maj(smote_obj):
     """
     dataset = load_1_min_1_maj()
 
-    X, y = smote_obj.sample(dataset['data'], dataset['target'])
+    X, y = smote_obj.sample(dataset["data"], dataset["target"])
 
     assert np.unique(y).shape[0] == 2
     assert X.shape[0] > 0
+
 
 @pytest.mark.parametrize("smote_obj", oversamplers)
 def test_repeated(smote_obj):
@@ -87,10 +99,11 @@ def test_repeated(smote_obj):
     """
     dataset = load_repeated()
 
-    X, y = smote_obj.sample(dataset['data'], dataset['target'])
+    X, y = smote_obj.sample(dataset["data"], dataset["target"])
 
     assert np.unique(y).shape[0] == 2
     assert X.shape[0] > 0
+
 
 @pytest.mark.parametrize("smote_obj", oversamplers)
 def test_2_min_some_maj(smote_obj):
@@ -102,10 +115,11 @@ def test_2_min_some_maj(smote_obj):
     """
     dataset = load_2_min_some_maj()
 
-    X, y = smote_obj.sample(dataset['data'], dataset['target'])
+    X, y = smote_obj.sample(dataset["data"], dataset["target"])
 
     assert np.unique(y).shape[0] == 2
     assert X.shape[0] > 0
+
 
 @pytest.mark.parametrize("smote_obj", oversamplers)
 def test_3_min_some_maj(smote_obj):
@@ -117,10 +131,11 @@ def test_3_min_some_maj(smote_obj):
     """
     dataset = load_3_min_some_maj()
 
-    X, y = smote_obj.sample(dataset['data'], dataset['target'])
+    X, y = smote_obj.sample(dataset["data"], dataset["target"])
 
     assert np.unique(y).shape[0] == 2
     assert X.shape[0] > 0
+
 
 @pytest.mark.parametrize("smote_obj", oversamplers)
 def test_4_min_some_maj(smote_obj):
@@ -132,10 +147,11 @@ def test_4_min_some_maj(smote_obj):
     """
     dataset = load_4_min_some_maj()
 
-    X, y = smote_obj.sample(dataset['data'], dataset['target'])
+    X, y = smote_obj.sample(dataset["data"], dataset["target"])
 
     assert np.unique(y).shape[0] == 2
     assert X.shape[0] > 0
+
 
 @pytest.mark.parametrize("smote_obj", oversamplers)
 def test_5_min_some_maj(smote_obj):
@@ -147,10 +163,11 @@ def test_5_min_some_maj(smote_obj):
     """
     dataset = load_5_min_some_maj()
 
-    X, y = smote_obj.sample(dataset['data'], dataset['target'])
+    X, y = smote_obj.sample(dataset["data"], dataset["target"])
 
     assert np.unique(y).shape[0] == 2
     assert X.shape[0] > 0
+
 
 @pytest.mark.parametrize("smote_obj", oversamplers)
 def test_all_min_noise(smote_obj):
@@ -162,10 +179,11 @@ def test_all_min_noise(smote_obj):
     """
     dataset = load_all_min_noise()
 
-    X, y = smote_obj.sample(dataset['data'], dataset['target'])
+    X, y = smote_obj.sample(dataset["data"], dataset["target"])
 
     assert np.unique(y).shape[0] == 2
     assert X.shape[0] > 0
+
 
 @pytest.mark.parametrize("smote_obj", oversamplers)
 def test_alternating(smote_obj):
@@ -177,10 +195,11 @@ def test_alternating(smote_obj):
     """
     dataset = load_alternating()
 
-    X, y = smote_obj.sample(dataset['data'], dataset['target'])
+    X, y = smote_obj.sample(dataset["data"], dataset["target"])
 
     assert np.unique(y).shape[0] == 2
     assert X.shape[0] > 0
+
 
 @pytest.mark.parametrize("smote_obj", oversamplers)
 def test_high_dim(smote_obj):
@@ -192,12 +211,12 @@ def test_high_dim(smote_obj):
     """
     dataset = load_high_dim()
 
-    X, y = smote_obj.sample(dataset['data'], dataset['target'])
+    X, y = smote_obj.sample(dataset["data"], dataset["target"])
     assert len(X) > 0
-    assert X.shape[1] == smote_obj\
-                                .preprocessing_transform(dataset['data']).shape[1]
+    assert X.shape[1] == smote_obj.preprocessing_transform(dataset["data"]).shape[1]
     assert np.unique(y).shape[0] == 2
     assert X.shape[0] > 0
+
 
 @pytest.mark.parametrize("smote_obj", oversamplers)
 def test_illustration(smote_obj):
@@ -209,10 +228,11 @@ def test_illustration(smote_obj):
     """
     dataset = load_illustration_2_class()
 
-    X, y = smote_obj.sample(dataset['data'], dataset['target'])
+    X, y = smote_obj.sample(dataset["data"], dataset["target"])
 
     assert np.unique(y).shape[0] == 2
     assert X.shape[0] > 0
+
 
 @pytest.mark.parametrize("smote_obj", oversamplers)
 def test_linearly_dependent(smote_obj):
@@ -224,10 +244,11 @@ def test_linearly_dependent(smote_obj):
     """
     dataset = load_linearly_dependent()
 
-    X, y = smote_obj.sample(dataset['data'], dataset['target'])
+    X, y = smote_obj.sample(dataset["data"], dataset["target"])
 
     assert np.unique(y).shape[0] == 2
     assert X.shape[0] > 0
+
 
 @pytest.mark.parametrize("smote_obj", oversamplers)
 def test_normal(smote_obj):
@@ -239,10 +260,11 @@ def test_normal(smote_obj):
     """
     dataset = load_normal()
 
-    X, y = smote_obj.sample(dataset['data'], dataset['target'])
+    X, y = smote_obj.sample(dataset["data"], dataset["target"])
 
     assert np.unique(y).shape[0] == 2
     assert X.shape[0] > 0
+
 
 @pytest.mark.parametrize("smote_obj", oversamplers)
 def test_reproducibility(smote_obj):
@@ -254,8 +276,8 @@ def test_reproducibility(smote_obj):
     """
     dataset = load_normal()
 
-    X_normal = dataset['data'] # pylint: disable=invalid-name
-    y_normal = dataset['target']
+    X_normal = dataset["data"]  # pylint: disable=invalid-name
+    y_normal = dataset["target"]
 
     X_orig = X_normal.copy()
     y_orig = y_normal.copy()
@@ -263,7 +285,9 @@ def test_reproducibility(smote_obj):
     X_a, y_a = smote_obj.__class__(random_state=5).sample(X_normal, y_normal)
     oversampler = smote_obj.__class__(random_state=5)
     X_b, y_b = oversampler.sample(X_normal, y_normal)
-    X_c, y_c = smote_obj.__class__(**oversampler.get_params()).sample(X_normal, y_normal)
+    X_c, y_c = smote_obj.__class__(**oversampler.get_params()).sample(
+        X_normal, y_normal
+    )
 
     assert np.array_equal(X_a, X_b)
     assert np.array_equal(X_b, X_c)
@@ -272,6 +296,7 @@ def test_reproducibility(smote_obj):
     assert np.array_equal(y_a, y_b)
     assert np.array_equal(y_b, y_c)
     assert np.array_equal(y_orig, y_normal)
+
 
 @pytest.mark.parametrize("smote_obj", oversamplers)
 def test_same_num(smote_obj):
@@ -283,10 +308,11 @@ def test_same_num(smote_obj):
     """
     dataset = load_same_num()
 
-    X, y = smote_obj.sample(dataset['data'], dataset['target'])
+    X, y = smote_obj.sample(dataset["data"], dataset["target"])
 
     assert np.unique(y).shape[0] == 2
     assert X.shape[0] > 0
+
 
 @pytest.mark.parametrize("smote_obj", oversamplers)
 def test_separable(smote_obj):
@@ -298,10 +324,11 @@ def test_separable(smote_obj):
     """
     dataset = load_separable()
 
-    X, y = smote_obj.sample(dataset['data'], dataset['target'])
+    X, y = smote_obj.sample(dataset["data"], dataset["target"])
 
     assert np.unique(y).shape[0] == 2
     assert X.shape[0] > 0
+
 
 @pytest.mark.parametrize("smote_obj", oversamplers)
 def test_some_min_some_maj(smote_obj):
@@ -313,10 +340,11 @@ def test_some_min_some_maj(smote_obj):
     """
     dataset = load_some_min_some_maj()
 
-    X, y = smote_obj.sample(dataset['data'], dataset['target'])
+    X, y = smote_obj.sample(dataset["data"], dataset["target"])
 
     assert np.unique(y).shape[0] == 2
     assert X.shape[0] > 0
+
 
 @pytest.mark.parametrize("smote_obj", oversamplers)
 def test_parameters(smote_obj):

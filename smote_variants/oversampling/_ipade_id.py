@@ -12,17 +12,21 @@ from ..base import OverSampling
 from ..base import mode, instantiate_obj
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['IPADE_ID']
+__all__ = ["IPADE_ID"]
+
 
 @dataclass
 class TrainingSet:
     """
     Represents a trining set
     """
+
     X: np.array
     y: np.array
+
 
 class IPADE_ID(OverSampling):
     """
@@ -63,25 +67,25 @@ class IPADE_ID(OverSampling):
             for validation.
     """
 
-    categories = [OverSampling.cat_changes_majority,
-                  OverSampling.cat_memetic,
-                  OverSampling.cat_uses_classifier]
+    categories = [
+        OverSampling.cat_changes_majority,
+        OverSampling.cat_memetic,
+        OverSampling.cat_uses_classifier,
+    ]
 
-    def __init__(self,
-                 *,
-                 F=0.1,
-                 G=0.1,
-                 OT=20,
-                 max_it=40,
-                 dt_classifier=('sklearn.tree',
-                                'DecisionTreeClassifier',
-                                {'random_state': 2}),
-                 base_classifier=('sklearn.tree',
-                                'DecisionTreeClassifier',
-                                {'random_state': 2}),
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        *,
+        F=0.1,
+        G=0.1,
+        OT=20,
+        max_it=40,
+        dt_classifier=("sklearn.tree", "DecisionTreeClassifier", {"random_state": 2}),
+        base_classifier=("sklearn.tree", "DecisionTreeClassifier", {"random_state": 2}),
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -96,26 +100,28 @@ class IPADE_ID(OverSampling):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        super().__init__(random_state=random_state, checks={'min_n_min': 4})
-        self.check_greater(F, 'F', 0)
-        self.check_greater(G, 'G', 0)
-        self.check_greater(OT, 'OT', 0)
-        self.check_greater(max_it, 'max_it', 0)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        super().__init__(random_state=random_state, checks={"min_n_min": 4})
+        self.check_greater(F, "F", 0)
+        self.check_greater(G, "G", 0)
+        self.check_greater(OT, "OT", 0)
+        self.check_greater(max_it, "max_it", 0)
+        self.check_n_jobs(n_jobs, "n_jobs")
 
-        self.de_params = {'F': F,
-                            'G': G,
-                            'OT': OT,
-                            'max_it': max_it,
-                            'dt_classifier': dt_classifier,
-                            'base_classifier': base_classifier}
+        self.de_params = {
+            "F": F,
+            "G": G,
+            "OT": OT,
+            "max_it": max_it,
+            "dt_classifier": dt_classifier,
+            "base_classifier": base_classifier,
+        }
 
         self.n_jobs = n_jobs
 
         self.dt_classifier_obj = instantiate_obj(dt_classifier)
         self.base_classifier_obj = instantiate_obj(base_classifier)
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -125,18 +131,20 @@ class IPADE_ID(OverSampling):
         """
         # as the OT and max_it parameters control the discovery of the feature
         # space it is enough to try sufficiently large numbers
-        dt_classifiers = [('sklearn.tree',
-                            'DecisionTreeClassifier',
-                            {'random_state': 2})]
-        base_classifiers = [('sklearn.tree',
-                            'DecisionTreeClassifier',
-                            {'random_state': 2})]
-        parameter_combinations = {'F': [0.1, 0.2],
-                                  'G': [0.1, 0.2],
-                                  'OT': [30],
-                                  'max_it': [40],
-                                  'dt_classifier': dt_classifiers,
-                                  'base_classifier': base_classifiers}
+        dt_classifiers = [
+            ("sklearn.tree", "DecisionTreeClassifier", {"random_state": 2})
+        ]
+        base_classifiers = [
+            ("sklearn.tree", "DecisionTreeClassifier", {"random_state": 2})
+        ]
+        parameter_combinations = {
+            "F": [0.1, 0.2],
+            "G": [0.1, 0.2],
+            "OT": [30],
+            "max_it": [40],
+            "dt_classifier": dt_classifiers,
+            "base_classifier": base_classifiers,
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def update_element(self, *, GS_y, idx, GS_x, indices, TR_X):
@@ -153,24 +161,25 @@ class IPADE_ID(OverSampling):
         Returns:
             np.array: the updated GS_x vector
         """
-        rand_idx = self.random_state.choice(indices[GS_y[idx]],
-                                            3,
-                                            replace=False)
+        rand_idx = self.random_state.choice(indices[GS_y[idx]], 3, replace=False)
 
         random = self.random_state.random_sample()
-        value = GS_x + self.de_params['G'] * random\
-                                        * (TR_X[rand_idx[0]] - GS_x)\
-                            + self.de_params['F']\
-                                        * (TR_X[rand_idx[1]] - TR_X[rand_idx[2]])
+        value = (
+            GS_x
+            + self.de_params["G"] * random * (TR_X[rand_idx[0]] - GS_x)
+            + self.de_params["F"] * (TR_X[rand_idx[1]] - TR_X[rand_idx[2]])
+        )
 
         return value
 
-    def DE_optimization(self, # pylint: disable=invalid-name
-                            *,
-                            GS, # pylint: disable=invalid-name
-                            TR,
-                            indices,
-                            for_validation):
+    def DE_optimization(  # pylint: disable=invalid-name
+        self,
+        *,
+        GS,  # pylint: disable=invalid-name
+        TR,
+        indices,
+        for_validation
+    ):
         """
         Implements the DE_optimization method of the paper.
         Roughly, for each point of GS takes 3 random samples from the same
@@ -189,37 +198,37 @@ class IPADE_ID(OverSampling):
         """
 
         # evaluate training set
-        AUC_GS = self.evaluate_ID(GS=GS, # pylint: disable=invalid-name
-                                    TR=TrainingSet(TR.X[for_validation],
-                                                    TR.y[for_validation]))
+        AUC_GS = self.evaluate_ID(  # pylint: disable=invalid-name
+            GS=GS,
+            TR=TrainingSet(TR.X[for_validation], TR.y[for_validation]),
+        )
 
         # optimizing the training set
-        for _ in range(self.de_params['max_it']):
-            GS_hat = [] # pylint: disable=invalid-name
+        for _ in range(self.de_params["max_it"]):
+            GS_hat = []  # pylint: disable=invalid-name
             # doing the differential evolution
-            for idx, GS_x in enumerate(GS.X): # pylint: disable=invalid-name
-                value = self.update_element(GS_y=GS.y,
-                                            idx=idx,
-                                            GS_x=GS_x,
-                                            indices=indices,
-                                            TR_X=TR.X)
+            for idx, GS_x in enumerate(GS.X):  # pylint: disable=invalid-name
+                value = self.update_element(
+                    GS_y=GS.y, idx=idx, GS_x=GS_x, indices=indices, TR_X=TR.X
+                )
 
                 GS_hat.append(np.clip(value, 0.0, 1.0))
 
-            GS_hat = np.vstack(GS_hat) # pylint: disable=invalid-name
+            GS_hat = np.vstack(GS_hat)  # pylint: disable=invalid-name
 
             # evaluating the current setting
-            AUC_GS_hat = self.evaluate_ID(GS=TrainingSet(GS_hat, GS.y), # pylint: disable=invalid-name
-                                        TR=TrainingSet(TR.X[for_validation],
-                                                        TR.y[for_validation]))
+            AUC_GS_hat = self.evaluate_ID(
+                GS=TrainingSet(GS_hat, GS.y),  # pylint: disable=invalid-name
+                TR=TrainingSet(TR.X[for_validation], TR.y[for_validation]),
+            )
 
             if AUC_GS_hat > AUC_GS:
                 GS = TrainingSet(GS_hat, GS.y)
-                AUC_GS = AUC_GS_hat # pylint: disable=invalid-name
+                AUC_GS = AUC_GS_hat  # pylint: disable=invalid-name
 
         return GS
 
-    def evaluate_ID(self, *, GS, TR): # pylint: disable=invalid-name
+    def evaluate_ID(self, *, GS, TR):  # pylint: disable=invalid-name
         """
         Implements the evaluate_ID function of the paper.
 
@@ -267,11 +276,9 @@ class IPADE_ID(OverSampling):
         class_ = self.base_classifier_obj.__class__
         return class_(**(self.base_classifier_obj.get_params()))
 
-    def configuration_checks(self,
-                                y,
-                                for_validation,
-                                GS_y # pylint: disable=invalid-name
-                                ):
+    def configuration_checks(
+        self, y, for_validation, GS_y  # pylint: disable=invalid-name
+    ):
         """
         Checks if the configuration is valid.
 
@@ -281,18 +288,18 @@ class IPADE_ID(OverSampling):
             GS_y (np.array): the updated target labels
         """
         if len(np.unique(y[for_validation])) == 1:
-            _logger.info("%s: No minority samples in validation set",
-                        self.__class__.__name__)
+            _logger.info(
+                "%s: No minority samples in validation set", self.__class__.__name__
+            )
             raise ValueError("No minority samples in validation set")
 
         if len(np.unique(GS_y)) == 1:
-            _logger.info("%s: No minority samples in reduced dataset",
-                            self.__class__.__name__)
+            _logger.info(
+                "%s: No minority samples in reduced dataset", self.__class__.__name__
+            )
             raise ValueError("No minority samples in reduced dataset")
 
-    def phase_1(self,
-                TR, # pylint: disable=invalid-name
-                indices):
+    def phase_1(self, TR, indices):  # pylint: disable=invalid-name
         """
         Initialization of the method.
 
@@ -311,12 +318,12 @@ class IPADE_ID(OverSampling):
         leafs = self.dt_classifier_obj.apply(TR.X)
         unique_leafs = np.unique(leafs)
 
-        used_in_GS = np.repeat(False, len(TR.X)) # pylint: disable=invalid-name
+        used_in_GS = np.repeat(False, len(TR.X))  # pylint: disable=invalid-name
         for_validation = np.where(np.logical_not(used_in_GS))[0]
 
         # extracting mean elements of the leafs
-        GS_X = [] # pylint: disable=invalid-name
-        GS_y = [] # pylint: disable=invalid-name
+        GS_X = []  # pylint: disable=invalid-name
+        GS_y = []  # pylint: disable=invalid-name
         for leaf in unique_leafs:
             leaf_indices = np.where(leafs == leaf)[0]
             GS_X.append(np.mean(TR.X[leaf_indices], axis=0))
@@ -324,32 +331,39 @@ class IPADE_ID(OverSampling):
             if len(leaf_indices) == 1:
                 used_in_GS[leaf_indices[0]] = True
 
-        GS = TrainingSet(np.vstack(GS_X), np.array(GS_y)) # pylint: disable=invalid-name
+        GS = TrainingSet(  # pylint: disable=invalid-name
+            np.vstack(GS_X), np.array(GS_y)
+        )
 
         # updating the indices of the validation set excluding those used in GS
         for_validation = np.where(np.logical_not(used_in_GS))[0]
 
-        _logger.info("%s: Size of validation set %d",
-                    self.__class__.__name__, len(for_validation))
+        _logger.info(
+            "%s: Size of validation set %d",
+            self.__class__.__name__,
+            len(for_validation),
+        )
         self.configuration_checks(TR.y, for_validation, GS.y)
-
 
         # DE optimization takes place
         _logger.info("%s: DE optimization", self.__class__.__name__)
 
-        GS = self.DE_optimization(GS=GS, # pylint: disable=invalid-name
-                                TR=TR,
-                                indices=indices,
-                                for_validation=for_validation)
+        GS = self.DE_optimization(  # pylint: disable=invalid-name
+            GS=GS,
+            TR=TR,
+            indices=indices,
+            for_validation=for_validation,
+        )
 
         # evaluate results
-        AUC = self.evaluate_ID(GS=GS, # pylint: disable=invalid-name
-                                TR=TrainingSet(TR.X[for_validation], TR.y[for_validation]))
+        AUC = self.evaluate_ID(  # pylint: disable=invalid-name
+            GS=GS,
+            TR=TrainingSet(TR.X[for_validation], TR.y[for_validation]),
+        )
 
         return AUC, for_validation, GS
 
-    def determine_target_class(self, *, TR, GS,
-                                for_validation, register_class):
+    def determine_target_class(self, *, TR, GS, for_validation, register_class):
         """
         Determine the target class according to the description in the paper
 
@@ -369,12 +383,15 @@ class IPADE_ID(OverSampling):
         # loop in line 8
         for idx in [self.min_label, self.maj_label]:
             # condition in line 9
-            if register_class[idx] == 'optimizable':
+            if register_class[idx] == "optimizable":
                 y_mask = TR.y[for_validation] == idx
                 class_for_validation = for_validation[y_mask]
-                accuracy_class[idx] = self.evaluate_class(GS=GS,
-                                                    TR=TrainingSet(TR.X[class_for_validation],
-                                                                    TR.y[class_for_validation]))
+                accuracy_class[idx] = self.evaluate_class(
+                    GS=GS,
+                    TR=TrainingSet(
+                        TR.X[class_for_validation], TR.y[class_for_validation]
+                    ),
+                )
                 if accuracy_class[idx] < less_accuracy:
                     less_accuracy = accuracy_class[idx]
                     target_class = idx
@@ -398,8 +415,8 @@ class IPADE_ID(OverSampling):
         """
         idx = self.random_state.choice(indices[target_class])
 
-        GS_trial_X = np.vstack([GS.X, TR.X[idx]]) # pylint: disable=invalid-name
-        GS_trial_y = np.hstack([GS.y, TR.y[idx]]) # pylint: disable=invalid-name
+        GS_trial_X = np.vstack([GS.X, TR.X[idx]])  # pylint: disable=invalid-name
+        GS_trial_y = np.hstack([GS.y, TR.y[idx]])  # pylint: disable=invalid-name
 
         # removing idx from the validation set in order to keep
         # the validation fair
@@ -421,68 +438,84 @@ class IPADE_ID(OverSampling):
         Returns:
             TrainingSet: the optimized training set
         """
-        register_class = {self.min_label: 'optimizable',
-                          self.maj_label: 'optimizable'}
-        number_of_optimizations = {self.min_label: 0,
-                                   self.maj_label: 0}
+        register_class = {self.min_label: "optimizable", self.maj_label: "optimizable"}
+        number_of_optimizations = {self.min_label: 0, self.maj_label: 0}
 
         _logger.info("%s: Starting optimization", self.__class__.__name__)
 
-        GS_trial = None # pylint: disable=invalid-name
+        GS_trial = None  # pylint: disable=invalid-name
 
-        while (AUC < 1.0
-                and (register_class[self.min_label] == 'optimizable'
-                     or register_class[self.maj_label] == 'optimizable')):
-
-            target_class = self.determine_target_class(TR=TR,
-                                                        GS=GS,
-                                                        for_validation=for_validation,
-                                                        register_class=register_class)
+        while AUC < 1.0 and (
+            register_class[self.min_label] == "optimizable"
+            or register_class[self.maj_label] == "optimizable"
+        ):
+            target_class = self.determine_target_class(
+                TR=TR,
+                GS=GS,
+                for_validation=for_validation,
+                register_class=register_class,
+            )
 
             # conditional in line 17
-            if (target_class == self.min_label
-                    and number_of_optimizations[target_class] > 0):
+            if (
+                target_class == self.min_label
+                and number_of_optimizations[target_class] > 0
+            ):
                 # this is a tricky part, because GS_trial is defined later only
-                GS_trial = self.DE_optimization(GS=GS_trial, # pylint: disable=invalid-name
-                                                TR=TR,
-                                                indices=indices,
-                                                for_validation=for_validation)
+                GS_trial = self.DE_optimization(  # pylint: disable=invalid-name
+                    GS=GS_trial,
+                    TR=TR,
+                    indices=indices,
+                    for_validation=for_validation,
+                )
             else:
-                GS_trial, for_validation_trial = self.generate_trial( # pylint: disable=invalid-name
-                                            indices=indices,
-                                            target_class=target_class,
-                                            TR=TR, GS=GS,
-                                            for_validation=for_validation)
-
+                (
+                    GS_trial,  # pylint: disable=invalid-name
+                    for_validation_trial,
+                ) = self.generate_trial(
+                    indices=indices,
+                    target_class=target_class,
+                    TR=TR,
+                    GS=GS,
+                    for_validation=for_validation,
+                )
 
                 # doing optimization
-                GS_trial = self.DE_optimization(GS=GS, # pylint: disable=invalid-name
-                                           TR=TR,
-                                           indices=indices,
-                                           for_validation=for_validation_trial)
+                GS_trial = self.DE_optimization(  # pylint: disable=invalid-name
+                    GS=GS,
+                    TR=TR,
+                    indices=indices,
+                    for_validation=for_validation_trial,
+                )
 
             # line 23
-            AUC_trial = self.evaluate_ID(GS=GS_trial, # pylint: disable=invalid-name
-                                            TR=TrainingSet(TR.X[for_validation_trial],
-                                                            TR.y[for_validation_trial]))
+            AUC_trial = self.evaluate_ID(  # pylint: disable=invalid-name
+                GS=GS_trial,
+                TR=TrainingSet(TR.X[for_validation_trial], TR.y[for_validation_trial]),
+            )
             # conditional in line 24
             if AUC_trial > AUC:
                 AUC = AUC_trial
                 GS = GS_trial
                 for_validation = for_validation_trial
 
-                _logger.info("%s: Size of validation set %d",
-                        self.__class__.__name__, len(for_validation))
+                _logger.info(
+                    "%s: Size of validation set %d",
+                    self.__class__.__name__,
+                    len(for_validation),
+                )
                 self.configuration_checks(TR.y, for_validation, GS.y)
 
                 number_of_optimizations[target_class] = 0
             else:
                 # conditional in line 29
-                if (target_class == self.min_label
-                        and number_of_optimizations[target_class] < self.de_params['OT']):
+                if (
+                    target_class == self.min_label
+                    and number_of_optimizations[target_class] < self.de_params["OT"]
+                ):
                     number_of_optimizations[target_class] += 1
                 else:
-                    register_class[target_class] = 'non-optimizable'
+                    register_class[target_class] = "non-optimizable"
 
         return GS
 
@@ -503,19 +536,22 @@ class IPADE_ID(OverSampling):
         min_indices = np.where(y == self.min_label)[0]
         maj_indices = np.where(y == self.maj_label)[0]
 
-        indices = {self.min_label: min_indices,
-                    self.maj_label: maj_indices}
+        indices = {self.min_label: min_indices, self.maj_label: maj_indices}
 
         try:
             # Phase 1: Initialization
-            AUC, for_validation, GS = self.phase_1(TrainingSet(X, y), indices) # pylint: disable=invalid-name
+            AUC, for_validation, GS = self.phase_1(  # pylint: disable=invalid-name
+                TrainingSet(X, y), indices
+            )
 
             # Phase 2: Addition of new instances
-            GS = self.phase_2(TR=TrainingSet(X, y), # pylint: disable=invalid-name
-                            indices=indices,
-                            for_validation=for_validation,
-                            GS=GS,
-                            AUC=AUC)
+            GS = self.phase_2(  # pylint: disable=invalid-name
+                TR=TrainingSet(X, y),
+                indices=indices,
+                for_validation=for_validation,
+                GS=GS,
+                AUC=AUC,
+            )
         except ValueError as value:
             return self.return_copies(X, y, value.args[0])
 
@@ -526,11 +562,13 @@ class IPADE_ID(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'F': self.de_params['F'],
-                'G': self.de_params['G'],
-                'OT': self.de_params['OT'],
-                'max_it': self.de_params['max_it'],
-                'n_jobs': self.n_jobs,
-                'dt_classifier': self.de_params['dt_classifier'],
-                'base_classifier': self.de_params['base_classifier'],
-                **OverSampling.get_params(self)}
+        return {
+            "F": self.de_params["F"],
+            "G": self.de_params["G"],
+            "OT": self.de_params["OT"],
+            "max_it": self.de_params["max_it"],
+            "n_jobs": self.n_jobs,
+            "dt_classifier": self.de_params["dt_classifier"],
+            "base_classifier": self.de_params["base_classifier"],
+            **OverSampling.get_params(self),
+        }

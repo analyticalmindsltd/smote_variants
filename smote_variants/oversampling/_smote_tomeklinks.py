@@ -8,9 +8,11 @@ from ..noise_removal import TomekLinkRemoval
 from ._smote import SMOTE
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['SMOTE_TomekLinks']
+__all__ = ["SMOTE_TomekLinks"]
+
 
 class SMOTE_TomekLinks(OverSampling):
     """
@@ -39,20 +41,24 @@ class SMOTE_TomekLinks(OverSampling):
                     }
     """
 
-    categories = [OverSampling.cat_sample_ordinary,
-                  OverSampling.cat_noise_removal,
-                  OverSampling.cat_changes_majority,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_sample_ordinary,
+        OverSampling.cat_noise_removal,
+        OverSampling.cat_changes_majority,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the SMOTE object
 
@@ -76,15 +82,18 @@ class SMOTE_TomekLinks(OverSampling):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
 
         super().__init__(random_state=random_state)
 
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
@@ -92,7 +101,7 @@ class SMOTE_TomekLinks(OverSampling):
         self.ss_params = coalesce_dict(ss_params, ss_params_default)
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -116,8 +125,11 @@ class SMOTE_TomekLinks(OverSampling):
             np.array, np.array: the oversampled dataset and the labels
         """
         if len(X_samp) == 0:
-            return self.return_copies(X, y, "All samples have been removed, "\
-                                            "returning the original dataset.")
+            return self.return_copies(
+                X,
+                y,
+                "All samples have been removed, returning the original dataset.",
+            )
         return X_samp, y_samp
 
     def sampling_algorithm(self, X, y):
@@ -132,20 +144,21 @@ class SMOTE_TomekLinks(OverSampling):
             (np.ndarray, np.array): the extended training set and target labels
         """
         nn_params = {**self.nn_params}
-        nn_params['metric_tensor'] = \
-                    self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
-        smote = SMOTE(self.proportion,
-                      self.n_neighbors,
-                      nn_params=nn_params,
-                      ss_params=self.ss_params,
-                      n_jobs=self.n_jobs,
-                      random_state=OverSampling.get_params(self)['random_state'])
+        smote = SMOTE(
+            self.proportion,
+            self.n_neighbors,
+            nn_params=nn_params,
+            ss_params=self.ss_params,
+            n_jobs=self.n_jobs,
+            random_state=OverSampling.get_params(self)["random_state"],
+        )
         X_new, y_new = smote.sample(X, y)
 
-        tomek = TomekLinkRemoval(strategy='remove_both',
-                                n_jobs=self.n_jobs,
-                                nn_params=nn_params)
+        tomek = TomekLinkRemoval(
+            strategy="remove_both", n_jobs=self.n_jobs, nn_params=nn_params
+        )
 
         X_samp, y_samp = tomek.remove_noise(X_new, y_new)
 
@@ -156,9 +169,11 @@ class SMOTE_TomekLinks(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'ss_params': self.ss_params,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "ss_params": self.ss_params,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

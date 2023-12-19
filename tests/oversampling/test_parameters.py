@@ -7,6 +7,7 @@ import pytest
 
 import smote_variants as sv
 
+
 @pytest.mark.parametrize("smote_class", sv.get_all_oversamplers())
 def test_parameters(smote_class):
     """

@@ -7,6 +7,7 @@ from smote_variants import G_SMOTE
 
 from smote_variants.datasets import load_normal
 
+
 def test_specific():
     """
     Oversampler specific testing
@@ -15,13 +16,12 @@ def test_specific():
 
     dataset = load_normal()
 
-    X_samp, _ = obj.sample(dataset['data'],
-                            dataset['target'])
+    X_samp, _ = obj.sample(dataset["data"], dataset["target"])
 
     assert len(X_samp) > 0
 
     with pytest.raises(Exception):
-        G_SMOTE(method='dummy')
+        G_SMOTE(method="dummy")
 
     with pytest.raises(Exception):
-        G_SMOTE(method='non-linear_-3')
+        G_SMOTE(method="non-linear_-3")

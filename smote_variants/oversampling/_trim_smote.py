@@ -9,9 +9,11 @@ from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSamplingSimplex
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['TRIM_SMOTE']
+__all__ = ["TRIM_SMOTE"]
+
 
 class TRIM_SMOTE(OverSamplingSimplex):
     """
@@ -44,20 +46,24 @@ class TRIM_SMOTE(OverSamplingSimplex):
             group extracted.
     """
 
-    categories = [OverSamplingSimplex.cat_extensive,
-                  OverSamplingSimplex.cat_uses_clustering,
-                  OverSamplingSimplex.cat_metric_learning]
+    categories = [
+        OverSamplingSimplex.cat_extensive,
+        OverSamplingSimplex.cat_uses_clustering,
+        OverSamplingSimplex.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 min_precision=0.3,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        min_precision=0.3,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -78,16 +84,19 @@ class TRIM_SMOTE(OverSamplingSimplex):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
         ss_params = coalesce_dict(ss_params, ss_params_default)
 
         super().__init__(**ss_params, random_state=random_state)
-        self.check_greater_or_equal(proportion, 'proportion', 0)
-        self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
-        self.check_in_range(min_precision, 'min_precision', [0, 1])
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_greater_or_equal(proportion, "proportion", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_in_range(min_precision, "min_precision", [0, 1])
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
@@ -95,7 +104,7 @@ class TRIM_SMOTE(OverSamplingSimplex):
         self.min_precision = min_precision
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -103,10 +112,11 @@ class TRIM_SMOTE(OverSamplingSimplex):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7],
-                                  'min_precision': [0.3]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7],
+            "min_precision": [0.3],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def trim(self, y):
@@ -119,7 +129,7 @@ class TRIM_SMOTE(OverSamplingSimplex):
         Returns:
             float: the trim value
         """
-        return np.sum(y == self.min_label)**2/len(y)
+        return np.sum(y == self.min_label) ** 2 / len(y)
 
     def precision(self, y):
         """
@@ -131,7 +141,7 @@ class TRIM_SMOTE(OverSamplingSimplex):
         Returns:
             float: the precision value
         """
-        return np.sum(y == self.min_label)/len(y)
+        return np.sum(y == self.min_label) / len(y)
 
     def determine_splitting_point(self, X, y, split_on_border=False):
         """
@@ -154,7 +164,9 @@ class TRIM_SMOTE(OverSamplingSimplex):
         # checking all dimensions of X
         for idx in range(X.shape[1]):
             # sort the elements in dimension i
-            sorted_X_y = sorted(zip(X[:, idx], y), key=lambda pair: pair[0]) # pylint: disable=invalid-name
+            sorted_X_y = sorted(  # pylint: disable=invalid-name
+                zip(X[:, idx], y), key=lambda pair: pair[0]
+            )
             sorted_y = [yy for _, yy in sorted_X_y]
 
             # number of minority samples on the left
@@ -163,21 +175,24 @@ class TRIM_SMOTE(OverSamplingSimplex):
             right_min = np.sum(sorted_y == self.min_label)
 
             # check all possible splitting points sequentially
-            for jdx in range(0, len(sorted_y)-1):
+            for jdx in range(0, len(sorted_y) - 1):
                 if sorted_y[jdx] == self.min_label:
                     # adjusting the number of minority and majority samples
                     left_min = left_min + 1
                     right_min = right_min - 1
                 # checking if we can split on the border and do not split
                 # tie-ing feature values
-                if ((split_on_border is False
-                     or (split_on_border is True
-                        and not sorted_y[jdx-1] == sorted_y[jdx]))
-                        and sorted_X_y[jdx][0] != sorted_X_y[jdx+1][0]):
+                if (
+                    split_on_border is False
+                    or (
+                        split_on_border is True
+                        and not sorted_y[jdx - 1] == sorted_y[jdx]
+                    )
+                ) and sorted_X_y[jdx][0] != sorted_X_y[jdx + 1][0]:
                     # compute trim value of the left
-                    trim_left = left_min**2/(jdx+1)
+                    trim_left = left_min**2 / (jdx + 1)
                     # compute trim value of the right
-                    trim_right = right_min**2/(len(sorted_y) - jdx - 1)
+                    trim_right = right_min**2 / (len(sorted_y) - jdx - 1)
                     # let's check the gain
                     if max([trim_left, trim_right]) > max_t_minus_gain:
                         max_t_minus_gain = max([trim_left, trim_right])
@@ -210,17 +225,15 @@ class TRIM_SMOTE(OverSamplingSimplex):
         for leaf in leafs:
             # the function implements the loop starting in line 6
             # splitting on class border is forced
-            split, gain = self.determine_splitting_point(leaf[0],
-                                                         leaf[1],
-                                                         True)
+            split, gain = self.determine_splitting_point(leaf[0], leaf[1], True)
             # condition in line 9
             if gain:
                 # making the split
-                mask_left = (leaf[0][:, split[0]] <= split[1])
-                X_left = leaf[0][mask_left] # pylint: disable=invalid-name
+                mask_left = leaf[0][:, split[0]] <= split[1]
+                X_left = leaf[0][mask_left]  # pylint: disable=invalid-name
                 y_left = leaf[1][mask_left]
                 mask_right = np.logical_not(mask_left)
-                X_right = leaf[0][mask_right] # pylint: disable=invalid-name
+                X_right = leaf[0][mask_right]  # pylint: disable=invalid-name
                 y_right = leaf[1][mask_right]
 
                 # condition in line 11
@@ -259,10 +272,16 @@ class TRIM_SMOTE(OverSamplingSimplex):
             # checking condition in line 27
             if gain:
                 # doing the split
-                mask_left = (cand[0][:, split[0]] <= split[1])
-                X_left, y_left = cand[0][mask_left], cand[1][mask_left] # pylint: disable=invalid-name
+                mask_left = cand[0][:, split[0]] <= split[1]
+                X_left, y_left = (  # pylint: disable=invalid-name
+                    cand[0][mask_left],
+                    cand[1][mask_left],
+                )
                 mask_right = ~mask_left
-                X_right, y_right = cand[0][mask_right], cand[1][mask_right] # pylint: disable=invalid-name
+                X_right, y_right = (  # pylint: disable=invalid-name
+                    cand[0][mask_right],
+                    cand[1][mask_right],
+                )
                 # checking logic in line 29
                 if np.sum(y_left == self.min_label) > 0:
                     leafs.append((X_left, y_left))
@@ -292,8 +311,7 @@ class TRIM_SMOTE(OverSamplingSimplex):
 
         # executing the trimming
         # loop in line 2 of the paper
-        _logger.info("%s: do the trimming process",
-                        self.__class__.__name__)
+        _logger.info("%s: do the trimming process", self.__class__.__name__)
 
         while len(leafs) > 0 or len(candidates) > 0:
             candidates, add_to_leafs = self.leaf_loop(leafs, candidates)
@@ -310,9 +328,9 @@ class TRIM_SMOTE(OverSamplingSimplex):
 
         return seeds
 
-    def generate_samples(self, X, y,
-                            X_seed_min, # pylint: disable=invalid-name
-                            n_to_sample):
+    def generate_samples(
+        self, X, y, X_seed_min, n_to_sample  # pylint: disable=invalid-name
+    ):
         """
         Generate samples.
 
@@ -325,21 +343,20 @@ class TRIM_SMOTE(OverSamplingSimplex):
         Returns:
             np.array: the generated samples
         """
-        n_neighbors = min([len(X_seed_min), self.n_neighbors+1])
+        n_neighbors = min([len(X_seed_min), self.n_neighbors + 1])
 
         nn_params = {**self.nn_params}
-        nn_params['metric_tensor'] = \
-            self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
-        nnmt= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X_seed_min)
         indices = nnmt.kneighbors(X_seed_min, return_distance=False)
 
-        samples = self.sample_simplex(X=X_seed_min,
-                                      indices=indices,
-                                      n_to_sample=n_to_sample)
+        samples = self.sample_simplex(
+            X=X_seed_min, indices=indices, n_to_sample=n_to_sample
+        )
 
         return samples
 
@@ -361,7 +378,10 @@ class TRIM_SMOTE(OverSamplingSimplex):
 
         seeds = self.trimming(X, y)
 
-        if len([s for s in seeds if self.precision(s[1]) > self.min_precision/10.0]) == 0:
+        if (
+            len([s for s in seeds if self.precision(s[1]) > self.min_precision / 10.0])
+            == 0
+        ):
             return self.return_copies(X, y, "no seeds found")
 
         # filtering the resulting set
@@ -371,32 +391,35 @@ class TRIM_SMOTE(OverSamplingSimplex):
         multiplier = 0.9
         while len(filtered_seeds) == 0:
             threshold = self.min_precision * multiplier
-            filtered_seeds = [s for s in seeds
-                                if self.precision(s[1]) > threshold]
+            filtered_seeds = [s for s in seeds if self.precision(s[1]) > threshold]
             multiplier = multiplier * 0.9
 
         seeds = filtered_seeds
 
-        X_seed = np.vstack([s[0] for s in seeds]) # pylint: disable=invalid-name
+        X_seed = np.vstack([s[0] for s in seeds])  # pylint: disable=invalid-name
         y_seed = np.hstack([s[1] for s in seeds])
 
         _logger.info("%s: do the sampling", self.__class__.__name__)
         # generating samples by SMOTE
-        X_seed_min = X_seed[y_seed == self.min_label] # pylint: disable=invalid-name
+        X_seed_min = X_seed[y_seed == self.min_label]  # pylint: disable=invalid-name
 
         samples = self.generate_samples(X, y, X_seed_min, n_to_sample)
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'min_precision': self.min_precision,
-                'n_jobs': self.n_jobs,
-                **OverSamplingSimplex.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "min_precision": self.min_precision,
+            "n_jobs": self.n_jobs,
+            **OverSamplingSimplex.get_params(self),
+        }

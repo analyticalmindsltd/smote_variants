@@ -13,23 +13,27 @@ from json import JSONDecodeError
 import numpy as np
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['cov',
-          'shuffle_training_set',
-          'mode',
-          'fix_density',
-          'safe_divide',
-          'equal_dicts',
-          'coalesce',
-          'coalesce_dict',
-          'instantiate_obj',
-          'load_dict',
-          'dump_dict',
-          'check_if_damaged',
-          'StatisticsMixin',
-          'RandomStateMixin',
-          'ParametersMixin']
+__all__ = [
+    "cov",
+    "shuffle_training_set",
+    "mode",
+    "fix_density",
+    "safe_divide",
+    "equal_dicts",
+    "coalesce",
+    "coalesce_dict",
+    "instantiate_obj",
+    "load_dict",
+    "dump_dict",
+    "check_if_damaged",
+    "StatisticsMixin",
+    "RandomStateMixin",
+    "ParametersMixin",
+]
+
 
 def cov(array, rowvar=True):
     """
@@ -49,6 +53,7 @@ def cov(array, rowvar=True):
     if array.shape[0] > 1:
         return np.cov(array, rowvar=rowvar)
     return np.array([[np.cov(array, rowvar=rowvar)]])
+
 
 def shuffle_training_set(X, y, random_state=None):
     """
@@ -70,6 +75,7 @@ def shuffle_training_set(X, y, random_state=None):
 
     return X[shuffle_mask], y[shuffle_mask]
 
+
 def fix_density(density):
     """
     Create a valid density distribution.
@@ -80,6 +86,7 @@ def fix_density(density):
         density = np.repeat(1.0, len(density))
 
     return density / np.sum(density)
+
 
 def safe_divide(numerator, denominator, default=np.inf):
     """
@@ -92,7 +99,8 @@ def safe_divide(numerator, denominator, default=np.inf):
     """
     if denominator == 0:
         return default
-    return numerator/denominator
+    return numerator / denominator
+
 
 def equal_dicts(dict_0, dict_1):
     """
@@ -118,6 +126,7 @@ def equal_dicts(dict_0, dict_1):
 
     return True
 
+
 def coalesce(value_0, value_1):
     """
     The coalesce functionality.
@@ -132,6 +141,7 @@ def coalesce(value_0, value_1):
     if value_0 is None:
         return value_1
     return value_0
+
 
 def coalesce_dict(dict_0, dict_1):
     """
@@ -169,6 +179,7 @@ def instantiate_obj(description):
     class_ = getattr(module, description[1])
     return class_(**description[2])
 
+
 def mode(data):
     """
     Returns the mode of the data
@@ -182,9 +193,8 @@ def mode(data):
     values, counts = np.unique(data, return_counts=True)
     return values[np.where(counts == max(counts))[0][0]]
 
-def load_dict(filename,
-                serialization=None,
-                array_to_list_map=None):
+
+def load_dict(filename, serialization=None, array_to_list_map=None):
     """
     Load the contents of a file
 
@@ -200,27 +210,25 @@ def load_dict(filename,
         array_to_list_map = []
 
     if serialization is None:
-        serialization = filename.split('.')[-1]
+        serialization = filename.split(".")[-1]
 
-    if serialization == 'json':
-        with open(filename, 'rt', encoding='UTF-8') as file:
+    if serialization == "json":
+        with open(filename, "rt", encoding="UTF-8") as file:
             obj = json.load(file)
             file.close()
             for key in array_to_list_map:
                 obj[key] = np.array(obj[key])
         return obj
-    if serialization == 'pickle':
-        with open(filename, 'rb') as file:
+    if serialization == "pickle":
+        with open(filename, "rb") as file:
             obj = pickle.load(file)
             file.close()
         return obj
 
     raise ValueError(f"serialization {serialization} is not supported")
 
-def dump_dict(obj,
-                filename,
-                serialization=None,
-                array_to_list_map=None):
+
+def dump_dict(obj, filename, serialization=None, array_to_list_map=None):
     """
     Serializes an object.
 
@@ -234,28 +242,29 @@ def dump_dict(obj,
         array_to_list_map = []
 
     if serialization is None:
-        serialization = filename.split('.')[-1]
+        serialization = filename.split(".")[-1]
 
-    if serialization == 'json':
+    if serialization == "json":
         for key in array_to_list_map:
             obj[key] = obj[key].astype(float).tolist()
         if os.path.exists(filename):
             os.remove(filename)
 
-        with open(filename, 'wt', encoding='UTF-8') as file:
+        with open(filename, "wt", encoding="UTF-8") as file:
             json_string = json.dumps(obj)
             file.write(json_string)
             file.flush()
             os.fsync(file)
             file.close()
-    elif serialization == 'pickle':
-        with open(filename, 'wb') as file:
+    elif serialization == "pickle":
+        with open(filename, "wb") as file:
             pickle.dump(obj, file)
             file.flush()
             os.fsync(file)
             file.close()
     else:
         raise ValueError(f"serialization {serialization} is not supported")
+
 
 def check_if_damaged(filename, serialization="json"):
     """
@@ -278,6 +287,7 @@ def check_if_damaged(filename, serialization="json"):
         damaged = True
 
     return damaged
+
 
 class StatisticsMixin:
     """
@@ -306,7 +316,7 @@ class StatisticsMixin:
         _ = deep
         return {}
 
-    #def check_enough_min_samples_for_sampling(self, threshold=2):
+    # def check_enough_min_samples_for_sampling(self, threshold=2):
     #    """
     #    Checks if there are enough samples for oversampling, if not,
     #    logs it and returns false
@@ -324,7 +334,7 @@ class StatisticsMixin:
     #                "for sampling"
     #    return msg
 
-    #def check_n_to_sample(self, n_to_sample):
+    # def check_n_to_sample(self, n_to_sample):
     #    """
     #    Check if there is need for sampling.
     #
@@ -340,10 +350,12 @@ class StatisticsMixin:
     #        msg = "There is no need for oversampling"
     #    return msg
 
+
 class RandomStateMixin:
     """
     Mixin to set random state
     """
+
     def __init__(self, random_state):
         """
         Constructor of the mixin
@@ -375,7 +387,8 @@ class RandomStateMixin:
             self.random_state = random_state
         else:
             raise ValueError(
-                "random state cannot be initialized by " + str(random_state))
+                "random state cannot be initialized by " + str(random_state)
+            )
 
     def get_params(self, deep=False):
         """
@@ -387,8 +400,9 @@ class RandomStateMixin:
         Returns:
             dict: the parameter dictionary
         """
-        _ = deep # disabling pylint reporting
-        return {'random_state': self._random_state_init}
+        _ = deep  # disabling pylint reporting
+        return {"random_state": self._random_state_init}
+
 
 class ParametersMixin:
     """
@@ -406,8 +420,7 @@ class ParametersMixin:
             ValueError
         """
         if value < rng[0] or value > rng[1]:
-            msg = ("Value for parameter %s outside the range [%f,%f] not"
-                 " allowed: %f")
+            msg = "Value for parameter %s outside the range [%f,%f] not allowed: %f"
             msg = msg % (name, rng[0], rng[1], value)
 
             raise ValueError(self.__class__.__name__ + ": " + msg)
@@ -456,8 +469,10 @@ class ParametersMixin:
             ValueError
         """
         if val_x > val_y:
-            msg = ("Value for parameter %s greater than parameter %s not"
-                 " allowed: %f > %f")
+            msg = (
+                "Value for parameter %s greater than parameter %s not"
+                " allowed: %f > %f"
+            )
             msg = msg % (name_x, name_y, val_x, val_y)
 
             raise ValueError(self.__class__.__name__ + ": " + msg)
@@ -473,8 +488,10 @@ class ParametersMixin:
             ValueError
         """
         if value >= val:
-            msg = ("Value for parameter %s greater than or equal to %f"
-                 " not allowed: %f >= %f")
+            msg = (
+                "Value for parameter %s greater than or equal to %f"
+                " not allowed: %f >= %f"
+            )
             msg = msg % (name, val, value, val)
 
             raise ValueError(self.__class__.__name__ + ": " + msg)
@@ -491,8 +508,10 @@ class ParametersMixin:
             ValueError
         """
         if val_x >= val_y:
-            msg = ("Value for parameter %s greater than or equal to parameter"
-                 " %s not allowed: %f >= %f")
+            msg = (
+                "Value for parameter %s greater than or equal to parameter"
+                " %s not allowed: %f >= %f"
+            )
             msg = msg % (name_x, name_y, val_x, val_y)
 
             raise ValueError(self.__class__.__name__ + ": " + msg)
@@ -525,8 +544,10 @@ class ParametersMixin:
             ValueError
         """
         if val_x < val_y:
-            msg = ("Value for parameter %s less than parameter %s is not"
-                 " allowed: %f < %f")
+            msg = (
+                "Value for parameter %s less than parameter %s is not"
+                " allowed: %f < %f"
+            )
             msg = msg % (name_x, name_y, val_x, val_y)
 
             raise ValueError(self.__class__.__name__ + ": " + msg)
@@ -542,8 +563,9 @@ class ParametersMixin:
             ValueError
         """
         if value <= val:
-            msg = ("Value for parameter %s less than or equal to %f not allowed"
-                 " %f < %f")
+            msg = (
+                "Value for parameter %s less than or equal to %f not allowed %f < %f"
+            )
             msg = msg % (name, val, value, val)
 
             raise ValueError(self.__class__.__name__ + ": " + msg)
@@ -560,8 +582,10 @@ class ParametersMixin:
             ValueError
         """
         if val_x <= val_y:
-            msg = ("Value for parameter %s less than or equal to parameter %s"
-                 " not allowed: %f <= %f")
+            msg = (
+                "Value for parameter %s less than or equal to parameter %s"
+                " not allowed: %f <= %f"
+            )
             msg = msg % (name_x, name_y, val_x, val_y)
 
             raise ValueError(self.__class__.__name__ + ": " + msg)
@@ -577,8 +601,10 @@ class ParametersMixin:
             ValueError
         """
         if value == val:
-            msg = ("Value for parameter %s equal to parameter %f is not allowed:"
-                 " %f == %f")
+            msg = (
+                "Value for parameter %s equal to parameter %f is not allowed:"
+                " %f == %f"
+            )
             msg = msg % (name, val, value, val)
             raise ValueError(self.__class__.__name__ + ": " + msg)
 
@@ -594,8 +620,10 @@ class ParametersMixin:
             ValueError
         """
         if val_x == val_y:
-            msg = ("Value for parameter %s equal to parameter %s is not "
-                 "allowed: %f == %f")
+            msg = (
+                "Value for parameter %s equal to parameter %s is not "
+                "allowed: %f == %f"
+            )
             msg = msg % (name_x, name_y, val_x, val_y)
             raise ValueError(self.__class__.__name__ + ": " + msg)
 
@@ -614,7 +642,7 @@ class ParametersMixin:
             msg = msg % (name, str(list_), str(value))
             raise ValueError(self.__class__.__name__ + ": " + msg)
 
-    def check_n_jobs(self, value, name='n_jobs'):
+    def check_n_jobs(self, value, name="n_jobs"):
         """
         Check n_jobs parameter
         Args:
@@ -623,8 +651,9 @@ class ParametersMixin:
         Throws:
             ValueError
         """
-        if ((value is None)
-                or (value is not None and isinstance(value, int) and value <= 0)):
+        if (value is None) or (
+            value is not None and isinstance(value, int) and value <= 0
+        ):
             msg = "Value for parameter %s is not allowed: %s"
             msg = msg % (name, str(value))
             raise ValueError(self.__class__.__name__ + ": " + msg)
@@ -641,6 +670,5 @@ class ParametersMixin:
             return dictionary
         keys = sorted(list(dictionary.keys()))
         values = [dictionary[k] for k in keys]
-        combinations = [dict(zip(keys, p))
-                        for p in list(itertools.product(*values))]
+        combinations = [dict(zip(keys, p)) for p in list(itertools.product(*values))]
         return combinations

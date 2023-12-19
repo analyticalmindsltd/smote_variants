@@ -8,9 +8,11 @@ from sklearn.metrics import pairwise_distances
 
 from ..base import OverSampling
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['CCR']
+__all__ = ["CCR"]
+
 
 class CCR(OverSampling):
     """
@@ -36,14 +38,16 @@ class CCR(OverSampling):
 
     categories = [OverSampling.cat_extensive]
 
-    def __init__(self,
-                 proportion=1.0,
-                 *,
-                 energy=1.0,
-                 scaling=0.0,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        *,
+        energy=1.0,
+        scaling=0.0,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -62,14 +66,14 @@ class CCR(OverSampling):
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(energy, "energy", 0)
         self.check_greater_or_equal(scaling, "scaling", 0)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.energy = energy
         self.scaling = scaling
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -77,13 +81,28 @@ class CCR(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'energy': [0.001, 0.0025, 0.005,
-                                             0.01, 0.025, 0.05, 0.1,
-                                             0.25, 0.5, 1.0, 2.5, 5.0,
-                                             10.0, 25.0, 50.0, 100.0],
-                                  'scaling': [0.0]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "energy": [
+                0.001,
+                0.0025,
+                0.005,
+                0.01,
+                0.025,
+                0.05,
+                0.1,
+                0.25,
+                0.5,
+                1.0,
+                2.5,
+                5.0,
+                10.0,
+                25.0,
+                50.0,
+                100.0,
+            ],
+            "scaling": [0.0],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def taxicab_sample(self, n_dim, radius):
@@ -121,8 +140,7 @@ class CCR(OverSampling):
         Returns:
             np.array: the generated samples
         """
-        return np.vstack([self.taxicab_sample(n_dim, radius) \
-                                        for _ in range(n_samples)])
+        return np.vstack([self.taxicab_sample(n_dim, radius) for _ in range(n_samples)])
 
     def random_majority_offset(self, n_dim):
         """
@@ -153,13 +171,16 @@ class CCR(OverSampling):
             float, np.array: the updated dist and majority_point
         """
         if dist < 1e-20:
-            majority_point = majority_point + \
-                            self.random_majority_offset(majority_point.shape[0])
+            majority_point = majority_point + self.random_majority_offset(
+                majority_point.shape[0]
+            )
             dist = np.sum(np.abs(minority_point - majority_point))
             return dist, majority_point
         return dist, majority_point
 
-    def determine_radii_current_majority(self, majority, distances, idx, sorted_distances):
+    def determine_radii_current_majority(
+        self, majority, distances, idx, sorted_distances
+    ):
         """
         Determines the radius for the minority sample idx and also returns the
         majority (current_majority) the algorithm arrives to.
@@ -194,7 +215,6 @@ class CCR(OverSampling):
 
             last_distance = distances[idx, sorted_distances[current_majority - 1]]
 
-
         # if current_majority == len(majority) - 1 then adjust
         multiplier_flag = int(current_majority == (len(majority) - 1))
         radius += (remaining_energy / max(1, current_majority)) * multiplier_flag
@@ -212,17 +232,16 @@ class CCR(OverSampling):
         Returns:
             np.array, np.array: the radii and the translations
         """
-        distances = pairwise_distances(minority, majority, metric='l1')
+        distances = pairwise_distances(minority, majority, metric="l1")
 
         radii = np.zeros(len(minority))
         translations = np.zeros(majority.shape)
 
         for idx, minority_point in enumerate(minority):
             sorted_distances = np.argsort(distances[idx])
-            radius, current_majority = self.determine_radii_current_majority(majority,
-                                                                            distances,
-                                                                            idx,
-                                                                            sorted_distances)
+            radius, current_majority = self.determine_radii_current_majority(
+                majority, distances, idx, sorted_distances
+            )
 
             radii[idx] = radius
 
@@ -230,9 +249,9 @@ class CCR(OverSampling):
                 majority_point = majority[sorted_distances[jdx]]
                 dist = distances[idx, sorted_distances[jdx]]
 
-                dist, majority_point = self.update_majority_point(dist,
-                                                                majority_point,
-                                                                minority_point)
+                dist, majority_point = self.update_majority_point(
+                    dist, majority_point, minority_point
+                )
 
                 translation = (radius - dist) / dist * (majority_point - minority_point)
                 translations[sorted_distances[jdx]] += translation
@@ -258,40 +277,45 @@ class CCR(OverSampling):
         minority = X[y == self.min_label]
         majority = X[y == self.maj_label]
 
-        radii, translations = self.determine_radii_translations(minority,
-                                                                majority)
+        radii, translations = self.determine_radii_translations(minority, majority)
 
         majority = majority.astype(float)
         majority += translations
 
         # this is changed to the ratio of sums for more robustness
         radii_inv_sum = len(radii) / np.sum(radii)
-        #radii_inv_sum = 1.0 / np.sum(1.0 / radii)
+        # radii_inv_sum = 1.0 / np.sum(1.0 / radii)
 
         appended = [np.zeros(shape=(0, majority.shape[1]))]
         for idx, minority_point in enumerate(minority):
             # this determination of synthetic samples is hacked
             # to give reasonable results
-            synthetic_samples = n_to_sample / len(minority) * (1.0 / radii[idx]) / radii_inv_sum
+            synthetic_samples = (
+                n_to_sample / len(minority) * (1.0 / radii[idx]) / radii_inv_sum
+            )
             synthetic_samples = int(np.round(synthetic_samples))
             if synthetic_samples > 0:
-                tc_samples = self.taxicab_samples(minority_point.shape[0],
-                                                    radii[idx],
-                                                    synthetic_samples)
+                tc_samples = self.taxicab_samples(
+                    minority_point.shape[0], radii[idx], synthetic_samples
+                )
                 appended.append(minority_point + tc_samples)
 
         appended = np.vstack(appended)
 
-        return (np.vstack([X, appended]),
-                np.hstack([y, np.repeat(self.min_label, len(appended))]))
+        return (
+            np.vstack([X, appended]),
+            np.hstack([y, np.repeat(self.min_label, len(appended))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'energy': self.energy,
-                'scaling': self.scaling,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "energy": self.energy,
+            "scaling": self.scaling,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

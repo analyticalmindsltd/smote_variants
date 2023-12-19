@@ -10,9 +10,11 @@ from ..noise_removal import EditedNearestNeighbors
 from ._smote import SMOTE
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['SMOTE_ENN']
+__all__ = ["SMOTE_ENN"]
+
 
 class SMOTE_ENN(OverSampling):
     """
@@ -44,20 +46,24 @@ class SMOTE_ENN(OverSampling):
         * Can remove too many of minority samples.
     """
 
-    categories = [OverSampling.cat_sample_ordinary,
-                  OverSampling.cat_noise_removal,
-                  OverSampling.cat_changes_majority,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_sample_ordinary,
+        OverSampling.cat_noise_removal,
+        OverSampling.cat_changes_majority,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the SMOTE object
 
@@ -79,15 +85,18 @@ class SMOTE_ENN(OverSampling):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
 
         super().__init__(random_state=random_state)
 
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
@@ -95,7 +104,7 @@ class SMOTE_ENN(OverSampling):
         self.ss_params = coalesce_dict(ss_params, ss_params_default)
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -116,27 +125,27 @@ class SMOTE_ENN(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= \
-                self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
-        smote = SMOTE(proportion=self.proportion,
-                      n_neighbors=self.n_neighbors,
-                      nn_params=nn_params,
-                      ss_params=self.ss_params,
-                      n_jobs=self.n_jobs,
-                      random_state=self._random_state_init)
+        smote = SMOTE(
+            proportion=self.proportion,
+            n_neighbors=self.n_neighbors,
+            nn_params=nn_params,
+            ss_params=self.ss_params,
+            n_jobs=self.n_jobs,
+            random_state=self._random_state_init,
+        )
         X_new, y_new = smote.sample(X, y)
 
-        enn = EditedNearestNeighbors(n_jobs=self.n_jobs,
-                                     nn_params=nn_params)
+        enn = EditedNearestNeighbors(n_jobs=self.n_jobs, nn_params=nn_params)
 
-        X_res, y_res = enn.remove_noise(X_new, y_new) # pylint: disable=invalid-name
+        X_res, y_res = enn.remove_noise(X_new, y_new)  # pylint: disable=invalid-name
 
-        if (np.sum(y_res == self.maj_label) < np.sum(y_res == self.min_label))\
-            or np.unique(y_res).shape[0] < 2:
-            return self.return_copies(X, y,
-                                "ENN removed too many samples")
+        if (
+            np.sum(y_res == self.maj_label) < np.sum(y_res == self.min_label)
+        ) or np.unique(y_res).shape[0] < 2:
+            return self.return_copies(X, y, "ENN removed too many samples")
         return X_res, y_res
 
     def get_params(self, deep=False):
@@ -144,9 +153,11 @@ class SMOTE_ENN(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'ss_params': self.ss_params,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "ss_params": self.ss_params,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

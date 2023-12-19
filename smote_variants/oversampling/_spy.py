@@ -7,9 +7,11 @@ import numpy as np
 from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSampling
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['SPY']
+__all__ = ["SPY"]
+
 
 class SPY(OverSampling):
     """
@@ -50,17 +52,18 @@ class SPY(OverSampling):
                             month={Oct}}
     """
 
-    categories = [OverSampling.cat_changes_majority,
-                  OverSampling.cat_metric_learning]
+    categories = [OverSampling.cat_changes_majority, OverSampling.cat_metric_learning]
 
-    def __init__(self,
-                 n_neighbors=5,
-                 *,
-                 nn_params={},
-                 threshold=0.5,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        threshold=0.5,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -81,14 +84,14 @@ class SPY(OverSampling):
         super().__init__(random_state=random_state)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_in_range(threshold, "threshold", [0, 1])
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.n_neighbors = n_neighbors
-        self.nn_params = nn_params
+        self.nn_params = nn_params or {}
         self.threshold = threshold
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -96,8 +99,10 @@ class SPY(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'n_neighbors': [3, 5, 7],
-                                  'threshold': [0.3, 0.5, 0.7]}
+        parameter_combinations = {
+            "n_neighbors": [3, 5, 7],
+            "threshold": [0.3, 0.5, 0.7],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def sampling_algorithm(self, X, y):
@@ -117,12 +122,11 @@ class SPY(OverSampling):
         n_neighbors = min([len(X), self.n_neighbors + 1])
 
         nn_params = {**self.nn_params}
-        nn_params['metric_tensor'] = \
-                        self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
-        nnmt = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X)
         ind = nnmt.kneighbors(X_min, return_distance=False)
 
@@ -143,7 +147,7 @@ class SPY(OverSampling):
         y_new[mask] = self.min_label
 
         # checking the neighbors of each minority sample
-        #for i in range(len(X_min)):
+        # for i in range(len(X_min)):
         #    majority_mask = y[ind[i][1:]] == self.maj_label
         #    x = np.sum(majority_mask)
         #    # if the number of majority samples in the neighborhood is
@@ -159,7 +163,9 @@ class SPY(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'threshold': self.threshold,
-                **OverSampling.get_params(self)}
+        return {
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "threshold": self.threshold,
+            **OverSampling.get_params(self),
+        }

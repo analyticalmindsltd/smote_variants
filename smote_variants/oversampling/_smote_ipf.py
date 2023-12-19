@@ -12,9 +12,11 @@ from ._smote import SMOTE
 from ..base import instantiate_obj
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['SMOTE_IPF']
+__all__ = ["SMOTE_IPF"]
+
 
 class SMOTE_IPF(OverSampling):
     """
@@ -42,26 +44,28 @@ class SMOTE_IPF(OverSampling):
                         }
     """
 
-    categories = [OverSampling.cat_changes_majority,
-                  OverSampling.cat_uses_classifier,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_changes_majority,
+        OverSampling.cat_uses_classifier,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 n_folds=9,
-                 k=3,
-                 p=0.01,
-                 voting='majority',
-                 classifier=('sklearn.tree',
-                                'DecisionTreeClassifier',
-                                {'random_state': 2}),
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        n_folds=9,
+        k=3,
+        p=0.01,
+        voting="majority",
+        classifier=("sklearn.tree", "DecisionTreeClassifier", {"random_state": 2}),
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -86,9 +90,12 @@ class SMOTE_IPF(OverSampling):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
 
         super().__init__(random_state=random_state)
         self.check_greater_or_equal(proportion, "proportion", 0)
@@ -96,22 +103,24 @@ class SMOTE_IPF(OverSampling):
         self.check_greater_or_equal(n_folds, "n_folds", 2)
         self.check_greater_or_equal(k, "k", 1)
         self.check_greater_or_equal(p, "p", 0)
-        self.check_isin(voting, "voting", ['majority', 'consensus'])
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_isin(voting, "voting", ["majority", "consensus"])
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
         self.nn_params = coalesce(nn_params, {})
         self.ss_params = coalesce_dict(ss_params, ss_params_default)
-        self.params = {'n_folds': n_folds,
-                        'k': k,
-                        'p': p,
-                        'voting': voting,
-                        'classifier': classifier}
+        self.params = {
+            "n_folds": n_folds,
+            "k": k,
+            "p": p,
+            "voting": voting,
+            "classifier": classifier,
+        }
         self.classifier_obj = instantiate_obj(classifier)
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -119,15 +128,16 @@ class SMOTE_IPF(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        classifiers = [('sklearn.tree', 'DecisionTreeClassifier', {'random_state': 2})]
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7],
-                                  'n_folds': [9],
-                                  'k': [3],
-                                  'p': [0.01],
-                                  'voting': ['majority', 'consensus'],
-                                  'classifier': classifiers}
+        classifiers = [("sklearn.tree", "DecisionTreeClassifier", {"random_state": 2})]
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7, 11, 17],
+            "n_folds": [9],
+            "k": [3],
+            "p": [0.01],
+            "voting": ["majority", "consensus"],
+            "classifier": classifiers,
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def sampling_algorithm(self, X, y):
@@ -147,17 +157,19 @@ class SMOTE_IPF(OverSampling):
             return self.return_copies(X, y, "Sampling is not needed")
 
         # do SMOTE sampling
-        X_samp, y_samp = SMOTE(proportion=self.proportion,
-                               n_neighbors=self.n_neighbors,
-                               nn_params=self.nn_params,
-                               ss_params=self.ss_params,
-                               n_jobs=self.n_jobs,
-                               random_state=self._random_state_init).sample(X, y)
+        X_samp, y_samp = SMOTE(
+            proportion=self.proportion,
+            n_neighbors=self.n_neighbors,
+            nn_params=self.nn_params,
+            ss_params=self.ss_params,
+            n_jobs=self.n_jobs,
+            random_state=self._random_state_init,
+        ).sample(X, y)
 
-        n_folds = min([self.params['n_folds'], np.sum(y == self.min_label)])
+        n_folds = min([self.params["n_folds"], np.sum(y == self.min_label)])
 
         condition = 0
-        while condition < self.params['k']:
+        while condition < self.params["k"]:
             # validating the sampled dataset
             validator = StratifiedKFold(n_folds)
             predictions = []
@@ -166,24 +178,29 @@ class SMOTE_IPF(OverSampling):
                 predictions.append(self.classifier_obj.predict(X_samp))
 
             # do decision based on one of the voting schemes
-            if self.params['voting'] == 'majority':
+            if self.params["voting"] == "majority":
                 pred_votes = (np.mean(predictions, axis=0) > 0.5).astype(int)
                 to_remove = np.where(np.not_equal(pred_votes, y_samp))[0]
-            elif self.params['voting'] == 'consensus':
+            elif self.params["voting"] == "consensus":
                 pred_votes = (np.mean(predictions, axis=0) > 0.5).astype(int)
                 sum_votes = np.sum(predictions, axis=0)
-                to_remove = np.where(np.logical_and(np.not_equal(
-                    pred_votes, y_samp), np.equal(sum_votes, self.params['n_folds'])))[0]
+                to_remove = np.where(
+                    np.logical_and(
+                        np.not_equal(pred_votes, y_samp),
+                        np.equal(sum_votes, self.params["n_folds"]),
+                    )
+                )[0]
 
             # delete samples incorrectly classified
-            _logger.info("%s: Removing %d elements",
-                    self.__class__.__name__ , len(to_remove))
+            _logger.info(
+                "%s: Removing %d elements", self.__class__.__name__, len(to_remove)
+            )
             X_samp = np.delete(X_samp, to_remove, axis=0)
             y_samp = np.delete(y_samp, to_remove)
 
             # if the number of samples removed becomes small or k iterations
             # were done quit
-            check = int(len(to_remove) < len(X_samp) * self.params['p'])
+            check = int(len(to_remove) < len(X_samp) * self.params["p"])
             condition = (condition + 1) * check
 
         return X_samp, y_samp
@@ -193,14 +210,16 @@ class SMOTE_IPF(OverSampling):
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'ss_params': self.ss_params,
-                'n_folds': self.params['n_folds'],
-                'k': self.params['k'],
-                'p': self.params['p'],
-                'voting': self.params['voting'],
-                'n_jobs': self.n_jobs,
-                'classifier': self.params['classifier'],
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "ss_params": self.ss_params,
+            "n_folds": self.params["n_folds"],
+            "k": self.params["k"],
+            "p": self.params["p"],
+            "voting": self.params["voting"],
+            "n_jobs": self.n_jobs,
+            "classifier": self.params["classifier"],
+            **OverSampling.get_params(self),
+        }

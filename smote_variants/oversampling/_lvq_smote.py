@@ -12,9 +12,11 @@ from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSampling
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['LVQ_SMOTE']
+__all__ = ["LVQ_SMOTE"]
+
 
 class LVQ_SMOTE(OverSampling):
     """
@@ -45,18 +47,19 @@ class LVQ_SMOTE(OverSampling):
             elements to the neighborood of another pair of codebook elements.
     """
 
-    categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_application]
+    categories = [OverSampling.cat_extensive, OverSampling.cat_application]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params={},
-                 n_clusters=10,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        n_clusters=10,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -81,15 +84,15 @@ class LVQ_SMOTE(OverSampling):
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
         self.check_greater_or_equal(n_clusters, "n_clusters", 3)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
-        self.nn_params = nn_params
+        self.nn_params = nn_params or {}
         self.n_clusters = n_clusters
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -97,10 +100,11 @@ class LVQ_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7],
-                                  'n_clusters': [4, 8, 12]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7],
+            "n_clusters": [4, 8, 12],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def generate_samples(self, n_to_sample, codebook, X_min, indices):
@@ -121,16 +125,15 @@ class LVQ_SMOTE(OverSampling):
         samples = []
         while len(samples) < n_to_sample:
             # randomly selecting a pair of codebook elements
-            codes = self.random_state.choice(list(range(len(codebook))),
-                                                    2,
-                                                    replace=False)
+            codes = self.random_state.choice(
+                list(range(len(codebook))), 2, replace=False
+            )
             diff = codebook[codes[0]] - codebook[codes[1]]
             optimum = (np.inf, None)
             # finding another pair of codebook elements with similar offset
             for idx, cb_i in enumerate(codebook):
                 for jdx, cb_j in enumerate(codebook):
-                    if (codes[0] not in [idx, jdx]
-                                    and codes[1] not in [idx, jdx]):
+                    if codes[0] not in [idx, jdx] and codes[1] not in [idx, jdx]:
                         ddiff = np.linalg.norm(diff - (cb_i - cb_j))
                         if ddiff < optimum[0]:
                             optimum = (ddiff, self.random_state.choice([idx, jdx]))
@@ -141,8 +144,7 @@ class LVQ_SMOTE(OverSampling):
 
             sample = X_min[indices[optimum[1]][idx]]
 
-            samples.append(codebook[codes[0]] + \
-                                        (sample - codebook[optimum[1]]))
+            samples.append(codebook[codes[0]] + (sample - codebook[optimum[1]]))
 
         return np.vstack(samples)
 
@@ -167,8 +169,7 @@ class LVQ_SMOTE(OverSampling):
 
         # clustering X_min to extract codebook
         n_clusters = min([len(X_min), self.n_clusters])
-        kmeans = KMeans(n_clusters=n_clusters,
-                        random_state=self._random_state_init)
+        kmeans = KMeans(n_clusters=n_clusters, n_init='auto', random_state=self._random_state_init)
         with warnings.catch_warnings():
             if suppress_external_warnings():
                 warnings.simplefilter("ignore")
@@ -178,31 +179,32 @@ class LVQ_SMOTE(OverSampling):
         # get nearest neighbors of minority samples to codebook samples
         n_neighbors = min([len(X_min), self.n_neighbors])
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
-        nnmt= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X_min)
         indices = nnmt.kneighbors(codebook, return_distance=False)
 
-        samples = self.generate_samples(n_to_sample,
-                                        codebook,
-                                        X_min,
-                                        indices)
+        samples = self.generate_samples(n_to_sample, codebook, X_min, indices)
 
-        return (np.vstack([X, samples]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, samples]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'n_clusters': self.n_clusters,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "n_clusters": self.n_clusters,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

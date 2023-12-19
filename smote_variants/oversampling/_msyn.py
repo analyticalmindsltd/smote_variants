@@ -3,16 +3,21 @@ This module implements the MSYN method.
 """
 import numpy as np
 
-from ..base import (NearestNeighborsWithMetricTensor,
-                            pairwise_distances_mahalanobis, coalesce,
-                            coalesce_dict)
+from ..base import (
+    NearestNeighborsWithMetricTensor,
+    pairwise_distances_mahalanobis,
+    coalesce,
+    coalesce_dict,
+)
 from ..base import OverSampling
 from ._smote import SMOTE
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['MSYN']
+__all__ = ["MSYN"]
+
 
 class MSYN(OverSampling):
     """
@@ -55,19 +60,20 @@ class MSYN(OverSampling):
                             }
     """
 
-    categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_metric_learning]
+    categories = [OverSampling.cat_extensive, OverSampling.cat_metric_learning]
 
-    def __init__(self,
-                 pressure=1.5,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 n_jobs=1,
-                 random_state=None,
-                 proportion=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        pressure=1.5,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        n_jobs=1,
+        random_state=None,
+        proportion=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -87,14 +93,17 @@ class MSYN(OverSampling):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
 
         super().__init__(random_state=random_state)
-        self.check_greater_or_equal(pressure, 'pressure', 0)
-        self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_greater_or_equal(pressure, "pressure", 0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.pressure = coalesce(proportion, pressure)
         self.proportion = self.pressure
@@ -103,7 +112,7 @@ class MSYN(OverSampling):
         self.ss_params = coalesce_dict(ss_params, ss_params_default)
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -111,18 +120,23 @@ class MSYN(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [2.5, 2.0, 1.5, 1.0],
-                                  'n_neighbors': [3, 5, 7]}
+        parameter_combinations = {
+            "proportion": [2.5, 2.0, 1.5, 1.0],
+            "n_neighbors": [3, 5, 7],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
-    def determine_Delta_P_N(self, *, # pylint: disable=invalid-name
-                            nearest_hit_dist,
-                            nearest_miss_dist,
-                            min_indices,
-                            maj_indices,
-                            distances,
-                            theta_min,
-                            theta_maj):
+    def determine_Delta_P_N(
+        self,
+        *,  # pylint: disable=invalid-name
+        nearest_hit_dist,
+        nearest_miss_dist,
+        min_indices,
+        maj_indices,
+        distances,
+        theta_min,
+        theta_maj
+    ):
         """
         Determine the Delta_P and Delta_N quantities.
 
@@ -140,19 +154,27 @@ class MSYN(OverSampling):
         """
 
         mask = (nearest_hit_dist[min_indices] < distances[min_indices].T).T
-        nearest_hit_dist_min = np.where(np.logical_not(mask).T, distances[min_indices].T,
-                                        nearest_hit_dist[min_indices]).T
+        nearest_hit_dist_min = np.where(
+            np.logical_not(mask).T,
+            distances[min_indices].T,
+            nearest_hit_dist[min_indices],
+        ).T
         nearest_miss_dist_min = nearest_miss_dist[min_indices]
         nearest_hit_dist_maj = nearest_hit_dist[maj_indices]
         mask = (nearest_miss_dist[maj_indices] < distances[maj_indices].T).T
-        nearest_miss_dist_maj = np.where(np.logical_not(mask).T, distances[maj_indices].T,
-                                            nearest_miss_dist[maj_indices]).T
+        nearest_miss_dist_maj = np.where(
+            np.logical_not(mask).T,
+            distances[maj_indices].T,
+            nearest_miss_dist[maj_indices],
+        ).T
 
-        theta_x_min = 0.5*(nearest_miss_dist_min - nearest_hit_dist_min.T)
-        theta_x_maj = 0.5*(nearest_miss_dist_maj.T - nearest_hit_dist_maj)
+        theta_x_min = 0.5 * (nearest_miss_dist_min - nearest_hit_dist_min.T)
+        theta_x_maj = 0.5 * (nearest_miss_dist_maj.T - nearest_hit_dist_maj)
 
-        return (np.sum(theta_x_min - theta_min, axis=1),
-                np.sum(theta_x_maj - theta_maj, axis=1))
+        return (
+            np.sum(theta_x_min - theta_min, axis=1),
+            np.sum(theta_x_maj - theta_maj, axis=1),
+        )
 
     def determine_nearest_hit_miss_dist(self, X, y, nn_params):
         """
@@ -167,20 +189,21 @@ class MSYN(OverSampling):
             np.array, np.array: the nearest hit/miss distances
         """
         # Compute nearest hit and miss for both classes
-        nnmt= NearestNeighborsWithMetricTensor(n_neighbors=len(X),
-                                                n_jobs=self.n_jobs,
-                                                **nn_params)
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=len(X), n_jobs=self.n_jobs, **nn_params
+        )
         nnmt.fit(X)
         dist, ind = nnmt.kneighbors(X)
 
         # computing nearest hit and miss distances, these will be used to
         # compute thetas
         hit_mask = y[ind[:, 1:]] == y[ind[:, 0]][:, None]
-        nearest_hit_dist = dist[:, 1:][np.arange(y.shape[0]),
-                                        np.argmax(hit_mask, axis=1)]
-        nearest_miss_dist = dist[:, 1:][np.arange(y.shape[0]),
-                                        np.argmax(np.logical_not(hit_mask),
-                                                    axis=1)]
+        nearest_hit_dist = dist[:, 1:][
+            np.arange(y.shape[0]), np.argmax(hit_mask, axis=1)
+        ]
+        nearest_miss_dist = dist[:, 1:][
+            np.arange(y.shape[0]), np.argmax(np.logical_not(hit_mask), axis=1)
+        ]
 
         return nearest_hit_dist, nearest_miss_dist
 
@@ -200,31 +223,32 @@ class MSYN(OverSampling):
         min_indices = np.where(y == self.min_label)[0]
         maj_indices = np.where(y == self.maj_label)[0]
 
-        nearest_hit_dist, nearest_miss_dist = \
-            self.determine_nearest_hit_miss_dist(X, y, nn_params)
+        nearest_hit_dist, nearest_miss_dist = self.determine_nearest_hit_miss_dist(
+            X, y, nn_params
+        )
 
         # computing the thetas without new samples being involved
-        theta_A_sub_alpha = 0.5*(nearest_miss_dist - nearest_hit_dist) # pylint: disable=invalid-name
+        theta_A_sub_alpha = 0.5 * (  # pylint: disable=invalid-name
+            nearest_miss_dist - nearest_hit_dist
+        )
         theta_min = theta_A_sub_alpha[min_indices]
         theta_maj = theta_A_sub_alpha[maj_indices]
 
-        #print('before dist', os.getpid(), flush=True)
+        distances = pairwise_distances_mahalanobis(
+            X, Y=X_new, tensor=nn_params["metric_tensor"]
+        )
 
-        distances = pairwise_distances_mahalanobis(X,
-                                                    Y=X_new,
-                                                    tensor=nn_params['metric_tensor'])
+        Delta_P, Delta_N = self.determine_Delta_P_N(  # pylint: disable=invalid-name
+            nearest_hit_dist=nearest_hit_dist,
+            nearest_miss_dist=nearest_miss_dist,
+            min_indices=min_indices,
+            maj_indices=maj_indices,
+            distances=distances,
+            theta_min=theta_min,
+            theta_maj=theta_maj,
+        )
 
-        #print('after dist', os.getpid(), flush=True)
-
-        Delta_P, Delta_N = self.determine_Delta_P_N(nearest_hit_dist=nearest_hit_dist,  # pylint: disable=invalid-name
-                                                    nearest_miss_dist=nearest_miss_dist,
-                                                    min_indices=min_indices,
-                                                    maj_indices=maj_indices,
-                                                    distances=distances,
-                                                    theta_min=theta_min,
-                                                    theta_maj=theta_maj)
-
-        return -Delta_N/(Delta_P + 0.01)
+        return -Delta_N / (Delta_P + 0.01)
 
     def sampling_algorithm(self, X, y):
         """
@@ -236,52 +260,56 @@ class MSYN(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        #print('starting', os.getpid(), flush=True)
+        # print('starting', os.getpid(), flush=True)
         n_to_sample = self.det_n_to_sample(self.pressure)
 
         if n_to_sample == 0:
             return self.return_copies(X, y, "Sampling is not needed.")
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
         # generating samples
-        smote = SMOTE(proportion=self.pressure*3,
-                      n_neighbors=self.n_neighbors,
-                      nn_params=nn_params,
-                      ss_params=self.ss_params,
-                      n_jobs=self.n_jobs,
-                      random_state=self._random_state_init)
+        smote = SMOTE(
+            proportion=self.pressure * 3,
+            n_neighbors=self.n_neighbors,
+            nn_params=nn_params,
+            ss_params=self.ss_params,
+            n_jobs=self.n_jobs,
+            random_state=self._random_state_init,
+        )
 
-        X_res, _ = smote.sample(X, y) # pylint: disable=invalid-name
-        X_new = X_res[len(X):]
+        X_res, _ = smote.sample(X, y)  # pylint: disable=invalid-name
+        X_new = X_res[len(X) :]
 
-        #print('after smote', os.getpid(), flush=True)
+        # print('after smote', os.getpid(), flush=True)
 
-        f_3 = self.determine_f_3(X=X, y=y,
-                                X_new=X_new,
-                                nn_params=nn_params)
+        f_3 = self.determine_f_3(X=X, y=y, X_new=X_new, nn_params=nn_params)
 
-        #print('after f3', os.getpid(), flush=True)
+        # print('after f3', os.getpid(), flush=True)
 
         # determining the elements with the minimum f_3 scores to add
         _, new_ind = zip(*sorted(zip(f_3, np.arange(len(f_3))), key=lambda x: x[0]))
         new_ind = list(new_ind[:n_to_sample])
 
-        #print('finishing', os.getpid(), flush=True)
+        # print('finishing', os.getpid(), flush=True)
 
-        return (np.vstack([X, X_new[new_ind]]),
-                np.hstack([y, np.repeat(self.min_label, len(new_ind))]))
+        return (
+            np.vstack([X, X_new[new_ind]]),
+            np.hstack([y, np.repeat(self.min_label, len(new_ind))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'pressure': self.pressure,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'ss_params': self.ss_params,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self),
-                'proportion': self.proportion}
+        return {
+            "pressure": self.pressure,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "ss_params": self.ss_params,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+            "proportion": self.proportion,
+        }

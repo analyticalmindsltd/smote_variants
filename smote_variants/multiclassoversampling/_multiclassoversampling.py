@@ -11,12 +11,10 @@ from .._logger import logger
 _logger = logger
 
 # exported names
-__all__ = ['MulticlassOversampling']
+__all__ = ["MulticlassOversampling"]
 
-def proportion_1_vs_many(stats,
-                        labels,
-                        maj_label,
-                        class_idx):
+
+def proportion_1_vs_many(stats, labels, maj_label, class_idx):
     """
     Determines the proportion to sample for the 1_vs_many strategy.
 
@@ -32,12 +30,10 @@ def proportion_1_vs_many(stats,
     to_gen = stats[maj_label] - stats[labels[class_idx]]
     to_gen_to_all = stats[maj_label] - stats[labels[class_idx]]
 
-    return to_gen/to_gen_to_all
+    return to_gen / to_gen_to_all
 
-def proportion_1_vs_many_succ(stats,
-                                labels,
-                                maj_label,
-                                class_idx):
+
+def proportion_1_vs_many_succ(stats, labels, maj_label, class_idx):
     """
     Determines the proportion to sample for the 1_vs_many_successive strategy.
 
@@ -56,7 +52,8 @@ def proportion_1_vs_many_succ(stats,
 
     num_to_gen_to_all = class_idx * n_majority - n_class_i
 
-    return num_to_generate/num_to_gen_to_all
+    return num_to_generate / num_to_gen_to_all
+
 
 def has_proportion_parameter(oversampler):
     """
@@ -68,8 +65,10 @@ def has_proportion_parameter(oversampler):
     Returns:
         bool: True if the object has 'proportion' parameter
     """
-    return 'proportion' in \
-            list(inspect.signature(oversampler.__class__).parameters.keys())
+    return "proportion" in list(
+        inspect.signature(oversampler.__class__).parameters.keys()
+    )
+
 
 class MulticlassOversampling(StatisticsMixin):
     """
@@ -87,10 +86,12 @@ class MulticlassOversampling(StatisticsMixin):
         X_samp, y_samp= oversampler.sample(dataset['data'], dataset['target'])
     """
 
-    def __init__(self,
-                 oversampler='SMOTE',
-                 oversampler_params=None,
-                 strategy="eq_1_vs_many_successive"):
+    def __init__(
+        self,
+        oversampler="SMOTE",
+        oversampler_params=None,
+        strategy="eq_1_vs_many_successive",
+    ):
         """
         Constructor of the multiclass oversampling object
 
@@ -106,15 +107,20 @@ class MulticlassOversampling(StatisticsMixin):
         self.oversampler_params = oversampler_params
         self.strategy = strategy
 
-        if not has_proportion_parameter(instantiate_obj(('smote_variants',
-                                                    self.oversampler,
-                                                    self.oversampler_params))):
-            raise ValueError((f"Multiclass oversampling strategy {self.strategy}"
-                       " cannot be used with oversampling techniques without"
-                       " proportion parameter"))
+        if not has_proportion_parameter(
+            instantiate_obj(
+                ("smote_variants", self.oversampler, self.oversampler_params)
+            )
+        ):
+            raise ValueError(
+                (
+                    f"Multiclass oversampling strategy {self.strategy}"
+                    " cannot be used with oversampling techniques without"
+                    " proportion parameter"
+                )
+            )
 
-        if self.strategy not in ['eq_1_vs_many_successive',
-                                        'equalize_1_vs_many']:
+        if self.strategy not in ["eq_1_vs_many_successive", "equalize_1_vs_many"]:
             message = "Multiclass oversampling startegy %s not implemented."
             message = message % self.strategy
             raise ValueError(message)
@@ -133,8 +139,11 @@ class MulticlassOversampling(StatisticsMixin):
             (np.ndarray, np.array): the extended training set and target labels
         """
 
-        _logger.info("%s: %s", self.__class__.__name__,
-                f"Running multiclass oversampling with strategy {self.strategy}")
+        _logger.info(
+            "%s: %s",
+            self.__class__.__name__,
+            f"Running multiclass oversampling with strategy {self.strategy}",
+        )
 
         # extract class label statistics
         self.class_label_statistics(y)
@@ -150,34 +159,39 @@ class MulticlassOversampling(StatisticsMixin):
         # running oversampling for all minority classes against all oversampled
         # classes
         for class_idx in range(1, len(labels)):
-            _logger.info("%s: %s", self.__class__.__name__,
-                    f"Sampling minority class with label: {labels[class_idx]}")
+            _logger.info(
+                "%s: %s",
+                self.__class__.__name__,
+                f"Sampling minority class with label: {labels[class_idx]}",
+            )
 
             # prepare data to pass to oversampling
-            X_train = np.vstack([X[y != labels[class_idx]],
-                                    X[y == labels[class_idx]]])
-            y_train = np.hstack([np.repeat(0, np.sum(y != labels[class_idx])),
-                                 np.repeat(1, np.sum(y == labels[class_idx]))])
+            X_train = np.vstack([X[y != labels[class_idx]], X[y == labels[class_idx]]])
+            y_train = np.hstack(
+                [
+                    np.repeat(0, np.sum(y != labels[class_idx])),
+                    np.repeat(1, np.sum(y == labels[class_idx])),
+                ]
+            )
 
             # prepare parameters by properly setting the proportion value
             params = self.oversampler_params.copy()
-            params['proportion'] = proportion_1_vs_many(self.class_stats,
-                                                        labels,
-                                                        labels[0],
-                                                        class_idx)
+            params["proportion"] = proportion_1_vs_many(
+                self.class_stats, labels, labels[0], class_idx
+            )
 
             # instantiating new oversampling object with the proper proportion
             # parameter
-            oversampler = instantiate_obj(('smote_variants',
-                                            self.oversampler,
-                                            params))
+            oversampler = instantiate_obj(("smote_variants", self.oversampler, params))
 
             # executing the sampling
             X_samp, y_samp = oversampler.sample(X_train, y_train)
 
             # registering the newly oversampled minority class in the output
             # set
-            results[labels[class_idx]] = X_samp[len(X_train):][y_samp[len(X_train):] == 1]
+            results[labels[class_idx]] = X_samp[len(X_train) :][
+                y_samp[len(X_train) :] == 1
+            ]
 
         # constructing the output set
         X_final = results[labels[1]]
@@ -185,8 +199,9 @@ class MulticlassOversampling(StatisticsMixin):
 
         for class_idx in range(2, len(labels)):
             X_final = np.vstack([X_final, results[labels[class_idx]]])
-            y_final = np.hstack([y_final, np.repeat(labels[class_idx],
-                                            len(results[labels[class_idx]]))])
+            y_final = np.hstack(
+                [y_final, np.repeat(labels[class_idx], len(results[labels[class_idx]]))]
+            )
 
         return np.vstack([X, X_final]), np.hstack([y, y_final])
 
@@ -204,8 +219,11 @@ class MulticlassOversampling(StatisticsMixin):
             (np.ndarray, np.array): the extended training set and target labels
         """
 
-        _logger.info("%s: %s", self.__class__.__name__,
-            f"Running multiclass oversampling with strategy {self.strategy}")
+        _logger.info(
+            "%s: %s",
+            self.__class__.__name__,
+            f"Running multiclass oversampling with strategy {self.strategy}",
+        )
 
         # extract class label statistics
         self.class_label_statistics(y)
@@ -223,33 +241,36 @@ class MulticlassOversampling(StatisticsMixin):
         # running oversampling for all minority classes against all
         # oversampled classes
         for class_idx in range(1, len(labels)):
-            _logger.info("%s: %s", self.__class__.__name__,
-                f"Sampling minority class with label: {labels[class_idx]}")
+            _logger.info(
+                "%s: %s",
+                self.__class__.__name__,
+                f"Sampling minority class with label: {labels[class_idx]}",
+            )
 
             # prepare data to pass to oversampling
             X_train = np.vstack([X_maj, X[y == labels[class_idx]]])
-            y_train = np.hstack([np.repeat(0, len(X_maj)),
-                                 np.repeat(1, np.sum(y == labels[class_idx]))])
+            y_train = np.hstack(
+                [np.repeat(0, len(X_maj)), np.repeat(1, np.sum(y == labels[class_idx]))]
+            )
 
             # prepare parameters by properly setting the proportion value
             params = self.oversampler_params.copy()
-            params['proportion'] = proportion_1_vs_many_succ(self.class_stats,
-                                                                labels,
-                                                                labels[0],
-                                                                class_idx)
+            params["proportion"] = proportion_1_vs_many_succ(
+                self.class_stats, labels, labels[0], class_idx
+            )
 
             # executing the sampling
-            X_samp, y_samp = instantiate_obj(('smote_variants',
-                                                self.oversampler,
-                                                params)).sample(X_train, y_train)
+            X_samp, y_samp = instantiate_obj(
+                ("smote_variants", self.oversampler, params)
+            ).sample(X_train, y_train)
 
             # adding the newly oversampled minority class to the majority data
             X_maj = np.vstack([X_maj, X_samp[y_samp == 1]])
 
             # registaring the newly oversampled minority class in the output
             # set
-            result_mask = y_samp[len(X_train):] == 1
-            results[labels[class_idx]] = X_samp[len(X_train):][result_mask]
+            result_mask = y_samp[len(X_train) :] == 1
+            results[labels[class_idx]] = X_samp[len(X_train) :][result_mask]
 
         # constructing the output set
         X_final = results[labels[1]]
@@ -257,8 +278,9 @@ class MulticlassOversampling(StatisticsMixin):
 
         for class_idx in range(2, len(labels)):
             X_final = np.vstack([X_final, results[labels[class_idx]]])
-            y_final = np.hstack([y_final, np.repeat(labels[class_idx],
-                                            len(results[labels[class_idx]]))])
+            y_final = np.hstack(
+                [y_final, np.repeat(labels[class_idx], len(results[labels[class_idx]]))]
+            )
 
         return np.vstack([X, X_final]), np.hstack([y, y_final])
 
@@ -285,6 +307,8 @@ class MulticlassOversampling(StatisticsMixin):
             dict: the parameters of the multiclass oversampling object
         """
         _ = deep
-        return {'oversampler': self.oversampler,
-                'oversampler_params': self.oversampler_params,
-                'strategy': self.strategy}
+        return {
+            "oversampler": self.oversampler,
+            "oversampler_params": self.oversampler_params,
+            "strategy": self.strategy,
+        }

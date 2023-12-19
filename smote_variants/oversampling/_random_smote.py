@@ -7,9 +7,11 @@ import numpy as np
 from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSampling
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['Random_SMOTE']
+__all__ = ["Random_SMOTE"]
+
 
 class Random_SMOTE(OverSampling):
     """
@@ -33,18 +35,22 @@ class Random_SMOTE(OverSampling):
                             }
     """
 
-    categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_sample_componentwise,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_extensive,
+        OverSampling.cat_sample_componentwise,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params={},
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -68,14 +74,14 @@ class Random_SMOTE(OverSampling):
         super().__init__(random_state=random_state)
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
-        self.nn_params = nn_params
+        self.nn_params = nn_params or {}
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -83,9 +89,10 @@ class Random_SMOTE(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def sampling_algorithm(self, X, y):
@@ -99,9 +106,11 @@ class Random_SMOTE(OverSampling):
         Returns:
             (np.ndarray, np.array): the extended training set and target labels
         """
-        n_to_sample = self.det_n_to_sample(self.proportion,
-                                           self.class_stats[self.maj_label],
-                                           self.class_stats[self.min_label])
+        n_to_sample = self.det_n_to_sample(
+            self.proportion,
+            self.class_stats[self.maj_label],
+            self.class_stats[self.min_label],
+        )
 
         if n_to_sample == 0:
             return self.return_copies(X, y, "Sampling is not needed")
@@ -112,40 +121,45 @@ class Random_SMOTE(OverSampling):
         # points
         n_neighbors = min([len(X_min), self.n_neighbors + 1])
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= \
-            self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
-        nnmt = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **(nn_params))
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **(nn_params)
+        )
         nnmt.fit(X_min)
         ind = nnmt.kneighbors(X_min, return_distance=False)
 
-        base_indices = self.random_state.choice(np.arange(X_min.shape[0]),
-                                                n_to_sample)
-        y12_ind = self.random_state.choice(np.arange(1, n_neighbors),
-                                            size=(n_to_sample, 2))
+        base_indices = self.random_state.choice(np.arange(X_min.shape[0]), n_to_sample)
+        y12_ind = self.random_state.choice(
+            np.arange(1, n_neighbors), size=(n_to_sample, 2)
+        )
 
         y1_ind = X_min[ind[base_indices, y12_ind[:, 0]]]
         y2_ind = X_min[ind[base_indices, y12_ind[:, 1]]]
 
-        tmp = y1_ind + (y2_ind - y1_ind) \
-                        * self.random_state.random_sample(size=y1_ind.shape)
+        tmp = y1_ind + (y2_ind - y1_ind) * self.random_state.random_sample(
+            size=y1_ind.shape
+        )
 
-        samples = X_min[base_indices] + (tmp - X_min[base_indices]) \
-                        * self.random_state.random_sample(size=tmp.shape)
+        samples = X_min[base_indices] + (
+            tmp - X_min[base_indices]
+        ) * self.random_state.random_sample(size=tmp.shape)
 
-        return (np.vstack([X, np.vstack(samples)]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, np.vstack(samples)]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

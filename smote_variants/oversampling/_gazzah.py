@@ -10,9 +10,11 @@ from ..base import OverSampling
 from ._polynom_fit_smote import polynom_fit_SMOTE_star
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['Gazzah']
+__all__ = ["Gazzah"]
+
 
 class Gazzah(OverSampling):
     """
@@ -57,17 +59,15 @@ class Gazzah(OverSampling):
                             month={March}}
     """
 
-    categories = [OverSampling.cat_extensive,
-                  OverSampling.cat_dim_reduction,
-                  OverSampling.cat_changes_majority]
+    categories = [
+        OverSampling.cat_extensive,
+        OverSampling.cat_dim_reduction,
+        OverSampling.cat_changes_majority,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 *,
-                 n_components=2,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self, proportion=1.0, *, n_components=2, n_jobs=1, random_state=None, **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -84,13 +84,13 @@ class Gazzah(OverSampling):
         super().__init__(random_state=random_state)
         self.check_greater_or_equal(proportion, "proportion", 0)
         self.check_greater_or_equal(n_components, "n_components", 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_components = n_components
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -98,9 +98,10 @@ class Gazzah(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_components': [2, 3, 4, 5]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_components": [2, 3, 4, 5],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def sampling_algorithm(self, X, y):
@@ -117,10 +118,11 @@ class Gazzah(OverSampling):
         self.class_label_statistics(y)
 
         # do the oversampling
-        pf_smote = polynom_fit_SMOTE_star(proportion=self.proportion,
-                                     random_state=self._random_state_init)
+        pf_smote = polynom_fit_SMOTE_star(
+            proportion=self.proportion, random_state=self._random_state_init
+        )
         X_samp, _ = pf_smote.sample(X, y)
-        X_min_samp = X_samp[len(X):] # pylint: disable=invalid-name
+        X_min_samp = X_samp[len(X) :]  # pylint: disable=invalid-name
 
         if len(X_min_samp) == 0:
             return self.return_copies(X, y, "Sampling is not needed")
@@ -130,28 +132,37 @@ class Gazzah(OverSampling):
 
         # fitting the PCA model
         pca = PCA(n_components=min([len(X[0]), self.n_components]))
-        X_maj_trans = pca.fit_transform(X_maj) # pylint: disable=invalid-name
-        R = np.sqrt(np.sum(np.var(X_maj_trans, axis=0))) # pylint: disable=invalid-name
+        X_maj_trans = pca.fit_transform(X_maj)  # pylint: disable=invalid-name
+        R = np.sqrt(np.sum(np.var(X_maj_trans, axis=0)))  # pylint: disable=invalid-name
 
         # determining the majority samples to remove
         to_remove = np.where(np.linalg.norm(X_maj_trans, axis=1) > R)[0]
 
-        _logger.info("%s: Removing %d majority samples",
-                        self.__class__.__name__, len(to_remove))
+        _logger.info(
+            "%s: Removing %d majority samples", self.__class__.__name__, len(to_remove)
+        )
 
         # removing the majority samples
         X_maj = np.delete(X_maj, to_remove, axis=0)
 
-        return (np.vstack([X_maj, X_min_samp]),
-                np.hstack([np.repeat(self.maj_label, len(X_maj)),
-                           np.repeat(self.min_label, len(X_min_samp))]))
+        return (
+            np.vstack([X_maj, X_min_samp]),
+            np.hstack(
+                [
+                    np.repeat(self.maj_label, len(X_maj)),
+                    np.repeat(self.min_label, len(X_min_samp)),
+                ]
+            ),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_components': self.n_components,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_components": self.n_components,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

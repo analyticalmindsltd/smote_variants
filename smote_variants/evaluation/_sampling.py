@@ -7,24 +7,34 @@ import os
 import hashlib
 import warnings
 
-from ..base import instantiate_obj, load_dict, dump_dict, check_if_damaged, coalesce_dict
+from ..base import (
+    instantiate_obj,
+    load_dict,
+    dump_dict,
+    check_if_damaged,
+    coalesce_dict,
+)
 from ._parallelization import TimeoutJobBase
 
-__all__= ['SamplingJob']
+__all__ = ["SamplingJob"]
+
 
 class SamplingJob(TimeoutJobBase):
     """
     An oversampling job to be executed in parallel
     """
-    def __init__(self,
-                 folding,
-                 oversampler,
-                 oversampler_params,
-                 *,
-                 scaler=('sklearn.preprocessing', 'StandardScaler', {}),
-                 cache_path=None,
-                 serialization="json",
-                 reset=False):
+
+    def __init__(
+        self,
+        folding,
+        oversampler,
+        oversampler_params,
+        *,
+        scaler=("sklearn.preprocessing", "StandardScaler", {}),
+        cache_path=None,
+        serialization="json",
+        reset=False,
+    ):
         """
         Constructor of the object
 
@@ -57,13 +67,15 @@ class SamplingJob(TimeoutJobBase):
         Returns:
             dict: the dictionary of parameters
         """
-        _ = deep # pylint workaround
-        return {'folding': self.folding,
-                'oversampler': self.oversampler,
-                'oversampler_params': self.oversampler_params.copy(),
-                'cache_path': self.cache_path,
-                'serialization': self.serialization,
-                'reset': self.reset}
+        _ = deep  # pylint workaround
+        return {
+            "folding": self.folding,
+            "oversampler": self.oversampler,
+            "oversampler_params": self.oversampler_params.copy(),
+            "cache_path": self.cache_path,
+            "serialization": self.serialization,
+            "reset": self.reset,
+        }
 
     def target_filename_damaged(self, folding):
         """
@@ -77,14 +89,16 @@ class SamplingJob(TimeoutJobBase):
         """
         target_filename = None
 
-        label = str((self.oversampler, self.oversampler_params)).encode('utf-8')
+        label = str((self.oversampler, self.oversampler_params)).encode("utf-8")
         hashcode = str(hashlib.md5(label).hexdigest())
 
         damaged = False
         if self.cache_path is not None:
-            filename = f"oversampling_{folding['fold_descriptor']['repeat_idx']:04}"\
-                        f"_{folding['fold_descriptor']['fold_idx']:04}"\
-                        f"_{hashcode}.{self.serialization}"
+            filename = (
+                f"oversampling_{folding['fold_descriptor']['repeat_idx']:04}"
+                f"_{folding['fold_descriptor']['fold_idx']:04}"
+                f"_{hashcode}.{self.serialization}"
+            )
             target_filename = os.path.join(self.cache_path, filename)
 
             damaged = check_if_damaged(target_filename, self.serialization)
@@ -92,6 +106,12 @@ class SamplingJob(TimeoutJobBase):
         return target_filename, damaged
 
     def execute(self):
+        """
+        Execute the task
+
+        Returns:
+            obj: the result of the execution
+        """
         return self.do_oversampling()
 
     def do_oversampling(self):
@@ -99,130 +119,152 @@ class SamplingJob(TimeoutJobBase):
         do the oversampling
 
         Returns:
-            dict/str: an oversampling dictionary or a filename
+            dict|str: an oversampling dictionary or a filename
         """
         folding = self.folding
 
         if isinstance(folding, str):
-            folding = load_dict(folding, folding.split('.')[-1],
-                                ['X_train', 'y_train', 'X_test', 'y_test'])
-
-        #deterministic = 'ss_params' in self.oversampler_params
-        #if deterministic:
-        #    deterministic = self.oversampler_params['ss_params']['within_simplex_sampling']
-
-        #print('starting', os.getpid(), self.oversampler,
-        #       folding['fold_descriptor']['fold_idx'], deterministic, flush=True)
+            folding = load_dict(
+                folding,
+                folding.split(".")[-1],
+                ["X_train", "y_train", "X_test", "y_test"],
+            )
 
         target_filename, damaged = self.target_filename_damaged(folding)
 
         if self.cache_path is not None and not damaged and not self.reset:
             return target_filename
 
-        oversampler_obj = instantiate_obj(('smote_variants',
-                                            self.oversampler,
-                                            self.oversampler_params))
+        oversampler_obj = instantiate_obj(
+            ("smote_variants", self.oversampler, self.oversampler_params)
+        )
 
-        X_train = folding['X_train']
-        X_test = folding['X_test']
-        y_train = folding['y_train']
+        X_train = folding["X_train"]
+        X_test = folding["X_test"]
+        y_train = folding["y_train"]
 
         if self.scaler is not None:
             scaler = instantiate_obj(self.scaler)
             X_train = scaler.fit_transform(X_train, y_train)
             X_test = scaler.transform(X_test)
 
-        oversampling = {'fold_descriptor': folding['fold_descriptor'],
-                        'y_test': folding['y_test'],
-                        'oversampler': coalesce_dict(oversampler_obj.get_params(), self.oversampler_params)}
+        oversampling = {
+            "fold_descriptor": folding["fold_descriptor"],
+            "y_test": folding["y_test"],
+            "oversampler": coalesce_dict(
+                oversampler_obj.get_params(), self.oversampler_params
+            ),
+        }
 
         begin_timestamp = time.time()
         with warnings.catch_warnings(record=True) as warning:
             try:
-                X_samp, y_samp = oversampler_obj.sample(X_train,
-                                                        y_train)
-                X_test = oversampler_obj.preprocessing_transform(folding['X_test'])
-                oversampling = {**oversampling,
-                                'X_train': X_samp,
-                                'y_train': y_samp,
-                                'X_test': X_test,
-                                'runtime': time.time() - begin_timestamp,
-                                'error': None,
-                                'warning': None}
-            except ValueError as value_error:
-                oversampling = {**oversampling,
-                                'X_train': X_train,
-                                'y_train': y_train,
-                                'X_test': X_test,
-                                'runtime': time.time() - begin_timestamp,
-                                'error': str(value_error)}
-            except RuntimeError as runtime_error:
-                oversampling = {**oversampling,
-                                'X_train': X_train,
-                                'y_train': y_train,
-                                'X_test': X_test,
-                                'runtime': time.time() - begin_timestamp,
-                                'error': str(runtime_error)}
+                X_samp, y_samp = oversampler_obj.sample(X_train, y_train)
+                X_test = oversampler_obj.preprocessing_transform(folding["X_test"])
+                oversampling = {
+                    **oversampling,
+                    "X_train": X_samp,
+                    "y_train": y_samp,
+                    "X_test": X_test,
+                    "runtime": time.time() - begin_timestamp,
+                    "error": None,
+                    "warning": None,
+                }
+            except ValueError as error:
+                oversampling = {
+                    **oversampling,
+                    "X_train": X_train,
+                    "y_train": y_train,
+                    "X_test": X_test,
+                    "runtime": time.time() - begin_timestamp,
+                    "error": str(error),
+                }
+            except RuntimeError as error:
+                oversampling = {
+                    **oversampling,
+                    "X_train": X_train,
+                    "y_train": y_train,
+                    "X_test": X_test,
+                    "runtime": time.time() - begin_timestamp,
+                    "error": str(error),
+                }
 
-            oversampling = {**oversampling,
-                            'warning': str([(str(warn.category), warn.message)
-                                                            for warn in warning])}
+            oversampling = {
+                **oversampling,
+                "warning": str(
+                    [(str(warn.category), warn.message) for warn in warning]
+                ),
+            }
 
         if self.cache_path is not None:
-            dump_dict(oversampling, target_filename, self.serialization,
-                        ['X_train', 'y_train', 'X_test', 'y_test'])
-
-            # I think this can never happen now
-            #if check_if_damaged(target_filename, self.serialization):
-            #    return None
-
-            #print('finishing', os.getpid(), self.oversampler,
-            #       folding['fold_descriptor']['fold_idx'], flush=True)
+            dump_dict(
+                oversampling,
+                target_filename,
+                self.serialization,
+                ["X_train", "y_train", "X_test", "y_test"],
+            )
 
             return target_filename
 
         return oversampling
 
     def timeout(self):
+        """
+        The default timeout behavior
+
+        Returns:
+            str|dict: a filename or the oversampling dict
+        """
         folding = self.folding
 
         if isinstance(folding, str):
-            folding = load_dict(folding, folding.split('.')[-1],
-                                ['X_train', 'y_train', 'X_test', 'y_test'])
+            folding = load_dict(
+                folding,
+                folding.split(".")[-1],
+                ["X_train", "y_train", "X_test", "y_test"],
+            )
 
         target_filename, damaged = self.target_filename_damaged(folding)
 
         if self.cache_path is not None and not damaged and not self.reset:
             return target_filename
 
-        oversampler_obj = instantiate_obj(('smote_variants',
-                                            self.oversampler,
-                                            self.oversampler_params))
+        oversampler_obj = instantiate_obj(
+            ("smote_variants", self.oversampler, self.oversampler_params)
+        )
 
-        X_train = folding['X_train']
-        X_test = folding['X_test']
-        y_train = folding['y_train']
+        X_train = folding["X_train"]
+        X_test = folding["X_test"]
+        y_train = folding["y_train"]
 
         if self.scaler is not None:
             scaler = instantiate_obj(self.scaler)
             X_train = scaler.fit_transform(X_train, y_train)
             X_test = scaler.transform(X_test)
 
-        oversampling = {'fold_descriptor': folding['fold_descriptor'],
-                        'y_test': folding['y_test'],
-                        'oversampler': oversampler_obj.get_params()}
+        oversampling = {
+            "fold_descriptor": folding["fold_descriptor"],
+            "y_test": folding["y_test"],
+            "oversampler": oversampler_obj.get_params(),
+        }
 
-        oversampling = {**oversampling,
-                    'X_train': X_train,
-                    'y_train': y_train,
-                    'X_test': X_test,
-                    'runtime': -1,
-                    'error': 'TimeOutError',
-                    'warning': None}
+        oversampling = {
+            **oversampling,
+            "X_train": X_train,
+            "y_train": y_train,
+            "X_test": X_test,
+            "runtime": -1,
+            "error": "TimeOutError",
+            "warning": None,
+        }
 
         if self.cache_path is not None:
-            dump_dict(oversampling, target_filename, self.serialization,
-                        ['X_train', 'y_train', 'X_test', 'y_test'])
+            dump_dict(
+                oversampling,
+                target_filename,
+                self.serialization,
+                ["X_train", "y_train", "X_test", "y_test"],
+            )
             return target_filename
 
         return oversampling

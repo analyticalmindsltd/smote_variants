@@ -7,9 +7,11 @@ from ._tomeklinkremoval import TomekLinkRemoval
 from ._condensednn import CondensedNearestNeighbors
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['CNNTomekLinks']
+__all__ = ["CNNTomekLinks"]
+
 
 class CNNTomekLinks(NoiseFilter):
     """
@@ -47,13 +49,12 @@ class CNNTomekLinks(NoiseFilter):
         """
         super().__init__()
 
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.n_jobs = n_jobs
 
     def get_params(self, deep=False):
-        return {'n_jobs': self.n_jobs,
-                **NoiseFilter.get_params(self, deep)}
+        return {"n_jobs": self.n_jobs, **NoiseFilter.get_params(self, deep)}
 
     def remove_noise(self, X, y):
         """
@@ -70,7 +71,7 @@ class CNNTomekLinks(NoiseFilter):
         self.class_label_statistics(y)
 
         cnn = CondensedNearestNeighbors(n_jobs=self.n_jobs)
-        X_cnn, y_cnn = cnn.remove_noise(X, y) # pylint: disable=invalid-name
+        X_cnn, y_cnn = cnn.remove_noise(X, y)  # pylint: disable=invalid-name
         tomek = TomekLinkRemoval(n_jobs=self.n_jobs)
 
         return tomek.remove_noise(X_cnn, y_cnn)

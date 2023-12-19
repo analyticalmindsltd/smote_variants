@@ -12,20 +12,23 @@ import numpy as np
 from ..base import instantiate_obj, load_dict, dump_dict, check_if_damaged
 from ..base import calculate_all_scores
 
-__all__ = ['EvaluationJob']
+__all__ = ["EvaluationJob"]
 
-class EvaluationJob():
+
+class EvaluationJob:
     """
     An evaluation job to be executed in parallel
     """
 
-    def __init__(self,
-                oversampling,
-                classifiers,
-                *,
-                cache_path=None,
-                serialization="json",
-                reset=False):
+    def __init__(
+        self,
+        oversampling,
+        classifiers,
+        *,
+        cache_path=None,
+        serialization="json",
+        reset=False,
+    ):
         """
         Constructor of the object
 
@@ -55,12 +58,14 @@ class EvaluationJob():
         Returns:
             dict: the dictionary of parameters
         """
-        _ = deep # pylint workaround
-        return {'oversampling': self.oversampling,
-                'classifiers': self.classifiers,
-                'cache_path': self.cache_path,
-                'serialization': self.serialization,
-                'reset': self.reset}
+        _ = deep  # pylint workaround
+        return {
+            "oversampling": self.oversampling,
+            "classifiers": self.classifiers,
+            "cache_path": self.cache_path,
+            "serialization": self.serialization,
+            "reset": self.reset,
+        }
 
     def target_filename_damaged(self, classifier, oversampling):
         """
@@ -75,17 +80,19 @@ class EvaluationJob():
         """
         target_filename = None
 
-        label0 = str(classifier).encode('utf-8')
-        label1 = str((oversampling['oversampler'])).encode('utf-8')
+        label0 = str(classifier).encode("utf-8")
+        label1 = str((oversampling["oversampler"])).encode("utf-8")
 
         hashcode = str(hashlib.md5(label0 + label1).hexdigest())
 
         damaged = False
         if self.cache_path is not None:
-            repeat_idx = oversampling['fold_descriptor']['repeat_idx']
-            filename = f"evaluation_{repeat_idx:04}"\
-                        f"_{oversampling['fold_descriptor']['fold_idx']:04}"\
-                        f"_{hashcode}.{self.serialization}"
+            repeat_idx = oversampling["fold_descriptor"]["repeat_idx"]
+            filename = (
+                f"evaluation_{repeat_idx:04}"
+                f"_{oversampling['fold_descriptor']['fold_idx']:04}"
+                f"_{hashcode}.{self.serialization}"
+            )
             target_filename = os.path.join(self.cache_path, filename)
 
             damaged = check_if_damaged(target_filename, self.serialization)
@@ -104,12 +111,16 @@ class EvaluationJob():
         all_results = []
 
         if isinstance(oversampling, str):
-            oversampling = load_dict(oversampling, oversampling.split('.')[-1],
-                                ['X_train', 'X_test', 'y_train', 'y_test'])
+            oversampling = load_dict(
+                oversampling,
+                oversampling.split(".")[-1],
+                ["X_train", "X_test", "y_train", "y_test"],
+            )
 
         for classifier in self.classifiers:
-            target_filename, damaged = self.target_filename_damaged(classifier,
-                                                                    oversampling)
+            target_filename, damaged = self.target_filename_damaged(
+                classifier, oversampling
+            )
 
             if self.cache_path is not None and not damaged and not self.reset:
                 all_results.append(target_filename)
@@ -124,42 +135,47 @@ class EvaluationJob():
 
             with warnings.catch_warnings(record=True) as warning:
                 try:
-                    y_pred = classifier_obj.fit(oversampling['X_train'],
-                                                oversampling['y_train'])\
-                                            .predict_proba(oversampling['X_test'])
+                    y_pred = classifier_obj.fit(
+                        oversampling["X_train"], oversampling["y_train"]
+                    ).predict_proba(oversampling["X_test"])
                 except ValueError as value_error:
                     error = str(value_error)
-                    y_pred = np.zeros(shape=(oversampling['y_test'].shape[0], 2))
+                    y_pred = np.zeros(shape=(oversampling["y_test"].shape[0], 2))
                 except RuntimeError as runtime_error:
                     error = str(runtime_error)
-                    y_pred = np.zeros(shape=(oversampling['y_test'].shape[0], 2))
+                    y_pred = np.zeros(shape=(oversampling["y_test"].shape[0], 2))
 
                 warning_list = [(str(warn.category), warn.message) for warn in warning]
 
-            evaluation = {'fold_descriptor': oversampling['fold_descriptor'],
-                    'oversampler': oversampling['oversampler']['class_name'],
-                    'oversampler_params': oversampling['oversampler'],
-                    'oversampler_module': 'smote_variants',
-                    'oversampling_error': oversampling['error'],
-                    'oversampling_warning': oversampling['warning'],
-                    'oversampling_runtime': oversampling['runtime'],
-                    'oversampling_filname': self.oversampling \
-                                            if isinstance(self.oversampling, str) \
-                                            else None,
-                    'runtime': time.time() - begin_timestamp,
-                    'y_pred': y_pred[:, 1],
-                    'y_test': oversampling['y_test'],
-                    'scores': calculate_all_scores(oversampling['y_test'],
-                                                y_pred[:, 1]),
-                    'classifier': classifier[1],
-                    'classifier_params': classifier[2],
-                    'classifier_module': classifier[0],
-                    'error': error,
-                    'warning': str(warning_list)}
+            evaluation = {
+                "fold_descriptor": oversampling["fold_descriptor"],
+                "oversampler": oversampling["oversampler"]["class_name"],
+                "oversampler_params": oversampling["oversampler"],
+                "oversampler_module": "smote_variants",
+                "oversampling_error": oversampling["error"],
+                "oversampling_warning": oversampling["warning"],
+                "oversampling_runtime": oversampling["runtime"],
+                "oversampling_filname": self.oversampling
+                if isinstance(self.oversampling, str)
+                else None,
+                "runtime": time.time() - begin_timestamp,
+                "y_pred": y_pred[:, 1],
+                "y_test": oversampling["y_test"],
+                "scores": calculate_all_scores(oversampling["y_test"], y_pred[:, 1]),
+                "classifier": classifier[1],
+                "classifier_params": classifier[2],
+                "classifier_module": classifier[0],
+                "error": error,
+                "warning": str(warning_list),
+            }
 
             if self.cache_path is not None:
-                dump_dict(evaluation, target_filename, self.serialization,
-                        ['y_pred', 'y_test'])
+                dump_dict(
+                    evaluation,
+                    target_filename,
+                    self.serialization,
+                    ["y_pred", "y_test"],
+                )
                 all_results.append(target_filename)
                 continue
 

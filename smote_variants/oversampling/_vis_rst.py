@@ -10,9 +10,11 @@ from ..base import coalesce, coalesce_dict
 from ..base import NearestNeighborsWithMetricTensor
 from ..base import OverSamplingSimplex
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['VIS_RST']
+__all__ = ["VIS_RST"]
+
 
 class VIS_RST(OverSamplingSimplex):
     """
@@ -42,19 +44,23 @@ class VIS_RST(OverSamplingSimplex):
         * The rules in the paper do not cover all cases
     """
 
-    categories = [OverSamplingSimplex.cat_changes_majority,
-                  OverSamplingSimplex.cat_noise_removal,
-                  OverSamplingSimplex.cat_metric_learning]
+    categories = [
+        OverSamplingSimplex.cat_changes_majority,
+        OverSamplingSimplex.cat_noise_removal,
+        OverSamplingSimplex.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 ss_params=None,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        ss_params=None,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -74,22 +80,25 @@ class VIS_RST(OverSamplingSimplex):
             random_state (int/RandomState/None): initializer of random_state,
                                                     like in sklearn
         """
-        ss_params_default = {'n_dim': 2, 'simplex_sampling': 'random',
-                            'within_simplex_sampling': 'random',
-                            'gaussian_component': None}
+        ss_params_default = {
+            "n_dim": 2,
+            "simplex_sampling": "random",
+            "within_simplex_sampling": "random",
+            "gaussian_component": None,
+        }
         ss_params = coalesce_dict(ss_params, ss_params_default)
 
         super().__init__(**ss_params, random_state=random_state)
         self.check_greater_or_equal(proportion, "proportion", 0.0)
         self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
         self.nn_params = coalesce(nn_params, {})
         self.n_jobs = n_jobs
 
-    @ classmethod
+    @classmethod
     def parameter_combinations(cls, raw=False):
         """
         Generates reasonable parameter combinations.
@@ -97,9 +106,10 @@ class VIS_RST(OverSamplingSimplex):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def relabel_boundary(self, X, y, nn_params):
@@ -120,9 +130,9 @@ class VIS_RST(OverSamplingSimplex):
 
         X_maj = X[y == self.maj_label]
 
-        nnmt = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **nn_params)
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **nn_params
+        )
         nnmt.fit(X)
         ind = nnmt.kneighbors(X_maj, return_distance=False)
 
@@ -155,20 +165,19 @@ class VIS_RST(OverSamplingSimplex):
         n_neighbors = min([len(X), self.n_neighbors + 1])
 
         # labeling minority samples
-        nnmt = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **nn_params)
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **nn_params
+        )
         nnmt.fit(X)
         indices = nnmt.kneighbors(X_min, return_distance=False)
 
         # extracting labels
-        labels = np.array(['DAN'] * X_min.shape[0])
+        labels = np.array(["DAN"] * X_min.shape[0])
 
-        min_class_neighbors = \
-                    np.sum(y[indices[:, 1:]] == self.maj_label, axis=1)
+        min_class_neighbors = np.sum(y[indices[:, 1:]] == self.maj_label, axis=1)
 
-        labels[min_class_neighbors == (n_neighbors - 1)] = 'NOI'
-        labels[min_class_neighbors < (n_neighbors - 1) / 2] = 'SAF'
+        labels[min_class_neighbors == (n_neighbors - 1)] = "NOI"
+        labels[min_class_neighbors < (n_neighbors - 1) / 2] = "SAF"
 
         return labels
 
@@ -184,15 +193,15 @@ class VIS_RST(OverSamplingSimplex):
             str: the mode
         """
         # extracting the number of different labels (noise is not used)
-        safe = np.sum(labels == 'SAF')
-        danger = np.sum(labels == 'DAN')
+        safe = np.sum(labels == "SAF")
+        danger = np.sum(labels == "DAN")
 
         if safe == 0:
-            mode = 'no_safe'
-        elif danger > 0.3*len(X_min):
-            mode = 'high_complexity'
+            mode = "no_safe"
+        elif danger > 0.3 * len(X_min):
+            mode = "high_complexity"
         else:
-            mode = 'low_complexity'
+            mode = "low_complexity"
 
         _logger.info("%s: selected mode: %s", self.__class__.__name__, mode)
 
@@ -212,17 +221,16 @@ class VIS_RST(OverSamplingSimplex):
             np.array: the generated samples
         """
         # do the sampling
-        not_noise_mask = labels != 'NOI'
-        X_min_not_noise = X_min[not_noise_mask] # pylint: disable=invalid-name
-        danger_mask = labels[not_noise_mask] == 'DAN'
+        not_noise_mask = labels != "NOI"
+        X_min_not_noise = X_min[not_noise_mask]  # pylint: disable=invalid-name
+        danger_mask = labels[not_noise_mask] == "DAN"
         ind_not_noise = ind_min[not_noise_mask]
 
         samples = np.zeros((0, X_min.shape[1]))
 
         while samples.shape[0] < n_to_sample:
             n_missing = np.max([n_to_sample - samples.shape[0], 10])
-            base_indices = self.random_state.choice(X_min_not_noise.shape[0],
-                                                    n_missing)
+            base_indices = self.random_state.choice(X_min_not_noise.shape[0], n_missing)
             base_danger = base_indices[danger_mask[base_indices]]
             samples = np.vstack([samples, X_min_not_noise[base_danger]])
 
@@ -232,10 +240,12 @@ class VIS_RST(OverSamplingSimplex):
 
             base_not_danger = ~danger_mask
 
-            samples_tmp = self.sample_simplex(X=X_min_not_noise[base_not_danger],
-                                          indices=ind_not_noise[base_not_danger, 1:],
-                                          n_to_sample=n_missing,
-                                          X_vertices=X_min)
+            samples_tmp = self.sample_simplex(
+                X=X_min_not_noise[base_not_danger],
+                indices=ind_not_noise[base_not_danger, 1:],
+                n_to_sample=n_missing,
+                X_vertices=X_min,
+            )
 
             samples = np.vstack([samples, samples_tmp])
 
@@ -258,17 +268,16 @@ class VIS_RST(OverSamplingSimplex):
         """
 
         # do the sampling
-        not_noise_mask = labels != 'NOI'
-        X_min_not_noise = X_min[not_noise_mask] # pylint: disable=invalid-name
-        danger_mask = labels[not_noise_mask] == 'DAN'
+        not_noise_mask = labels != "NOI"
+        X_min_not_noise = X_min[not_noise_mask]  # pylint: disable=invalid-name
+        danger_mask = labels[not_noise_mask] == "DAN"
         ind_not_noise = ind_min[not_noise_mask]
 
         samples = np.zeros((0, X_min.shape[1]))
 
         while samples.shape[0] < n_to_sample:
             n_missing = np.max([n_to_sample - samples.shape[0], 10])
-            base_indices = self.random_state.choice(X_min_not_noise.shape[0],
-                                                    n_missing)
+            base_indices = self.random_state.choice(X_min_not_noise.shape[0], n_missing)
             base_not_danger = base_indices[~danger_mask[base_indices]]
             samples = np.vstack([samples, X_min_not_noise[base_not_danger]])
 
@@ -278,10 +287,12 @@ class VIS_RST(OverSamplingSimplex):
 
             base_danger = danger_mask
 
-            samples_tmp = self.sample_simplex(X=X_min_not_noise[base_danger],
-                                          indices=ind_not_noise[base_danger, 1:],
-                                          n_to_sample=n_missing,
-                                          X_vertices=X_min)
+            samples_tmp = self.sample_simplex(
+                X=X_min_not_noise[base_danger],
+                indices=ind_not_noise[base_danger, 1:],
+                n_to_sample=n_missing,
+                X_vertices=X_min,
+            )
 
             samples = np.vstack([samples, samples_tmp])
 
@@ -302,9 +313,7 @@ class VIS_RST(OverSamplingSimplex):
             np.array: the generated samples
         """
 
-        samples = self.sample_simplex(X=X_min,
-                                        indices=ind_min,
-                                        n_to_sample=n_to_sample)
+        samples = self.sample_simplex(X=X_min, indices=ind_min, n_to_sample=n_to_sample)
 
         return samples
 
@@ -325,29 +334,21 @@ class VIS_RST(OverSamplingSimplex):
         # fitting nearest neighbors to find the neighbors of minority elements
         # among minority elements
         n_neighbors_min = min([len(X_min), self.n_neighbors + 1])
-        nn_min = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors_min,
-                                                    n_jobs=self.n_jobs,
-                                                    **nn_params)
+        nn_min = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors_min, n_jobs=self.n_jobs, **nn_params
+        )
         nn_min.fit(X_min)
         ind_min = nn_min.kneighbors(X_min, return_distance=False)
 
         # implementation of sampling rules depending on the mode
         # the rules are not covering all cases
 
-        if mode == 'high_complexity':
-            samples = self.sampling_high_complexity(X_min,
-                                                    labels,
-                                                    ind_min,
-                                                    n_to_sample)
-        elif mode == 'low_complexity':
-            samples = self.sampling_low_complexity(X_min,
-                                                    labels,
-                                                    ind_min,
-                                                    n_to_sample)
+        if mode == "high_complexity":
+            samples = self.sampling_high_complexity(X_min, labels, ind_min, n_to_sample)
+        elif mode == "low_complexity":
+            samples = self.sampling_low_complexity(X_min, labels, ind_min, n_to_sample)
         else:
-            samples = self.sampling_otherwise(X_min,
-                                                ind_min,
-                                                n_to_sample)
+            samples = self.sampling_otherwise(X_min, ind_min, n_to_sample)
 
         return samples
 
@@ -368,14 +369,13 @@ class VIS_RST(OverSamplingSimplex):
 
         # final noise removal by removing those minority samples generated
         # and not belonging to the lower approximation
-        nnmt = NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                n_jobs=self.n_jobs,
-                                                **nn_params)
+        nnmt = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **nn_params
+        )
         nnmt.fit(X)
         ind_check = nnmt.kneighbors(samples, return_distance=False)
 
-        num_maj_mask = \
-            np.sum(y[ind_check[:, 1:]] == self.maj_label, axis=1) == 0
+        num_maj_mask = np.sum(y[ind_check[:, 1:]] == self.maj_label, axis=1) == 0
 
         return samples[num_maj_mask]
 
@@ -396,7 +396,7 @@ class VIS_RST(OverSamplingSimplex):
         Args:
             labels (np.array): the minority labels
         """
-        if len(np.unique(labels)) == 1 and labels[0] == 'NOI':
+        if len(np.unique(labels)) == 1 and labels[0] == "NOI":
             raise ValueError("all minority samples identified as noise")
 
     def check_all_noise(self, y):
@@ -429,11 +429,13 @@ class VIS_RST(OverSamplingSimplex):
 
         mode = self.set_mode(X_min, labels)
 
-        samples = self.generate_samples(X_min=X_min,
-                                        nn_params=nn_params,
-                                        n_to_sample=n_to_sample,
-                                        labels=labels,
-                                        mode=mode)
+        samples = self.generate_samples(
+            X_min=X_min,
+            nn_params=nn_params,
+            n_to_sample=n_to_sample,
+            labels=labels,
+            mode=mode,
+        )
 
         samples = self.noise_removal(X, y, samples, nn_params)
 
@@ -465,24 +467,27 @@ class VIS_RST(OverSamplingSimplex):
         y = y.copy()
 
         nn_params = {**self.nn_params}
-        nn_params['metric_tensor'] = \
-            self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
         try:
             samples = self.all_steps(X, y, nn_params, n_to_sample)
         except ValueError as value_error:
             return self.return_copies(X_orig, y_orig, value_error.args[0])
 
-        return (scaler.inverse_transform(np.vstack([X, samples])),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            scaler.inverse_transform(np.vstack([X, samples])),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'n_jobs': self.n_jobs,
-                **OverSamplingSimplex.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "n_jobs": self.n_jobs,
+            **OverSamplingSimplex.get_params(self),
+        }

@@ -10,9 +10,11 @@ from ..base import NearestNeighborsWithMetricTensor, coalesce
 from ..base import OverSampling
 
 from .._logger import logger
+
 _logger = logger
 
-__all__= ['ADOMS']
+__all__ = ["ADOMS"]
+
 
 class ADOMS(OverSampling):
     """
@@ -47,18 +49,22 @@ class ADOMS(OverSampling):
                             month={May}}
     """
 
-    categories = [OverSampling.cat_dim_reduction,
-                  OverSampling.cat_extensive,
-                  OverSampling.cat_metric_learning]
+    categories = [
+        OverSampling.cat_dim_reduction,
+        OverSampling.cat_extensive,
+        OverSampling.cat_metric_learning,
+    ]
 
-    def __init__(self,
-                 proportion=1.0,
-                 n_neighbors=5,
-                 *,
-                 nn_params=None,
-                 n_jobs=1,
-                 random_state=None,
-                 **_kwargs):
+    def __init__(
+        self,
+        proportion=1.0,
+        n_neighbors=5,
+        *,
+        nn_params=None,
+        n_jobs=1,
+        random_state=None,
+        **_kwargs
+    ):
         """
         Constructor of the sampling object
 
@@ -80,9 +86,9 @@ class ADOMS(OverSampling):
         """
         super().__init__(random_state=random_state, checks=None)
 
-        self.check_greater_or_equal(proportion, 'proportion', 0.0)
-        self.check_greater_or_equal(n_neighbors, 'n_neighbors', 1)
-        self.check_n_jobs(n_jobs, 'n_jobs')
+        self.check_greater_or_equal(proportion, "proportion", 0.0)
+        self.check_greater_or_equal(n_neighbors, "n_neighbors", 1)
+        self.check_n_jobs(n_jobs, "n_jobs")
 
         self.proportion = proportion
         self.n_neighbors = n_neighbors
@@ -97,9 +103,10 @@ class ADOMS(OverSampling):
         Returns:
             list(dict): a list of meaningful parameter combinations
         """
-        parameter_combinations = {'proportion': [0.1, 0.25, 0.5, 0.75,
-                                                 1.0, 1.5, 2.0],
-                                  'n_neighbors': [3, 5, 7]}
+        parameter_combinations = {
+            "proportion": [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            "n_neighbors": [3, 5, 7],
+        }
         return cls.generate_parameter_combinations(parameter_combinations, raw)
 
     def generate_sample_in_neighborhood(self, sample, neighbors):
@@ -125,11 +132,10 @@ class ADOMS(OverSampling):
         random_neighbor = neighbors[random_index]
         diff = np.linalg.norm(random_neighbor - sample)
         rand = self.random_state.random_sample()
-        inner_product = np.dot(random_neighbor - sample,
-                                principal_direction)
+        inner_product = np.dot(random_neighbor - sample, principal_direction)
         sign = 1.0 if inner_product > 0.0 else -1.0
 
-        return sample + sign*rand*diff*principal_direction
+        return sample + sign * rand * diff * principal_direction
 
     def sampling_algorithm(self, X, y):
         """
@@ -150,14 +156,14 @@ class ADOMS(OverSampling):
         X_min = X[y == self.min_label]
 
         # fitting nearest neighbors model
-        n_neighbors = np.min([len(X_min), self.n_neighbors+1])
+        n_neighbors = np.min([len(X_min), self.n_neighbors + 1])
 
-        nn_params= {**self.nn_params}
-        nn_params['metric_tensor']= self.metric_tensor_from_nn_params(nn_params, X, y)
+        nn_params = {**self.nn_params}
+        nn_params["metric_tensor"] = self.metric_tensor_from_nn_params(nn_params, X, y)
 
-        nearestn= NearestNeighborsWithMetricTensor(n_neighbors=n_neighbors,
-                                                        n_jobs=self.n_jobs,
-                                                        **(nn_params))
+        nearestn = NearestNeighborsWithMetricTensor(
+            n_neighbors=n_neighbors, n_jobs=self.n_jobs, **(nn_params)
+        )
         nearestn.fit(X_min)
         indices = nearestn.kneighbors(X_min, return_distance=False)
 
@@ -167,19 +173,22 @@ class ADOMS(OverSampling):
             neighbors = X_min[indices[index]]
             sample = X_min[index]
 
-            samples.append(self.generate_sample_in_neighborhood(sample,
-                                                                neighbors))
+            samples.append(self.generate_sample_in_neighborhood(sample, neighbors))
 
-        return (np.vstack([X, np.vstack(samples)]),
-                np.hstack([y, np.repeat(self.min_label, len(samples))]))
+        return (
+            np.vstack([X, np.vstack(samples)]),
+            np.hstack([y, np.repeat(self.min_label, len(samples))]),
+        )
 
     def get_params(self, deep=False):
         """
         Returns:
             dict: the parameters of the current sampling object
         """
-        return {'proportion': self.proportion,
-                'n_neighbors': self.n_neighbors,
-                'nn_params': self.nn_params,
-                'n_jobs': self.n_jobs,
-                **OverSampling.get_params(self)}
+        return {
+            "proportion": self.proportion,
+            "n_neighbors": self.n_neighbors,
+            "nn_params": self.nn_params,
+            "n_jobs": self.n_jobs,
+            **OverSampling.get_params(self),
+        }

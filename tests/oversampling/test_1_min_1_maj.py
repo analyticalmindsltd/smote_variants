@@ -1,6 +1,9 @@
 """
 Testing oversampling with extremely few data.
 """
+
+import logging
+
 import pytest
 import numpy as np
 
@@ -10,11 +13,12 @@ from smote_variants.datasets import load_1_min_1_maj
 from .additional_objs import additional_objs
 
 # disabling smote-variants logging
-import logging
-logger = logging.getLogger('smote_variants')
+
+logger = logging.getLogger("smote_variants")
 logger.setLevel(logging.CRITICAL)
 
 dataset = load_1_min_1_maj()
+
 
 @pytest.mark.parametrize("smote_class", sv.get_all_oversamplers())
 def test_1_min_1_maj(smote_class):
@@ -24,10 +28,11 @@ def test_1_min_1_maj(smote_class):
     Args:
         smote_class (class): an oversampler class
     """
-    X, y = smote_class().sample(dataset['data'], dataset['target'])
+    X, y = smote_class().sample(dataset["data"], dataset["target"])
 
     assert np.unique(y).shape[0] == 2
     assert X.shape[0] > 0
+
 
 @pytest.mark.parametrize("smote_obj", additional_objs)
 def test_1_min_1_maj_additional(smote_obj):
@@ -37,7 +42,7 @@ def test_1_min_1_maj_additional(smote_obj):
     Args:
         smote_obj (obj): an oversampler obj
     """
-    X, y = smote_obj.sample(dataset['data'], dataset['target'])
+    X, y = smote_obj.sample(dataset["data"], dataset["target"])
 
     assert np.unique(y).shape[0] == 2
     assert X.shape[0] > 0
