@@ -11,7 +11,6 @@ from smote_variants.undersampling import (
     RandomUndersampling,
     OversamplingDrivenUndersampling,
 )
-from smote_variants.oversampling import SMOTE
 
 undersamplings = [RandomUndersampling, OversamplingDrivenUndersampling]
 
@@ -37,3 +36,26 @@ def test_undersampling_normal(undersampling):
     _, y_samp = undersampling_obj.sample(X, y)
 
     assert np.sum(y_samp) == len(y_samp) - np.sum(y_samp)
+
+@pytest.mark.parametrize("undersampling", undersamplings)
+def test_undersampling_normal_farthest(undersampling):
+    """
+    Testing the undersampling farthest strategy
+
+    Args:
+        undersampling (cls): the undersampling class
+    """
+
+    dataset = load_normal()
+
+    X = dataset["data"]
+    y = dataset["target"]
+
+    params = undersampling.parameter_combinations()
+
+    for param in params:
+        undersampling_obj = undersampling(**param)
+
+        _, y_samp = undersampling_obj.sample(X, y)
+
+        assert np.sum(y_samp) == len(y_samp) - np.sum(y_samp)

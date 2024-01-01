@@ -59,25 +59,27 @@ class OversamplingDrivenUndersampling(UnderSampling):
         n_maj, n_min = np.bincount(y)
 
         X_samp, _ = self.oversampler.sample(X, y)
-        X_new = X_samp[X.shape[0] :]
+        X_new = X_samp[X.shape[0]:]
         X_min = X[y == 1]
         X_maj = X[y == 0]
 
         dists = X_new - X_maj[:, None]
 
-        dists = np.mean(np.sqrt(np.sum((dists) ** 2, axis=2)), axis=1)
+        dists = np.min(np.sqrt(np.sum((dists) ** 2, axis=2)), axis=1)
 
         if self.mode == "random":
-            inv_dists = 1.0 / np.where(dists < 1e-8, 1e-8, dists)
-            p = dists / np.sum(inv_dists)
+            dists = (dists - np.min(dists)) / (np.max(dists) - np.min(dists))
+            inv_dists = 1.0 - dists
+
+            p = inv_dists / np.sum(inv_dists)
 
             mask = self.random_state.choice(np.arange(n_maj), n_min, p=p, replace=False)
             X_maj = X_maj[mask]
         elif self.mode == "farthest":
             sorting = np.argsort(dists)
-            X_maj = X_maj[sorting[:n_min]]
+            X_maj = X_maj[sorting][:n_min]
 
-        X_res = np.vstack([X_maj, X_min])  # pylint: disable=invalid-name
-        y_res = np.hstack([np.repeat(0, n_min), np.repeat(1, n_min)])
+        X_res = np.vstack([X_maj, X_min]).copy()  # pylint: disable=invalid-name
+        y_res = np.hstack([np.repeat(0, X_maj.shape[0]), np.repeat(1, X_min.shape[0])])
 
         return X_res, y_res
